@@ -446,6 +446,24 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
     }, []);
 
     const moveOverflowNode = useCallback((source: HTMLElement, target: HTMLElement) => {
+        const adjustSplitToWordBoundary = (text: string, keep: number) => {
+            let adjustedKeep = keep;
+            const leftSegment = text.slice(0, adjustedKeep);
+            const rightSegment = text.slice(adjustedKeep);
+            const rightBeginsWord = /^[A-Za-z0-9]/.test(rightSegment);
+            const leftEndsWord = /[A-Za-z0-9]$/.test(leftSegment);
+            if (rightBeginsWord && leftEndsWord) {
+                const punctIdx = Math.max(
+                    leftSegment.lastIndexOf(" "),
+                    leftSegment.lastIndexOf("\t"),
+                    leftSegment.lastIndexOf("\n"),
+                    leftSegment.lastIndexOf("-")
+                );
+                if (punctIdx > 0) adjustedKeep = punctIdx + 1;
+            }
+            return Math.max(0, Math.min(adjustedKeep, text.length - 1));
+        };
+
         if (target.childNodes.length === 1 && target.firstChild?.nodeName === "BR") {
             target.innerHTML = "";
         }
@@ -477,13 +495,14 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             }
 
             if (keep >= original.length) keep = Math.max(0, original.length - 1);
+            keep = adjustSplitToWordBoundary(original, keep);
 
             let keepText = original.slice(0, keep);
-            let movedText = original.slice(keep);
+            let movedText = original.slice(keep).replace(/^[ \t]+/, "");
 
             if (!movedText.length) {
                 keepText = original.slice(0, Math.max(0, original.length - 1));
-                movedText = original.slice(keepText.length);
+                movedText = original.slice(keepText.length).replace(/^[ \t]+/, "");
             }
 
             if (keepText.length === 0) textNode.remove();
@@ -501,6 +520,11 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             }
 
             const fragment = last.cloneNode(false) as HTMLElement;
+            // Continuation on next page should not behave like a new paragraph.
+            if (fragment.style) {
+                fragment.style.textIndent = "0";
+                fragment.style.marginTop = "0";
+            }
             let movedAny = false;
 
             target.insertBefore(fragment, target.firstChild);
@@ -532,12 +556,13 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                     }
 
                     if (keep >= original.length) keep = Math.max(0, original.length - 1);
+                    keep = adjustSplitToWordBoundary(original, keep);
 
                     let keepText = original.slice(0, keep);
-                    let movedText = original.slice(keep);
+                    let movedText = original.slice(keep).replace(/^[ \t]+/, "");
                     if (!movedText.length) {
                         keepText = original.slice(0, Math.max(0, original.length - 1));
-                        movedText = original.slice(keepText.length);
+                        movedText = original.slice(keepText.length).replace(/^[ \t]+/, "");
                     }
 
                     if (keepText.length === 0) textNode.remove();
