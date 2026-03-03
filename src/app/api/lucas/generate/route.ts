@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { organizerState, apiKey, model } = body;
+
+        if (!organizerState || !apiKey || !model) {
+            return NextResponse.json(
+                { error: "Missing required fields: organizerState, apiKey, or model" },
+                { status: 400 }
+            );
+        }
+
+        // Read Lucas's system prompt
+        const agentFile = path.resolve(process.cwd(), "agents/lucas.md");
+        const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
+
+        // Format the sources securely
+        const sourcesString = organizerState.compactedSources.map((s: any, idx: number) => {
+            return `source ${idx + 1}:
+title: ${s.title || ""}
+Publisher: ${s.publisher || ""}
+Author: ${s.author || ""}
+Year: ${s.publishedYear || ""}
+Content(compacted): ${s.compactedContent || ""}`;
+        }).join("\n\n");
+
+        // Format the outlines
+        const outlinesString = organizerState.selectedOutlines.map((o: any, idx: number) => {
+            return `Outline ${idx + 1} (${o.type}): ${o.title} - ${o.description}`;
+        }).join("\n");
+
+        // Construct user prompt matching the agent's expected inputs
+        const userMessage = `
+Word Count: ${organizerState.wordCount}
+Essay Topic: ${organizerState.essayTopic}
+Essay Type: ${organizerState.essayType}
+Writing Tone: ${organizerState.tone}
+Citation Format: ${organizerState.citationStyle}
+Keywords: ${organizerState.keywords || "None"}
+
+Outlines (${organizerState.selectedOutlines.length} paragraphs):
+${outlinesString}
+
+Sources:
+${sourcesString}
+`.trim();
+
+        // Use standard streaming fetch
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": "https://octopilotai.com",
+                "X-Title": "OctoPilot AI",
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    { role: "user", content: userMessage },
+                ],
+                temperature: 0.4,
+                stream: true, // Request streaming from OpenRouter
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("[Lucas] OpenRouter error:", response.status, errorText);
+            return NextResponse.json(
+                { error: `OpenRouter API error: ${response.status}` },
+                { status: response.status }
+            );
+        }
+
+        // Return the ReadableStream directly to the client
+        return new Response(response.body, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        });
+
+    } catch (error) {
+        console.error("[Lucas] Error:", error);
+        return NextResponse.json(
+            { error: "Internal server error during generation" },
+            { status: 500 }
+        );
+    }
+}
