@@ -39,6 +39,7 @@ export default function HomeView() {
   const [showSplash, setShowSplash] = useState(true);
   const [page, setPage] = useState<Page>("home");
   const [selectedMajor, setSelectedMajor] = useState(0);
+  const [isEditorTopBarCollapsed, setIsEditorTopBarCollapsed] = useState(false);
 
   const org = useOrganizer();
 
@@ -93,6 +94,7 @@ export default function HomeView() {
     return (
       <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
         <AppHeader
+          className={`transition-transform duration-300 ease-out ${isEditorTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
           left={
             <>
               <BackToHome onClick={goBack} />
@@ -111,9 +113,29 @@ export default function HomeView() {
           }
         />
 
-        <StepperHeader currentStepIndex={stepIndex} skipFormat={org.citationStyle === "None"} />
+        <StepperHeader
+          currentStepIndex={stepIndex}
+          skipFormat={org.citationStyle === "None"}
+          className={`transition-transform duration-300 ease-out ${isEditorTopBarCollapsed ? "-translate-y-[calc(100%+4px)]" : "translate-y-0"}`}
+        />
 
-        <div className="flex-1 min-h-0 overflow-hidden pt-[124px]">
+        <button
+          type="button"
+          onClick={() => setIsEditorTopBarCollapsed((prev) => !prev)}
+          className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isEditorTopBarCollapsed ? "top-3" : "top-[86px]"}`}
+          title={isEditorTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            {isEditorTopBarCollapsed ? (
+              <path d="m6 15 6-6 6 6" />
+            ) : (
+              <path d="m6 9 6 6 6-6" />
+            )}
+          </svg>
+          {isEditorTopBarCollapsed ? "Expand" : "Collapse"}
+        </button>
+
+        <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isEditorTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
           <EditorView onBack={goBack} onNext={goNext} />
         </div>
       </div>

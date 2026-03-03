@@ -34,9 +34,10 @@ export type AutomationStepId =
 interface StepperHeaderProps {
     currentStepIndex: number;
     skipFormat?: boolean;
+    className?: string;
 }
 
-export default function StepperHeader({ currentStepIndex, skipFormat = false }: StepperHeaderProps) {
+export default function StepperHeader({ currentStepIndex, skipFormat = false, className = "" }: StepperHeaderProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const stepRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const [offset, setOffset] = useState(0);
@@ -80,7 +81,7 @@ export default function StepperHeader({ currentStepIndex, skipFormat = false }: 
     }, [adjustedIndex]);
 
     return (
-        <div className="fixed top-16 left-0 right-0 z-30 border-b border-white/[0.06] bg-[#0d0d0d] backdrop-blur-md">
+        <div className={`fixed top-16 left-0 right-0 z-30 border-b border-white/[0.06] bg-[#0d0d0d] backdrop-blur-md ${className}`}>
             <div className="flex flex-col items-center justify-center py-2.5 overflow-hidden">
                 {/* Container for the sliding strip */}
                 <div ref={containerRef} className="relative w-full overflow-hidden">

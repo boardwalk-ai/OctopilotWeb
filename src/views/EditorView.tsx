@@ -493,6 +493,70 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             return true;
         }
 
+        if (last instanceof HTMLElement) {
+            const preserveTogether = last.dataset.keepWithNext === "1";
+            if (preserveTogether) {
+                target.insertBefore(last, target.firstChild);
+                return true;
+            }
+
+            const fragment = last.cloneNode(false) as HTMLElement;
+            let movedAny = false;
+
+            target.insertBefore(fragment, target.firstChild);
+
+            while (source.scrollHeight > source.clientHeight + 1 && last.lastChild) {
+                const child = last.lastChild;
+
+                if (child.nodeType === Node.TEXT_NODE) {
+                    const textNode = child as Text;
+                    const original = textNode.nodeValue || "";
+                    if (!original.length) {
+                        textNode.remove();
+                        continue;
+                    }
+
+                    let keep = 0;
+                    let low = 0;
+                    let high = original.length;
+
+                    while (low <= high) {
+                        const mid = Math.floor((low + high) / 2);
+                        textNode.nodeValue = original.slice(0, mid);
+                        if (source.scrollHeight > source.clientHeight + 1) {
+                            high = mid - 1;
+                        } else {
+                            keep = mid;
+                            low = mid + 1;
+                        }
+                    }
+
+                    if (keep >= original.length) keep = Math.max(0, original.length - 1);
+
+                    let keepText = original.slice(0, keep);
+                    let movedText = original.slice(keep);
+                    if (!movedText.length) {
+                        keepText = original.slice(0, Math.max(0, original.length - 1));
+                        movedText = original.slice(keepText.length);
+                    }
+
+                    if (keepText.length === 0) textNode.remove();
+                    else textNode.nodeValue = keepText;
+
+                    fragment.insertBefore(document.createTextNode(movedText), fragment.firstChild);
+                    movedAny = true;
+                    continue;
+                }
+
+                fragment.insertBefore(child, fragment.firstChild);
+                movedAny = true;
+            }
+
+            if (!last.textContent?.trim() && last.children.length === 0) last.remove();
+            if (!movedAny || (!fragment.textContent?.trim() && fragment.children.length === 0)) fragment.remove();
+            return movedAny;
+        }
+
         target.insertBefore(last, target.firstChild);
         return true;
     }, []);
