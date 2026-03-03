@@ -278,42 +278,42 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[#0b1118]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            <div className="flex h-[82px] items-center border-b border-[#1f2b3d] px-5">
+            <div className="flex h-[68px] items-center border-b border-[#1f2b3d] px-4">
                 <button
                     onClick={onBack}
-                    className="mr-2 flex h-11 items-center gap-2 rounded-xl bg-[#171f2a] px-4 text-[14px] font-bold text-[#f4f4f5] transition hover:bg-[#202a37]"
+                    className="mr-2 flex h-9 items-center gap-2 rounded-lg bg-[#171f2a] px-3 text-[13px] font-bold text-[#f4f4f5] transition hover:bg-[#202a37]"
                 >
-                    <span className="text-[16px] leading-none">{"<"}</span>
+                    <span className="text-[14px] leading-none">{"<"}</span>
                     <span className="leading-none">Back</span>
                 </button>
                 <button
                     onClick={addSection}
-                    className="mr-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#ff4f45] text-[42px] text-white shadow-[0_0_24px_rgba(255,79,69,0.55)] transition hover:bg-[#ff655d]"
+                    className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4f45] text-[30px] text-white shadow-[0_0_14px_rgba(255,79,69,0.45)] transition hover:bg-[#ff655d]"
                     title="Add section"
                 >
                     +
                 </button>
 
                 <div className="flex min-w-0 flex-1 flex-col items-center">
-                    <div className="text-[16px] font-bold uppercase tracking-[0.12em] text-[#ff5a52]">Writing Chamber</div>
-                    <div className="mt-1 truncate text-[38px] font-semibold text-[#f4f4f5]">{org.finalEssayTitle || "Untitled Essay"}</div>
+                    <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#ff5a52]">Writing Chamber</div>
+                    <div className="mt-0.5 truncate text-[22px] font-semibold text-[#f4f4f5]">{org.finalEssayTitle || "Untitled Essay"}</div>
                 </div>
 
-                <div className="ml-8 flex items-center gap-3">
-                    <div className="rounded-2xl border border-[#22344a] bg-[#131d2a] px-6 py-4 text-[16px] font-bold text-[#4bb4ff]">Guest</div>
-                    <button className="rounded-2xl bg-[#4f1717] px-7 py-4 text-[16px] font-semibold text-[#ff7369]">Store</button>
-                    <button className="rounded-2xl bg-[#4f4916] px-7 py-4 text-[16px] font-semibold text-[#ffe35a]">Summary</button>
-                    <div className="rounded-2xl border border-[#28313e] bg-[#121924] px-6 py-3 text-right">
-                        <div className="text-[28px] font-bold leading-none text-white">{totalWords}</div>
-                        <div className="text-[12px] text-white/55">of {targetWords} words</div>
+                <div className="ml-4 flex items-center gap-2.5">
+                    <div className="rounded-xl border border-[#22344a] bg-[#131d2a] px-4 py-2 text-[13px] font-bold text-[#4bb4ff]">Guest</div>
+                    <button className="rounded-xl bg-[#4f1717] px-4 py-2 text-[13px] font-semibold text-[#ff7369]">Store</button>
+                    <button className="rounded-xl bg-[#4f4916] px-4 py-2 text-[13px] font-semibold text-[#ffe35a]">Summary</button>
+                    <div className="rounded-xl border border-[#28313e] bg-[#121924] px-4 py-2 text-right">
+                        <div className="text-[19px] font-bold leading-none text-white">{totalWords}</div>
+                        <div className="text-[11px] text-white/55">of {targetWords} words</div>
                     </div>
                 </div>
             </div>
 
             <div className="flex min-h-0 flex-1">
                 <div className="flex min-w-0 flex-1 flex-col border-r border-[#1f2b3d]">
-                    <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4">
-                        <div className="flex flex-col gap-4">
+                    <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
+                        <div className="flex flex-col gap-3">
                             {sections.map((section, index) => {
                                 const isCollapsed = Boolean(collapsed[section.id]);
                                 const isActive = section.id === activeSectionId;
@@ -323,29 +323,29 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 return (
                                     <div
                                         key={section.id}
-                                        className={`rounded-[20px] border transition ${isActive ? "border-[#ff5a52] shadow-[0_0_0_1px_rgba(255,90,82,0.25)]" : "border-[#213045]"}`}
+                                        className={`rounded-2xl border transition ${isActive ? "border-[#ff5a52] shadow-[0_0_0_1px_rgba(255,90,82,0.25)]" : "border-[#213045]"}`}
                                     >
-                                        <div className="flex items-center gap-3 border-b border-[#1f2b3d] px-4 py-3">
-                                            <button className="text-[20px] text-white/45">≡</button>
-                                            <span className="text-[18px] font-bold text-white/80">{index + 1}</span>
-                                            <span className={`rounded-md px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${TYPE_BADGE[typeKey] || "bg-[#33230f] text-[#f4c37a]"}`}>
+                                        <div className="flex items-center gap-2.5 border-b border-[#1f2b3d] px-3.5 py-2.5">
+                                            <button className="text-[16px] text-white/45">≡</button>
+                                            <span className="text-[15px] font-bold text-white/80">{index + 1}</span>
+                                            <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${TYPE_BADGE[typeKey] || "bg-[#33230f] text-[#f4c37a]"}`}>
                                                 {section.type}
                                             </span>
-                                            <h3 className="truncate text-[17px] font-semibold text-[#f8fafc]">{section.title}</h3>
-                                            <button className="rounded-full bg-[#53490f] px-4 py-2 text-[12px] font-semibold text-[#ffe35a]">More ideas</button>
+                                            <h3 className="truncate text-[15px] font-semibold text-[#f8fafc]">{section.title}</h3>
+                                            <button className="rounded-full bg-[#53490f] px-3.5 py-1.5 text-[11px] font-semibold text-[#ffe35a]">More ideas</button>
                                             <div className="ml-auto flex items-center gap-2">
                                                 <button
                                                     onClick={() => deleteSection(section.id)}
-                                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff4f45] text-white"
+                                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ff4f45] text-[13px] text-white"
                                                     title={sections.length <= 1 ? "At least one section is required" : "Delete section"}
                                                     disabled={sections.length <= 1}
                                                 >
                                                     🗑
                                                 </button>
-                                                <span className="rounded-xl bg-[#161f2c] px-3 py-1 text-[12px] text-white/75">{words} words</span>
+                                                <span className="rounded-lg bg-[#161f2c] px-2.5 py-1 text-[11px] text-white/75">{words} words</span>
                                                 <button
                                                     onClick={() => toggleSectionCollapse(section.id)}
-                                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#151c28] text-white/80"
+                                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#151c28] text-[11px] text-white/80"
                                                 >
                                                     {isCollapsed ? "⌄" : "⌃"}
                                                 </button>
@@ -353,25 +353,25 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                         </div>
 
                                         {!isCollapsed && (
-                                            <div className="grid grid-cols-[300px_minmax(0,1fr)]">
-                                                <div className="border-r border-[#1f2b3d] bg-[#0f1416] p-4">
-                                                    <div className="mb-2 text-[24px] font-bold text-[#ffe35a]">AI Writing Assistant</div>
-                                                    <div className="mb-3 flex gap-2">
+                                            <div className="grid grid-cols-[260px_minmax(0,1fr)]">
+                                                <div className="border-r border-[#1f2b3d] bg-[#0f1416] p-3">
+                                                    <div className="mb-1.5 text-[17px] font-bold text-[#ffe35a]">AI Writing Assistant</div>
+                                                    <div className="mb-2.5 flex gap-2">
                                                         <input
                                                             placeholder="Ask a question"
-                                                            className="h-11 flex-1 rounded-xl border border-[#5c531e] bg-[#121a1f] px-3 text-[20px] text-white/80 outline-none"
+                                                            className="h-9 flex-1 rounded-lg border border-[#5c531e] bg-[#121a1f] px-3 text-[14px] text-white/80 outline-none"
                                                         />
-                                                        <button className="rounded-xl bg-[#4f4916] px-3 text-[20px] font-semibold text-[#ffe35a]">Ask</button>
+                                                        <button className="rounded-lg bg-[#4f4916] px-3 text-[13px] font-semibold text-[#ffe35a]">Ask</button>
                                                     </div>
-                                                    <div className="mt-8 text-center text-[18px] text-white/25">
+                                                    <div className="mt-6 text-center text-[15px] text-white/25">
                                                         No suggestions yet
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4">
-                                                    <div className="mb-3 text-[16px] font-semibold text-[#dbeafe]">Writing Area</div>
+                                                <div className="p-3">
+                                                    <div className="mb-2 text-[14px] font-semibold text-[#dbeafe]">Writing Area</div>
                                                     <div
-                                                        className={`relative rounded-2xl border p-4 ${isActive ? "border-[#3b82f6]/40 bg-[#09121f]" : "border-[#1f2b3d] bg-[#0b1220]"}`}
+                                                        className={`relative rounded-xl border p-3 ${isActive ? "border-[#3b82f6]/40 bg-[#09121f]" : "border-[#1f2b3d] bg-[#0b1220]"}`}
                                                         onClick={() => setActiveSectionId(section.id)}
                                                     >
                                                         <div
@@ -391,10 +391,10 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                             onInput={() => syncSectionFromDom(section.id)}
                                                             onKeyUp={() => saveSelection(section.id)}
                                                             onMouseUp={() => saveSelection(section.id)}
-                                                            className="min-h-[220px] text-[16px] leading-[1.7] text-[#dbeafe] outline-none"
+                                                            className="min-h-[168px] text-[15px] leading-[1.55] text-[#dbeafe] outline-none"
                                                         />
                                                         {!toPlainText(sectionHtml[section.id] || "") && (
-                                                            <div className="pointer-events-none absolute left-4 top-4 text-[16px] text-white/25">
+                                                            <div className="pointer-events-none absolute left-3 top-3 text-[14px] text-white/25">
                                                                 Start writing your {section.type.toLowerCase()} here...
                                                             </div>
                                                         )}
@@ -408,25 +408,25 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                         </div>
                     </div>
 
-                    <div className="flex h-[68px] items-center justify-between border-t border-[#1f2b3d] bg-[#0c131d] px-5">
-                        <div className="text-[14px] text-white/65">{sections.length} sections</div>
+                    <div className="flex h-[56px] items-center justify-between border-t border-[#1f2b3d] bg-[#0c131d] px-4">
+                        <div className="text-[13px] text-white/65">{sections.length} sections</div>
                         <button
                             onClick={continueToPreview}
-                            className="rounded-2xl bg-[#a43e37] px-7 py-3 text-[16px] font-semibold text-white transition hover:bg-[#be4a42]"
+                            className="rounded-xl bg-[#a43e37] px-5 py-2 text-[14px] font-semibold text-white transition hover:bg-[#be4a42]"
                         >
                             Continue to Preview →
                         </button>
                     </div>
                 </div>
 
-                <div className="flex w-[340px] flex-col bg-[#0c1118]">
-                    <div className="flex items-center justify-between border-b border-[#1f2b3d] px-4 py-3">
-                        <h3 className="text-[26px] font-bold text-white">Sources</h3>
-                        <span className="rounded-full bg-[#10335a] px-3 py-1 text-[12px] font-bold text-[#63b3ff]">{org.citationStyle}</span>
+                <div className="flex w-[320px] flex-col bg-[#0c1118]">
+                    <div className="flex items-center justify-between border-b border-[#1f2b3d] px-3.5 py-2.5">
+                        <h3 className="text-[22px] font-bold text-white">Sources</h3>
+                        <span className="rounded-full bg-[#10335a] px-2.5 py-1 text-[11px] font-bold text-[#63b3ff]">{org.citationStyle}</span>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-3">
-                        <div className="flex flex-col gap-3">
+                    <div className="flex-1 overflow-y-auto p-2.5">
+                        <div className="flex flex-col gap-2.5">
                             {sourceThreads.map((source) => {
                                 const palette = SOURCE_COLOR_POOL[source.index % SOURCE_COLOR_POOL.length];
                                 const citation = CitationTemplateService.formatInText(org.citationStyle, source, source.index + 1);
@@ -434,18 +434,18 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 return (
                                     <div
                                         key={`${source.index}-${source.url}`}
-                                        className="cursor-pointer rounded-2xl border p-3 transition hover:bg-[#121927]"
+                                        className="cursor-pointer rounded-xl border p-2.5 transition hover:bg-[#121927]"
                                         style={{ borderColor: `${palette.border}66`, backgroundColor: palette.soft }}
                                         onClick={() => openSourceModal(source)}
                                     >
-                                        <h4 className="truncate text-[16px] font-bold text-white">{source.title || "Untitled Source"}</h4>
-                                        <p className="mt-1 text-[13px] text-white/70">
+                                        <h4 className="truncate text-[15px] font-bold text-white">{source.title || "Untitled Source"}</h4>
+                                        <p className="mt-1 text-[12px] text-white/70">
                                             {source.author || "Unknown author"} ({source.publishedYear || "n.d."})
                                         </p>
-                                        {snippet && <p className="mt-2 line-clamp-2 text-[12px] text-white/45">{snippet}</p>}
+                                        {snippet && <p className="mt-2 line-clamp-2 text-[11px] text-white/45">{snippet}</p>}
 
-                                        <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-[#0f1724] px-3 py-2">
-                                            <span className="text-[14px] font-semibold" style={{ color: palette.text }}>
+                                        <div className="mt-2.5 flex items-center justify-between rounded-lg border border-white/10 bg-[#0f1724] px-2.5 py-1.5">
+                                            <span className="text-[13px] font-semibold" style={{ color: palette.text }}>
                                                 {citation || "No in-text citation"}
                                             </span>
                                             <button
@@ -454,7 +454,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                     e.stopPropagation();
                                                     quickInsertCitation(source);
                                                 }}
-                                                className="text-[12px] font-bold text-white/80 hover:text-white"
+                                                className="text-[11px] font-bold text-white/80 hover:text-white"
                                             >
                                                 Insert
                                             </button>
@@ -463,7 +463,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 );
                             })}
                             {sourceThreads.length === 0 && (
-                                <div className="rounded-2xl border border-[#1f2b3d] bg-[#0f1520] p-4 text-[18px] text-white/45">
+                                <div className="rounded-xl border border-[#1f2b3d] bg-[#0f1520] p-3 text-[14px] text-white/45">
                                     No sources found. Add sources in Configuration step.
                                 </div>
                             )}
@@ -474,11 +474,11 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
             {sourceModal && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="flex h-[82vh] w-full max-w-[980px] flex-col overflow-hidden rounded-3xl border border-[#2b3a54] bg-[#090f16]">
-                        <div className="flex items-start justify-between border-b border-[#1f2b3d] px-6 py-5">
+                    <div className="flex h-[78vh] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl border border-[#2b3a54] bg-[#090f16]">
+                        <div className="flex items-start justify-between border-b border-[#1f2b3d] px-5 py-4">
                             <div className="min-w-0">
-                                <h3 className="text-[32px] font-bold uppercase text-white">{sourceModal.title || "Untitled Source"}</h3>
-                                <p className="mt-1 text-[18px] text-white/70">
+                                <h3 className="text-[24px] font-bold uppercase text-white">{sourceModal.title || "Untitled Source"}</h3>
+                                <p className="mt-1 text-[14px] text-white/70">
                                     {sourceModal.author || "Unknown"} ({sourceModal.publishedYear || "n.d."})
                                 </p>
                                 {sourceModal.url && (
@@ -494,17 +494,17 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                             </div>
                             <button
                                 onClick={closeSourceModal}
-                                className="ml-4 rounded-full bg-white/15 px-3 py-1.5 text-[24px] font-bold text-white"
+                                className="ml-4 rounded-full bg-white/15 px-3 py-1.5 text-[20px] font-bold text-white"
                             >
                                 ×
                             </button>
                         </div>
 
-                        <div className="border-b border-[#1f2b3d] px-6 py-3 text-[28px] font-semibold text-[#ffe35a]">
+                        <div className="border-b border-[#1f2b3d] px-5 py-2.5 text-[20px] font-semibold text-[#ffe35a]">
                             Highlight to Add to Paragraph
                         </div>
 
-                        <div className="flex items-center justify-between border-b border-[#1f2b3d] bg-[#0d1520] px-6 py-2">
+                        <div className="flex items-center justify-between border-b border-[#1f2b3d] bg-[#0d1520] px-5 py-2">
                             <span className="text-[13px] text-white/60">In-text citation template</span>
                             <span className="rounded-full bg-[#122031] px-3 py-1 text-[13px] font-semibold text-[#7dd3fc]">
                                 {CitationTemplateService.formatInText(org.citationStyle, sourceModal, sourceModal.index + 1) || "N/A"}
@@ -513,19 +513,19 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
                         <div
                             ref={sourceContentRef}
-                            className="flex-1 overflow-y-auto px-6 py-4 text-[16px] leading-[1.6] text-[#dbeafe] selection:bg-[#4f82ff]/60"
+                            className="flex-1 overflow-y-auto px-5 py-4 text-[15px] leading-[1.55] text-[#dbeafe] selection:bg-[#4f82ff]/60"
                         >
                             {sourceModal.fullContent || "No full content available for this source."}
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-[#1f2b3d] px-6 py-4">
+                        <div className="flex items-center justify-between border-t border-[#1f2b3d] px-5 py-3">
                             <div className="text-[14px] text-white/55">
                                 Active section: <span className="text-white/85">{activeSection?.title || "None"}</span>
                             </div>
                             <button
                                 onClick={insertFromModalSelection}
                                 disabled={!activeSection?.id}
-                                className={`rounded-2xl px-6 py-3 text-[15px] font-semibold ${activeSection?.id ? "bg-[#cfd5df] text-[#1a2433] hover:bg-white" : "bg-white/15 text-white/40 cursor-not-allowed"}`}
+                                className={`rounded-xl px-5 py-2 text-[14px] font-semibold ${activeSection?.id ? "bg-[#cfd5df] text-[#1a2433] hover:bg-white" : "bg-white/15 text-white/40 cursor-not-allowed"}`}
                             >
                                 Insert with Citation
                             </button>
