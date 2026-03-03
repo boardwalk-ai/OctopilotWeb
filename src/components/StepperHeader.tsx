@@ -35,9 +35,15 @@ interface StepperHeaderProps {
     currentStepIndex: number;
     skipFormat?: boolean;
     className?: string;
+    writingMode?: "automation" | "manual";
 }
 
-export default function StepperHeader({ currentStepIndex, skipFormat = false, className = "" }: StepperHeaderProps) {
+export default function StepperHeader({
+    currentStepIndex,
+    skipFormat = false,
+    className = "",
+    writingMode = "automation",
+}: StepperHeaderProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const stepRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const [offset, setOffset] = useState(0);
@@ -45,9 +51,13 @@ export default function StepperHeader({ currentStepIndex, skipFormat = false, cl
     const [enableTransition, setEnableTransition] = useState(false);
 
     // Filter out "Format" when skipFormat is true
-    const displaySteps = skipFormat
+    const baseSteps = skipFormat
         ? automationSteps.filter(s => s !== "Format")
         : automationSteps;
+    const displaySteps = baseSteps.map((step) =>
+        writingMode === "manual" && step === "Generation" ? "Writing Chamber" : step
+    );
+    const displayStepsKey = displaySteps.join("|");
 
     // Adjust the current step index if Format is removed and index is past it
     const adjustedIndex = skipFormat && currentStepIndex > 5
@@ -78,7 +88,7 @@ export default function StepperHeader({ currentStepIndex, skipFormat = false, cl
                 });
             }
         });
-    }, [adjustedIndex]);
+    }, [adjustedIndex, displayStepsKey]);
 
     return (
         <div className={`fixed top-16 left-0 right-0 z-30 border-b border-white/[0.06] bg-[#0d0d0d] backdrop-blur-md ${className}`}>
@@ -149,7 +159,7 @@ export default function StepperHeader({ currentStepIndex, skipFormat = false, cl
                         transition: "color 1s ease",
                     }}
                 >
-                    Writing Mode: Automation
+                    Writing Mode: {writingMode === "manual" ? "Manual" : "Automation"}
                 </div>
             </div>
 

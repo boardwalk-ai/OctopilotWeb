@@ -23,6 +23,7 @@ export interface CompactedSource {
 }
 
 export interface OrganizerState {
+    writingMode: "automation" | "manual";
     majorIndex: number | null;
     majorName: string;
     essayType: string;
@@ -85,6 +86,7 @@ export interface OrganizerState {
 }
 
 const defaultState: OrganizerState = {
+    writingMode: "automation",
     majorIndex: null,
     majorName: "",
     essayType: "",
@@ -148,6 +150,7 @@ export const Organizer = {
     setTestData: () => {
         state = {
             ...defaultState,
+            writingMode: "automation",
             isTestMode: true,
             essayTopic: "The Architectural Evolution of Bagan",
             wordCount: 500,

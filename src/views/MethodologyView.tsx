@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useOrganizer } from "@/hooks/useOrganizer";
 import {
   AppHeader,
   BackToHome,
@@ -106,7 +107,8 @@ const manualFeatures = [
 ];
 
 export default function MethodologyView({ onBack, onSelect }: MethodologyViewProps) {
-  const [selected, setSelected] = useState<"automation" | "manual">("automation");
+  const org = useOrganizer();
+  const [selected, setSelected] = useState<"automation" | "manual">(org.writingMode || "automation");
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">

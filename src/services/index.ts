@@ -13,3 +13,4 @@ export { MLAFormatterService } from "./MLAFormatterService";
 export { IEEEFormatterService } from "./IEEEFormatterService";
 export { HavardFormatterService } from "./HavardFormatterService";
 export { ChicagoFormatterService } from "./ChicagoFormatterService";
+export { CitationTemplateService } from "./CitationTemplateService";
