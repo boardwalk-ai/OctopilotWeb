@@ -98,7 +98,7 @@ function buildSourceTokenHtml(params: {
     const content = [quote, citation].filter(Boolean).join(" ");
     if (!content) return "";
 
-    return `<span contenteditable="false" data-source-token="1" style="display:inline-block;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;">${escapeHtml(content)}</span>&nbsp;`;
+    return `<span contenteditable="false" data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span> `;
 }
 
 function buildInitialSections(org: ReturnType<typeof useOrganizer>): ChamberSection[] {
