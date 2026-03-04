@@ -88,13 +88,10 @@ function clamp(n: number, min: number, max: number): number {
 
 function isCaretAtTokenEnd(token: Element, range: Range): boolean {
     try {
-        const beforeCaret = range.cloneRange();
-        beforeCaret.selectNodeContents(token);
-        beforeCaret.setEnd(range.startContainer, range.startOffset);
-
-        const currentOffset = beforeCaret.toString().length;
-        const tokenLength = (token.textContent || "").length;
-        if (currentOffset >= tokenLength) return true;
+        const afterCaret = range.cloneRange();
+        afterCaret.selectNodeContents(token);
+        afterCaret.setStart(range.startContainer, range.startOffset);
+        if (afterCaret.toString().length === 0) return true;
     } catch {
         // fallback below
     }
@@ -116,6 +113,36 @@ function getCaretOffsetInToken(token: Element, range: Range): number {
     } catch {
         return -1;
     }
+}
+
+function getActiveTokenFromRange(range: Range): Element | null {
+    const container = range.startContainer;
+    const baseElement = container.nodeType === Node.ELEMENT_NODE
+        ? container as Element
+        : container.parentElement;
+    const direct = baseElement?.closest("[data-source-token='1']");
+    if (direct) return direct;
+
+    // Safari sometimes reports the caret on the editor element at child boundary.
+    if (container.nodeType === Node.ELEMENT_NODE) {
+        const el = container as Element;
+        const idx = range.startOffset;
+        if (idx > 0) {
+            const prev = el.childNodes[idx - 1];
+            if (prev && prev.nodeType === Node.ELEMENT_NODE && (prev as Element).matches("[data-source-token='1']")) {
+                return prev as Element;
+            }
+        }
+    }
+    return null;
+}
+
+function placeCaretAfterNode(node: Node, selection: Selection): void {
+    const range = document.createRange();
+    range.setStartAfter(node);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
 }
 
 function buildSourceTokenHtml(params: {
@@ -380,18 +407,15 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     const handleEditorKeyDown = useCallback((sectionId: string, event: React.KeyboardEvent<HTMLDivElement>) => {
         const isArrowExit = event.key === "ArrowRight";
+        const isEnterExit = event.key === "Enter";
         const isSpaceExit = event.key === " " || event.key === "Spacebar" || event.code === "Space";
-        if (!isArrowExit && !isSpaceExit) return;
+        if (!isArrowExit && !isSpaceExit && !isEnterExit) return;
 
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
 
         const activeRange = selection.getRangeAt(0);
-        const container = activeRange.startContainer;
-        const baseElement = container.nodeType === Node.ELEMENT_NODE
-            ? container as Element
-            : container.parentElement;
-        const token = baseElement?.closest("[data-source-token='1']");
+        const token = getActiveTokenFromRange(activeRange);
         if (!token) return;
 
         const tokenLength = (token.textContent || "").length;
@@ -410,20 +434,62 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
             } else {
                 parent.appendChild(spacer);
             }
-            const nextRange = document.createRange();
-            nextRange.setStartAfter(spacer);
-            nextRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(nextRange);
+            placeCaretAfterNode(spacer, selection);
+            syncSectionFromDom(sectionId);
+        } else if (isEnterExit) {
+            const br = document.createElement("br");
+            if (token.nextSibling) {
+                parent.insertBefore(br, token.nextSibling);
+            } else {
+                parent.appendChild(br);
+            }
+            const spacer = document.createTextNode("");
+            if (br.nextSibling) {
+                parent.insertBefore(spacer, br.nextSibling);
+            } else {
+                parent.appendChild(spacer);
+            }
+            placeCaretAfterNode(spacer, selection);
             syncSectionFromDom(sectionId);
         } else {
-            const afterToken = document.createRange();
-            afterToken.setStartAfter(token);
-            afterToken.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(afterToken);
+            placeCaretAfterNode(token, selection);
         }
 
+        saveSelection(sectionId);
+    }, [saveSelection, syncSectionFromDom]);
+
+    const handleEditorBeforeInput = useCallback((sectionId: string, event: React.FormEvent<HTMLDivElement>) => {
+        const native = event.nativeEvent as InputEvent;
+        if (!native) return;
+
+        const isInsertSpace = native.inputType === "insertText" && native.data === " ";
+        const isInsertEnter = native.inputType === "insertParagraph" || native.inputType === "insertLineBreak";
+        if (!isInsertSpace && !isInsertEnter) return;
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
+        const activeRange = selection.getRangeAt(0);
+        const token = getActiveTokenFromRange(activeRange);
+        if (!token) return;
+        if (!isCaretAtTokenEnd(token, activeRange)) return;
+
+        native.preventDefault();
+        const parent = token.parentNode;
+        if (!parent) return;
+
+        if (isInsertSpace) {
+            const spacer = document.createTextNode(" ");
+            if (token.nextSibling) parent.insertBefore(spacer, token.nextSibling);
+            else parent.appendChild(spacer);
+            placeCaretAfterNode(spacer, selection);
+        } else {
+            const br = document.createElement("br");
+            if (token.nextSibling) parent.insertBefore(br, token.nextSibling);
+            else parent.appendChild(br);
+            placeCaretAfterNode(br, selection);
+        }
+
+        syncSectionFromDom(sectionId);
         saveSelection(sectionId);
     }, [saveSelection, syncSectionFromDom]);
 
@@ -953,6 +1019,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                                 saveSelection(section.id);
                                                             }}
                                                             onInput={() => syncSectionFromDom(section.id)}
+                                                            onBeforeInput={(e) => handleEditorBeforeInput(section.id, e)}
                                                             onKeyUp={() => saveSelection(section.id)}
                                                             onKeyDown={(e) => handleEditorKeyDown(section.id, e)}
                                                             onMouseUp={() => saveSelection(section.id)}
