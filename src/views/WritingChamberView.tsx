@@ -86,6 +86,21 @@ function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
 }
 
+function buildSourceTokenHtml(params: {
+    quote?: string;
+    citation?: string;
+    border: string;
+    soft: string;
+    text: string;
+}): string {
+    const quote = (params.quote || "").trim();
+    const citation = (params.citation || "").trim();
+    const content = [quote, citation].filter(Boolean).join(" ");
+    if (!content) return "";
+
+    return `<span contenteditable="false" data-source-token="1" style="display:inline-block;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;">${escapeHtml(content)}</span>&nbsp;`;
+}
+
 function buildInitialSections(org: ReturnType<typeof useOrganizer>): ChamberSection[] {
     const selected = org.selectedOutlines || [];
     const fromSelected = selected.length > 0
@@ -375,11 +390,14 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         if (!quote) return;
 
         const citation = getCitationForSource(sourceModal);
-        const quoteHtml = `<span style="background:${palette.soft};border:1px solid ${palette.border};border-radius:6px;padding:1px 4px;color:${palette.text};">${escapeHtml(quote)}</span>`;
-        const citationHtml = citation
-            ? `<span style="color:${palette.text};font-weight:600;"> ${escapeHtml(citation)}</span>`
-            : "";
-        insertHtmlToActiveSection(`${quoteHtml}${citationHtml} `, sourceModal.index);
+        const tokenHtml = buildSourceTokenHtml({
+            quote,
+            citation,
+            border: palette.border,
+            soft: palette.soft,
+            text: palette.text,
+        });
+        insertHtmlToActiveSection(tokenHtml, sourceModal.index);
         closeSourceModal();
     }, [activeSectionId, closeSourceModal, getCitationForSource, getSelectedModalText, insertHtmlToActiveSection, sourceModal]);
 
@@ -389,10 +407,13 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         const citation = getCitationForSource(source);
         if (!citation) return;
 
-        insertHtmlToActiveSection(
-            `<span style="background:${palette.soft};border:1px solid ${palette.border};border-radius:999px;padding:1px 8px;color:${palette.text};font-weight:600;">${escapeHtml(citation)}</span> `,
-            source.index
-        );
+        const tokenHtml = buildSourceTokenHtml({
+            citation,
+            border: palette.border,
+            soft: palette.soft,
+            text: palette.text,
+        });
+        insertHtmlToActiveSection(tokenHtml, source.index);
     }, [activeSectionId, getCitationForSource, insertHtmlToActiveSection]);
 
     const updateSectionTitle = useCallback((sectionId: string, title: string) => {
