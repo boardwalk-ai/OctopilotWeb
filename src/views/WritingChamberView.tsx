@@ -306,6 +306,31 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         rangeRefs.current[sectionId] = fallbackRange;
     }, []);
 
+    const handleEditorPaste = useCallback((sectionId: string, event: React.ClipboardEvent<HTMLDivElement>) => {
+        event.preventDefault();
+
+        const plain = (event.clipboardData?.getData("text/plain") || "")
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n");
+
+        if (!plain) return;
+
+        const editor = editorRefs.current[sectionId];
+        if (!editor) return;
+
+        editor.focus({ preventScroll: true });
+        restoreSelection(sectionId);
+
+        const inserted = document.execCommand("insertText", false, plain);
+        if (!inserted) {
+            const html = escapeHtml(plain).replace(/\n/g, "<br>");
+            document.execCommand("insertHTML", false, html);
+        }
+
+        syncSectionFromDom(sectionId);
+        saveSelection(sectionId);
+    }, [restoreSelection, saveSelection, syncSectionFromDom]);
+
     const getCitationForSource = useCallback((source: SourceThread): string => {
         return inTextCitationMap[source.index]
             || CitationTemplateService.formatInText(org.citationStyle, source, source.index + 1);
@@ -828,6 +853,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                             onInput={() => syncSectionFromDom(section.id)}
                                                             onKeyUp={() => saveSelection(section.id)}
                                                             onMouseUp={() => saveSelection(section.id)}
+                                                            onPaste={(e) => handleEditorPaste(section.id, e)}
                                                             className="min-h-[260px] p-4 text-[12px] leading-[1.55] text-[#eef1f6] outline-none"
                                                         />
                                                         {!toPlainText(sectionHtml[section.id] || "") && (
