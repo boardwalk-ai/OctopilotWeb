@@ -621,8 +621,6 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
             Continue to Preview →
         </button>
     );
-    const insightsHandleLabel = isInsightsOpen ? "SWIPE DOWN" : "SWIPE UP";
-
     return (
         <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
             <div className="flex h-[68px] items-center border-b border-white/10 bg-[#0a0a0a] px-5">
@@ -853,20 +851,18 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                             <button
                                 onClick={() => setIsInsightsOpen((prev) => !prev)}
                                 onMouseDown={startInsightsDrag}
-                                className="group absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
+                                className="group absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/25 bg-[#121317] p-2.5 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24]"
                                 title="Drag or click"
                             >
-                                <span className="pointer-events-none relative flex min-w-[148px] items-center justify-center rounded-full border border-white/35 bg-[#10131a] px-6 pb-2 pt-3 text-[13px] font-black tracking-[0.04em] text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition group-hover:bg-[#181d27]">
-                                    {insightsHandleLabel}
-                                </span>
-                                <span className="pointer-events-none absolute -top-3 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-white/35 bg-[#10131a] text-white shadow-[0_6px_14px_rgba(0,0,0,0.45)] transition group-hover:bg-[#181d27]">
+                                <span className="pointer-events-none flex items-center justify-center text-white">
                                     <svg
-                                        viewBox="0 0 20 20"
-                                        className={`h-4 w-4 transition-transform ${isInsightsOpen ? "rotate-180" : ""}`}
+                                        viewBox="0 0 48 48"
+                                        className={`h-6 w-6 transition-transform duration-200 ${isInsightsOpen ? "rotate-180" : ""}`}
                                         fill="none"
                                         aria-hidden="true"
                                     >
-                                        <path d="M4 12 L10 7 L16 12" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M8 31 L24 17 L40 31" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M8 43 L24 29 L40 43" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                 </span>
                             </button>
