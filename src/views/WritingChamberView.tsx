@@ -107,6 +107,17 @@ function isCaretAtTokenEnd(token: Element, range: Range): boolean {
     return false;
 }
 
+function getCaretOffsetInToken(token: Element, range: Range): number {
+    try {
+        const beforeCaret = range.cloneRange();
+        beforeCaret.selectNodeContents(token);
+        beforeCaret.setEnd(range.startContainer, range.startOffset);
+        return beforeCaret.toString().length;
+    } catch {
+        return -1;
+    }
+}
+
 function buildSourceTokenHtml(params: {
     quote?: string;
     citation?: string;
@@ -369,7 +380,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     const handleEditorKeyDown = useCallback((sectionId: string, event: React.KeyboardEvent<HTMLDivElement>) => {
         const isArrowExit = event.key === "ArrowRight";
-        const isSpaceExit = event.key === " " || event.key === "Spacebar";
+        const isSpaceExit = event.key === " " || event.key === "Spacebar" || event.code === "Space";
         if (!isArrowExit && !isSpaceExit) return;
 
         const selection = window.getSelection();
@@ -382,27 +393,35 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
             : container.parentElement;
         const token = baseElement?.closest("[data-source-token='1']");
         if (!token) return;
-        if (!isCaretAtTokenEnd(token, activeRange)) return;
+
+        const tokenLength = (token.textContent || "").length;
+        const caretOffset = getCaretOffsetInToken(token, activeRange);
+        const atTokenEnd = isCaretAtTokenEnd(token, activeRange) || (caretOffset >= tokenLength - 1 && tokenLength > 0);
+        if (!atTokenEnd) return;
 
         event.preventDefault();
-        const afterToken = document.createRange();
-        afterToken.setStartAfter(token);
-        afterToken.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(afterToken);
+        const parent = token.parentNode;
+        if (!parent) return;
 
         if (isSpaceExit) {
-            const inserted = document.execCommand("insertText", false, " ");
-            if (!inserted) {
-                const textNode = document.createTextNode(" ");
-                afterToken.insertNode(textNode);
-                const nextRange = document.createRange();
-                nextRange.setStartAfter(textNode);
-                nextRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(nextRange);
+            const spacer = document.createTextNode(" ");
+            if (token.nextSibling) {
+                parent.insertBefore(spacer, token.nextSibling);
+            } else {
+                parent.appendChild(spacer);
             }
+            const nextRange = document.createRange();
+            nextRange.setStartAfter(spacer);
+            nextRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(nextRange);
             syncSectionFromDom(sectionId);
+        } else {
+            const afterToken = document.createRange();
+            afterToken.setStartAfter(token);
+            afterToken.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(afterToken);
         }
 
         saveSelection(sectionId);
