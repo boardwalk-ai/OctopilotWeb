@@ -14,3 +14,5 @@ export { IEEEFormatterService } from "./IEEEFormatterService";
 export { HavardFormatterService } from "./HavardFormatterService";
 export { ChicagoFormatterService } from "./ChicagoFormatterService";
 export { CitationTemplateService } from "./CitationTemplateService";
+export { SuService } from "./SuService";
+export { InTextCitationService } from "./InTextCitationService";

@@ -21,7 +21,7 @@ import HumanizerView from "@/views/HumanizerView";
 import EditorView from "@/views/EditorView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
-import StepperHeader, { AutomationStepId } from "@/components/StepperHeader";
+import StepperHeader, { automationSteps, AutomationStepId } from "@/components/StepperHeader";
 import {
   AppHeader,
   BackToHome,
@@ -84,6 +84,17 @@ export default function HomeView() {
 
   const currentStep = page as AutomationStepId;
   const stepIndex = automationStepsMap[page];
+  const skipFormat = org.citationStyle === "None";
+  const totalStepsForProgress = skipFormat
+    ? automationSteps.filter((s) => s !== "Format").length
+    : automationSteps.length;
+  const adjustedStepIndexForProgress = skipFormat && stepIndex > 5
+    ? stepIndex - 1
+    : stepIndex;
+  const progressPercent = Math.max(
+    0,
+    Math.min(100, ((adjustedStepIndexForProgress + 1) / totalStepsForProgress) * 100)
+  );
 
   if (page === "editor") {
     const goBack = () => setPage("humanizer");
@@ -111,12 +122,24 @@ export default function HomeView() {
           }
         />
 
-        <StepperHeader
-          currentStepIndex={stepIndex}
-          skipFormat={org.citationStyle === "None"}
-          writingMode={org.writingMode}
-          className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-[calc(100%+4px)]" : "translate-y-0"}`}
-        />
+        {isWorkspaceTopBarCollapsed ? (
+          <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
+            <div
+              className="h-full rounded-r-full bg-red-500"
+              style={{
+                width: `${progressPercent}%`,
+                boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
+              }}
+            />
+          </div>
+        ) : (
+          <StepperHeader
+            currentStepIndex={stepIndex}
+            skipFormat={skipFormat}
+            writingMode={org.writingMode}
+            className="top-16"
+          />
+        )}
 
         <button
           type="button"
@@ -167,12 +190,24 @@ export default function HomeView() {
           }
         />
 
-        <StepperHeader
-          currentStepIndex={stepIndex}
-          skipFormat={org.citationStyle === "None"}
-          writingMode={org.writingMode}
-          className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-[calc(100%+4px)]" : "translate-y-0"}`}
-        />
+        {isWorkspaceTopBarCollapsed ? (
+          <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
+            <div
+              className="h-full rounded-r-full bg-red-500"
+              style={{
+                width: `${progressPercent}%`,
+                boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
+              }}
+            />
+          </div>
+        ) : (
+          <StepperHeader
+            currentStepIndex={stepIndex}
+            skipFormat={skipFormat}
+            writingMode={org.writingMode}
+            className="top-16"
+          />
+        )}
 
         <button
           type="button"
@@ -238,7 +273,7 @@ export default function HomeView() {
         {/* Persistent StepperHeader — never unmounts during automation flow */}
         <StepperHeader
           currentStepIndex={stepIndex}
-          skipFormat={org.citationStyle === "None"}
+          skipFormat={skipFormat}
           writingMode={org.writingMode}
         />
 
