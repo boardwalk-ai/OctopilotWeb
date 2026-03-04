@@ -364,7 +364,9 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     }, [restoreSelection, saveSelection, syncSectionFromDom]);
 
     const handleEditorKeyDown = useCallback((sectionId: string, event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key !== "ArrowRight") return;
+        const isArrowExit = event.key === "ArrowRight";
+        const isSpaceExit = event.key === " ";
+        if (!isArrowExit && !isSpaceExit) return;
 
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
@@ -384,8 +386,23 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         afterToken.collapse(true);
         selection.removeAllRanges();
         selection.addRange(afterToken);
+
+        if (isSpaceExit) {
+            const inserted = document.execCommand("insertText", false, " ");
+            if (!inserted) {
+                const textNode = document.createTextNode(" ");
+                afterToken.insertNode(textNode);
+                const nextRange = document.createRange();
+                nextRange.setStartAfter(textNode);
+                nextRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(nextRange);
+            }
+            syncSectionFromDom(sectionId);
+        }
+
         saveSelection(sectionId);
-    }, [saveSelection]);
+    }, [saveSelection, syncSectionFromDom]);
 
     const getCitationForSource = useCallback((source: SourceThread): string => {
         return inTextCitationMap[source.index]
