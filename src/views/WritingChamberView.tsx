@@ -58,6 +58,7 @@ const TYPE_BADGE: Record<string, string> = {
 
 const INSIGHTS_MIN_HEIGHT = 140;
 const INSIGHTS_MAX_HEIGHT = 460;
+const ZWSP = "\u200B";
 
 function escapeHtml(text: string): string {
     return (text || "")
@@ -72,6 +73,7 @@ function wordsFromHtml(html: string): number {
     const div = document.createElement("div");
     div.innerHTML = html || "";
     return (div.innerText || "")
+        .replace(/\u200B/g, "")
         .split(/\s+/)
         .filter(Boolean).length;
 }
@@ -79,7 +81,7 @@ function wordsFromHtml(html: string): number {
 function toPlainText(html: string): string {
     const div = document.createElement("div");
     div.innerHTML = html || "";
-    return (div.innerText || "").trim();
+    return (div.innerText || "").replace(/\u200B/g, "").trim();
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -157,7 +159,7 @@ function buildSourceTokenHtml(params: {
     const content = [quote, citation].filter(Boolean).join(" ");
     if (!content) return "";
 
-    return `<span data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span> `;
+    return `<span data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span><span data-source-gap="1">${ZWSP}</span>`;
 }
 
 function buildInitialSections(org: ReturnType<typeof useOrganizer>): ChamberSection[] {
