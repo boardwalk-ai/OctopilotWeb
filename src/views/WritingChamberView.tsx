@@ -87,19 +87,23 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function isCaretAtTokenEnd(token: Element, range: Range): boolean {
+    try {
+        const beforeCaret = range.cloneRange();
+        beforeCaret.selectNodeContents(token);
+        beforeCaret.setEnd(range.startContainer, range.startOffset);
+
+        const currentOffset = beforeCaret.toString().length;
+        const tokenLength = (token.textContent || "").length;
+        if (currentOffset >= tokenLength) return true;
+    } catch {
+        // fallback below
+    }
+
     const endRange = document.createRange();
     endRange.selectNodeContents(token);
     endRange.collapse(false);
-
-    if (range.startContainer === endRange.startContainer && range.startOffset === endRange.startOffset) {
-        return true;
-    }
-
-    // Some browsers place caret on the token element itself at child boundary
-    if (range.startContainer === token && range.startOffset === token.childNodes.length) {
-        return true;
-    }
-
+    if (range.startContainer === endRange.startContainer && range.startOffset === endRange.startOffset) return true;
+    if (range.startContainer === token && range.startOffset === token.childNodes.length) return true;
     return false;
 }
 
@@ -365,7 +369,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     const handleEditorKeyDown = useCallback((sectionId: string, event: React.KeyboardEvent<HTMLDivElement>) => {
         const isArrowExit = event.key === "ArrowRight";
-        const isSpaceExit = event.key === " ";
+        const isSpaceExit = event.key === " " || event.key === "Spacebar";
         if (!isArrowExit && !isSpaceExit) return;
 
         const selection = window.getSelection();
