@@ -278,34 +278,32 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[#0b1118]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            <div className="flex h-[68px] items-center border-b border-[#1f2b3d] px-4">
+            <div className="flex h-[72px] items-center border-b border-[#1f2b3d] px-6">
                 <button
                     onClick={onBack}
-                    className="mr-2 flex h-9 items-center gap-2 rounded-lg bg-[#171f2a] px-3 text-[13px] font-bold text-[#f4f4f5] transition hover:bg-[#202a37]"
+                    className="mr-3 flex h-9 items-center gap-1.5 rounded-full border border-[#2b3a54] bg-[#0c121b] px-4 text-[13px] font-bold text-[#f4f4f5] transition hover:bg-[#1a2433]"
                 >
-                    <span className="text-[14px] leading-none">{"<"}</span>
-                    <span className="leading-none">Back</span>
+                    <span className="text-[14px] font-black">{"<"}</span>
+                    <span>Back</span>
                 </button>
                 <button
                     onClick={addSection}
-                    className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4f45] text-[30px] text-white shadow-[0_0_14px_rgba(255,79,69,0.45)] transition hover:bg-[#ff655d]"
+                    className="mr-5 flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a52] text-[24px] font-medium text-white shadow-[0_4px_12px_rgba(255,90,82,0.4)] transition hover:bg-[#ff736b]"
                     title="Add section"
                 >
                     +
                 </button>
 
                 <div className="flex min-w-0 flex-1 flex-col items-center">
-                    <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#ff5a52]">Writing Chamber</div>
-                    <div className="mt-0.5 truncate text-[22px] font-semibold text-[#f4f4f5]">{org.finalEssayTitle || "Untitled Essay"}</div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5a52]">Writing Chamber</div>
+                    <div className="mt-0.5 truncate text-[20px] font-bold text-[#f4f4f5]">{org.finalEssayTitle || "Untitled Essay"}</div>
                 </div>
 
-                <div className="ml-4 flex items-center gap-2.5">
-                    <div className="rounded-xl border border-[#22344a] bg-[#131d2a] px-4 py-2 text-[13px] font-bold text-[#4bb4ff]">Guest</div>
-                    <button className="rounded-xl bg-[#4f1717] px-4 py-2 text-[13px] font-semibold text-[#ff7369]">Store</button>
-                    <button className="rounded-xl bg-[#4f4916] px-4 py-2 text-[13px] font-semibold text-[#ffe35a]">Summary</button>
-                    <div className="rounded-xl border border-[#28313e] bg-[#121924] px-4 py-2 text-right">
+                <div className="ml-4 flex items-center gap-3">
+                    <button className="rounded-full bg-[#4a4216] px-4 py-1.5 text-[13px] font-bold text-[#ffe35a] hover:bg-[#5c511b]">Summary</button>
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#1f2b3d] bg-[#0c121b] px-4 py-1.5 text-right">
                         <div className="text-[19px] font-bold leading-none text-white">{totalWords}</div>
-                        <div className="text-[11px] text-white/55">of {targetWords} words</div>
+                        <div className="text-[11px] font-semibold text-white/50 pt-0.5">of {targetWords} words</div>
                     </div>
                 </div>
             </div>
@@ -323,29 +321,29 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 return (
                                     <div
                                         key={section.id}
-                                        className={`rounded-2xl border transition ${isActive ? "border-[#ff5a52] shadow-[0_0_0_1px_rgba(255,90,82,0.25)]" : "border-[#213045]"}`}
+                                        className={`rounded-2xl border transition overflow-hidden ${isActive ? "border-[#ff5a52] shadow-[0_0_0_1px_rgba(255,90,82,1)]" : "border-[#213045]"}`}
                                     >
-                                        <div className="flex items-center gap-2.5 border-b border-[#1f2b3d] px-3.5 py-2.5">
-                                            <button className="text-[16px] text-white/45">≡</button>
-                                            <span className="text-[15px] font-bold text-white/80">{index + 1}</span>
-                                            <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${TYPE_BADGE[typeKey] || "bg-[#33230f] text-[#f4c37a]"}`}>
+                                        <div className="flex items-center gap-3 border-b border-[#1f2b3d] px-5 py-3.5 bg-[#0b1118]">
+                                            <button className="text-[18px] font-bold text-[#445b7d]">≡</button>
+                                            <span className="text-[19px] font-black text-white px-1">{index + 1}</span>
+                                            <span className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${TYPE_BADGE[typeKey] || "bg-[#33230f] text-[#f4c37a]"}`}>
                                                 {section.type}
                                             </span>
-                                            <h3 className="truncate text-[15px] font-semibold text-[#f8fafc]">{section.title}</h3>
-                                            <button className="rounded-full bg-[#53490f] px-3.5 py-1.5 text-[11px] font-semibold text-[#ffe35a]">More ideas</button>
-                                            <div className="ml-auto flex items-center gap-2">
+                                            <h3 className="truncate ml-1 text-[18px] font-bold tracking-tight text-[#f8fafc]">{section.title}</h3>
+                                            <button className="rounded-full bg-[#332e10] px-4 py-1 text-[11px] font-bold text-[#ffe35a]">More ideas</button>
+                                            <div className="ml-auto flex items-center gap-3.5">
                                                 <button
                                                     onClick={() => deleteSection(section.id)}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ff4f45] text-[13px] text-white"
+                                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff5a52] text-[13px] text-white hover:bg-[#ff736b]"
                                                     title={sections.length <= 1 ? "At least one section is required" : "Delete section"}
                                                     disabled={sections.length <= 1}
                                                 >
                                                     🗑
                                                 </button>
-                                                <span className="rounded-lg bg-[#161f2c] px-2.5 py-1 text-[11px] text-white/75">{words} words</span>
+                                                <span className="text-[13px] font-bold text-white/50">{words} words</span>
                                                 <button
                                                     onClick={() => toggleSectionCollapse(section.id)}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#151c28] text-[11px] text-white/80"
+                                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1c2838] text-[12px] text-white/80 hover:bg-[#2b3a54]"
                                                 >
                                                     {isCollapsed ? "⌄" : "⌃"}
                                                 </button>
@@ -353,25 +351,24 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                         </div>
 
                                         {!isCollapsed && (
-                                            <div className="grid grid-cols-[260px_minmax(0,1fr)]">
-                                                <div className="border-r border-[#1f2b3d] bg-[#0f1416] p-3">
-                                                    <div className="mb-1.5 text-[17px] font-bold text-[#ffe35a]">AI Writing Assistant</div>
-                                                    <div className="mb-2.5 flex gap-2">
+                                            <div className="grid grid-cols-[280px_minmax(0,1fr)]">
+                                                <div className="border-r border-[#1f2b3d] bg-[#0c121b] p-5">
+                                                    <div className="mb-3 text-[18px] font-black tracking-wide text-[#ffe35a]">AI Writing Assistant</div>
+                                                    <div className="relative mb-2.5 flex">
                                                         <input
                                                             placeholder="Ask a question"
-                                                            className="h-9 flex-1 rounded-lg border border-[#5c531e] bg-[#121a1f] px-3 text-[14px] text-white/80 outline-none"
+                                                            className="h-10 w-full rounded-xl border border-[#4a4216] bg-transparent pl-4 pr-12 text-[14px] font-medium text-white/80 placeholder-white/30 outline-none focus:border-[#ffe35a]/50"
                                                         />
-                                                        <button className="rounded-lg bg-[#4f4916] px-3 text-[13px] font-semibold text-[#ffe35a]">Ask</button>
                                                     </div>
-                                                    <div className="mt-6 text-center text-[15px] text-white/25">
+                                                    <div className="mt-8 text-center text-[15px] font-medium text-white/20">
                                                         No suggestions yet
                                                     </div>
                                                 </div>
 
-                                                <div className="p-3">
-                                                    <div className="mb-2 text-[14px] font-semibold text-[#dbeafe]">Writing Area</div>
+                                                <div className="bg-[#0b1118] p-5">
+                                                    <div className="mb-2.5 text-[14px] font-bold text-[#a1b3cd]">Writing Area</div>
                                                     <div
-                                                        className={`relative rounded-xl border p-3 ${isActive ? "border-[#3b82f6]/40 bg-[#09121f]" : "border-[#1f2b3d] bg-[#0b1220]"}`}
+                                                        className={`relative rounded-xl border ${isActive ? "border-[#4a6ba5] bg-[#0d1624]" : "border-[#1f2b3d] bg-[#0c121b]"}`}
                                                         onClick={() => setActiveSectionId(section.id)}
                                                     >
                                                         <div
@@ -391,10 +388,10 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                             onInput={() => syncSectionFromDom(section.id)}
                                                             onKeyUp={() => saveSelection(section.id)}
                                                             onMouseUp={() => saveSelection(section.id)}
-                                                            className="min-h-[168px] text-[15px] leading-[1.55] text-[#dbeafe] outline-none"
+                                                            className="min-h-[160px] p-4 text-[15px] leading-[1.6] text-[#dbeafe] outline-none"
                                                         />
                                                         {!toPlainText(sectionHtml[section.id] || "") && (
-                                                            <div className="pointer-events-none absolute left-3 top-3 text-[14px] text-white/25">
+                                                            <div className="pointer-events-none absolute left-4 top-4 text-[14px] font-medium text-white/25">
                                                                 Start writing your {section.type.toLowerCase()} here...
                                                             </div>
                                                         )}
