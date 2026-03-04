@@ -86,6 +86,23 @@ function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
 }
 
+function isCaretAtTokenEnd(token: Element, range: Range): boolean {
+    const endRange = document.createRange();
+    endRange.selectNodeContents(token);
+    endRange.collapse(false);
+
+    if (range.startContainer === endRange.startContainer && range.startOffset === endRange.startOffset) {
+        return true;
+    }
+
+    // Some browsers place caret on the token element itself at child boundary
+    if (range.startContainer === token && range.startOffset === token.childNodes.length) {
+        return true;
+    }
+
+    return false;
+}
+
 function buildSourceTokenHtml(params: {
     quote?: string;
     citation?: string;
@@ -359,12 +376,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
             : container.parentElement;
         const token = baseElement?.closest("[data-source-token='1']");
         if (!token) return;
-
-        const tokenEnd = document.createRange();
-        tokenEnd.selectNodeContents(token);
-        tokenEnd.collapse(false);
-
-        if (activeRange.compareBoundaryPoints(Range.START_TO_START, tokenEnd) !== 0) return;
+        if (!isCaretAtTokenEnd(token, activeRange)) return;
 
         event.preventDefault();
         const afterToken = document.createRange();
