@@ -98,7 +98,7 @@ function buildSourceTokenHtml(params: {
     const content = [quote, citation].filter(Boolean).join(" ");
     if (!content) return "";
 
-    return `<span contenteditable="false" data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span> `;
+    return `<span data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span> `;
 }
 
 function buildInitialSections(org: ReturnType<typeof useOrganizer>): ChamberSection[] {
@@ -345,6 +345,35 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         syncSectionFromDom(sectionId);
         saveSelection(sectionId);
     }, [restoreSelection, saveSelection, syncSectionFromDom]);
+
+    const handleEditorKeyDown = useCallback((sectionId: string, event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== "ArrowRight") return;
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
+
+        const activeRange = selection.getRangeAt(0);
+        const container = activeRange.startContainer;
+        const baseElement = container.nodeType === Node.ELEMENT_NODE
+            ? container as Element
+            : container.parentElement;
+        const token = baseElement?.closest("[data-source-token='1']");
+        if (!token) return;
+
+        const tokenEnd = document.createRange();
+        tokenEnd.selectNodeContents(token);
+        tokenEnd.collapse(false);
+
+        if (activeRange.compareBoundaryPoints(Range.START_TO_START, tokenEnd) !== 0) return;
+
+        event.preventDefault();
+        const afterToken = document.createRange();
+        afterToken.setStartAfter(token);
+        afterToken.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(afterToken);
+        saveSelection(sectionId);
+    }, [saveSelection]);
 
     const getCitationForSource = useCallback((source: SourceThread): string => {
         return inTextCitationMap[source.index]
@@ -873,6 +902,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                             }}
                                                             onInput={() => syncSectionFromDom(section.id)}
                                                             onKeyUp={() => saveSelection(section.id)}
+                                                            onKeyDown={(e) => handleEditorKeyDown(section.id, e)}
                                                             onMouseUp={() => saveSelection(section.id)}
                                                             onPaste={(e) => handleEditorPaste(section.id, e)}
                                                             className="min-h-[260px] p-4 text-[12px] leading-[1.55] text-[#eef1f6] outline-none"
