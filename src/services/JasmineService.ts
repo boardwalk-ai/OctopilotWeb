@@ -18,6 +18,32 @@ export interface JasmineSearchResult {
 }
 
 export class JasmineService {
+    private static async callSearchWithRetry(payload: object): Promise<Response> {
+        let lastError: Error | null = null;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const res = await fetch("/api/jasmine/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) return res;
+
+                const maybeRetryable = res.status >= 500 || res.status === 429;
+                if (!maybeRetryable || attempt === 1) return res;
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error("Jasmine search request failed");
+                if (attempt === 1) throw lastError;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+        }
+
+        throw lastError || new Error("Jasmine search request failed");
+    }
+
     /**
      * Fetch a random active OpenRouter API key + the current source search model
      */
@@ -62,7 +88,7 @@ export class JasmineService {
     static async searchSources(targetCount: number): Promise<JasmineSearchResult[]> {
         if (TestService.isActive) {
             const mocks = await TestService.getSources();
-            return mocks as any;
+            return mocks as unknown as JasmineSearchResult[];
         }
 
         const state = Organizer.get();
@@ -73,17 +99,14 @@ export class JasmineService {
 
         const { apiKey, model } = await JasmineService.fetchConfig();
 
-        const res = await fetch("/api/jasmine/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                targetCount,
-                essayTopic: state.essayTopic,
-                outlines: state.selectedOutlines.length > 0 ? state.selectedOutlines : state.outlines,
-                apiKey,
-                model,
-            }),
-        });
+        const payload = {
+            targetCount,
+            essayTopic: state.essayTopic,
+            outlines: state.selectedOutlines.length > 0 ? state.selectedOutlines : state.outlines,
+            apiKey,
+            model,
+        };
+        const res = await JasmineService.callSearchWithRetry(payload);
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
