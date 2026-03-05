@@ -130,10 +130,13 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [pdfCitationPreview, setPdfCitationPreview] = useState("");
     const [isCitationLoading, setIsCitationLoading] = useState(false);
     const [citationError, setCitationError] = useState("");
+    const [isStartPageDropdownOpen, setIsStartPageDropdownOpen] = useState(false);
+    const [isEndPageDropdownOpen, setIsEndPageDropdownOpen] = useState(false);
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
+    const pageDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setCanUsePortal(true);
@@ -155,6 +158,18 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         document.addEventListener("mousedown", close);
         return () => document.removeEventListener("mousedown", close);
     }, [isToneDropdownOpen]);
+
+    useEffect(() => {
+        if (!isStartPageDropdownOpen && !isEndPageDropdownOpen) return;
+        const close = (e: MouseEvent) => {
+            if (pageDropdownRef.current && !pageDropdownRef.current.contains(e.target as Node)) {
+                setIsStartPageDropdownOpen(false);
+                setIsEndPageDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [isEndPageDropdownOpen, isStartPageDropdownOpen]);
 
     // Handle Scrape Failure Queue Presentation
     useEffect(() => {
@@ -978,41 +993,79 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
                                         <h4 className="text-[18px] font-bold text-white">Page Selection</h4>
                                         <p className="mt-1 text-[14px] text-white/60">Select the page range you want to cite from this PDF.</p>
-                                        <div className="mt-4 grid grid-cols-2 gap-4">
+                                        <div className="mt-4 grid grid-cols-2 gap-4" ref={pageDropdownRef}>
                                             <div>
                                                 <label className="mb-2 block text-[13px] text-white/70">Start Page</label>
                                                 <div className="relative">
-                                                    <select
-                                                        value={pdfStartPage}
-                                                        onChange={(e) => setPdfStartPage(Number(e.target.value))}
-                                                        className="w-full appearance-none rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 pr-10 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setIsStartPageDropdownOpen((prev) => !prev);
+                                                            setIsEndPageDropdownOpen(false);
+                                                        }}
+                                                        className="flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition hover:border-white/30 focus:border-red-400/70"
                                                     >
-                                                        {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1).map((page) => (
-                                                            <option key={`start-${page}`} value={page}>Page {page}</option>
-                                                        ))}
-                                                    </select>
-                                                    <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/55" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                        <path d="m6 9 6 6 6-6" />
-                                                    </svg>
+                                                        <span>Page {pdfStartPage}</span>
+                                                        <svg className={`text-white/55 transition-transform ${isStartPageDropdownOpen ? "rotate-180" : ""}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="m6 9 6 6 6-6" />
+                                                        </svg>
+                                                    </button>
+                                                    {isStartPageDropdownOpen && (
+                                                        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-56 overflow-y-auto rounded-xl border border-white/[0.14] bg-[#111723] p-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
+                                                            {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1).map((page) => (
+                                                                <button
+                                                                    key={`start-${page}`}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setPdfStartPage(page);
+                                                                        setIsStartPageDropdownOpen(false);
+                                                                    }}
+                                                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition ${pdfStartPage === page ? "bg-red-500/20 text-red-200" : "text-white/90 hover:bg-white/[0.06]"}`}
+                                                                >
+                                                                    <span>Page {page}</span>
+                                                                    {pdfStartPage === page && <span>✓</span>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div>
                                                 <label className="mb-2 block text-[13px] text-white/70">End Page</label>
                                                 <div className="relative">
-                                                    <select
-                                                        value={pdfEndPage}
-                                                        onChange={(e) => setPdfEndPage(Number(e.target.value))}
-                                                        className="w-full appearance-none rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 pr-10 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setIsEndPageDropdownOpen((prev) => !prev);
+                                                            setIsStartPageDropdownOpen(false);
+                                                        }}
+                                                        className="flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition hover:border-white/30 focus:border-red-400/70"
                                                     >
-                                                        {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1)
-                                                            .filter((page) => page >= pdfStartPage)
-                                                            .map((page) => (
-                                                                <option key={`end-${page}`} value={page}>Page {page}</option>
-                                                            ))}
-                                                    </select>
-                                                    <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/55" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                        <path d="m6 9 6 6 6-6" />
-                                                    </svg>
+                                                        <span>Page {pdfEndPage}</span>
+                                                        <svg className={`text-white/55 transition-transform ${isEndPageDropdownOpen ? "rotate-180" : ""}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="m6 9 6 6 6-6" />
+                                                        </svg>
+                                                    </button>
+                                                    {isEndPageDropdownOpen && (
+                                                        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-56 overflow-y-auto rounded-xl border border-white/[0.14] bg-[#111723] p-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
+                                                            {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1)
+                                                                .filter((page) => page >= pdfStartPage)
+                                                                .map((page) => (
+                                                                    <button
+                                                                        key={`end-${page}`}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setPdfEndPage(page);
+                                                                            setIsEndPageDropdownOpen(false);
+                                                                        }}
+                                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition ${pdfEndPage === page ? "bg-red-500/20 text-red-200" : "text-white/90 hover:bg-white/[0.06]"}`}
+                                                                    >
+                                                                        <span>Page {page}</span>
+                                                                        {pdfEndPage === page && <span>✓</span>}
+                                                                    </button>
+                                                                ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
