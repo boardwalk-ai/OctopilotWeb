@@ -298,6 +298,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             });
     }, [citationStyle, manualSources]);
 
+    const searchSourceEntries = useMemo(() => {
+        return manualSources
+            .map((source, sourceIndex) => ({ source, sourceIndex }))
+            .filter(({ source }) => source.manualSourceType !== "pdf" && source.manualSourceType !== "image");
+    }, [manualSources]);
+
     const imageSourceThreads = useMemo<ImageSourceThread[]>(() => {
         return manualSources
             .map((source, sourceIndex) => ({ source, sourceIndex }))
@@ -316,6 +322,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 };
             });
     }, [citationStyle, manualSources]);
+
+    const sourceCountByTab = useMemo(() => ({
+        "Octopilot Search": searchSourceEntries.filter(({ source }) => source.url.trim().length > 0).length,
+        "Use My Source": uploadedPdfSources.length + imageSourceThreads.length,
+        "Fieldwork Mode": 0,
+    }), [imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
 
     const canMoveToImageCitation = useMemo(() => imageFinalSnippet.trim().length > 0, [imageFinalSnippet]);
     const imageCurrentSrc = imageFiles[activeImageIndex]?.src || "";
@@ -554,9 +566,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             if (activePdfSourceIndex !== null && activePdfSourceIndex >= 0 && activePdfSourceIndex < next.length) {
                 next[activePdfSourceIndex] = source;
             } else {
-                const emptyIdx = next.findIndex((item) => item.url.trim() === "");
-                if (emptyIdx >= 0) next[emptyIdx] = source;
-                else next.push(source);
+                next.push(source);
             }
             return next;
         });
@@ -565,12 +575,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const removePdfSource = (sourceIndex: number) => {
-        setManualSources((prev) => {
-            if (sourceIndex < 0 || sourceIndex >= prev.length) return prev;
-            const next = [...prev];
-            next[sourceIndex] = { url: "", status: "empty" };
-            return next;
-        });
+        setManualSources((prev) => prev.filter((_, idx) => idx !== sourceIndex));
     };
 
     const resetImageFlow = () => {
@@ -767,12 +772,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const removeImageSource = (sourceIndex: number) => {
-        setManualSources((prev) => {
-            if (sourceIndex < 0 || sourceIndex >= prev.length) return prev;
-            const next = [...prev];
-            next[sourceIndex] = { url: "", status: "empty" };
-            return next;
-        });
+        setManualSources((prev) => prev.filter((_, idx) => idx !== sourceIndex));
     };
 
     const saveImageAsSource = () => {
@@ -820,9 +820,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             if (activeImageSourceIndex !== null && activeImageSourceIndex >= 0 && activeImageSourceIndex < next.length) {
                 next[activeImageSourceIndex] = source;
             } else {
-                const emptyIdx = next.findIndex((item) => item.url.trim() === "");
-                if (emptyIdx >= 0) next[emptyIdx] = source;
-                else next.push(source);
+                next.push(source);
             }
             return next;
         });
@@ -1178,7 +1176,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 <span className={`text-[14px] font-bold ${sourcesTab === tab ? "text-white" : ""}`}>{tab}</span>
                             </div>
                             <span className={`text-[11px] ${sourcesTab === tab ? "text-white/80" : "text-white/40"}`}>
-                                0 sources
+                                {sourceCountByTab[tab as keyof typeof sourceCountByTab]} sources
                             </span>
                         </button>
                     ))}
@@ -1211,8 +1209,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         </div>
 
                         {/* Dynamic Inputs */}
-                        {manualSources.map((source, idx) => (
-                            <div key={idx} className="relative w-full">
+                        {searchSourceEntries.map(({ source, sourceIndex }) => (
+                            <div key={sourceIndex} className="relative w-full">
                                 <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                                     {source.status === "loading" ? (
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-red-500" />
@@ -1235,7 +1233,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     type="text"
                                     placeholder="Enter source URL or reference..."
                                     value={source.url}
-                                    onChange={(e) => updateSourceUrl(idx, e.target.value)}
+                                    onChange={(e) => updateSourceUrl(sourceIndex, e.target.value)}
                                     className={`w-full rounded-2xl border bg-white/[0.02] py-4 pl-11 pr-14 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-white/20 ${source.status === 'failed' ? 'border-red-500/50' : 'border-white/[0.08]'}`}
                                 />
 
