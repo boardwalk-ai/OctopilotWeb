@@ -27,6 +27,25 @@ export interface SourceData {
         edition: string;
         citationPreview: string;
     };
+    imageMeta?: {
+        sourceLabel: string;
+        imageCount: number;
+        snippets: string[];
+        finalSnippet: string;
+        citationKind: "book" | "journal";
+        citationData: {
+            contributors: Array<{ firstName: string; middleName: string; lastName: string; suffix: string }>;
+            title: string;
+            articleTitle: string;
+            journalTitle: string;
+            publicationYear: string;
+            publisher: string;
+            volume: string;
+            issue: string;
+            pageRange: string;
+        };
+        citationPreview: string;
+    };
 }
 
 export interface CompactedSource {

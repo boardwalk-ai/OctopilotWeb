@@ -9,6 +9,7 @@ import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { JasmineService } from "@/services/JasmineService";
 import { ScraperService } from "@/services/ScraperService";
 import { ScarletService } from "@/services/ScarletService";
+import { OCRService } from "@/services/OCRService";
 import { SpoonieAuthorInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
 
@@ -65,6 +66,24 @@ type UploadedPdfSource = {
 };
 
 type PdfModalMode = "create" | "view" | "edit";
+type ImageModalMode = "create" | "view" | "edit";
+
+type ImageCitationContributor = {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    suffix: string;
+};
+
+type ImageSourceThread = {
+    id: string;
+    sourceIndex: number;
+    source: SourceData;
+    sourceLabel: string;
+    imageCount: number;
+    finalSnippet: string;
+    citation: string;
+};
 
 export default function ConfigurationView({ onBack, onNext }: ConfigurationViewProps) {
     const org = useOrganizer();
@@ -140,11 +159,43 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [isStartPageDropdownOpen, setIsStartPageDropdownOpen] = useState(false);
     const [isEndPageDropdownOpen, setIsEndPageDropdownOpen] = useState(false);
     const [sourceUploadHoverHint, setSourceUploadHoverHint] = useState<"" | "pdf" | "images">("");
+    // Use My Source - Image OCR flow
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [imageModalMode, setImageModalMode] = useState<ImageModalMode>("create");
+    const [activeImageSourceIndex, setActiveImageSourceIndex] = useState<number | null>(null);
+    const [imageStep, setImageStep] = useState<1 | 2 | 3>(1);
+    const [imageFiles, setImageFiles] = useState<Array<{ name: string; src: string }>>([]);
+    const [imageTotalCount, setImageTotalCount] = useState(0);
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [imageBufferText, setImageBufferText] = useState("");
+    const [imageFinalSnippet, setImageFinalSnippet] = useState("");
+    const [imageConfirmedSnippets, setImageConfirmedSnippets] = useState<string[]>([]);
+    const [imageSelectedRegion, setImageSelectedRegion] = useState({ x: 120, y: 80, width: 360, height: 220 });
+    const [isDraggingImageRegion, setIsDraggingImageRegion] = useState(false);
+    const [isScanningImage, setIsScanningImage] = useState(false);
+    const [imageCitationKind, setImageCitationKind] = useState<"book" | "journal">("book");
+    const [imageCitationContributors, setImageCitationContributors] = useState<ImageCitationContributor[]>([
+        { firstName: "", middleName: "", lastName: "", suffix: "" },
+    ]);
+    const [imageCitationTitle, setImageCitationTitle] = useState("");
+    const [imageCitationArticleTitle, setImageCitationArticleTitle] = useState("");
+    const [imageCitationJournalTitle, setImageCitationJournalTitle] = useState("");
+    const [imageCitationPublicationYear, setImageCitationPublicationYear] = useState("");
+    const [imageCitationPublisher, setImageCitationPublisher] = useState("");
+    const [imageCitationVolume, setImageCitationVolume] = useState("");
+    const [imageCitationIssue, setImageCitationIssue] = useState("");
+    const [imageCitationPageRange, setImageCitationPageRange] = useState("");
+    const [imageCitationPreview, setImageCitationPreview] = useState("");
+    const [imageCitationError, setImageCitationError] = useState("");
+    const [isImageCitationLoading, setIsImageCitationLoading] = useState(false);
+    const [imageSourceLabel, setImageSourceLabel] = useState("");
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
     const pageDropdownRef = useRef<HTMLDivElement>(null);
+    const imageViewportRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setCanUsePortal(true);
@@ -247,6 +298,28 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 };
             });
     }, [citationStyle, manualSources]);
+
+    const imageSourceThreads = useMemo<ImageSourceThread[]>(() => {
+        return manualSources
+            .map((source, sourceIndex) => ({ source, sourceIndex }))
+            .filter(({ source }) => source.manualSourceType === "image")
+            .map(({ source, sourceIndex }) => {
+                const sourceLabel = source.imageMeta?.sourceLabel || source.title || `Image Source ${sourceIndex + 1}`;
+                const finalSnippet = source.imageMeta?.finalSnippet || source.fullContent || "";
+                return {
+                    id: `${source.url}-${sourceIndex}`,
+                    sourceIndex,
+                    source,
+                    sourceLabel,
+                    imageCount: source.imageMeta?.imageCount || 0,
+                    finalSnippet,
+                    citation: source.imageMeta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, sourceIndex + 1),
+                };
+            });
+    }, [citationStyle, manualSources]);
+
+    const canMoveToImageCitation = useMemo(() => imageFinalSnippet.trim().length > 0, [imageFinalSnippet]);
+    const imageCurrentSrc = imageFiles[activeImageIndex]?.src || "";
 
     const fallbackPdfCitation = useCallback(() => {
         const fallbackSource: SourceData = {
@@ -466,6 +539,295 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             next[sourceIndex] = { url: "", status: "empty" };
             return next;
         });
+    };
+
+    const resetImageFlow = () => {
+        setShowImageModal(false);
+        setImageModalMode("create");
+        setActiveImageSourceIndex(null);
+        setImageStep(1);
+        setImageFiles([]);
+        setImageTotalCount(0);
+        setActiveImageIndex(0);
+        setImageBufferText("");
+        setImageFinalSnippet("");
+        setImageConfirmedSnippets([]);
+        setImageSelectedRegion({ x: 120, y: 80, width: 360, height: 220 });
+        setIsDraggingImageRegion(false);
+        setIsScanningImage(false);
+        setImageCitationKind("book");
+        setImageCitationContributors([{ firstName: "", middleName: "", lastName: "", suffix: "" }]);
+        setImageCitationTitle("");
+        setImageCitationArticleTitle("");
+        setImageCitationJournalTitle("");
+        setImageCitationPublicationYear("");
+        setImageCitationPublisher("");
+        setImageCitationVolume("");
+        setImageCitationIssue("");
+        setImageCitationPageRange("");
+        setImageCitationPreview("");
+        setImageCitationError("");
+        setIsImageCitationLoading(false);
+        setImageSourceLabel("");
+    };
+
+    const openImagePicker = () => imageInputRef.current?.click();
+
+    const onImageFilesPicked = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+        if (!files.length) return;
+        const items = await Promise.all(
+            files.map(async (file) => ({
+                name: file.name,
+                src: await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ""));
+                    reader.onerror = () => reject(new Error("Failed to read image"));
+                    reader.readAsDataURL(file);
+                }),
+            }))
+        );
+        setImageFiles(items);
+        setImageTotalCount(items.length);
+        setImageSourceLabel(items[0].name.replace(/\.[^.]+$/, ""));
+        setImageModalMode("create");
+        setActiveImageSourceIndex(null);
+        setImageStep(1);
+        setActiveImageIndex(0);
+        setImageConfirmedSnippets([]);
+        setShowImageModal(true);
+        event.target.value = "";
+    };
+
+    const addMoreImagesToFlow = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+        if (!files.length) return;
+        const items = await Promise.all(
+            files.map(async (file) => ({
+                name: file.name,
+                src: await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ""));
+                    reader.onerror = () => reject(new Error("Failed to read image"));
+                    reader.readAsDataURL(file);
+                }),
+            }))
+        );
+        setImageFiles((prev) => [...prev, ...items]);
+        setImageTotalCount((prev) => prev + items.length);
+        event.target.value = "";
+    };
+
+    const scanActiveImageRegion = async () => {
+        if (!imageCurrentSrc) return;
+        setIsScanningImage(true);
+        try {
+            const text = await OCRService.readImageRegion(imageCurrentSrc, imageSelectedRegion);
+            if (!text.trim()) return;
+            setImageBufferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${text.trim()}` : text.trim()));
+        } catch (error) {
+            alert(error instanceof Error ? error.message : "OCR failed");
+        } finally {
+            setIsScanningImage(false);
+        }
+    };
+
+    const confirmImageBuffer = () => {
+        const cleaned = imageBufferText.trim();
+        if (!cleaned) return;
+        setImageConfirmedSnippets((prev) => [...prev, cleaned]);
+        setImageFinalSnippet((prev) => (prev.trim() ? `${prev.trim()}\n\n${cleaned}` : cleaned));
+        setImageBufferText("");
+        setImageSelectedRegion({ x: 120, y: 80, width: 360, height: 220 });
+        // Expire current image after confirmation and auto focus next remaining image.
+        setImageFiles((prev) => {
+            if (!prev.length) return prev;
+            const next = prev.filter((_, idx) => idx !== activeImageIndex);
+            const nextIndex = Math.min(activeImageIndex, Math.max(0, next.length - 1));
+            setActiveImageIndex(nextIndex);
+            return next;
+        });
+    };
+
+    const addImageContributor = () => {
+        setImageCitationContributors((prev) => [...prev, { firstName: "", middleName: "", lastName: "", suffix: "" }]);
+    };
+
+    const updateImageContributor = (index: number, field: keyof ImageCitationContributor, value: string) => {
+        setImageCitationContributors((prev) =>
+            prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+        );
+    };
+
+    const buildImageCitationBySpoonie = async () => {
+        if (!imageFinalSnippet.trim()) {
+            setImageCitationError("Final snippet is empty.");
+            return;
+        }
+        setIsImageCitationLoading(true);
+        setImageCitationError("");
+        try {
+            const citation = await SpoonieService.generateCitation({
+                citationStyle,
+                documentTitle: imageCitationKind === "book"
+                    ? (imageCitationTitle.trim() || imageSourceLabel || "Untitled")
+                    : (imageCitationArticleTitle.trim() || imageSourceLabel || "Untitled"),
+                publicationYear: imageCitationPublicationYear.trim() || "n.d.",
+                authors: imageCitationContributors.map((c) => ({ firstName: c.firstName, lastName: c.lastName })),
+                journalName: imageCitationKind === "journal" ? imageCitationJournalTitle.trim() : "",
+                publisher: imageCitationPublisher.trim(),
+                volume: imageCitationVolume.trim(),
+                issue: imageCitationIssue.trim(),
+                pageRange: imageCitationPageRange.trim(),
+            });
+            setImageCitationPreview(citation);
+        } catch (error) {
+            setImageCitationError(error instanceof Error ? error.message : "Could not build citation.");
+            const fallback: SourceData = {
+                url: "",
+                status: "scraped",
+                title: imageCitationKind === "book"
+                    ? (imageCitationTitle || imageSourceLabel || "Untitled")
+                    : (imageCitationArticleTitle || imageSourceLabel || "Untitled"),
+                author: imageCitationContributors
+                    .map((c) => [c.lastName, c.firstName].filter(Boolean).join(", "))
+                    .filter(Boolean)
+                    .join("; "),
+                publishedYear: imageCitationPublicationYear || "n.d.",
+                publisher: imageCitationKind === "journal"
+                    ? (imageCitationJournalTitle || imageCitationPublisher || "Unknown")
+                    : (imageCitationPublisher || "Unknown"),
+                fullContent: imageFinalSnippet,
+            };
+            setImageCitationPreview(CitationTemplateService.formatReference(citationStyle, fallback, 1));
+        } finally {
+            setIsImageCitationLoading(false);
+        }
+    };
+
+    const openExistingImageSource = (source: SourceData, sourceIndex: number, mode: ImageModalMode) => {
+        const meta = source.imageMeta;
+        setImageModalMode(mode);
+        setActiveImageSourceIndex(sourceIndex);
+        setShowImageModal(true);
+        setImageStep(1);
+        setImageFiles((meta?.snippets || []).map((_, idx) => ({ name: `Scanned image ${idx + 1}`, src: "" })));
+        setImageTotalCount(meta?.imageCount || meta?.snippets?.length || 0);
+        setActiveImageIndex(0);
+        setImageBufferText("");
+        setImageFinalSnippet(meta?.finalSnippet || source.fullContent || "");
+        setImageConfirmedSnippets(meta?.snippets || []);
+        setImageCitationKind(meta?.citationKind || "book");
+        setImageCitationContributors(
+            meta?.citationData.contributors?.length
+                ? meta.citationData.contributors
+                : [{ firstName: "", middleName: "", lastName: "", suffix: "" }]
+        );
+        setImageCitationTitle(meta?.citationData.title || source.title || "");
+        setImageCitationArticleTitle(meta?.citationData.articleTitle || source.title || "");
+        setImageCitationJournalTitle(meta?.citationData.journalTitle || "");
+        setImageCitationPublicationYear(meta?.citationData.publicationYear || source.publishedYear || "");
+        setImageCitationPublisher(meta?.citationData.publisher || source.publisher || "");
+        setImageCitationVolume(meta?.citationData.volume || "");
+        setImageCitationIssue(meta?.citationData.issue || "");
+        setImageCitationPageRange(meta?.citationData.pageRange || "");
+        setImageCitationPreview(meta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, 1));
+        setImageSourceLabel(meta?.sourceLabel || source.title || `Image Source ${sourceIndex + 1}`);
+    };
+
+    const removeImageSource = (sourceIndex: number) => {
+        setManualSources((prev) => {
+            if (sourceIndex < 0 || sourceIndex >= prev.length) return prev;
+            const next = [...prev];
+            next[sourceIndex] = { url: "", status: "empty" };
+            return next;
+        });
+    };
+
+    const saveImageAsSource = () => {
+        if (!imageFinalSnippet.trim()) {
+            alert("Final snippet is empty.");
+            return;
+        }
+        const source: SourceData = {
+            url: `image://${encodeURIComponent(imageSourceLabel || `image-source-${Date.now()}`)}`,
+            status: "scraped",
+            manualSourceType: "image",
+            title: imageSourceLabel || "Image OCR Source",
+            author: imageCitationContributors
+                .map((c) => [c.lastName, c.firstName].filter(Boolean).join(", "))
+                .filter(Boolean)
+                .join("; "),
+            publishedYear: imageCitationPublicationYear,
+            publisher: imageCitationKind === "journal"
+                ? (imageCitationJournalTitle || imageCitationPublisher)
+                : imageCitationPublisher,
+            fullContent: imageFinalSnippet,
+            imageMeta: {
+                sourceLabel: imageSourceLabel || "Image OCR Source",
+                imageCount: imageTotalCount,
+                snippets: imageConfirmedSnippets,
+                finalSnippet: imageFinalSnippet,
+                citationKind: imageCitationKind,
+                citationData: {
+                    contributors: imageCitationContributors,
+                    title: imageCitationTitle,
+                    articleTitle: imageCitationArticleTitle,
+                    journalTitle: imageCitationJournalTitle,
+                    publicationYear: imageCitationPublicationYear,
+                    publisher: imageCitationPublisher,
+                    volume: imageCitationVolume,
+                    issue: imageCitationIssue,
+                    pageRange: imageCitationPageRange,
+                },
+                citationPreview: imageCitationPreview,
+            },
+        };
+
+        setManualSources((prev) => {
+            const next = [...prev];
+            if (activeImageSourceIndex !== null && activeImageSourceIndex >= 0 && activeImageSourceIndex < next.length) {
+                next[activeImageSourceIndex] = source;
+            } else {
+                const emptyIdx = next.findIndex((item) => item.url.trim() === "");
+                if (emptyIdx >= 0) next[emptyIdx] = source;
+                else next.push(source);
+            }
+            return next;
+        });
+        resetImageFlow();
+    };
+
+    const onImageViewportMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (imageModalMode === "view") return;
+        if (!imageViewportRef.current || !imageCurrentSrc) return;
+        const rect = imageViewportRef.current.getBoundingClientRect();
+        const startX = event.clientX - rect.left;
+        const startY = event.clientY - rect.top;
+        const nextRegion = {
+            x: Math.max(0, startX),
+            y: Math.max(0, startY),
+            width: 1,
+            height: 1,
+        };
+        setImageSelectedRegion(nextRegion);
+        setIsDraggingImageRegion(true);
+    };
+
+    const onImageViewportMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!isDraggingImageRegion || !imageViewportRef.current) return;
+        const rect = imageViewportRef.current.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        setImageSelectedRegion((prev) => ({
+            ...prev,
+            width: Math.max(8, x - prev.x),
+            height: Math.max(8, y - prev.y),
+        }));
+    };
+
+    const onImageViewportMouseUp = () => {
+        setIsDraggingImageRegion(false);
     };
 
     useEffect(() => {
@@ -927,8 +1289,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             </button>
                             <div onMouseEnter={() => setSourceUploadHoverHint("images")} onMouseLeave={() => setSourceUploadHoverHint("")}>
                                 <button
-                                    disabled
-                                    className="cursor-not-allowed rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/50"
+                                    onClick={openImagePicker}
+                                    className="rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/80 transition hover:bg-white/[0.08]"
                                 >
                                     Upload Images
                                 </button>
@@ -947,6 +1309,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             type="file"
                             accept="application/pdf,.pdf"
                             onChange={handlePdfUpload}
+                            className="hidden"
+                        />
+                        <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={onImageFilesPicked}
                             className="hidden"
                         />
 
@@ -991,6 +1361,64 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             </button>
                                             <button
                                                 onClick={() => removePdfSource(pdf.sourceIndex)}
+                                                className="rounded-lg border border-red-500/35 bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20"
+                                                title="Delete source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M3 6h18" />
+                                                    <path d="M8 6V4h8v2" />
+                                                    <path d="M19 6l-1 14H6L5 6" />
+                                                    <path d="M10 11v6" />
+                                                    <path d="M14 11v6" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {imageSourceThreads.length > 0 && (
+                            <div className="mt-4 space-y-3">
+                                {imageSourceThreads.map((img) => (
+                                    <div key={img.id} className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-400/35 bg-blue-500/15 text-blue-300">
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                    <circle cx="9" cy="9" r="2" />
+                                                    <path d="m21 15-5-5L5 21" />
+                                                </svg>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="truncate text-[14px] font-semibold text-white">{img.sourceLabel}</div>
+                                                <div className="mt-1 text-[12px] text-white/60">{img.imageCount} image(s)</div>
+                                                <div className="mt-2 line-clamp-2 text-[12px] text-white/80">{img.citation}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <button
+                                                onClick={() => openExistingImageSource(img.source, img.sourceIndex, "view")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="View source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => openExistingImageSource(img.source, img.sourceIndex, "edit")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="Edit source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 20h9" />
+                                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => removeImageSource(img.sourceIndex)}
                                                 className="rounded-lg border border-red-500/35 bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20"
                                                 title="Delete source"
                                             >
@@ -1437,6 +1865,304 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </button>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {showImageModal && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+                    <div className="flex h-[90vh] w-full max-w-[1360px] flex-col overflow-hidden rounded-3xl border border-white/[0.1] bg-[#101015] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+                        <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4">
+                            <div>
+                                <div className="text-[30px] font-bold text-white">Step {imageStep}: {imageStep === 1 ? "OCR" : imageStep === 2 ? "Citation" : "Save"}</div>
+                                <div className="text-[14px] text-white/60">
+                                    {imageStep === 1 ? "Drag on image to select OCR region." : imageStep === 2 ? "Fill citation builder form." : "Review before saving source."}
+                                </div>
+                            </div>
+                            <button onClick={resetImageFlow} className="rounded-full bg-white/[0.08] p-2 text-white/60 hover:bg-white/[0.16] hover:text-white">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                            {imageStep === 1 && (
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <div className="text-[16px] font-semibold text-white">Select an image to scan ({Math.max(0, imageFiles.length - activeImageIndex)} remaining)</div>
+                                            <button
+                                                onClick={() => document.getElementById("add-more-images-input")?.click()}
+                                                disabled={imageModalMode === "view"}
+                                                className="rounded-full border border-white/[0.15] bg-white/[0.05] px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-50"
+                                            >
+                                                + Add More
+                                            </button>
+                                        </div>
+                                        <div className="mb-4 flex flex-wrap gap-2">
+                                            {imageFiles.map((image, idx) => (
+                                                <button
+                                                    key={`${image.name}-${idx}`}
+                                                    onClick={() => setActiveImageIndex(idx)}
+                                                    className={`h-16 w-16 overflow-hidden rounded-lg border ${idx === activeImageIndex ? "border-red-400" : "border-white/[0.15]"}`}
+                                                >
+                                                    {image.src ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img src={image.src} alt={image.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <div className="flex h-full w-full items-center justify-center bg-black/30 text-[10px] text-white/40">IMG</div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                            {!imageFiles.length && (
+                                                <button
+                                                    onClick={openImagePicker}
+                                                    disabled={imageModalMode === "view"}
+                                                    className="rounded-full bg-red-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-red-400 disabled:opacity-50"
+                                                >
+                                                    Upload Images
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            id="add-more-images-input"
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={addMoreImagesToFlow}
+                                        />
+
+                                        <div
+                                            ref={imageViewportRef}
+                                            onMouseDown={onImageViewportMouseDown}
+                                            onMouseMove={onImageViewportMouseMove}
+                                            onMouseUp={onImageViewportMouseUp}
+                                            onMouseLeave={onImageViewportMouseUp}
+                                            className="relative h-[340px] overflow-hidden rounded-xl border border-white/[0.08] bg-black/35"
+                                        >
+                                            {imageCurrentSrc ? (
+                                                <>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={imageCurrentSrc} alt="OCR Source" className="h-full w-full object-contain" />
+                                                    <div
+                                                        className="absolute border-2 border-red-400 bg-red-400/10"
+                                                        style={{
+                                                            left: imageSelectedRegion.x,
+                                                            top: imageSelectedRegion.y,
+                                                            width: imageSelectedRegion.width,
+                                                            height: imageSelectedRegion.height,
+                                                        }}
+                                                    />
+                                                </>
+                                            ) : (
+                                                <div className="flex h-full items-center justify-center text-[14px] text-white/50">No images uploaded yet</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="mb-2 text-[18px] font-semibold text-white">Final Snippet</div>
+                                            <textarea
+                                                value={imageFinalSnippet}
+                                                onChange={(e) => setImageFinalSnippet(e.target.value)}
+                                                readOnly={imageModalMode === "view"}
+                                                className="h-44 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
+                                                placeholder="Confirmed text will accumulate here..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <div className="mb-2 text-[18px] font-semibold text-white">Buffer Workspace</div>
+                                            <textarea
+                                                value={imageBufferText}
+                                                onChange={(e) => setImageBufferText(e.target.value)}
+                                                readOnly={imageModalMode === "view"}
+                                                className="h-44 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
+                                                placeholder="Selected text will appear here for editing..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {imageStep === 2 && (
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                                        <div className="mb-3 text-[20px] font-semibold text-white">Citation Builder</div>
+                                        <input
+                                            value={imageSourceLabel}
+                                            onChange={(e) => setImageSourceLabel(e.target.value)}
+                                            readOnly={imageModalMode === "view"}
+                                            placeholder="Source label"
+                                            className="mb-3 w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none"
+                                        />
+                                        <div className="mb-3 inline-flex rounded-full border border-white/[0.12] p-1">
+                                            <button
+                                                onClick={() => setImageCitationKind("book")}
+                                                disabled={imageModalMode === "view"}
+                                                className={`rounded-full px-4 py-2 text-[14px] font-semibold ${imageCitationKind === "book" ? "bg-red-500 text-white" : "text-white/70"}`}
+                                            >
+                                                Book
+                                            </button>
+                                            <button
+                                                onClick={() => setImageCitationKind("journal")}
+                                                disabled={imageModalMode === "view"}
+                                                className={`rounded-full px-4 py-2 text-[14px] font-semibold ${imageCitationKind === "journal" ? "bg-red-500 text-white" : "text-white/70"}`}
+                                            >
+                                                Printed Journal
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {imageCitationContributors.map((contributor, idx) => (
+                                                <div key={`img-contributor-${idx}`} className="grid grid-cols-[1fr_1fr_1fr_140px] gap-3">
+                                                    <input value={contributor.firstName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "firstName", e.target.value)} placeholder="First name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input value={contributor.middleName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "middleName", e.target.value)} placeholder="Middle name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input value={contributor.lastName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "lastName", e.target.value)} placeholder="Last name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input value={contributor.suffix} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "suffix", e.target.value)} placeholder="Suffix" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                </div>
+                                            ))}
+                                            <button disabled={imageModalMode === "view"} onClick={addImageContributor} className="text-[14px] font-semibold text-red-400 hover:text-red-300 disabled:opacity-40">+ Add another contributor</button>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {imageCitationKind === "book" ? (
+                                                <>
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationTitle} onChange={(e) => setImageCitationTitle(e.target.value)} placeholder="Book title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationArticleTitle} onChange={(e) => setImageCitationArticleTitle(e.target.value)} placeholder="Article title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationJournalTitle} onChange={(e) => setImageCitationJournalTitle(e.target.value)} placeholder="Journal title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationVolume} onChange={(e) => setImageCitationVolume(e.target.value)} placeholder="Volume" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationIssue} onChange={(e) => setImageCitationIssue(e.target.value)} placeholder="Issue" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPageRange} onChange={(e) => setImageCitationPageRange(e.target.value)} placeholder="Page range" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {imageStep === 3 && (
+                                <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                                    <div className="text-center text-[30px] font-bold text-white">Review Before Saving</div>
+                                    <div className="text-[14px] font-semibold text-white/80">Snippet</div>
+                                    <textarea
+                                        value={imageFinalSnippet}
+                                        onChange={(e) => setImageFinalSnippet(e.target.value)}
+                                        readOnly={imageModalMode === "view"}
+                                        className="h-48 w-full rounded-xl border border-white/[0.1] bg-black/25 p-3 text-[14px] text-white outline-none"
+                                    />
+                                    <div className="text-[14px] font-semibold text-white/80">Citation ({citationStyle})</div>
+                                    <textarea
+                                        value={imageCitationPreview}
+                                        onChange={(e) => setImageCitationPreview(e.target.value)}
+                                        readOnly={imageModalMode === "view"}
+                                        className="h-28 w-full rounded-xl border border-white/[0.1] bg-black/25 p-3 text-[14px] text-white outline-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-white/[0.08] bg-black/25 px-6 py-4">
+                            <div className="flex items-center gap-2 text-[14px] font-semibold">
+                                <button
+                                    onClick={() => setImageStep(1)}
+                                    className={`rounded-full px-4 py-1.5 ${imageStep === 1 ? "bg-red-500 text-white" : "bg-white/10 text-white/60"}`}
+                                >
+                                    1 OCR
+                                </button>
+                                <button
+                                    onClick={() => canMoveToImageCitation && setImageStep(2)}
+                                    className={`rounded-full px-4 py-1.5 ${imageStep === 2 ? "bg-red-500 text-white" : "bg-white/10 text-white/60"}`}
+                                >
+                                    2 Citation
+                                </button>
+                                <button
+                                    onClick={() => setImageStep(3)}
+                                    className={`rounded-full px-4 py-1.5 ${imageStep === 3 ? "bg-red-500 text-white" : "bg-white/10 text-white/60"}`}
+                                >
+                                    3 Save
+                                </button>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {imageStep === 1 && (
+                                    <>
+                                        <button
+                                            onClick={scanActiveImageRegion}
+                                            disabled={!imageCurrentSrc || isScanningImage || imageModalMode === "view"}
+                                            className="rounded-full border border-white/[0.12] bg-white/[0.05] px-4 py-2 text-[14px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-50"
+                                        >
+                                            {isScanningImage ? "Scanning..." : "Scan Selection"}
+                                        </button>
+                                        <button
+                                            onClick={confirmImageBuffer}
+                                            disabled={!imageBufferText.trim() || imageModalMode === "view"}
+                                            className="rounded-full bg-red-500 px-5 py-2 text-[14px] font-bold text-white hover:bg-red-400 disabled:opacity-50"
+                                        >
+                                            Edit & Confirm
+                                        </button>
+                                        <button
+                                            onClick={() => setImageStep(2)}
+                                            disabled={!canMoveToImageCitation}
+                                            className="rounded-full bg-white/[0.12] px-5 py-2 text-[14px] font-bold text-white hover:bg-white/[0.2] disabled:opacity-40"
+                                        >
+                                            Citation
+                                        </button>
+                                    </>
+                                )}
+                                {imageStep === 2 && (
+                                    <>
+                                        <button
+                                            onClick={() => setImageStep(1)}
+                                            className="rounded-full border border-white/[0.12] bg-white/[0.05] px-5 py-2 text-[14px] font-semibold text-white hover:bg-white/[0.1]"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            onClick={buildImageCitationBySpoonie}
+                                            disabled={isImageCitationLoading || imageModalMode === "view"}
+                                            className="rounded-full border border-[#c9ad3a]/50 bg-[#5a4f16]/55 px-5 py-2 text-[14px] font-semibold text-[#f6e08a] hover:bg-[#6e611a]/65 disabled:opacity-50"
+                                        >
+                                            {isImageCitationLoading ? "Spoonie..." : "Ask Spoonie"}
+                                        </button>
+                                        <button
+                                            onClick={() => setImageStep(3)}
+                                            className="rounded-full bg-red-500 px-5 py-2 text-[14px] font-bold text-white hover:bg-red-400"
+                                        >
+                                            Review
+                                        </button>
+                                    </>
+                                )}
+                                {imageStep === 3 && (
+                                    <>
+                                        <button
+                                            onClick={() => setImageStep(2)}
+                                            className="rounded-full border border-white/[0.12] bg-white/[0.05] px-5 py-2 text-[14px] font-semibold text-white hover:bg-white/[0.1]"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            onClick={imageModalMode === "view" ? resetImageFlow : saveImageAsSource}
+                                            className="rounded-full bg-red-500 px-6 py-2 text-[14px] font-bold text-white hover:bg-red-400"
+                                        >
+                                            {imageModalMode === "view" ? "Close" : imageModalMode === "edit" ? "Update Source" : "Save as Source"}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        {imageCitationError && <div className="px-6 pb-4 text-[12px] text-yellow-200">{imageCitationError}</div>}
                     </div>
                 </div>
             )}
