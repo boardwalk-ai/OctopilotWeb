@@ -619,10 +619,36 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const scanActiveImageRegion = async () => {
-        if (!imageCurrentSrc) return;
+        if (!imageCurrentSrc || !imageViewportRef.current) return;
         setIsScanningImage(true);
         try {
-            const text = await OCRService.readImageRegion(imageCurrentSrc, imageSelectedRegion);
+            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error("Failed to load source image"));
+                image.src = imageCurrentSrc;
+            });
+            const viewport = imageViewportRef.current.getBoundingClientRect();
+            const naturalW = img.naturalWidth || img.width;
+            const naturalH = img.naturalHeight || img.height;
+            const viewportRatio = viewport.width / viewport.height;
+            const naturalRatio = naturalW / naturalH;
+
+            const drawW = naturalRatio > viewportRatio ? viewport.width : viewport.height * naturalRatio;
+            const drawH = naturalRatio > viewportRatio ? viewport.width / naturalRatio : viewport.height;
+            const offsetX = (viewport.width - drawW) / 2;
+            const offsetY = (viewport.height - drawH) / 2;
+            const scaleX = naturalW / drawW;
+            const scaleY = naturalH / drawH;
+
+            const regionOnImage = {
+                x: Math.max(0, Math.round((imageSelectedRegion.x - offsetX) * scaleX)),
+                y: Math.max(0, Math.round((imageSelectedRegion.y - offsetY) * scaleY)),
+                width: Math.max(8, Math.round(imageSelectedRegion.width * scaleX)),
+                height: Math.max(8, Math.round(imageSelectedRegion.height * scaleY)),
+            };
+
+            const text = await OCRService.readImageRegion(imageCurrentSrc, regionOnImage);
             if (!text.trim()) return;
             setImageBufferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${text.trim()}` : text.trim()));
         } catch (error) {
