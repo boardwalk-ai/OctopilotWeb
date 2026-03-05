@@ -2029,13 +2029,17 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 <div className="space-y-4">
                                     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
                                         <div className="mb-3 text-[20px] font-semibold text-white">Citation Builder</div>
-                                        <input
-                                            value={imageSourceLabel}
-                                            onChange={(e) => setImageSourceLabel(e.target.value)}
-                                            readOnly={imageModalMode === "view"}
-                                            placeholder="Source label"
-                                            className="mb-3 w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none"
-                                        />
+                                        <label className="mb-4 block">
+                                            <div className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/65">Source Label</div>
+                                            <input
+                                                value={imageSourceLabel}
+                                                onChange={(e) => setImageSourceLabel(e.target.value)}
+                                                readOnly={imageModalMode === "view"}
+                                                placeholder="Source label"
+                                                className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none"
+                                            />
+                                        </label>
+                                        <div className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/65">Source Type</div>
                                         <div className="mb-3 inline-flex rounded-full border border-white/[0.12] p-1">
                                             <button
                                                 onClick={() => setImageCitationKind("book")}
@@ -2054,12 +2058,25 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                         </div>
 
                                         <div className="space-y-3">
+                                            <div className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/65">Contributor Names</div>
                                             {imageCitationContributors.map((contributor, idx) => (
-                                                <div key={`img-contributor-${idx}`} className="grid grid-cols-[1fr_1fr_1fr_140px] gap-3">
-                                                    <input value={contributor.firstName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "firstName", e.target.value)} placeholder="First name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input value={contributor.middleName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "middleName", e.target.value)} placeholder="Middle name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input value={contributor.lastName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "lastName", e.target.value)} placeholder="Last name" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input value={contributor.suffix} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "suffix", e.target.value)} placeholder="Suffix" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                <div key={`img-contributor-${idx}`} className="grid gap-3 xl:grid-cols-[1fr_1fr_1fr_140px]">
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">First Name</div>
+                                                        <input value={contributor.firstName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "firstName", e.target.value)} placeholder="First name" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Middle Name</div>
+                                                        <input value={contributor.middleName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "middleName", e.target.value)} placeholder="Middle name" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Last Name</div>
+                                                        <input value={contributor.lastName} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "lastName", e.target.value)} placeholder="Last name" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Suffix / Title</div>
+                                                        <input value={contributor.suffix} readOnly={imageModalMode === "view"} onChange={(e) => updateImageContributor(idx, "suffix", e.target.value)} placeholder="Suffix" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
                                                 </div>
                                             ))}
                                             <button disabled={imageModalMode === "view"} onClick={addImageContributor} className="text-[14px] font-semibold text-red-400 hover:text-red-300 disabled:opacity-40">+ Add another contributor</button>
@@ -2067,22 +2084,55 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </div>
 
                                     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/65">
+                                            {imageCitationKind === "book" ? "Book Details" : "Journal Details"}
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                                             {imageCitationKind === "book" ? (
                                                 <>
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationTitle} onChange={(e) => setImageCitationTitle(e.target.value)} placeholder="Book title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <label className="block xl:col-span-2">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Book Title</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationTitle} onChange={(e) => setImageCitationTitle(e.target.value)} placeholder="Book title" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Publication Year</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Publisher</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationArticleTitle} onChange={(e) => setImageCitationArticleTitle(e.target.value)} placeholder="Article title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationJournalTitle} onChange={(e) => setImageCitationJournalTitle(e.target.value)} placeholder="Journal title" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationVolume} onChange={(e) => setImageCitationVolume(e.target.value)} placeholder="Volume" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationIssue} onChange={(e) => setImageCitationIssue(e.target.value)} placeholder="Issue" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPageRange} onChange={(e) => setImageCitationPageRange(e.target.value)} placeholder="Page range" className="rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
-                                                    <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="col-span-2 rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    <label className="block xl:col-span-2">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Article Title</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationArticleTitle} onChange={(e) => setImageCitationArticleTitle(e.target.value)} placeholder="Article title" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block xl:col-span-2">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Journal Title</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationJournalTitle} onChange={(e) => setImageCitationJournalTitle(e.target.value)} placeholder="Journal title" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Volume</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationVolume} onChange={(e) => setImageCitationVolume(e.target.value)} placeholder="Volume" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Issue</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationIssue} onChange={(e) => setImageCitationIssue(e.target.value)} placeholder="Issue" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Publication Year</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationPublicationYear} onChange={(e) => setImageCitationPublicationYear(e.target.value)} placeholder="Publication year" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Page Range</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationPageRange} onChange={(e) => setImageCitationPageRange(e.target.value)} placeholder="Page range" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
+                                                    <label className="block xl:col-span-2">
+                                                        <div className="mb-2 text-[12px] font-medium text-white/55">Publisher</div>
+                                                        <input readOnly={imageModalMode === "view"} value={imageCitationPublisher} onChange={(e) => setImageCitationPublisher(e.target.value)} placeholder="Publisher" className="w-full rounded-xl border border-red-500/35 bg-black/25 px-3 py-2 text-[14px] text-white outline-none" />
+                                                    </label>
                                                 </>
                                             )}
                                         </div>
