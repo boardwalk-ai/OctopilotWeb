@@ -10,7 +10,7 @@ export interface SourceData {
     publisher?: string;
     fullContent?: string;
     status: "empty" | "loading" | "scraped" | "failed";
-    manualSourceType?: "pdf" | "image" | "url";
+    manualSourceType?: "pdf" | "image" | "url" | "fieldwork";
     pdfMeta?: {
         fileName: string;
         pageCount: number;
@@ -44,6 +44,19 @@ export interface SourceData {
             issue: string;
             pageRange: string;
         };
+        citationPreview: string;
+    };
+    fieldworkMeta?: {
+        researchType: string;
+        title: string;
+        dateConducted: string;
+        researcherName: string;
+        location: string;
+        participants: string;
+        methodSummary: string;
+        keyFindings: string;
+        notes: string;
+        customFields: Record<string, string>;
         citationPreview: string;
     };
 }

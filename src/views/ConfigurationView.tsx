@@ -9,7 +9,7 @@ import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { JasmineService } from "@/services/JasmineService";
 import { ScraperService } from "@/services/ScraperService";
 import { ScarletService } from "@/services/ScarletService";
-import { SpoonieAuthorInput, SpoonieService } from "@/services/SpoonieService";
+import { SpoonieAuthorInput, SpoonieFieldworkCitationInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
 
 interface ConfigurationViewProps {
@@ -82,6 +82,217 @@ type ImageSourceThread = {
     imageCount: number;
     finalSnippet: string;
     citation: string;
+};
+
+type FieldworkModalMode = "create" | "view" | "edit";
+type FieldworkResearchType =
+    | "survey"
+    | "interview"
+    | "observation"
+    | "lab_experiment"
+    | "case_study"
+    | "content_analysis"
+    | "action_research"
+    | "fieldwork_project"
+    | "creative_based_research";
+
+type FieldworkFieldKey =
+    | "sampleSize"
+    | "toolUsed"
+    | "audience"
+    | "interviewee"
+    | "interviewMode"
+    | "interviewContext"
+    | "observedSubject"
+    | "observationSetting"
+    | "observationDuration"
+    | "variables"
+    | "materials"
+    | "caseSubject"
+    | "caseOrganization"
+    | "contentType"
+    | "contentCorpus"
+    | "actionCycle"
+    | "intervention"
+    | "siteName"
+    | "communityPartner"
+    | "creativeMedium"
+    | "artifactTitle";
+
+type FieldworkFormState = {
+    researchType: FieldworkResearchType;
+    title: string;
+    dateConducted: string;
+    researcherName: string;
+    location: string;
+    participants: string;
+    methodSummary: string;
+    keyFindings: string;
+    notes: string;
+    sampleSize: string;
+    toolUsed: string;
+    audience: string;
+    interviewee: string;
+    interviewMode: string;
+    interviewContext: string;
+    observedSubject: string;
+    observationSetting: string;
+    observationDuration: string;
+    variables: string;
+    materials: string;
+    caseSubject: string;
+    caseOrganization: string;
+    contentType: string;
+    contentCorpus: string;
+    actionCycle: string;
+    intervention: string;
+    siteName: string;
+    communityPartner: string;
+    creativeMedium: string;
+    artifactTitle: string;
+};
+
+type FieldworkSourceThread = {
+    id: string;
+    sourceIndex: number;
+    source: SourceData;
+    title: string;
+    researchType: string;
+    dateConducted: string;
+    citation: string;
+};
+
+type FieldworkTypeOption = {
+    id: FieldworkResearchType;
+    label: string;
+    desc: string;
+    fields: Array<{ key: FieldworkFieldKey; label: string; placeholder: string }>;
+};
+
+const FIELDWORK_TYPE_OPTIONS: FieldworkTypeOption[] = [
+    {
+        id: "survey",
+        label: "Survey",
+        desc: "Google Forms, questionnaires, structured polls",
+        fields: [
+            { key: "toolUsed", label: "Survey Tool", placeholder: "Google Forms, paper form, Typeform..." },
+            { key: "sampleSize", label: "Sample Size", placeholder: "e.g. 42 respondents" },
+            { key: "audience", label: "Target Audience", placeholder: "Who completed the survey?" },
+        ],
+    },
+    {
+        id: "interview",
+        label: "Interview",
+        desc: "In-person, phone, or email conversations",
+        fields: [
+            { key: "interviewee", label: "Interviewee", placeholder: "Name or role of interviewee" },
+            { key: "interviewMode", label: "Interview Mode", placeholder: "In person, Zoom, phone..." },
+            { key: "interviewContext", label: "Interview Context", placeholder: "Why this person was interviewed" },
+        ],
+    },
+    {
+        id: "observation",
+        label: "Observation",
+        desc: "Watching actions in real contexts",
+        fields: [
+            { key: "observedSubject", label: "Observed Subject", placeholder: "Who or what did you observe?" },
+            { key: "observationSetting", label: "Observation Setting", placeholder: "Classroom, street market, lab..." },
+            { key: "observationDuration", label: "Observation Duration", placeholder: "e.g. 2 hours" },
+        ],
+    },
+    {
+        id: "lab_experiment",
+        label: "Lab Experiment",
+        desc: "Scientific testing with variables",
+        fields: [
+            { key: "variables", label: "Variables", placeholder: "Independent and dependent variables" },
+            { key: "materials", label: "Materials / Equipment", placeholder: "Tools, software, or materials used" },
+            { key: "toolUsed", label: "Protocol / Tool", placeholder: "Experiment protocol or measuring tool" },
+        ],
+    },
+    {
+        id: "case_study",
+        label: "Case Study",
+        desc: "Deep dive into one subject",
+        fields: [
+            { key: "caseSubject", label: "Case Subject", placeholder: "Person, company, event, or issue" },
+            { key: "caseOrganization", label: "Organization / Context", placeholder: "Institution or context" },
+            { key: "audience", label: "Study Scope", placeholder: "Scope or boundary of the case" },
+        ],
+    },
+    {
+        id: "content_analysis",
+        label: "Content Analysis",
+        desc: "Study of media, ads, or documents",
+        fields: [
+            { key: "contentType", label: "Content Type", placeholder: "Ads, tweets, newspaper articles..." },
+            { key: "contentCorpus", label: "Corpus / Dataset", placeholder: "What set of materials was analyzed?" },
+            { key: "toolUsed", label: "Coding Method", placeholder: "Coding framework or method" },
+        ],
+    },
+    {
+        id: "action_research",
+        label: "Action Research",
+        desc: "Plan → Act → Observe → Reflect cycles",
+        fields: [
+            { key: "actionCycle", label: "Action Cycle", placeholder: "Cycle or phase completed" },
+            { key: "intervention", label: "Intervention", placeholder: "What action was introduced?" },
+            { key: "siteName", label: "Site / Setting", placeholder: "School, team, workshop..." },
+        ],
+    },
+    {
+        id: "fieldwork_project",
+        label: "Fieldwork Project",
+        desc: "Community engagement + data collection",
+        fields: [
+            { key: "siteName", label: "Site Name", placeholder: "Field site, village, district..." },
+            { key: "communityPartner", label: "Community Partner", placeholder: "Partner organization or group" },
+            { key: "toolUsed", label: "Collection Method", placeholder: "Notes, recordings, mapping..." },
+        ],
+    },
+    {
+        id: "creative_based_research",
+        label: "Creative-Based Research",
+        desc: "Films, scripts, or design with reflection",
+        fields: [
+            { key: "creativeMedium", label: "Creative Medium", placeholder: "Film, storyboard, prototype..." },
+            { key: "artifactTitle", label: "Artifact / Output", placeholder: "Title of the creative output" },
+            { key: "audience", label: "Reflection Focus", placeholder: "What insight did the creative work explore?" },
+        ],
+    },
+];
+
+const EMPTY_FIELDWORK_FORM: FieldworkFormState = {
+    researchType: "survey",
+    title: "",
+    dateConducted: "",
+    researcherName: "",
+    location: "",
+    participants: "",
+    methodSummary: "",
+    keyFindings: "",
+    notes: "",
+    sampleSize: "",
+    toolUsed: "",
+    audience: "",
+    interviewee: "",
+    interviewMode: "",
+    interviewContext: "",
+    observedSubject: "",
+    observationSetting: "",
+    observationDuration: "",
+    variables: "",
+    materials: "",
+    caseSubject: "",
+    caseOrganization: "",
+    contentType: "",
+    contentCorpus: "",
+    actionCycle: "",
+    intervention: "",
+    siteName: "",
+    communityPartner: "",
+    creativeMedium: "",
+    artifactTitle: "",
 };
 
 export default function ConfigurationView({ onBack, onNext }: ConfigurationViewProps) {
@@ -190,6 +401,13 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [imageCitationError, setImageCitationError] = useState("");
     const [isImageCitationLoading, setIsImageCitationLoading] = useState(false);
     const [imageSourceLabel, setImageSourceLabel] = useState("");
+    const [showFieldworkModal, setShowFieldworkModal] = useState(false);
+    const [fieldworkModalMode, setFieldworkModalMode] = useState<FieldworkModalMode>("create");
+    const [activeFieldworkSourceIndex, setActiveFieldworkSourceIndex] = useState<number | null>(null);
+    const [fieldworkForm, setFieldworkForm] = useState<FieldworkFormState>(EMPTY_FIELDWORK_FORM);
+    const [fieldworkCitationPreview, setFieldworkCitationPreview] = useState("");
+    const [fieldworkCitationError, setFieldworkCitationError] = useState("");
+    const [isSavingFieldwork, setIsSavingFieldwork] = useState(false);
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
@@ -301,7 +519,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const searchSourceEntries = useMemo(() => {
         return manualSources
             .map((source, sourceIndex) => ({ source, sourceIndex }))
-            .filter(({ source }) => source.manualSourceType !== "pdf" && source.manualSourceType !== "image");
+            .filter(({ source }) => source.manualSourceType !== "pdf" && source.manualSourceType !== "image" && source.manualSourceType !== "fieldwork");
     }, [manualSources]);
 
     const imageSourceThreads = useMemo<ImageSourceThread[]>(() => {
@@ -323,11 +541,31 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             });
     }, [citationStyle, manualSources]);
 
+    const fieldworkSourceThreads = useMemo<FieldworkSourceThread[]>(() => {
+        return manualSources
+            .map((source, sourceIndex) => ({ source, sourceIndex }))
+            .filter(({ source }) => source.manualSourceType === "fieldwork")
+            .map(({ source, sourceIndex }) => ({
+                id: `${source.url}-${sourceIndex}`,
+                sourceIndex,
+                source,
+                title: source.fieldworkMeta?.title || source.title || `Fieldwork Entry ${sourceIndex + 1}`,
+                researchType: FIELDWORK_TYPE_OPTIONS.find((option) => option.id === source.fieldworkMeta?.researchType)?.label || "Fieldwork",
+                dateConducted: source.fieldworkMeta?.dateConducted || source.publishedYear || "",
+                citation: source.fieldworkMeta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, sourceIndex + 1),
+            }));
+    }, [citationStyle, manualSources]);
+
     const sourceCountByTab = useMemo(() => ({
         "Octopilot Search": searchSourceEntries.filter(({ source }) => source.url.trim().length > 0).length,
         "Use My Source": uploadedPdfSources.length + imageSourceThreads.length,
-        "Fieldwork Mode": 0,
-    }), [imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
+        "Fieldwork Mode": fieldworkSourceThreads.length,
+    }), [fieldworkSourceThreads.length, imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
+
+    const activeFieldworkType = useMemo(
+        () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],
+        [fieldworkForm.researchType]
+    );
 
     const canMoveToImageCitation = useMemo(() => imageFinalSnippet.trim().length > 0, [imageFinalSnippet]);
     const imageCurrentSrc = imageFiles[activeImageIndex]?.src || "";
@@ -825,6 +1063,143 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             return next;
         });
         resetImageFlow();
+    };
+
+    const updateFieldworkForm = <K extends keyof FieldworkFormState>(key: K, value: FieldworkFormState[K]) => {
+        setFieldworkForm((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const resetFieldworkFlow = () => {
+        setShowFieldworkModal(false);
+        setFieldworkModalMode("create");
+        setActiveFieldworkSourceIndex(null);
+        setFieldworkForm(EMPTY_FIELDWORK_FORM);
+        setFieldworkCitationPreview("");
+        setFieldworkCitationError("");
+        setIsSavingFieldwork(false);
+    };
+
+    const openNewFieldworkEntry = () => {
+        setFieldworkModalMode("create");
+        setActiveFieldworkSourceIndex(null);
+        setFieldworkForm(EMPTY_FIELDWORK_FORM);
+        setFieldworkCitationPreview("");
+        setFieldworkCitationError("");
+        setShowFieldworkModal(true);
+    };
+
+    const openExistingFieldworkSource = (source: SourceData, sourceIndex: number, mode: FieldworkModalMode) => {
+        setFieldworkModalMode(mode);
+        setActiveFieldworkSourceIndex(sourceIndex);
+        setFieldworkForm({
+            ...EMPTY_FIELDWORK_FORM,
+            researchType: (source.fieldworkMeta?.researchType as FieldworkResearchType) || "survey",
+            title: source.fieldworkMeta?.title || source.title || "",
+            dateConducted: source.fieldworkMeta?.dateConducted || "",
+            researcherName: source.fieldworkMeta?.researcherName || source.author || "",
+            location: source.fieldworkMeta?.location || "",
+            participants: source.fieldworkMeta?.participants || "",
+            methodSummary: source.fieldworkMeta?.methodSummary || "",
+            keyFindings: source.fieldworkMeta?.keyFindings || "",
+            notes: source.fieldworkMeta?.notes || "",
+            ...((source.fieldworkMeta?.customFields || {}) as Partial<FieldworkFormState>),
+        });
+        setFieldworkCitationPreview(source.fieldworkMeta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, sourceIndex + 1));
+        setFieldworkCitationError("");
+        setShowFieldworkModal(true);
+    };
+
+    const buildFieldworkCitationInput = (): SpoonieFieldworkCitationInput => ({
+        citationStyle,
+        researchType: activeFieldworkType.label,
+        title: fieldworkForm.title.trim(),
+        dateConducted: fieldworkForm.dateConducted,
+        researcherName: fieldworkForm.researcherName.trim(),
+        location: fieldworkForm.location.trim(),
+        participants: fieldworkForm.participants.trim(),
+        methodSummary: fieldworkForm.methodSummary.trim(),
+        keyFindings: fieldworkForm.keyFindings.trim(),
+        notes: fieldworkForm.notes.trim(),
+        customFields: Object.fromEntries(
+            activeFieldworkType.fields
+                .map((field) => [field.label, fieldworkForm[field.key].trim()])
+                .filter(([, value]) => Boolean(value))
+        ),
+    });
+
+    const fallbackFieldworkCitation = () => {
+        const year = fieldworkForm.dateConducted ? new Date(fieldworkForm.dateConducted).getFullYear() : "n.d.";
+        const author = fieldworkForm.researcherName.trim() || "Unknown Researcher";
+        const title = fieldworkForm.title.trim() || `${activeFieldworkType.label} Notes`;
+        return `${author}. (${year}). ${title} [${activeFieldworkType.label}]. ${fieldworkForm.location.trim() || "Unpublished fieldwork notes"}.`;
+    };
+
+    const saveFieldworkEntry = async () => {
+        if (fieldworkModalMode === "view") {
+            resetFieldworkFlow();
+            return;
+        }
+        if (!fieldworkForm.title.trim() || !fieldworkForm.dateConducted || !fieldworkForm.methodSummary.trim()) {
+            setFieldworkCitationError("Title / topic, date conducted, and method summary are required.");
+            return;
+        }
+
+        setIsSavingFieldwork(true);
+        setFieldworkCitationError("");
+
+        let citation = fieldworkCitationPreview;
+        try {
+            citation = await SpoonieService.generateFieldworkCitation(buildFieldworkCitationInput());
+            setFieldworkCitationPreview(citation);
+        } catch (error) {
+            citation = fallbackFieldworkCitation();
+            setFieldworkCitationPreview(citation);
+            setFieldworkCitationError(error instanceof Error ? error.message : "Could not generate fieldwork citation. Using fallback.");
+        }
+
+        const source: SourceData = {
+            url: `fieldwork://${encodeURIComponent(fieldworkForm.title.trim() || `fieldwork-${Date.now()}`)}`,
+            status: "scraped",
+            manualSourceType: "fieldwork",
+            title: fieldworkForm.title.trim() || "Untitled Fieldwork Entry",
+            author: fieldworkForm.researcherName.trim() || "Unknown Researcher",
+            publishedYear: fieldworkForm.dateConducted,
+            publisher: fieldworkForm.location.trim() || activeFieldworkType.label,
+            fullContent: [fieldworkForm.methodSummary.trim(), fieldworkForm.keyFindings.trim(), fieldworkForm.notes.trim()].filter(Boolean).join("\n\n"),
+            fieldworkMeta: {
+                researchType: fieldworkForm.researchType,
+                title: fieldworkForm.title.trim(),
+                dateConducted: fieldworkForm.dateConducted,
+                researcherName: fieldworkForm.researcherName.trim(),
+                location: fieldworkForm.location.trim(),
+                participants: fieldworkForm.participants.trim(),
+                methodSummary: fieldworkForm.methodSummary.trim(),
+                keyFindings: fieldworkForm.keyFindings.trim(),
+                notes: fieldworkForm.notes.trim(),
+                customFields: Object.fromEntries(
+                    activeFieldworkType.fields
+                        .map((field) => [field.key, fieldworkForm[field.key].trim()])
+                        .filter(([, value]) => Boolean(value))
+                ),
+                citationPreview: citation,
+            },
+        };
+
+        setManualSources((prev) => {
+            const next = [...prev];
+            if (activeFieldworkSourceIndex !== null && activeFieldworkSourceIndex >= 0 && activeFieldworkSourceIndex < next.length) {
+                next[activeFieldworkSourceIndex] = source;
+            } else {
+                next.push(source);
+            }
+            return next;
+        });
+
+        resetFieldworkFlow();
+    };
+
+    const removeFieldworkSource = (sourceIndex: number) => {
+        setManualSources((prev) => prev.filter((_, idx) => idx !== sourceIndex));
     };
 
     useEffect(() => {
@@ -1436,9 +1811,96 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 )}
 
                 {sourcesTab === "Fieldwork Mode" && (
-                    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-center">
-                        <h3 className="text-[22px] font-bold text-white">Fieldwork Mode</h3>
-                        <p className="mt-2 text-[14px] text-white/60">Coming soon.</p>
+                    <div className="space-y-5">
+                        <div>
+                            <h3 className="text-[22px] font-bold text-white">Fieldwork Node</h3>
+                            <p className="mt-2 text-[14px] text-white/70">
+                                Log primary research like interviews, lab experiments, and surveys to use them as valid sources.
+                            </p>
+                        </div>
+
+                        {fieldworkSourceThreads.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-red-500/40 bg-white/[0.02] px-8 py-16 text-center">
+                                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/35 bg-red-500/10 text-red-400">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 12h18" />
+                                        <path d="M12 3v18" />
+                                    </svg>
+                                </div>
+                                <div className="text-[32px] font-bold text-white">No fieldwork logged yet</div>
+                                <div className="mx-auto mt-3 max-w-xl text-[15px] leading-7 text-white/55">
+                                    Add your first entry to turn real-world research into a usable source.
+                                </div>
+                                <button
+                                    onClick={openNewFieldworkEntry}
+                                    className="mt-8 inline-flex items-center gap-3 rounded-full bg-red-500 px-7 py-3.5 text-[18px] font-bold text-white shadow-[0_0_22px_rgba(239,68,68,0.28)] transition hover:bg-red-400"
+                                >
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">+</span>
+                                    Add New Entry
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={openNewFieldworkEntry}
+                                        className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[14px] font-bold text-white hover:bg-red-400"
+                                    >
+                                        <span className="text-[18px] leading-none">+</span>
+                                        Add New Entry
+                                    </button>
+                                </div>
+                                {fieldworkSourceThreads.map((entry) => (
+                                    <div key={entry.id} className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-3">
+                                                <span className="rounded-full border border-red-500/35 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-red-200">
+                                                    {entry.researchType}
+                                                </span>
+                                                <span className="text-[12px] text-white/45">{entry.dateConducted || "No date"}</span>
+                                            </div>
+                                            <div className="mt-3 text-[18px] font-bold text-white">{entry.title}</div>
+                                            <div className="mt-2 line-clamp-2 text-[13px] leading-6 text-white/70">{entry.citation}</div>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <button
+                                                onClick={() => openExistingFieldworkSource(entry.source, entry.sourceIndex, "view")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="View entry"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => openExistingFieldworkSource(entry.source, entry.sourceIndex, "edit")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="Edit entry"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 20h9" />
+                                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => removeFieldworkSource(entry.sourceIndex)}
+                                                className="rounded-lg border border-red-500/35 bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20"
+                                                title="Delete entry"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M3 6h18" />
+                                                    <path d="M8 6V4h8v2" />
+                                                    <path d="M19 6l-1 14H6L5 6" />
+                                                    <path d="M10 11v6" />
+                                                    <path d="M14 11v6" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -2263,6 +2725,122 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showFieldworkModal && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+                    <div className="flex h-[88vh] w-full max-w-[880px] flex-col overflow-hidden rounded-3xl border border-white/[0.1] bg-[#101015] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+                        <div className="flex items-start justify-between border-b border-white/[0.08] px-8 py-6">
+                            <div>
+                                <div className="text-[40px] font-bold text-white">{fieldworkModalMode === "edit" ? "Edit Fieldwork Entry" : fieldworkModalMode === "view" ? "View Fieldwork Entry" : "Add Fieldwork Entry"}</div>
+                                <div className="mt-2 text-[15px] text-white/55">Document your primary research and let Spoonie craft the citation automatically.</div>
+                            </div>
+                            <button onClick={resetFieldworkFlow} className="rounded-full bg-white/[0.08] p-2 text-white/60 hover:bg-white/[0.16] hover:text-white">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 6 6 18" />
+                                    <path d="m6 6 12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+                            <div className="space-y-6">
+                                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                                    <div className="mb-4 text-[18px] font-bold text-white">Research Type</div>
+                                    <label className="block">
+                                        <div className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/60">Entry Type</div>
+                                        <select
+                                            value={fieldworkForm.researchType}
+                                            onChange={(e) => updateFieldworkForm("researchType", e.target.value as FieldworkResearchType)}
+                                            disabled={fieldworkModalMode === "view"}
+                                            className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[16px] font-semibold text-white outline-none"
+                                        >
+                                            {FIELDWORK_TYPE_OPTIONS.map((option) => (
+                                                <option key={option.id} value={option.id} className="bg-[#101015] text-white">
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <div className="mt-3 text-[14px] text-white/45">{activeFieldworkType.desc}</div>
+                                </section>
+
+                                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                                    <div className="mb-4 text-[18px] font-bold text-white">Basic Information</div>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <label className="block md:col-span-2">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Title / Topic</div>
+                                            <input value={fieldworkForm.title} onChange={(e) => updateFieldworkForm("title", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="e.g. Social Media Influence on Productivity" className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Date Conducted</div>
+                                            <input type="date" value={fieldworkForm.dateConducted} onChange={(e) => updateFieldworkForm("dateConducted", e.target.value)} readOnly={fieldworkModalMode === "view"} className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Researcher / Recorder</div>
+                                            <input value={fieldworkForm.researcherName} onChange={(e) => updateFieldworkForm("researcherName", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="Who conducted or documented this?" className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Location</div>
+                                            <input value={fieldworkForm.location} onChange={(e) => updateFieldworkForm("location", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="City, site, classroom, Zoom..." className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Participants / Subjects</div>
+                                            <input value={fieldworkForm.participants} onChange={(e) => updateFieldworkForm("participants", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="Who was involved?" className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                                    <div className="mb-4 text-[18px] font-bold text-white">Research Details</div>
+                                    <div className="grid gap-4">
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Method Summary</div>
+                                            <textarea value={fieldworkForm.methodSummary} onChange={(e) => updateFieldworkForm("methodSummary", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="Describe how you conducted this research..." className="h-32 w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Key Findings</div>
+                                            <textarea value={fieldworkForm.keyFindings} onChange={(e) => updateFieldworkForm("keyFindings", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="Main findings, observations, or outcomes..." className="h-32 w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            {activeFieldworkType.fields.map((field) => (
+                                                <label key={field.key} className="block">
+                                                    <div className="mb-2 text-[13px] font-semibold text-white/70">{field.label}</div>
+                                                    <input value={fieldworkForm[field.key]} onChange={(e) => updateFieldworkForm(field.key, e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder={field.placeholder} className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <label className="block">
+                                            <div className="mb-2 text-[13px] font-semibold text-white/70">Notes</div>
+                                            <textarea value={fieldworkForm.notes} onChange={(e) => updateFieldworkForm("notes", e.target.value)} readOnly={fieldworkModalMode === "view"} placeholder="Optional reflection or supporting notes..." className="h-28 w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                                    <div className="mb-2 text-[18px] font-bold text-white">Citation Preview</div>
+                                    <div className="rounded-2xl border border-[#c9ad3a]/25 bg-[#5a4f16]/10 px-4 py-3 text-[14px] leading-7 text-white/80">
+                                        {isSavingFieldwork ? "Spoonie is generating the fieldwork citation..." : (fieldworkCitationPreview || "Citation will be generated automatically when you save this entry.")}
+                                    </div>
+                                    {fieldworkCitationError && <div className="mt-3 text-[12px] text-yellow-200">{fieldworkCitationError}</div>}
+                                </section>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-white/[0.08] bg-black/25 px-8 py-5">
+                            <button onClick={resetFieldworkFlow} className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-8 py-3 text-[16px] font-bold text-white/85 hover:bg-white/[0.07]">
+                                {fieldworkModalMode === "view" ? "Close" : "Cancel"}
+                            </button>
+                            <button
+                                onClick={saveFieldworkEntry}
+                                disabled={isSavingFieldwork}
+                                className="rounded-2xl bg-red-500 px-8 py-3 text-[16px] font-bold text-white shadow-[0_0_22px_rgba(239,68,68,0.28)] hover:bg-red-400 disabled:opacity-50"
+                            >
+                                {fieldworkModalMode === "view" ? "Done" : isSavingFieldwork ? "Saving Entry..." : "Save Entry"}
+                            </button>
                         </div>
                     </div>
                 </div>

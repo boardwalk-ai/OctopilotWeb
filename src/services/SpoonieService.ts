@@ -30,6 +30,20 @@ export interface SpoonieOcrInput {
     imageDataUrl: string;
 }
 
+export interface SpoonieFieldworkCitationInput {
+    citationStyle: string;
+    researchType: string;
+    title: string;
+    dateConducted: string;
+    researcherName: string;
+    location: string;
+    participants: string;
+    methodSummary: string;
+    keyFindings: string;
+    notes: string;
+    customFields: Record<string, string>;
+}
+
 export class SpoonieService {
     static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
         const res = await fetch("https://api.octopilotai.com/api/v1/settings/keys");
@@ -89,5 +103,26 @@ export class SpoonieService {
             throw new Error("Spoonie returned empty extracted text");
         }
         return extractedText;
+    }
+
+    static async generateFieldworkCitation(input: SpoonieFieldworkCitationInput): Promise<string> {
+        const { apiKey, model } = await SpoonieService.fetchConfig();
+        const res = await fetch("/api/spoonie/citation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task: "FIELDWORK_CITATION", input, apiKey, model }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Spoonie fieldwork citation failed: ${res.status}`);
+        }
+
+        const data: SpoonieResponse = await res.json();
+        const citation = String(data.citation || "").trim();
+        if (!citation) {
+            throw new Error("Spoonie returned empty fieldwork citation");
+        }
+        return citation;
     }
 }
