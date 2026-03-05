@@ -5,6 +5,7 @@ interface BackendKeyResponse {
 
 interface SpoonieResponse {
     citation?: string;
+    extracted_text?: string;
 }
 
 export interface SpoonieAuthorInput {
@@ -23,6 +24,10 @@ export interface SpoonieCitationInput {
     issue?: string;
     edition?: string;
     pageRange?: string;
+}
+
+export interface SpoonieOcrInput {
+    imageDataUrl: string;
 }
 
 export class SpoonieService {
@@ -49,7 +54,7 @@ export class SpoonieService {
         const res = await fetch("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input, apiKey, model }),
+            body: JSON.stringify({ task: "CITATION_PREVIEW", input, apiKey, model }),
         });
 
         if (!res.ok) {
@@ -63,5 +68,26 @@ export class SpoonieService {
             throw new Error("Spoonie returned empty citation");
         }
         return citation;
+    }
+
+    static async extractImageText(input: SpoonieOcrInput): Promise<string> {
+        const { apiKey, model } = await SpoonieService.fetchConfig();
+        const res = await fetch("/api/spoonie/citation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task: "OCR_EXTRACT", input, apiKey, model }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Spoonie OCR failed: ${res.status}`);
+        }
+
+        const data: SpoonieResponse = await res.json();
+        const extractedText = String(data.extracted_text || "").trim();
+        if (!extractedText) {
+            throw new Error("Spoonie returned empty extracted text");
+        }
+        return extractedText;
     }
 }

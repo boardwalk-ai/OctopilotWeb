@@ -9,7 +9,6 @@ import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { JasmineService } from "@/services/JasmineService";
 import { ScraperService } from "@/services/ScraperService";
 import { ScarletService } from "@/services/ScarletService";
-import { OCRService } from "@/services/OCRService";
 import { SpoonieAuthorInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
 
@@ -648,7 +647,28 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 height: Math.max(8, Math.round(imageSelectedRegion.height * scaleY)),
             };
 
-            const text = await OCRService.readImageRegion(imageCurrentSrc, regionOnImage);
+            const canvas = document.createElement("canvas");
+            canvas.width = regionOnImage.width;
+            canvas.height = regionOnImage.height;
+            const context = canvas.getContext("2d");
+            if (!context) {
+                throw new Error("Unable to prepare OCR image.");
+            }
+            context.drawImage(
+                img,
+                regionOnImage.x,
+                regionOnImage.y,
+                regionOnImage.width,
+                regionOnImage.height,
+                0,
+                0,
+                regionOnImage.width,
+                regionOnImage.height
+            );
+
+            const text = await SpoonieService.extractImageText({
+                imageDataUrl: canvas.toDataURL("image/png"),
+            });
             if (!text.trim()) return;
             setImageBufferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${text.trim()}` : text.trim()));
         } catch (error) {
@@ -2129,7 +2149,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             disabled={!imageCurrentSrc || isScanningImage || imageModalMode === "view"}
                                             className="rounded-full border border-white/[0.12] bg-white/[0.05] px-4 py-2 text-[14px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-50"
                                         >
-                                            {isScanningImage ? "Scanning..." : "Scan Selection"}
+                                            {isScanningImage ? "Extracting..." : "Extract Text"}
                                         </button>
                                         <button
                                             onClick={confirmImageBuffer}
