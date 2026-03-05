@@ -584,8 +584,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setImageBufferText("");
         setImageFinalSnippet("");
         setImageConfirmedSnippets([]);
-        setImageSelectedRegion({ x: 120, y: 80, width: 360, height: 220 });
-        setIsDraggingImageRegion(false);
         setIsScanningImage(false);
         setImageCitationKind("book");
         setImageCitationContributors([{ firstName: "", middleName: "", lastName: "", suffix: "" }]);
