@@ -169,6 +169,8 @@ type FieldworkTypeOption = {
     fields: Array<{ key: FieldworkFieldKey; label: string; placeholder: string }>;
 };
 
+type ManualSourceAction = "pdf" | "image" | "fieldwork" | null;
+
 const FIELDWORK_TYPE_OPTIONS: FieldworkTypeOption[] = [
     {
         id: "survey",
@@ -409,6 +411,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [fieldworkCitationError, setFieldworkCitationError] = useState("");
     const [isSavingFieldwork, setIsSavingFieldwork] = useState(false);
     const [isFieldworkTypeDropdownOpen, setIsFieldworkTypeDropdownOpen] = useState(false);
+    const [pendingManualSourceAction, setPendingManualSourceAction] = useState<ManualSourceAction>(null);
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
@@ -579,6 +582,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],
         [fieldworkForm.researchType]
     );
+    const shouldHideManualWritingExtras = org.writingMode === "manual";
 
     const canMoveToImageCitation = useMemo(() => imageFinalSnippet.trim().length > 0, [imageFinalSnippet]);
     const imageCurrentSrc = imageFiles[activeImageIndex]?.src || "";
@@ -1102,6 +1106,32 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setShowFieldworkModal(true);
     };
 
+    const requestManualSourceConfirmation = (action: Exclude<ManualSourceAction, null>) => {
+        const isFirstUseMySource = uploadedPdfSources.length + imageSourceThreads.length === 0;
+        const isFirstFieldwork = fieldworkSourceThreads.length === 0;
+
+        if ((action === "pdf" || action === "image") && isFirstUseMySource) {
+            setPendingManualSourceAction(action);
+            return;
+        }
+
+        if (action === "fieldwork" && isFirstFieldwork) {
+            setPendingManualSourceAction(action);
+            return;
+        }
+
+        if (action === "pdf") openPdfPicker();
+        if (action === "image") openImagePicker();
+        if (action === "fieldwork") openNewFieldworkEntry();
+    };
+
+    const continuePendingManualSourceAction = () => {
+        if (pendingManualSourceAction === "pdf") openPdfPicker();
+        if (pendingManualSourceAction === "image") openImagePicker();
+        if (pendingManualSourceAction === "fieldwork") openNewFieldworkEntry();
+        setPendingManualSourceAction(null);
+    };
+
     const openExistingFieldworkSource = (source: SourceData, sourceIndex: number, mode: FieldworkModalMode) => {
         setFieldworkModalMode(mode);
         setActiveFieldworkSourceIndex(sourceIndex);
@@ -1477,6 +1507,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             </div>
 
             {/* Tone */}
+            {!shouldHideManualWritingExtras && (
             <div className="mb-10">
                 <h2 className="mb-1 text-[18px] font-bold text-white">Tone</h2>
                 <p className="mb-4 text-[13px] text-white/60">The tone you want to use for your essay</p>
@@ -1526,6 +1557,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     )}
                 </div>
             </div>
+            )}
 
             {/* Sources */}
             <div className="mb-10">
@@ -1662,7 +1694,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                             <button
-                                onClick={openPdfPicker}
+                                onClick={() => requestManualSourceConfirmation("pdf")}
                                 disabled={isPdfUploading}
                                 onMouseEnter={() => setSourceUploadHoverHint("pdf")}
                                 onMouseLeave={() => setSourceUploadHoverHint("")}
@@ -1676,7 +1708,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             </button>
                             <div onMouseEnter={() => setSourceUploadHoverHint("images")} onMouseLeave={() => setSourceUploadHoverHint("")}>
                                 <button
-                                    onClick={openImagePicker}
+                                    onClick={() => requestManualSourceConfirmation("image")}
                                     className="rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/80 transition hover:bg-white/[0.08]"
                                 >
                                     Upload Images
@@ -1847,7 +1879,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     Add your first entry to turn real-world research into a usable source.
                                 </div>
                                 <button
-                                    onClick={openNewFieldworkEntry}
+                                    onClick={() => requestManualSourceConfirmation("fieldwork")}
                                     className="mt-7 inline-flex items-center gap-3 rounded-full bg-red-500 px-6 py-3 text-[15px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.24)] transition hover:bg-red-400"
                                 >
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[18px]">+</span>
@@ -1858,7 +1890,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <div className="space-y-4">
                                 <div className="flex justify-end">
                                     <button
-                                        onClick={openNewFieldworkEntry}
+                                        onClick={() => requestManualSourceConfirmation("fieldwork")}
                                         className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[14px] font-bold text-white hover:bg-red-400"
                                     >
                                         <span className="text-[18px] leading-none">+</span>
@@ -1921,47 +1953,51 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             </div>
 
             {/* Keywords Toggle */}
-            <div className="mb-6 flex flex-col pt-4">
-                <h2 className="mb-4 text-[16px] font-bold text-white">Do you want to specify keywords to be included in your essay?</h2>
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => setSpecifyKeywords(true)}
-                        className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${specifyKeywords
-                            ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                            : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
-                            }`}
-                    >
-                        {specifyKeywords && (
-                            <div className="h-3 w-3 rounded-full bg-white" />
-                        )}
-                        Yes
-                    </button>
-                    <button
-                        onClick={() => setSpecifyKeywords(false)}
-                        className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${!specifyKeywords
-                            ? "bg-[#332222] border border-red-500/30 text-white"
-                            : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
-                            }`}
-                    >
-                        {!specifyKeywords && (
-                            <div className="h-3 w-3 rounded-full bg-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                        )}
-                        No
-                    </button>
-                </div>
-            </div>
+            {!shouldHideManualWritingExtras && (
+                <>
+                    <div className="mb-6 flex flex-col pt-4">
+                        <h2 className="mb-4 text-[16px] font-bold text-white">Do you want to specify keywords to be included in your essay?</h2>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setSpecifyKeywords(true)}
+                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${specifyKeywords
+                                    ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                                    : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
+                                    }`}
+                            >
+                                {specifyKeywords && (
+                                    <div className="h-3 w-3 rounded-full bg-white" />
+                                )}
+                                Yes
+                            </button>
+                            <button
+                                onClick={() => setSpecifyKeywords(false)}
+                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${!specifyKeywords
+                                    ? "bg-[#332222] border border-red-500/30 text-white"
+                                    : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
+                                    }`}
+                            >
+                                {!specifyKeywords && (
+                                    <div className="h-3 w-3 rounded-full bg-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                )}
+                                No
+                            </button>
+                        </div>
+                    </div>
 
-            {/* Keyword Input Box (visible when Yes) */}
-            {specifyKeywords && (
-                <div className="mb-6">
-                    <input
-                        type="text"
-                        placeholder="Enter keywords separated by commas (e.g. AI, machine learning, neural networks)"
-                        value={keywordsText}
-                        onChange={(e) => setKeywordsText(e.target.value)}
-                        className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.02] py-4 px-5 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-red-500/50"
-                    />
-                </div>
+                    {/* Keyword Input Box (visible when Yes) */}
+                    {specifyKeywords && (
+                        <div className="mb-6">
+                            <input
+                                type="text"
+                                placeholder="Enter keywords separated by commas (e.g. AI, machine learning, neural networks)"
+                                value={keywordsText}
+                                onChange={(e) => setKeywordsText(e.target.value)}
+                                className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.02] py-4 px-5 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-red-500/50"
+                            />
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Fixed Bottom bar */}
@@ -2898,6 +2934,31 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 className="rounded-2xl bg-red-500 px-8 py-3 text-[16px] font-bold text-white shadow-[0_0_22px_rgba(239,68,68,0.28)] hover:bg-red-400 disabled:opacity-50"
                             >
                                 {fieldworkModalMode === "view" ? "Done" : isSavingFieldwork ? "Saving Entry..." : "Save Entry"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {pendingManualSourceAction && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-[560px] rounded-3xl border border-white/[0.1] bg-[#101015] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+                        <div className="text-[26px] font-bold text-white">Confirm Manual Sources</div>
+                        <div className="mt-4 text-[16px] leading-7 text-white/70">
+                            Are you sure you want to add manual sources in <span className="font-semibold text-white">{citationStyle}</span> format?
+                        </div>
+                        <div className="mt-8 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setPendingManualSourceAction(null)}
+                                className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-6 py-3 text-[15px] font-bold text-white/85 hover:bg-white/[0.07]"
+                            >
+                                No, let me choose
+                            </button>
+                            <button
+                                onClick={continuePendingManualSourceAction}
+                                className="rounded-2xl bg-red-500 px-6 py-3 text-[15px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.22)] hover:bg-red-400"
+                            >
+                                Yes, continue
                             </button>
                         </div>
                     </div>
