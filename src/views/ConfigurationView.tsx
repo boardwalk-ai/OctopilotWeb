@@ -403,6 +403,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         }
         setPdfStep(2);
         setPdfReviewPage(1);
+        // Auto-trigger Spoonie when user enters review step so citation panel is populated.
+        void handleAskSpoonie();
     };
 
     const updatePdfPageText = (absolutePage: number, value: string) => {
