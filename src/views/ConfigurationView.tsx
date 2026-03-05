@@ -408,11 +408,13 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [fieldworkCitationPreview, setFieldworkCitationPreview] = useState("");
     const [fieldworkCitationError, setFieldworkCitationError] = useState("");
     const [isSavingFieldwork, setIsSavingFieldwork] = useState(false);
+    const [isFieldworkTypeDropdownOpen, setIsFieldworkTypeDropdownOpen] = useState(false);
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
     const pageDropdownRef = useRef<HTMLDivElement>(null);
+    const fieldworkTypeDropdownRef = useRef<HTMLDivElement>(null);
     const imagePanStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
     useEffect(() => {
         setCanUsePortal(true);
@@ -446,6 +448,17 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         document.addEventListener("mousedown", close);
         return () => document.removeEventListener("mousedown", close);
     }, [isEndPageDropdownOpen, isStartPageDropdownOpen]);
+
+    useEffect(() => {
+        if (!isFieldworkTypeDropdownOpen) return;
+        const close = (e: MouseEvent) => {
+            if (fieldworkTypeDropdownRef.current && !fieldworkTypeDropdownRef.current.contains(e.target as Node)) {
+                setIsFieldworkTypeDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [isFieldworkTypeDropdownOpen]);
 
     // Handle Scrape Failure Queue Presentation
     useEffect(() => {
@@ -1077,6 +1090,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setFieldworkCitationPreview("");
         setFieldworkCitationError("");
         setIsSavingFieldwork(false);
+        setIsFieldworkTypeDropdownOpen(false);
     };
 
     const openNewFieldworkEntry = () => {
@@ -1106,6 +1120,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         });
         setFieldworkCitationPreview(source.fieldworkMeta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, sourceIndex + 1));
         setFieldworkCitationError("");
+        setIsFieldworkTypeDropdownOpen(false);
         setShowFieldworkModal(true);
     };
 
@@ -1813,29 +1828,29 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 {sourcesTab === "Fieldwork Mode" && (
                     <div className="space-y-5">
                         <div>
-                            <h3 className="text-[22px] font-bold text-white">Fieldwork Node</h3>
+                            <h3 className="text-[18px] font-bold text-white">Fieldwork Node</h3>
                             <p className="mt-2 text-[14px] text-white/70">
                                 Log primary research like interviews, lab experiments, and surveys to use them as valid sources.
                             </p>
                         </div>
 
                         {fieldworkSourceThreads.length === 0 ? (
-                            <div className="rounded-3xl border border-dashed border-red-500/40 bg-white/[0.02] px-8 py-16 text-center">
-                                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/35 bg-red-500/10 text-red-400">
-                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <div className="rounded-3xl border border-dashed border-red-500/40 bg-white/[0.02] px-8 py-14 text-center">
+                                <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/35 bg-red-500/10 text-red-400">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M3 12h18" />
                                         <path d="M12 3v18" />
                                     </svg>
                                 </div>
-                                <div className="text-[32px] font-bold text-white">No fieldwork logged yet</div>
-                                <div className="mx-auto mt-3 max-w-xl text-[15px] leading-7 text-white/55">
+                                <div className="text-[22px] font-bold text-white">No fieldwork logged yet</div>
+                                <div className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-white/55">
                                     Add your first entry to turn real-world research into a usable source.
                                 </div>
                                 <button
                                     onClick={openNewFieldworkEntry}
-                                    className="mt-8 inline-flex items-center gap-3 rounded-full bg-red-500 px-7 py-3.5 text-[18px] font-bold text-white shadow-[0_0_22px_rgba(239,68,68,0.28)] transition hover:bg-red-400"
+                                    className="mt-7 inline-flex items-center gap-3 rounded-full bg-red-500 px-6 py-3 text-[15px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.24)] transition hover:bg-red-400"
                                 >
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">+</span>
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[18px]">+</span>
                                     Add New Entry
                                 </button>
                             </div>
@@ -2735,8 +2750,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     <div className="flex h-[88vh] w-full max-w-[880px] flex-col overflow-hidden rounded-3xl border border-white/[0.1] bg-[#101015] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
                         <div className="flex items-start justify-between border-b border-white/[0.08] px-8 py-6">
                             <div>
-                                <div className="text-[40px] font-bold text-white">{fieldworkModalMode === "edit" ? "Edit Fieldwork Entry" : fieldworkModalMode === "view" ? "View Fieldwork Entry" : "Add Fieldwork Entry"}</div>
-                                <div className="mt-2 text-[15px] text-white/55">Document your primary research and let Spoonie craft the citation automatically.</div>
+                                <div className="text-[28px] font-bold text-white">{fieldworkModalMode === "edit" ? "Edit Fieldwork Entry" : fieldworkModalMode === "view" ? "View Fieldwork Entry" : "Add Fieldwork Entry"}</div>
+                                <div className="mt-2 text-[14px] text-white/55">Document your primary research and let Spoonie craft the citation automatically.</div>
                             </div>
                             <button onClick={resetFieldworkFlow} className="rounded-full bg-white/[0.08] p-2 text-white/60 hover:bg-white/[0.16] hover:text-white">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2749,27 +2764,51 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
                             <div className="space-y-6">
                                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                    <div className="mb-4 text-[18px] font-bold text-white">Research Type</div>
+                                    <div className="mb-4 text-[16px] font-bold text-white">Research Type</div>
                                     <label className="block">
                                         <div className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/60">Entry Type</div>
-                                        <select
-                                            value={fieldworkForm.researchType}
-                                            onChange={(e) => updateFieldworkForm("researchType", e.target.value as FieldworkResearchType)}
-                                            disabled={fieldworkModalMode === "view"}
-                                            className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[16px] font-semibold text-white outline-none"
-                                        >
-                                            {FIELDWORK_TYPE_OPTIONS.map((option) => (
-                                                <option key={option.id} value={option.id} className="bg-[#101015] text-white">
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="relative" ref={fieldworkTypeDropdownRef}>
+                                            <button
+                                                type="button"
+                                                disabled={fieldworkModalMode === "view"}
+                                                onClick={() => setIsFieldworkTypeDropdownOpen((prev) => !prev)}
+                                                className="flex w-full items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-left text-[15px] font-semibold text-white outline-none hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-70"
+                                            >
+                                                <div>
+                                                    <div>{activeFieldworkType.label}</div>
+                                                    <div className="mt-1 text-[12px] font-medium text-white/45">{activeFieldworkType.desc}</div>
+                                                </div>
+                                                <svg className={`shrink-0 text-white/45 transition-transform ${isFieldworkTypeDropdownOpen ? "rotate-180" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="m6 9 6 6 6-6" />
+                                                </svg>
+                                            </button>
+                                            {isFieldworkTypeDropdownOpen && fieldworkModalMode !== "view" && (
+                                                <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 max-h-80 overflow-y-auto rounded-2xl border border-white/[0.12] bg-[#101015] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.5)]">
+                                                    {FIELDWORK_TYPE_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                updateFieldworkForm("researchType", option.id);
+                                                                setIsFieldworkTypeDropdownOpen(false);
+                                                            }}
+                                                            className={`flex w-full items-start justify-between rounded-xl px-4 py-3 text-left transition ${option.id === fieldworkForm.researchType ? "bg-red-500/12 text-white" : "text-white/80 hover:bg-white/[0.05]"}`}
+                                                        >
+                                                            <div>
+                                                                <div className="text-[15px] font-semibold">{option.label}</div>
+                                                                <div className="mt-1 text-[12px] text-white/45">{option.desc}</div>
+                                                            </div>
+                                                            {option.id === fieldworkForm.researchType && <span className="pt-0.5 text-red-300">✓</span>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </label>
-                                    <div className="mt-3 text-[14px] text-white/45">{activeFieldworkType.desc}</div>
                                 </section>
 
                                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                    <div className="mb-4 text-[18px] font-bold text-white">Basic Information</div>
+                                    <div className="mb-4 text-[16px] font-bold text-white">Basic Information</div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <label className="block md:col-span-2">
                                             <div className="mb-2 text-[13px] font-semibold text-white/70">Title / Topic</div>
@@ -2777,7 +2816,26 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                         </label>
                                         <label className="block">
                                             <div className="mb-2 text-[13px] font-semibold text-white/70">Date Conducted</div>
-                                            <input type="date" value={fieldworkForm.dateConducted} onChange={(e) => updateFieldworkForm("dateConducted", e.target.value)} readOnly={fieldworkModalMode === "view"} className="w-full rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none" />
+                                            <div className="relative overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3">
+                                                <div className="flex items-center justify-between gap-3 text-[15px] text-white">
+                                                    <span className={fieldworkForm.dateConducted ? "text-white" : "text-white/35"}>
+                                                        {fieldworkForm.dateConducted || "Select date"}
+                                                    </span>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-white/45">
+                                                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                                                        <path d="M16 2v4" />
+                                                        <path d="M8 2v4" />
+                                                        <path d="M3 10h18" />
+                                                    </svg>
+                                                </div>
+                                                <input
+                                                    type="date"
+                                                    value={fieldworkForm.dateConducted}
+                                                    onChange={(e) => updateFieldworkForm("dateConducted", e.target.value)}
+                                                    readOnly={fieldworkModalMode === "view"}
+                                                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                                />
+                                            </div>
                                         </label>
                                         <label className="block">
                                             <div className="mb-2 text-[13px] font-semibold text-white/70">Researcher / Recorder</div>
@@ -2795,7 +2853,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </section>
 
                                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                    <div className="mb-4 text-[18px] font-bold text-white">Research Details</div>
+                                    <div className="mb-4 text-[16px] font-bold text-white">Research Details</div>
                                     <div className="grid gap-4">
                                         <label className="block">
                                             <div className="mb-2 text-[13px] font-semibold text-white/70">Method Summary</div>
@@ -2821,7 +2879,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </section>
 
                                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                    <div className="mb-2 text-[18px] font-bold text-white">Citation Preview</div>
+                                    <div className="mb-2 text-[16px] font-bold text-white">Citation Preview</div>
                                     <div className="rounded-2xl border border-[#c9ad3a]/25 bg-[#5a4f16]/10 px-4 py-3 text-[14px] leading-7 text-white/80">
                                         {isSavingFieldwork ? "Spoonie is generating the fieldwork citation..." : (fieldworkCitationPreview || "Citation will be generated automatically when you save this entry.")}
                                     </div>
