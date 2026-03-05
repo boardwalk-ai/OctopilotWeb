@@ -11,6 +11,16 @@ interface SpoonieRequestBody {
     model: string;
 }
 
+type OpenRouterMessage =
+    | { role: "system" | "user"; content: string }
+    | {
+        role: "user";
+        content: Array<
+            | { type: "text"; text: string }
+            | { type: "image_url"; image_url: { url: string } }
+        >;
+    };
+
 function asString(value: unknown): string {
     return typeof value === "string" ? value : "";
 }
@@ -58,6 +68,40 @@ function looksLikePromptLeak(text: string): boolean {
     ].some((pattern) => normalized.includes(pattern));
 }
 
+function buildMessages(
+    taskPrompt: string,
+    activeTask: "OCR_EXTRACT" | "CITATION_PREVIEW",
+    input: Record<string, unknown>
+): OpenRouterMessage[] {
+    if (activeTask === "OCR_EXTRACT") {
+        const imageDataUrl = asString(input.imageDataUrl);
+        return [
+            { role: "system", content: taskPrompt },
+            {
+                role: "user",
+                content: [
+                    {
+                        type: "text",
+                        text: "Task: OCR_EXTRACT\nRead the attached image and return only JSON with the extracted_text field.",
+                    },
+                    {
+                        type: "image_url",
+                        image_url: { url: imageDataUrl },
+                    },
+                ],
+            },
+        ];
+    }
+
+    return [
+        { role: "system", content: taskPrompt },
+        {
+            role: "user",
+            content: `Task: CITATION_PREVIEW\nInput:\n${JSON.stringify(input, null, 2)}`,
+        },
+    ];
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -74,11 +118,13 @@ export async function POST(request: NextRequest) {
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
         const activeTask = task === "OCR_EXTRACT" ? "OCR_EXTRACT" : "CITATION_PREVIEW";
         const taskPrompt = buildSystemPrompt(SYSTEM_PROMPT, activeTask);
-        const userMessage = activeTask === "OCR_EXTRACT"
-            ? `Task: OCR_EXTRACT\nInput:\n${JSON.stringify({
-                imageDataUrl: asString(input.imageDataUrl),
-            }, null, 2)}`
-            : `Task: CITATION_PREVIEW\nInput:\n${JSON.stringify(input, null, 2)}`;
+        if (activeTask === "OCR_EXTRACT" && !asString(input.imageDataUrl)) {
+            return NextResponse.json(
+                { error: "Missing imageDataUrl for OCR task" },
+                { status: 400 }
+            );
+        }
+        const messages = buildMessages(taskPrompt, activeTask, input);
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: "POST",
@@ -90,10 +136,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
                 model,
-                messages: [
-                    { role: "system", content: taskPrompt },
-                    { role: "user", content: userMessage },
-                ],
+                messages,
                 temperature: 0.2,
                 response_format: { type: "json_object" },
             }),
