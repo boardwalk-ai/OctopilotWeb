@@ -56,11 +56,15 @@ type PdfExtractResponse = {
 
 type UploadedPdfSource = {
     id: string;
+    sourceIndex: number;
+    source: SourceData;
     fileName: string;
     pageCount: number;
     pageRange: string;
     citation: string;
 };
+
+type PdfModalMode = "create" | "view" | "edit";
 
 export default function ConfigurationView({ onBack, onNext }: ConfigurationViewProps) {
     const org = useOrganizer();
@@ -114,8 +118,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const pdfInputRef = useRef<HTMLInputElement>(null);
     const [isPdfUploading, setIsPdfUploading] = useState(false);
     const [showPdfModal, setShowPdfModal] = useState(false);
+    const [pdfModalMode, setPdfModalMode] = useState<PdfModalMode>("create");
+    const [activePdfSourceIndex, setActivePdfSourceIndex] = useState<number | null>(null);
     const [pdfStep, setPdfStep] = useState<1 | 2>(1);
     const [pdfData, setPdfData] = useState<PdfExtractResponse | null>(null);
+    const [pdfPages, setPdfPages] = useState<string[]>([]);
     const [pdfStartPage, setPdfStartPage] = useState(1);
     const [pdfEndPage, setPdfEndPage] = useState(1);
     const [pdfReviewPage, setPdfReviewPage] = useState(1);
@@ -132,6 +139,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [citationError, setCitationError] = useState("");
     const [isStartPageDropdownOpen, setIsStartPageDropdownOpen] = useState(false);
     const [isEndPageDropdownOpen, setIsEndPageDropdownOpen] = useState(false);
+    const [sourceUploadHoverHint, setSourceUploadHoverHint] = useState<"" | "pdf" | "images">("");
     const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
@@ -193,9 +201,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     }, [wordCount, citationStyle, tone, sourcesTab, aiSearchKeywords, manualSources, specifyKeywords, keywordsText]);
 
     const selectedPdfTexts = useMemo(() => {
-        if (!pdfData) return [];
-        return pdfData.pages.slice(pdfStartPage - 1, pdfEndPage);
-    }, [pdfData, pdfEndPage, pdfStartPage]);
+        if (!pdfPages.length) return [];
+        return pdfPages.slice(pdfStartPage - 1, pdfEndPage);
+    }, [pdfEndPage, pdfPages, pdfStartPage]);
 
     const selectedPdfContent = useMemo(() => selectedPdfTexts.join("\n\n"), [selectedPdfTexts]);
 
@@ -220,14 +228,24 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     const uploadedPdfSources = useMemo<UploadedPdfSource[]>(() => {
         return manualSources
-            .filter((src) => src.url.startsWith("pdf://"))
-            .map((src, idx) => ({
-                id: `${src.url}-${idx}`,
-                fileName: decodeURIComponent(src.url.replace(/^pdf:\/\//, "").split("#")[0] || "Document.pdf"),
-                pageCount: 0,
-                pageRange: src.url.split("#pages=")[1] || "N/A",
-                citation: CitationTemplateService.formatReference(citationStyle, src, idx + 1),
-            }));
+            .map((src, sourceIndex) => ({ src, sourceIndex }))
+            .filter(({ src }) => src.manualSourceType === "pdf" || src.url.startsWith("pdf://"))
+            .map(({ src, sourceIndex }, idx) => {
+                const fileName = src.pdfMeta?.fileName
+                    || decodeURIComponent(src.url.replace(/^pdf:\/\//, "").split("#")[0] || "Document.pdf");
+                const pageRange = src.pdfMeta
+                    ? `${src.pdfMeta.startPage}-${src.pdfMeta.endPage}`
+                    : (src.url.split("#pages=")[1] || "N/A");
+                return {
+                    id: `${src.url}-${sourceIndex}`,
+                    sourceIndex,
+                    source: src,
+                    fileName,
+                    pageCount: src.pdfMeta?.pageCount || 0,
+                    pageRange,
+                    citation: src.pdfMeta?.citationPreview || CitationTemplateService.formatReference(citationStyle, src, idx + 1),
+                };
+            });
     }, [citationStyle, manualSources]);
 
     const fallbackPdfCitation = useCallback(() => {
@@ -245,8 +263,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     const resetPdfFlow = () => {
         setShowPdfModal(false);
+        setPdfModalMode("create");
+        setActivePdfSourceIndex(null);
         setPdfStep(1);
         setPdfData(null);
+        setPdfPages([]);
         setPdfStartPage(1);
         setPdfEndPage(1);
         setPdfReviewPage(1);
@@ -261,6 +282,42 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setPdfCitationPreview("");
         setCitationError("");
         setIsCitationLoading(false);
+    };
+
+    const openExistingPdfSource = (source: SourceData, sourceIndex: number, mode: PdfModalMode) => {
+        const urlFileName = decodeURIComponent(source.url.replace(/^pdf:\/\//, "").split("#")[0] || "Document.pdf");
+        const parsedRange = source.url.match(/#pages=(\d+)-(\d+)/);
+        const fallbackStart = parsedRange ? Number(parsedRange[1]) : 1;
+        const fallbackEnd = parsedRange ? Number(parsedRange[2]) : fallbackStart;
+        const meta = source.pdfMeta;
+        const pages = (meta?.pages && meta.pages.length > 0)
+            ? meta.pages
+            : [source.fullContent || ""];
+        const pageCount = meta?.pageCount || Math.max(fallbackEnd, pages.length || 1);
+
+        setPdfData({
+            fileName: meta?.fileName || urlFileName,
+            pageCount,
+            pages,
+        });
+        setPdfPages(pages);
+        setPdfModalMode(mode);
+        setActivePdfSourceIndex(sourceIndex);
+        setPdfStep(1);
+        setPdfStartPage(meta?.startPage || fallbackStart);
+        setPdfEndPage(meta?.endPage || Math.max(fallbackEnd, fallbackStart));
+        setPdfReviewPage(1);
+        setPdfAuthors(meta?.authors?.length ? meta.authors : [{ firstName: "", lastName: "" }]);
+        setPdfDocumentTitle(meta?.documentTitle || source.title || urlFileName.replace(/\.pdf$/i, ""));
+        setPdfPublicationYear(meta?.publicationYear || source.publishedYear || "");
+        setPdfJournalName(meta?.journalName || "");
+        setPdfPublisher(meta?.publisher || source.publisher || "");
+        setPdfVolume(meta?.volume || "");
+        setPdfIssue(meta?.issue || "");
+        setPdfEdition(meta?.edition || "");
+        setPdfCitationPreview(meta?.citationPreview || CitationTemplateService.formatReference(citationStyle, source, 1));
+        setCitationError("");
+        setShowPdfModal(true);
     };
 
     const openPdfPicker = () => {
@@ -299,6 +356,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 pageCount: maxPage,
                 pages: parsed.pages || [],
             });
+            setPdfPages(parsed.pages || []);
+            setPdfModalMode("create");
+            setActivePdfSourceIndex(null);
             setPdfStartPage(1);
             setPdfEndPage(maxPage);
             setPdfReviewPage(1);
@@ -332,6 +392,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const goToPdfReview = () => {
+        if (pdfModalMode === "view") {
+            setPdfStep(2);
+            setPdfReviewPage(1);
+            return;
+        }
         if (!hasRequiredCitationInfo) {
             alert("Document Title + Publication Year + (Journal Name or Publisher) are required.");
             return;
@@ -340,29 +405,65 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setPdfReviewPage(1);
     };
 
+    const updatePdfPageText = (absolutePage: number, value: string) => {
+        setPdfPages((prev) => prev.map((pageText, idx) => (idx === absolutePage - 1 ? value : pageText)));
+    };
+
     const savePdfAsSource = () => {
         if (!pdfData) return;
 
         const pageRange = `${pdfStartPage}-${pdfEndPage}`;
+        const publisherValue = [pdfJournalName.trim(), pdfPublisher.trim()].filter(Boolean).join(" • ");
+        const finalCitation = pdfCitationPreview || fallbackPdfCitation();
         const source: SourceData = {
             url: `pdf://${encodeURIComponent(pdfData.fileName)}#pages=${pageRange}`,
             status: "scraped",
+            manualSourceType: "pdf",
             title: pdfDocumentTitle.trim() || pdfData.fileName.replace(/\.pdf$/i, ""),
             author: pdfAuthorString || "Unknown",
             publishedYear: pdfPublicationYear.trim(),
-            publisher: [pdfJournalName.trim(), pdfPublisher.trim()].filter(Boolean).join(" • "),
+            publisher: publisherValue,
             fullContent: selectedPdfContent,
+            pdfMeta: {
+                fileName: pdfData.fileName,
+                pageCount: pdfData.pageCount,
+                startPage: pdfStartPage,
+                endPage: pdfEndPage,
+                pages: pdfPages,
+                authors: pdfAuthors,
+                documentTitle: pdfDocumentTitle.trim(),
+                publicationYear: pdfPublicationYear.trim(),
+                journalName: pdfJournalName.trim(),
+                publisher: pdfPublisher.trim(),
+                volume: pdfVolume.trim(),
+                issue: pdfIssue.trim(),
+                edition: pdfEdition.trim(),
+                citationPreview: finalCitation,
+            },
         };
 
         setManualSources((prev) => {
             const next = [...prev];
-            const emptyIdx = next.findIndex((item) => item.url.trim() === "");
-            if (emptyIdx >= 0) next[emptyIdx] = source;
-            else next.push(source);
+            if (activePdfSourceIndex !== null && activePdfSourceIndex >= 0 && activePdfSourceIndex < next.length) {
+                next[activePdfSourceIndex] = source;
+            } else {
+                const emptyIdx = next.findIndex((item) => item.url.trim() === "");
+                if (emptyIdx >= 0) next[emptyIdx] = source;
+                else next.push(source);
+            }
             return next;
         });
 
         resetPdfFlow();
+    };
+
+    const removePdfSource = (sourceIndex: number) => {
+        setManualSources((prev) => {
+            if (sourceIndex < 0 || sourceIndex >= prev.length) return prev;
+            const next = [...prev];
+            next[sourceIndex] = { url: "", status: "empty" };
+            return next;
+        });
     };
 
     useEffect(() => {
@@ -399,6 +500,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     const handleAskSpoonie = async () => {
         if (!showPdfModal || !pdfData) return;
+        if (pdfModalMode === "view") return;
         if (!hasRequiredCitationInfo) {
             setPdfCitationPreview("");
             setCitationError("Document Title + Publication Year + (Journal Name or Publisher) are required.");
@@ -811,6 +913,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <button
                                 onClick={openPdfPicker}
                                 disabled={isPdfUploading}
+                                onMouseEnter={() => setSourceUploadHoverHint("pdf")}
+                                onMouseLeave={() => setSourceUploadHoverHint("")}
                                 className="flex items-center gap-2 rounded-full bg-red-500 px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.28)] transition hover:bg-red-400 disabled:opacity-60"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -819,16 +923,22 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </svg>
                                 {isPdfUploading ? "Reading PDF..." : "Upload PDF"}
                             </button>
-                            <button
-                                disabled
-                                className="cursor-not-allowed rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/50"
-                            >
-                                Upload Images
-                            </button>
+                            <div onMouseEnter={() => setSourceUploadHoverHint("images")} onMouseLeave={() => setSourceUploadHoverHint("")}>
+                                <button
+                                    disabled
+                                    className="cursor-not-allowed rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/50"
+                                >
+                                    Upload Images
+                                </button>
+                            </div>
                         </div>
-                        <p className="mt-4 text-center text-[13px] text-white/45">
-                            We only support single PDF upload for now.
-                        </p>
+                        {sourceUploadHoverHint !== "" && (
+                            <p className="mt-4 text-center text-[13px] text-white/45">
+                                {sourceUploadHoverHint === "pdf"
+                                    ? "We only support single PDF upload for now"
+                                    : "We support multiple image uploads"}
+                            </p>
+                        )}
 
                         <input
                             ref={pdfInputRef}
@@ -840,12 +950,57 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                         {uploadedPdfSources.length > 0 && (
                             <div className="mt-8 space-y-3">
-                                <h4 className="text-[16px] font-bold text-white/90">Added PDF Sources</h4>
+                                <h4 className="text-[16px] font-bold text-white/90">Added manual sources</h4>
                                 {uploadedPdfSources.map((pdf) => (
-                                    <div key={pdf.id} className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
-                                        <div className="text-[14px] font-semibold text-white">{pdf.fileName}</div>
-                                        <div className="mt-1 text-[12px] text-white/60">Pages: {pdf.pageRange}</div>
-                                        <div className="mt-2 text-[12px] text-white/80">{pdf.citation}</div>
+                                    <div key={pdf.id} className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/35 bg-red-500/15 text-red-300">
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                    <polyline points="14 2 14 8 20 8" />
+                                                </svg>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="truncate text-[14px] font-semibold text-white">{pdf.fileName}</div>
+                                                <div className="mt-1 text-[12px] text-white/60">Pages: {pdf.pageRange}</div>
+                                                <div className="mt-2 line-clamp-2 text-[12px] text-white/80">{pdf.citation}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <button
+                                                onClick={() => openExistingPdfSource(pdf.source, pdf.sourceIndex, "view")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="View source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => openExistingPdfSource(pdf.source, pdf.sourceIndex, "edit")}
+                                                className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
+                                                title="Edit source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 20h9" />
+                                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => removePdfSource(pdf.sourceIndex)}
+                                                className="rounded-lg border border-red-500/35 bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20"
+                                                title="Delete source"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M3 6h18" />
+                                                    <path d="M8 6V4h8v2" />
+                                                    <path d="M19 6l-1 14H6L5 6" />
+                                                    <path d="M10 11v6" />
+                                                    <path d="M14 11v6" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -999,11 +1154,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <div className="relative">
                                                     <button
                                                         type="button"
+                                                        disabled={pdfModalMode === "view"}
                                                         onClick={() => {
                                                             setIsStartPageDropdownOpen((prev) => !prev);
                                                             setIsEndPageDropdownOpen(false);
                                                         }}
-                                                        className="flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition hover:border-white/30 focus:border-red-400/70"
+                                                        className={`flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70 ${pdfModalMode === "view" ? "cursor-not-allowed opacity-70" : "hover:border-white/30"}`}
                                                     >
                                                         <span>Page {pdfStartPage}</span>
                                                         <svg className={`text-white/55 transition-transform ${isStartPageDropdownOpen ? "rotate-180" : ""}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1035,11 +1191,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <div className="relative">
                                                     <button
                                                         type="button"
+                                                        disabled={pdfModalMode === "view"}
                                                         onClick={() => {
                                                             setIsEndPageDropdownOpen((prev) => !prev);
                                                             setIsStartPageDropdownOpen(false);
                                                         }}
-                                                        className="flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition hover:border-white/30 focus:border-red-400/70"
+                                                        className={`flex w-full items-center justify-between rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70 ${pdfModalMode === "view" ? "cursor-not-allowed opacity-70" : "hover:border-white/30"}`}
                                                     >
                                                         <span>Page {pdfEndPage}</span>
                                                         <svg className={`text-white/55 transition-transform ${isEndPageDropdownOpen ? "rotate-180" : ""}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1080,20 +1237,23 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                         placeholder="First Name"
                                                         value={author.firstName}
                                                         onChange={(e) => updatePdfAuthor(idx, "firstName", e.target.value)}
+                                                        disabled={pdfModalMode === "view"}
                                                         className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                     />
                                                     <input
                                                         placeholder="Last Name"
                                                         value={author.lastName}
                                                         onChange={(e) => updatePdfAuthor(idx, "lastName", e.target.value)}
+                                                        disabled={pdfModalMode === "view"}
                                                         className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                     />
                                                 </div>
                                             ))}
                                         </div>
                                         <button
+                                            disabled={pdfModalMode === "view"}
                                             onClick={addPdfAuthorRow}
-                                            className="mt-3 inline-flex items-center gap-2 text-[14px] font-semibold text-red-400 hover:text-red-300"
+                                            className="mt-3 inline-flex items-center gap-2 text-[14px] font-semibold text-red-400 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-45"
                                         >
                                             <span className="text-[18px] leading-none">+</span>
                                             Add another author
@@ -1108,6 +1268,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <input
                                                     value={pdfDocumentTitle}
                                                     onChange={(e) => setPdfDocumentTitle(e.target.value)}
+                                                    disabled={pdfModalMode === "view"}
                                                     placeholder="Enter the title of the document"
                                                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                 />
@@ -1117,6 +1278,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <input
                                                     value={pdfPublicationYear}
                                                     onChange={(e) => setPdfPublicationYear(e.target.value)}
+                                                    disabled={pdfModalMode === "view"}
                                                     placeholder="e.g. 2024"
                                                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                 />
@@ -1126,6 +1288,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <input
                                                     value={pdfJournalName}
                                                     onChange={(e) => setPdfJournalName(e.target.value)}
+                                                    disabled={pdfModalMode === "view"}
                                                     placeholder="Enter journal name (if applicable)"
                                                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                 />
@@ -1135,6 +1298,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <input
                                                     value={pdfPublisher}
                                                     onChange={(e) => setPdfPublisher(e.target.value)}
+                                                    disabled={pdfModalMode === "view"}
                                                     placeholder="Enter publisher name (if applicable)"
                                                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                                 />
@@ -1151,18 +1315,21 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             <input
                                                 value={pdfVolume}
                                                 onChange={(e) => setPdfVolume(e.target.value)}
+                                                disabled={pdfModalMode === "view"}
                                                 placeholder="Volume"
                                                 className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                             />
                                             <input
                                                 value={pdfIssue}
                                                 onChange={(e) => setPdfIssue(e.target.value)}
+                                                disabled={pdfModalMode === "view"}
                                                 placeholder="Issue"
                                                 className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                             />
                                             <input
                                                 value={pdfEdition}
                                                 onChange={(e) => setPdfEdition(e.target.value)}
+                                                disabled={pdfModalMode === "view"}
                                                 placeholder="Edition"
                                                 className="col-span-2 rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/25"
                                             />
@@ -1174,7 +1341,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             <h4 className="text-[18px] font-bold text-white">Citation Preview</h4>
                                             <button
                                                 onClick={handleAskSpoonie}
-                                                disabled={isCitationLoading}
+                                                disabled={isCitationLoading || pdfModalMode === "view"}
                                                 className="inline-flex items-center gap-2 rounded-full border border-[#c9ad3a]/50 bg-[#5a4f16]/55 px-3.5 py-1.5 text-[12px] font-semibold text-[#f6e08a] transition hover:bg-[#6e611a]/65 disabled:opacity-60"
                                             >
                                                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#f6e08a]/50 bg-black/35 text-[10px] text-[#f6e08a]">
@@ -1216,9 +1383,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 </button>
                                             </div>
                                         </div>
-                                        <div className="h-[58vh] overflow-y-auto rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[13px] leading-relaxed text-white/90">
-                                            {selectedPdfTexts[pdfReviewPage - 1] || "No text extracted for this page."}
-                                        </div>
+                                        <textarea
+                                            value={selectedPdfTexts[pdfReviewPage - 1] || ""}
+                                            onChange={(e) => updatePdfPageText(pdfStartPage + pdfReviewPage - 1, e.target.value)}
+                                            readOnly={pdfModalMode === "view"}
+                                            className={`h-[58vh] w-full resize-none overflow-y-auto rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[13px] leading-relaxed text-white/90 outline-none ${pdfModalMode === "view" ? "cursor-default" : "focus:border-white/25"}`}
+                                        />
                                     </section>
 
                                     <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
@@ -1258,10 +1428,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </button>
                             ) : (
                                 <button
-                                    onClick={savePdfAsSource}
+                                    onClick={pdfModalMode === "view" ? resetPdfFlow : savePdfAsSource}
                                     className="rounded-xl bg-red-500 px-8 py-2.5 text-[14px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.25)] hover:bg-red-400"
                                 >
-                                    Save as Source
+                                    {pdfModalMode === "view" ? "Close" : (pdfModalMode === "edit" ? "Update Source" : "Save as Source")}
                                 </button>
                             )}
                         </div>

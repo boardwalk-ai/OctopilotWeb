@@ -10,6 +10,23 @@ export interface SourceData {
     publisher?: string;
     fullContent?: string;
     status: "empty" | "loading" | "scraped" | "failed";
+    manualSourceType?: "pdf" | "image" | "url";
+    pdfMeta?: {
+        fileName: string;
+        pageCount: number;
+        startPage: number;
+        endPage: number;
+        pages: string[];
+        authors: Array<{ firstName: string; lastName: string }>;
+        documentTitle: string;
+        publicationYear: string;
+        journalName: string;
+        publisher: string;
+        volume: string;
+        issue: string;
+        edition: string;
+        citationPreview: string;
+    };
 }
 
 export interface CompactedSource {
