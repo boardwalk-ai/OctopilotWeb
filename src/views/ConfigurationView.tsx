@@ -2161,7 +2161,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-white/[0.08] bg-black/25 px-6 py-4">
+                        <div className="grid gap-4 border-t border-white/[0.08] bg-black/25 px-6 py-4 lg:grid-cols-[auto_minmax(320px,1fr)_auto] lg:items-center">
                             <div className="flex items-center gap-2 text-[14px] font-semibold">
                                 <button
                                     onClick={() => setImageStep(1)}
@@ -2169,12 +2169,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 >
                                     1 OCR
                                 </button>
+                                <span className="text-white/35">&gt;&gt;</span>
                                 <button
                                     onClick={() => canMoveToImageCitation && setImageStep(2)}
                                     className={`rounded-full px-4 py-1.5 ${imageStep === 2 ? "bg-red-500 text-white" : "bg-white/10 text-white/60"}`}
                                 >
                                     2 Citation
                                 </button>
+                                <span className="text-white/35">&gt;&gt;</span>
                                 <button
                                     onClick={() => setImageStep(3)}
                                     className={`rounded-full px-4 py-1.5 ${imageStep === 3 ? "bg-red-500 text-white" : "bg-white/10 text-white/60"}`}
@@ -2183,7 +2185,23 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 </button>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="min-h-[48px] rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-center">
+                                {imageStep === 2 ? (
+                                    isImageCitationLoading ? (
+                                        <div className="text-[13px] font-semibold text-[#f6e08a]">Spoonie is generating your citation...</div>
+                                    ) : imageCitationError ? (
+                                        <div className="text-[12px] text-yellow-200">{imageCitationError}</div>
+                                    ) : imageCitationPreview ? (
+                                        <div className="mx-auto max-w-3xl text-[12px] leading-5 text-white/80">{imageCitationPreview}</div>
+                                    ) : (
+                                        <div className="text-[12px] text-white/45">Ask Spoonie preview will appear here.</div>
+                                    )
+                                ) : (
+                                    <div className="text-[12px] text-white/35">Step progress and Spoonie preview area.</div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-3 lg:justify-end">
                                 {imageStep === 1 && (
                                     <>
                                         <button
@@ -2250,7 +2268,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 )}
                             </div>
                         </div>
-                        {imageCitationError && <div className="px-6 pb-4 text-[12px] text-yellow-200">{imageCitationError}</div>}
                     </div>
                 </div>
             )}
