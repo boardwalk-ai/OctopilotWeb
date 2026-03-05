@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "module";
+import { pathToFileURL } from "url";
 
 export const runtime = "nodejs";
+
+const require = createRequire(import.meta.url);
+const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
 
 export async function POST(request: NextRequest) {
     try {
