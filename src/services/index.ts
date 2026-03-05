@@ -16,3 +16,4 @@ export { ChicagoFormatterService } from "./ChicagoFormatterService";
 export { CitationTemplateService } from "./CitationTemplateService";
 export { SuService } from "./SuService";
 export { InTextCitationService } from "./InTextCitationService";
+export { SpoonieService } from "./SpoonieService";
