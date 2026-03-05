@@ -170,8 +170,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [imageBufferText, setImageBufferText] = useState("");
     const [imageFinalSnippet, setImageFinalSnippet] = useState("");
     const [imageConfirmedSnippets, setImageConfirmedSnippets] = useState<string[]>([]);
-    const [imageSelectedRegion, setImageSelectedRegion] = useState({ x: 120, y: 80, width: 360, height: 220 });
-    const [isDraggingImageRegion, setIsDraggingImageRegion] = useState(false);
     const [isScanningImage, setIsScanningImage] = useState(false);
     const [imageCitationKind, setImageCitationKind] = useState<"book" | "journal">("book");
     const [imageCitationContributors, setImageCitationContributors] = useState<ImageCitationContributor[]>([
@@ -194,8 +192,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
     const pageDropdownRef = useRef<HTMLDivElement>(null);
-    const imageViewportRef = useRef<HTMLDivElement>(null);
-
     useEffect(() => {
         setCanUsePortal(true);
     }, []);
@@ -618,56 +614,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const scanActiveImageRegion = async () => {
-        if (!imageCurrentSrc || !imageViewportRef.current) return;
+        if (!imageCurrentSrc) return;
         setIsScanningImage(true);
         try {
-            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-                const image = new Image();
-                image.onload = () => resolve(image);
-                image.onerror = () => reject(new Error("Failed to load source image"));
-                image.src = imageCurrentSrc;
-            });
-            const viewport = imageViewportRef.current.getBoundingClientRect();
-            const naturalW = img.naturalWidth || img.width;
-            const naturalH = img.naturalHeight || img.height;
-            const viewportRatio = viewport.width / viewport.height;
-            const naturalRatio = naturalW / naturalH;
-
-            const drawW = naturalRatio > viewportRatio ? viewport.width : viewport.height * naturalRatio;
-            const drawH = naturalRatio > viewportRatio ? viewport.width / naturalRatio : viewport.height;
-            const offsetX = (viewport.width - drawW) / 2;
-            const offsetY = (viewport.height - drawH) / 2;
-            const scaleX = naturalW / drawW;
-            const scaleY = naturalH / drawH;
-
-            const regionOnImage = {
-                x: Math.max(0, Math.round((imageSelectedRegion.x - offsetX) * scaleX)),
-                y: Math.max(0, Math.round((imageSelectedRegion.y - offsetY) * scaleY)),
-                width: Math.max(8, Math.round(imageSelectedRegion.width * scaleX)),
-                height: Math.max(8, Math.round(imageSelectedRegion.height * scaleY)),
-            };
-
-            const canvas = document.createElement("canvas");
-            canvas.width = regionOnImage.width;
-            canvas.height = regionOnImage.height;
-            const context = canvas.getContext("2d");
-            if (!context) {
-                throw new Error("Unable to prepare OCR image.");
-            }
-            context.drawImage(
-                img,
-                regionOnImage.x,
-                regionOnImage.y,
-                regionOnImage.width,
-                regionOnImage.height,
-                0,
-                0,
-                regionOnImage.width,
-                regionOnImage.height
-            );
-
             const text = await SpoonieService.extractImageText({
-                imageDataUrl: canvas.toDataURL("image/png"),
+                imageDataUrl: imageCurrentSrc,
             });
             if (!text.trim()) return;
             setImageBufferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${text.trim()}` : text.trim()));
@@ -684,7 +635,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         setImageConfirmedSnippets((prev) => [...prev, cleaned]);
         setImageFinalSnippet((prev) => (prev.trim() ? `${prev.trim()}\n\n${cleaned}` : cleaned));
         setImageBufferText("");
-        setImageSelectedRegion({ x: 120, y: 80, width: 360, height: 220 });
         // Expire current image after confirmation and auto focus next remaining image.
         setImageFiles((prev) => {
             if (!prev.length) return prev;
@@ -842,38 +792,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             return next;
         });
         resetImageFlow();
-    };
-
-    const onImageViewportMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (imageModalMode === "view") return;
-        if (!imageViewportRef.current || !imageCurrentSrc) return;
-        const rect = imageViewportRef.current.getBoundingClientRect();
-        const startX = event.clientX - rect.left;
-        const startY = event.clientY - rect.top;
-        const nextRegion = {
-            x: Math.max(0, startX),
-            y: Math.max(0, startY),
-            width: 1,
-            height: 1,
-        };
-        setImageSelectedRegion(nextRegion);
-        setIsDraggingImageRegion(true);
-    };
-
-    const onImageViewportMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (!isDraggingImageRegion || !imageViewportRef.current) return;
-        const rect = imageViewportRef.current.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        setImageSelectedRegion((prev) => ({
-            ...prev,
-            width: Math.max(8, x - prev.x),
-            height: Math.max(8, y - prev.y),
-        }));
-    };
-
-    const onImageViewportMouseUp = () => {
-        setIsDraggingImageRegion(false);
     };
 
     useEffect(() => {
@@ -1922,7 +1840,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <div>
                                 <div className="text-[30px] font-bold text-white">Step {imageStep}: {imageStep === 1 ? "OCR" : imageStep === 2 ? "Citation" : "Save"}</div>
                                 <div className="text-[14px] text-white/60">
-                                    {imageStep === 1 ? "Drag on image to select OCR region." : imageStep === 2 ? "Fill citation builder form." : "Review before saving source."}
+                                    {imageStep === 1 ? "Extract text from the selected image." : imageStep === 2 ? "Fill citation builder form." : "Review before saving source."}
                                 </div>
                             </div>
                             <button onClick={resetImageFlow} className="rounded-full bg-white/[0.08] p-2 text-white/60 hover:bg-white/[0.16] hover:text-white">
@@ -1980,31 +1898,28 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             onChange={addMoreImagesToFlow}
                                         />
 
-                                        <div
-                                            ref={imageViewportRef}
-                                            onMouseDown={onImageViewportMouseDown}
-                                            onMouseMove={onImageViewportMouseMove}
-                                            onMouseUp={onImageViewportMouseUp}
-                                            onMouseLeave={onImageViewportMouseUp}
-                                            className="relative h-[340px] overflow-hidden rounded-xl border border-white/[0.08] bg-black/35"
-                                        >
-                                            {imageCurrentSrc ? (
-                                                <>
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={imageCurrentSrc} alt="OCR Source" className="h-full w-full object-contain" />
-                                                    <div
-                                                        className="absolute border-2 border-red-400 bg-red-400/10"
-                                                        style={{
-                                                            left: imageSelectedRegion.x,
-                                                            top: imageSelectedRegion.y,
-                                                            width: imageSelectedRegion.width,
-                                                            height: imageSelectedRegion.height,
-                                                        }}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <div className="flex h-full items-center justify-center text-[14px] text-white/50">No images uploaded yet</div>
-                                            )}
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="max-w-xl space-y-2">
+                                                <div className="text-[15px] font-semibold text-white">Current image</div>
+                                                <div className="text-[13px] leading-6 text-white/55">
+                                                    OCR will scan the entire image. Confirm the extracted text below, then move to citation.
+                                                </div>
+                                            </div>
+                                            <div className="w-full lg:w-[340px] lg:flex-none">
+                                                <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-black/35">
+                                                    {imageCurrentSrc ? (
+                                                        <>
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={imageCurrentSrc} alt="OCR Source" className="h-full w-full object-contain p-3" />
+                                                            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent px-4 py-3 text-[12px] font-medium text-white/70">
+                                                                Full image OCR preview
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center text-[14px] text-white/50">No images uploaded yet</div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
