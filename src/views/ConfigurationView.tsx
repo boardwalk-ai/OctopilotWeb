@@ -170,6 +170,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [imageBufferText, setImageBufferText] = useState("");
     const [imageFinalSnippet, setImageFinalSnippet] = useState("");
     const [imageConfirmedSnippets, setImageConfirmedSnippets] = useState<string[]>([]);
+    const [imageZoom, setImageZoom] = useState(1);
     const [isScanningImage, setIsScanningImage] = useState(false);
     const [imageCitationKind, setImageCitationKind] = useState<"book" | "journal">("book");
     const [imageCitationContributors, setImageCitationContributors] = useState<ImageCitationContributor[]>([
@@ -315,6 +316,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     const canMoveToImageCitation = useMemo(() => imageFinalSnippet.trim().length > 0, [imageFinalSnippet]);
     const imageCurrentSrc = imageFiles[activeImageIndex]?.src || "";
+
+    useEffect(() => {
+        setImageZoom(1);
+    }, [activeImageIndex, imageCurrentSrc, showImageModal]);
 
     const fallbackPdfCitation = useCallback(() => {
         const fallbackSource: SourceData = {
@@ -1854,41 +1859,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             {imageStep === 1 && (
                                 <div className="space-y-4">
                                     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                                        <div className="mb-3 flex items-center justify-between">
-                                            <div className="text-[16px] font-semibold text-white">Select an image to scan ({Math.max(0, imageFiles.length - activeImageIndex)} remaining)</div>
-                                            <button
-                                                onClick={() => document.getElementById("add-more-images-input")?.click()}
-                                                disabled={imageModalMode === "view"}
-                                                className="rounded-full border border-white/[0.15] bg-white/[0.05] px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-50"
-                                            >
-                                                + Add More
-                                            </button>
-                                        </div>
-                                        <div className="mb-4 flex flex-wrap gap-2">
-                                            {imageFiles.map((image, idx) => (
-                                                <button
-                                                    key={`${image.name}-${idx}`}
-                                                    onClick={() => setActiveImageIndex(idx)}
-                                                    className={`h-16 w-16 overflow-hidden rounded-lg border ${idx === activeImageIndex ? "border-red-400" : "border-white/[0.15]"}`}
-                                                >
-                                                    {image.src ? (
-                                                        // eslint-disable-next-line @next/next/no-img-element
-                                                        <img src={image.src} alt={image.name} className="h-full w-full object-cover" />
-                                                    ) : (
-                                                        <div className="flex h-full w-full items-center justify-center bg-black/30 text-[10px] text-white/40">IMG</div>
-                                                    )}
-                                                </button>
-                                            ))}
-                                            {!imageFiles.length && (
-                                                <button
-                                                    onClick={openImagePicker}
-                                                    disabled={imageModalMode === "view"}
-                                                    className="rounded-full bg-red-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-red-400 disabled:opacity-50"
-                                                >
-                                                    Upload Images
-                                                </button>
-                                            )}
-                                        </div>
+                                        <div className="mb-4 text-[16px] font-semibold text-white">Select an image to scan ({Math.max(0, imageFiles.length - activeImageIndex)} remaining)</div>
                                         <input
                                             id="add-more-images-input"
                                             type="file"
@@ -1898,19 +1869,85 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             onChange={addMoreImagesToFlow}
                                         />
 
-                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                            <div className="max-w-xl space-y-2">
-                                                <div className="text-[15px] font-semibold text-white">Current image</div>
-                                                <div className="text-[13px] leading-6 text-white/55">
-                                                    OCR will scan the entire image. Confirm the extracted text below, then move to citation.
+                                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+                                            <div className="space-y-4">
+                                                <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                                                    <div className="text-[15px] font-semibold text-white">Current image</div>
+                                                    <div className="mt-2 text-[13px] leading-6 text-white/55">
+                                                        OCR will scan the entire image. Confirm the extracted text below, then move to citation.
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                                        <div className="text-[14px] font-semibold text-white">Photos</div>
+                                                        <button
+                                                            onClick={() => document.getElementById("add-more-images-input")?.click()}
+                                                            disabled={imageModalMode === "view"}
+                                                            className="rounded-full border border-white/[0.15] bg-white/[0.05] px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-50"
+                                                        >
+                                                            + Add Photos
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {imageFiles.map((image, idx) => (
+                                                            <button
+                                                                key={`${image.name}-${idx}`}
+                                                                onClick={() => setActiveImageIndex(idx)}
+                                                                className={`h-20 w-20 overflow-hidden rounded-xl border ${idx === activeImageIndex ? "border-red-400" : "border-white/[0.15]"}`}
+                                                            >
+                                                                {image.src ? (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img src={image.src} alt={image.name} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <div className="flex h-full w-full items-center justify-center bg-black/30 text-[10px] text-white/40">IMG</div>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                        {!imageFiles.length && (
+                                                            <button
+                                                                onClick={openImagePicker}
+                                                                disabled={imageModalMode === "view"}
+                                                                className="rounded-full bg-red-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-red-400 disabled:opacity-50"
+                                                            >
+                                                                Upload Images
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="w-full lg:w-[340px] lg:flex-none">
-                                                <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-black/35">
+                                            <div className="space-y-3 xl:justify-self-end">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="text-[14px] font-semibold text-white">Image Preview</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setImageZoom((prev) => Math.max(1, Number((prev - 0.25).toFixed(2))))}
+                                                            disabled={!imageCurrentSrc || imageZoom <= 1}
+                                                            className="rounded-full border border-white/[0.15] bg-white/[0.05] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-40"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <div className="min-w-12 text-center text-[12px] font-semibold text-white/70">{Math.round(imageZoom * 100)}%</div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setImageZoom((prev) => Math.min(3, Number((prev + 0.25).toFixed(2))))}
+                                                            disabled={!imageCurrentSrc || imageZoom >= 3}
+                                                            className="rounded-full border border-white/[0.15] bg-white/[0.05] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/[0.1] disabled:opacity-40"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="relative mx-auto aspect-square w-full max-w-[420px] overflow-hidden rounded-2xl border border-white/[0.08] bg-black/35">
                                                     {imageCurrentSrc ? (
                                                         <>
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={imageCurrentSrc} alt="OCR Source" className="h-full w-full object-contain p-3" />
+                                                            <img
+                                                                src={imageCurrentSrc}
+                                                                alt="OCR Source"
+                                                                className="h-full w-full object-contain p-3 transition-transform duration-200"
+                                                                style={{ transform: `scale(${imageZoom})`, transformOrigin: "center center" }}
+                                                            />
                                                             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent px-4 py-3 text-[12px] font-medium text-white/70">
                                                                 Full image OCR preview
                                                             </div>
@@ -1923,14 +1960,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                                         <div>
                                             <div className="mb-2 text-[18px] font-semibold text-white">Final Snippet</div>
                                             <textarea
                                                 value={imageFinalSnippet}
                                                 onChange={(e) => setImageFinalSnippet(e.target.value)}
                                                 readOnly={imageModalMode === "view"}
-                                                className="h-44 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
+                                                className="h-52 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
                                                 placeholder="Confirmed text will accumulate here..."
                                             />
                                         </div>
@@ -1940,7 +1977,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 value={imageBufferText}
                                                 onChange={(e) => setImageBufferText(e.target.value)}
                                                 readOnly={imageModalMode === "view"}
-                                                className="h-44 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
+                                                className="h-52 w-full rounded-xl border border-white/[0.1] bg-black/35 p-3 text-[14px] text-white outline-none placeholder-white/35 focus:border-white/20"
                                                 placeholder="Selected text will appear here for editing..."
                                             />
                                         </div>
