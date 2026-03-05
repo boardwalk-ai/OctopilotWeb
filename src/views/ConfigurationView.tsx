@@ -783,8 +783,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 {/* Use My Source content */}
                 {sourcesTab === "Use My Source" && (
                     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
-                        <h3 className="text-[34px] font-bold text-white">Use My Source</h3>
-                        <p className="mt-2 max-w-3xl text-[18px] text-white/70">
+                        <h3 className="text-[22px] font-bold text-white">Use My Source</h3>
+                        <p className="mt-2 max-w-3xl text-[14px] text-white/70">
                             Upload primary research artifacts and reuse them as supporting material.
                         </p>
 
@@ -792,9 +792,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <button
                                 onClick={openPdfPicker}
                                 disabled={isPdfUploading}
-                                className="flex items-center gap-2 rounded-full bg-red-500 px-7 py-4 text-[24px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.28)] transition hover:bg-red-400 disabled:opacity-60"
+                                className="flex items-center gap-2 rounded-full bg-red-500 px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.28)] transition hover:bg-red-400 disabled:opacity-60"
                             >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                     <polyline points="14 2 14 8 20 8" />
                                 </svg>
@@ -802,12 +802,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             </button>
                             <button
                                 disabled
-                                className="cursor-not-allowed rounded-full border border-white/20 bg-white/[0.04] px-7 py-4 text-[24px] font-bold text-white/50"
+                                className="cursor-not-allowed rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/50"
                             >
                                 Upload Images
                             </button>
                         </div>
-                        <p className="mt-4 text-center text-[16px] text-white/45">
+                        <p className="mt-4 text-center text-[13px] text-white/45">
                             We only support single PDF upload for now.
                         </p>
 
@@ -939,20 +939,20 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
             {/* Use My Source PDF Modal */}
             {showPdfModal && pdfData && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
                     <div className="flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/[0.1] bg-[#101015] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
                         <div className="flex items-center justify-between border-b border-white/[0.08] px-8 py-5">
                             <div>
-                                <div className="text-[34px] font-bold text-white">{pdfData.fileName}</div>
-                                <div className="text-[14px] text-white/50">{pdfData.pageCount} pages • {citationStyle}</div>
+                                <div className="text-[24px] font-bold text-white">{pdfData.fileName}</div>
+                                <div className="text-[12px] text-white/50">{pdfData.pageCount} pages • {citationStyle}</div>
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className={`flex items-center gap-2 text-[15px] font-semibold ${pdfStep === 1 ? "text-white" : "text-white/35"}`}>
+                                <div className={`flex items-center gap-2 text-[13px] font-semibold ${pdfStep === 1 ? "text-white" : "text-white/35"}`}>
                                     <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] ${pdfStep === 1 ? "bg-red-500 text-white" : "bg-white/10 text-white/50"}`}>1</span>
                                     Citation Info
                                 </div>
                                 <div className="text-white/30">›</div>
-                                <div className={`flex items-center gap-2 text-[15px] font-semibold ${pdfStep === 2 ? "text-white" : "text-white/35"}`}>
+                                <div className={`flex items-center gap-2 text-[13px] font-semibold ${pdfStep === 2 ? "text-white" : "text-white/35"}`}>
                                     <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] ${pdfStep === 2 ? "bg-red-500 text-white" : "bg-white/10 text-white/50"}`}>2</span>
                                     Review & Edit
                                 </div>
@@ -972,7 +972,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             {pdfStep === 1 ? (
                                 <div className="space-y-5">
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[28px] font-bold text-white">Page Selection</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Page Selection</h4>
                                         <p className="mt-1 text-[14px] text-white/60">Select the page range you want to cite from this PDF.</p>
                                         <div className="mt-4 grid grid-cols-2 gap-4">
                                             <div>
@@ -980,7 +980,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <select
                                                     value={pdfStartPage}
                                                     onChange={(e) => setPdfStartPage(Number(e.target.value))}
-                                                    className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
+                                                    className="w-full appearance-none rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
                                                 >
                                                     {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1).map((page) => (
                                                         <option key={`start-${page}`} value={page}>Page {page}</option>
@@ -992,7 +992,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <select
                                                     value={pdfEndPage}
                                                     onChange={(e) => setPdfEndPage(Number(e.target.value))}
-                                                    className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
+                                                    className="w-full appearance-none rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
                                                 >
                                                     {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1)
                                                         .filter((page) => page >= pdfStartPage)
@@ -1005,7 +1005,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[28px] font-bold text-white">Authors</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Authors</h4>
                                         <div className="mt-4 space-y-3">
                                             {pdfAuthors.map((author, idx) => (
                                                 <div key={`author-${idx}`} className="grid grid-cols-2 gap-3">
@@ -1034,7 +1034,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[28px] font-bold text-white">Required Information</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Required Information</h4>
                                         <div className="mt-4 space-y-3">
                                             <div>
                                                 <label className="mb-1 block text-[13px] text-white/70">Document Title *</label>
@@ -1079,7 +1079,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[24px] font-bold text-white">Optional Information</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Optional Information</h4>
                                         <div className="mt-4 grid grid-cols-2 gap-3">
                                             <input
                                                 value={pdfVolume}
@@ -1103,7 +1103,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[24px] font-bold text-white">Citation Preview</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Citation Preview</h4>
                                         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[15px] text-white">
                                             {isCitationLoading ? "Generating citation..." : (pdfCitationPreview || "Fill required fields to generate preview.")}
                                         </div>
@@ -1116,7 +1116,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_340px] gap-5">
                                     <section className="min-h-0 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
                                         <div className="mb-3 flex items-center justify-between">
-                                            <h4 className="text-[24px] font-bold text-white">Extracted Text</h4>
+                                            <h4 className="text-[18px] font-bold text-white">Extracted Text</h4>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setPdfReviewPage((prev) => Math.max(1, prev - 1))}
@@ -1143,7 +1143,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-                                        <h4 className="text-[24px] font-bold text-white">Generated Citation</h4>
+                                        <h4 className="text-[18px] font-bold text-white">Generated Citation</h4>
                                         <div className="mt-3 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-[14px] text-white">
                                             {isCitationLoading ? "Generating..." : (pdfCitationPreview || "No citation yet")}
                                         </div>
@@ -1165,7 +1165,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     if (pdfStep === 1) resetPdfFlow();
                                     else setPdfStep(1);
                                 }}
-                                className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-8 py-3 text-[16px] font-semibold text-white/80 hover:bg-white/[0.06]"
+                                className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-7 py-2.5 text-[14px] font-semibold text-white/80 hover:bg-white/[0.06]"
                             >
                                 {pdfStep === 1 ? "Cancel" : "Back"}
                             </button>
@@ -1173,14 +1173,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             {pdfStep === 1 ? (
                                 <button
                                     onClick={goToPdfReview}
-                                    className="rounded-xl bg-red-500 px-10 py-3 text-[16px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.25)] hover:bg-red-400"
+                                    className="rounded-xl bg-red-500 px-8 py-2.5 text-[14px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.25)] hover:bg-red-400"
                                 >
                                     Next
                                 </button>
                             ) : (
                                 <button
                                     onClick={savePdfAsSource}
-                                    className="rounded-xl bg-red-500 px-10 py-3 text-[16px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.25)] hover:bg-red-400"
+                                    className="rounded-xl bg-red-500 px-8 py-2.5 text-[14px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.25)] hover:bg-red-400"
                                 >
                                     Save as Source
                                 </button>
@@ -1192,7 +1192,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
             {/* Jasmine Searching Modal */}
             {isSearching && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center pt-[10vh] bg-black/60 p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/60 p-4 backdrop-blur-sm">
                     <div className="flex w-full max-w-sm flex-col items-center justify-center rounded-3xl border border-white/10 bg-[#121212] p-8 text-center shadow-2xl">
                         <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-red-500"></div>
                         <h3 className="mb-2 text-xl font-bold text-white">Jasmine is Searching...</h3>
@@ -1203,7 +1203,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
             {/* Scrape Failure Manual Override Modal */}
             {showFailedModal && currentFailedSource && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
                     <div className="flex w-full max-w-2xl flex-col rounded-3xl border border-white/10 bg-[#141414] shadow-2xl overflow-hidden">
                         <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-5">
                             <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1235,7 +1235,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
             {/* Source Details Modal */}
             {showDetailsModal && selectedSourceDetail && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
                     <div className="flex w-full max-w-3xl flex-col rounded-3xl border border-white/10 bg-[#141414] shadow-2xl overflow-hidden max-h-[75vh]">
                         <div className="border-b border-white/[0.06] px-8 py-5 flex justify-between items-center bg-black/20">
                             <h3 className="text-xl font-bold text-white">Source Data</h3>
