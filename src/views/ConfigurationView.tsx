@@ -364,63 +364,56 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     }, [pdfStartPage, pdfEndPage]);
 
     useEffect(() => {
+        if (!showPdfModal) return;
+        setPdfCitationPreview("");
+        setCitationError("");
+    }, [
+        citationStyle,
+        pdfAuthors,
+        pdfDocumentTitle,
+        pdfPublicationYear,
+        pdfJournalName,
+        pdfPublisher,
+        pdfVolume,
+        pdfIssue,
+        pdfEdition,
+        pdfStartPage,
+        pdfEndPage,
+        showPdfModal,
+    ]);
+
+    const handleAskSpoonie = async () => {
         if (!showPdfModal || !pdfData) return;
         if (!hasRequiredCitationInfo) {
             setPdfCitationPreview("");
-            setCitationError("");
+            setCitationError("Document Title + Publication Year + (Journal Name or Publisher) are required.");
             return;
         }
 
-        let cancelled = false;
-        const timer = setTimeout(async () => {
-            setIsCitationLoading(true);
-            setCitationError("");
-            try {
-                const citation = await SpoonieService.generateCitation({
-                    citationStyle,
-                    documentTitle: pdfDocumentTitle.trim(),
-                    publicationYear: pdfPublicationYear.trim(),
-                    authors: pdfAuthors,
-                    journalName: pdfJournalName.trim(),
-                    publisher: pdfPublisher.trim(),
-                    volume: pdfVolume.trim(),
-                    issue: pdfIssue.trim(),
-                    edition: pdfEdition.trim(),
-                    pageRange: `${pdfStartPage}-${pdfEndPage}`,
-                });
-                if (cancelled) return;
-                setPdfCitationPreview(citation);
-            } catch (error) {
-                if (cancelled) return;
-                console.warn("[Spoonie] Citation preview failed:", error);
-                setCitationError("Could not generate citation from Spoonie. Showing template fallback.");
-                setPdfCitationPreview(fallbackPdfCitation());
-            } finally {
-                if (!cancelled) setIsCitationLoading(false);
-            }
-        }, 320);
-
-        return () => {
-            cancelled = true;
-            clearTimeout(timer);
-        };
-    }, [
-        citationStyle,
-        fallbackPdfCitation,
-        hasRequiredCitationInfo,
-        pdfAuthors,
-        pdfData,
-        pdfDocumentTitle,
-        pdfEdition,
-        pdfEndPage,
-        pdfIssue,
-        pdfJournalName,
-        pdfPublicationYear,
-        pdfPublisher,
-        pdfStartPage,
-        pdfVolume,
-        showPdfModal,
-    ]);
+        setIsCitationLoading(true);
+        setCitationError("");
+        try {
+            const citation = await SpoonieService.generateCitation({
+                citationStyle,
+                documentTitle: pdfDocumentTitle.trim(),
+                publicationYear: pdfPublicationYear.trim(),
+                authors: pdfAuthors,
+                journalName: pdfJournalName.trim(),
+                publisher: pdfPublisher.trim(),
+                volume: pdfVolume.trim(),
+                issue: pdfIssue.trim(),
+                edition: pdfEdition.trim(),
+                pageRange: `${pdfStartPage}-${pdfEndPage}`,
+            });
+            setPdfCitationPreview(citation);
+        } catch (error) {
+            console.warn("[Spoonie] Citation preview failed:", error);
+            setCitationError("Could not generate citation from Spoonie. Showing template fallback.");
+            setPdfCitationPreview(fallbackPdfCitation());
+        } finally {
+            setIsCitationLoading(false);
+        }
+    };
 
     const handleAddSource = () => {
         setManualSources([...manualSources, { url: "", status: "empty" }]);
@@ -988,29 +981,39 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                         <div className="mt-4 grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="mb-2 block text-[13px] text-white/70">Start Page</label>
-                                                <select
-                                                    value={pdfStartPage}
-                                                    onChange={(e) => setPdfStartPage(Number(e.target.value))}
-                                                    className="w-full appearance-none rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
-                                                >
-                                                    {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1).map((page) => (
-                                                        <option key={`start-${page}`} value={page}>Page {page}</option>
-                                                    ))}
-                                                </select>
+                                                <div className="relative">
+                                                    <select
+                                                        value={pdfStartPage}
+                                                        onChange={(e) => setPdfStartPage(Number(e.target.value))}
+                                                        className="w-full appearance-none rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 pr-10 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70"
+                                                    >
+                                                        {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1).map((page) => (
+                                                            <option key={`start-${page}`} value={page}>Page {page}</option>
+                                                        ))}
+                                                    </select>
+                                                    <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/55" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="m6 9 6 6 6-6" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                             <div>
                                                 <label className="mb-2 block text-[13px] text-white/70">End Page</label>
-                                                <select
-                                                    value={pdfEndPage}
-                                                    onChange={(e) => setPdfEndPage(Number(e.target.value))}
-                                                    className="w-full appearance-none rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-white/25"
-                                                >
-                                                    {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1)
-                                                        .filter((page) => page >= pdfStartPage)
-                                                        .map((page) => (
-                                                            <option key={`end-${page}`} value={page}>Page {page}</option>
-                                                        ))}
-                                                </select>
+                                                <div className="relative">
+                                                    <select
+                                                        value={pdfEndPage}
+                                                        onChange={(e) => setPdfEndPage(Number(e.target.value))}
+                                                        className="w-full appearance-none rounded-xl border border-white/[0.16] bg-[#171b24] px-4 py-3 pr-10 text-[14px] font-medium text-white outline-none transition focus:border-red-400/70"
+                                                    >
+                                                        {Array.from({ length: pdfData.pageCount }, (_, idx) => idx + 1)
+                                                            .filter((page) => page >= pdfStartPage)
+                                                            .map((page) => (
+                                                                <option key={`end-${page}`} value={page}>Page {page}</option>
+                                                            ))}
+                                                    </select>
+                                                    <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/55" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="m6 9 6 6 6-6" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
                                     </section>
@@ -1114,9 +1117,21 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </section>
 
                                     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                                        <h4 className="text-[18px] font-bold text-white">Citation Preview</h4>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <h4 className="text-[18px] font-bold text-white">Citation Preview</h4>
+                                            <button
+                                                onClick={handleAskSpoonie}
+                                                disabled={isCitationLoading}
+                                                className="inline-flex items-center gap-2 rounded-full border border-[#c9ad3a]/50 bg-[#5a4f16]/55 px-3.5 py-1.5 text-[12px] font-semibold text-[#f6e08a] transition hover:bg-[#6e611a]/65 disabled:opacity-60"
+                                            >
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#f6e08a]/50 bg-black/35 text-[10px] text-[#f6e08a]">
+                                                    icon
+                                                </span>
+                                                Ask Spoonie
+                                            </button>
+                                        </div>
                                         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[15px] text-white">
-                                            {isCitationLoading ? "Generating citation..." : (pdfCitationPreview || "Fill required fields to generate preview.")}
+                                            {isCitationLoading ? "Spoonie is generating citation..." : (pdfCitationPreview || "Click Ask Spoonie to generate preview.")}
                                         </div>
                                         {citationError && (
                                             <p className="mt-2 text-[12px] text-yellow-200">{citationError}</p>
