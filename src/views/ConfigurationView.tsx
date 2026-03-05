@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer, SourceData } from "@/services/OrganizerService";
@@ -129,9 +130,19 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [pdfCitationPreview, setPdfCitationPreview] = useState("");
     const [isCitationLoading, setIsCitationLoading] = useState(false);
     const [citationError, setCitationError] = useState("");
+    const [canUsePortal, setCanUsePortal] = useState(false);
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setCanUsePortal(true);
+    }, []);
+
+    const renderModal = useCallback(
+        (node: React.ReactNode) => (canUsePortal ? createPortal(node, document.body) : null),
+        [canUsePortal]
+    );
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -938,8 +949,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             {/* ---> MODALS <--- */}
 
             {/* Use My Source PDF Modal */}
-            {showPdfModal && pdfData && (
-                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            {showPdfModal && pdfData && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
                     <div className="flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/[0.1] bg-[#101015] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
                         <div className="flex items-center justify-between border-b border-white/[0.08] px-8 py-5">
                             <div>
@@ -1191,8 +1202,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             )}
 
             {/* Jasmine Searching Modal */}
-            {isSearching && (
-                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/60 p-4 backdrop-blur-sm">
+            {isSearching && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center pt-[10vh] bg-black/60 p-4 backdrop-blur-sm">
                     <div className="flex w-full max-w-sm flex-col items-center justify-center rounded-3xl border border-white/10 bg-[#121212] p-8 text-center shadow-2xl">
                         <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-red-500"></div>
                         <h3 className="mb-2 text-xl font-bold text-white">Jasmine is Searching...</h3>
@@ -1202,8 +1213,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             )}
 
             {/* Scrape Failure Manual Override Modal */}
-            {showFailedModal && currentFailedSource && (
-                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
+            {showFailedModal && currentFailedSource && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
                     <div className="flex w-full max-w-2xl flex-col rounded-3xl border border-white/10 bg-[#141414] shadow-2xl overflow-hidden">
                         <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-5">
                             <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1234,8 +1245,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             )}
 
             {/* Source Details Modal */}
-            {showDetailsModal && selectedSourceDetail && (
-                <div className="fixed inset-0 z-[100000] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
+            {showDetailsModal && selectedSourceDetail && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center pt-[10vh] bg-black/70 p-4 backdrop-blur-md">
                     <div className="flex w-full max-w-3xl flex-col rounded-3xl border border-white/10 bg-[#141414] shadow-2xl overflow-hidden max-h-[75vh]">
                         <div className="border-b border-white/[0.06] px-8 py-5 flex justify-between items-center bg-black/20">
                             <h3 className="text-xl font-bold text-white">Source Data</h3>
