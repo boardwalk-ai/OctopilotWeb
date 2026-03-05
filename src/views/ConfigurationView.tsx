@@ -171,6 +171,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [imageFinalSnippet, setImageFinalSnippet] = useState("");
     const [imageConfirmedSnippets, setImageConfirmedSnippets] = useState<string[]>([]);
     const [imageZoom, setImageZoom] = useState(1);
+    const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
+    const [isImagePanning, setIsImagePanning] = useState(false);
     const [isScanningImage, setIsScanningImage] = useState(false);
     const [imageCitationKind, setImageCitationKind] = useState<"book" | "journal">("book");
     const [imageCitationContributors, setImageCitationContributors] = useState<ImageCitationContributor[]>([
@@ -193,6 +195,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
     const pageDropdownRef = useRef<HTMLDivElement>(null);
+    const imagePanStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
     useEffect(() => {
         setCanUsePortal(true);
     }, []);
@@ -319,7 +322,36 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     useEffect(() => {
         setImageZoom(1);
+        setImagePan({ x: 0, y: 0 });
+        setIsImagePanning(false);
     }, [activeImageIndex, imageCurrentSrc, showImageModal]);
+
+    const beginImagePan = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (imageZoom <= 1 || !imageCurrentSrc) return;
+        event.preventDefault();
+        imagePanStartRef.current = {
+            x: event.clientX,
+            y: event.clientY,
+            panX: imagePan.x,
+            panY: imagePan.y,
+        };
+        setIsImagePanning(true);
+    };
+
+    const moveImagePan = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!isImagePanning || imageZoom <= 1) return;
+        const deltaX = event.clientX - imagePanStartRef.current.x;
+        const deltaY = event.clientY - imagePanStartRef.current.y;
+        const limit = ((imageZoom - 1) * 420) / 2;
+        setImagePan({
+            x: Math.max(-limit, Math.min(limit, imagePanStartRef.current.panX + deltaX)),
+            y: Math.max(-limit, Math.min(limit, imagePanStartRef.current.panY + deltaY)),
+        });
+    };
+
+    const endImagePan = () => {
+        setIsImagePanning(false);
+    };
 
     const fallbackPdfCitation = useCallback(() => {
         const fallbackSource: SourceData = {
@@ -1892,12 +1924,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                         {imageFiles.map((image, idx) => (
                                                             <button
                                                                 key={`${image.name}-${idx}`}
-                                                                onClick={() => setActiveImageIndex(idx)}
-                                                                className={`h-20 w-20 overflow-hidden rounded-xl border ${idx === activeImageIndex ? "border-red-400" : "border-white/[0.15]"}`}
+                                                            onClick={() => setActiveImageIndex(idx)}
+                                                            className={`h-20 w-20 overflow-hidden rounded-xl border ${idx === activeImageIndex ? "border-red-400" : "border-white/[0.15]"}`}
                                                             >
                                                                 {image.src ? (
                                                                     // eslint-disable-next-line @next/next/no-img-element
-                                                                    <img src={image.src} alt={image.name} className="h-full w-full object-cover" />
+                                                                    <img src={image.src} alt={image.name} className="h-full w-full object-cover select-none" draggable={false} />
                                                                 ) : (
                                                                     <div className="flex h-full w-full items-center justify-center bg-black/30 text-[10px] text-white/40">IMG</div>
                                                                 )}
@@ -1938,15 +1970,23 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="relative mx-auto aspect-square w-full max-w-[420px] overflow-hidden rounded-2xl border border-white/[0.08] bg-black/35">
+                                                <div
+                                                    className={`relative mx-auto aspect-square w-full max-w-[420px] overflow-hidden rounded-2xl border border-white/[0.08] bg-black/35 ${imageZoom > 1 ? (isImagePanning ? "cursor-grabbing" : "cursor-grab") : "cursor-default"}`}
+                                                    onMouseDown={beginImagePan}
+                                                    onMouseMove={moveImagePan}
+                                                    onMouseUp={endImagePan}
+                                                    onMouseLeave={endImagePan}
+                                                >
                                                     {imageCurrentSrc ? (
                                                         <>
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
                                                                 src={imageCurrentSrc}
                                                                 alt="OCR Source"
-                                                                className="h-full w-full object-contain p-3 transition-transform duration-200"
-                                                                style={{ transform: `scale(${imageZoom})`, transformOrigin: "center center" }}
+                                                                className="h-full w-full select-none object-contain p-3 transition-transform duration-200"
+                                                                draggable={false}
+                                                                onDragStart={(event) => event.preventDefault()}
+                                                                style={{ transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`, transformOrigin: "center center" }}
                                                             />
                                                             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent px-4 py-3 text-[12px] font-medium text-white/70">
                                                                 Full image OCR preview
