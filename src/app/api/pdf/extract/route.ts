@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createRequire } from "module";
+import path from "path";
 import { pathToFileURL } from "url";
 
 export const runtime = "nodejs";
 
-const require = createRequire(import.meta.url);
-const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+// IMPORTANT: Resolve at runtime from cwd (avoid bundler rewriting require.resolve to virtual module ids).
+const workerPath = path.join(process.cwd(), "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs");
 GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
 
 export async function POST(request: NextRequest) {
