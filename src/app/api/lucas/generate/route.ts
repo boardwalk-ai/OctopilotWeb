@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { OrganizerState, CompactedSource } from "@/services/OrganizerService";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { organizerState, apiKey, model } = body;
+        const { organizerState, apiKey, model } = body as { organizerState: OrganizerState; apiKey: string; model: string };
 
         if (!organizerState || !apiKey || !model) {
             return NextResponse.json(
@@ -21,8 +22,9 @@ export async function POST(request: NextRequest) {
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
         // Format the sources securely
-        const sourcesString = organizerState.compactedSources.map((s: any, idx: number) => {
+        const sourcesString = organizerState.compactedSources.map((s: CompactedSource, idx: number) => {
             return `source ${idx + 1}:
+kind: ${s.kind || "unknown"}
 title: ${s.title || ""}
 Publisher: ${s.publisher || ""}
 Author: ${s.author || ""}
@@ -31,7 +33,7 @@ Content(compacted): ${s.compactedContent || ""}`;
         }).join("\n\n");
 
         // Format the outlines
-        const outlinesString = organizerState.selectedOutlines.map((o: any, idx: number) => {
+        const outlinesString = organizerState.selectedOutlines.map((o: OrganizerState["selectedOutlines"][number], idx: number) => {
             return `Outline ${idx + 1} (${o.type}): ${o.title} - ${o.description}`;
         }).join("\n");
 

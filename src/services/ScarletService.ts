@@ -60,6 +60,7 @@ export class ScarletService {
         return {
             sourceIndex,
             url: source.url,
+            kind: compactionInput.sourceType,
             title: source.title,
             author: source.author,
             publishedYear: source.publishedYear,
@@ -156,6 +157,7 @@ export class ScarletService {
                 compactedSources: [{
                     sourceIndex: 0,
                     url: "mock-url",
+                    kind: "search",
                     title: "Mock Compacted",
                     author: "Tester",
                     publishedYear: "2026",

@@ -64,6 +64,7 @@ export interface SourceData {
 export interface CompactedSource {
     sourceIndex: number;
     url: string;
+    kind?: "search" | "pdf" | "image" | "fieldwork" | "manual";
     title?: string;
     author?: string;
     publishedYear?: string;
