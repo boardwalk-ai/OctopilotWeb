@@ -24,7 +24,12 @@ interface PageFormatMeta {
     lineHeight?: number;
 }
 
-type PageOutlineMap = Record<number, string[]>;
+interface PageOutlineItem {
+    fullText: string;
+    preview: string;
+}
+
+type PageOutlineMap = Record<number, PageOutlineItem[]>;
 
 const TEXT_STYLE_PRESETS = {
     p: { label: "Normal text", block: "p", size: 12, bold: false },
@@ -132,7 +137,7 @@ const HIGHLIGHT_COLORS = ["transparent", "#fce4ec", "#fff9c4", "#e8f5e9", "#e3f2
 const FONT_SIZE_TEMPLATES = [4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 60, 120, 126, 200, 246, 254];
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36];
 
-function buildPageOutlineLines(text: string): string[] {
+function buildPageOutlineItems(text: string): PageOutlineItem[] {
     const normalized = text
         .replace(/\r/g, "")
         .split(/\n{2,}/)
@@ -148,7 +153,10 @@ function buildPageOutlineLines(text: string): string[] {
 
     return paragraphLike
         .slice(0, 6)
-        .map((line) => (line.length > 42 ? `${line.slice(0, 42).trimEnd()}...` : line));
+        .map((line) => ({
+            fullText: line,
+            preview: line.length > 42 ? `${line.slice(0, 42).trimEnd()}...` : line,
+        }));
 }
 
 export default function EditorView({ onBack, onNext }: EditorViewProps) {
@@ -229,9 +237,11 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
     const [headings, setHeadings] = useState<string[]>(initialHeadings);
     const [pageOutlineMap, setPageOutlineMap] = useState<PageOutlineMap>(() => initialPageHtmls.reduce<PageOutlineMap>((acc, html, index) => {
         const plainText = html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ");
-        acc[index + 1] = buildPageOutlineLines(plainText);
+        acc[index + 1] = buildPageOutlineItems(plainText);
         return acc;
     }, {}));
+    const [collapsedPageIds, setCollapsedPageIds] = useState<number[]>([]);
+    const [activeOutlineKey, setActiveOutlineKey] = useState<string | null>(null);
 
     const [isBold, setIsBold] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
@@ -286,7 +296,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                 parser.innerHTML = pageContentRef.current[p.id] || "";
                 return parser.innerText || "";
             })();
-            nextPreviewMap[p.id] = buildPageOutlineLines(pageText);
+            nextPreviewMap[p.id] = buildPageOutlineItems(pageText);
             return pageText;
         }).join("\n");
 
@@ -966,17 +976,18 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         pageShellRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, []);
 
-    const locateParagraphOnPage = useCallback((pageId: number, snippet: string) => {
+    const locateParagraphOnPage = useCallback((pageId: number, item: PageOutlineItem, lineIndex: number) => {
         setIsHeaderEditing(false);
         setHeaderEditingPageId(null);
         setActivePageId(pageId);
+        setActiveOutlineKey(`${pageId}:${lineIndex}`);
         pageShellRefs.current[pageId]?.scrollIntoView({ behavior: "smooth", block: "start" });
 
         window.setTimeout(() => {
             const editor = editorRefs.current[pageId];
             if (!editor) return;
 
-            const normalizedSnippet = snippet.replace(/\.\.\.$/, "").trim().toLowerCase();
+            const normalizedSnippet = item.fullText.trim().toLowerCase();
             const blockCandidates = Array.from(editor.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6, blockquote"))
                 .filter((node) => (node.textContent || "").replace(/\s+/g, " ").trim().length > 0);
 
@@ -991,6 +1002,14 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
 
             editor.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 180);
+    }, []);
+
+    const togglePageCollapsed = useCallback((pageId: number) => {
+        setCollapsedPageIds((prev) => (
+            prev.includes(pageId)
+                ? prev.filter((id) => id !== pageId)
+                : [...prev, pageId]
+        ));
     }, []);
 
     const handlePageInput = useCallback((pageId: number) => {
@@ -1113,6 +1132,38 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             }
 
             if (nearestId !== activePageId) setActivePageId(nearestId);
+
+            const editor = editorRefs.current[nearestId];
+            const outlineItems = pageOutlineMap[nearestId] || [];
+            if (!editor || outlineItems.length === 0) {
+                setActiveOutlineKey(null);
+                return;
+            }
+
+            const blockCandidates = Array.from(editor.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6, blockquote"))
+                .filter((node) => (node.textContent || "").replace(/\s+/g, " ").trim().length > 0);
+
+            let nearestBlockText = "";
+            let nearestBlockDistance = Number.POSITIVE_INFINITY;
+
+            for (const node of blockCandidates) {
+                if (!(node instanceof HTMLElement)) continue;
+                const pageTop = pageShellRefs.current[nearestId]?.offsetTop || 0;
+                const nodeTop = pageTop + node.offsetTop;
+                const distance = Math.abs(nodeTop - anchorY);
+                if (distance < nearestBlockDistance) {
+                    nearestBlockDistance = distance;
+                    nearestBlockText = (node.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+                }
+            }
+
+            if (!nearestBlockText) {
+                setActiveOutlineKey(null);
+                return;
+            }
+
+            const matchedIndex = outlineItems.findIndex((item) => nearestBlockText.includes(item.fullText.trim().toLowerCase()));
+            setActiveOutlineKey(matchedIndex >= 0 ? `${nearestId}:${matchedIndex}` : null);
         };
 
         const onScroll = () => {
@@ -1121,11 +1172,12 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         };
 
         viewport.addEventListener("scroll", onScroll, { passive: true });
+        updateActiveByScroll();
         return () => {
             viewport.removeEventListener("scroll", onScroll);
             if (raf) window.cancelAnimationFrame(raf);
         };
-    }, [activePageId, pages]);
+    }, [activePageId, pageOutlineMap, pages]);
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[#0f1115]" style={{ fontFamily: "'Poppins', sans-serif" }}>
@@ -1334,16 +1386,41 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                 {pages.map((page) => {
                                     const isActive = page.id === activePageId;
                                     const previewLines = pageOutlineMap[page.id] || [];
+                                    const isCollapsed = collapsedPageIds.includes(page.id);
                                     return (
                                         <div
                                             key={page.id}
-                                            onClick={() => scrollToPage(page.id)}
-                                            className={`cursor-pointer rounded-[18px] border px-4 py-3 text-left transition ${isActive ? "border-[#ea4335]/25 bg-[#ea4335]/16" : "border-transparent bg-transparent hover:border-white/5 hover:bg-[#262d37]"}`}
+                                            className="rounded-[18px] border border-transparent px-4 py-3 text-left transition hover:border-white/5 hover:bg-[#262d37]"
                                         >
-                                            <div className="flex items-center gap-3">
+                                            <div
+                                                onClick={() => scrollToPage(page.id)}
+                                                className={`flex cursor-pointer items-center gap-3 rounded-[16px] px-3 py-2 transition ${isActive ? "bg-[#ea4335]/16 text-[#f87171]" : "text-[#cbd5e1]"}`}
+                                            >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0"><rect x="3" y="3" width="18" height="18" rx="2" fill={isActive ? "#ea4335" : "#9ca3af"} /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.3" strokeLinecap="round" /></svg>
                                                 <span className={`text-[13px] font-medium ${isActive ? "text-[#f87171]" : "text-[#cbd5e1]"}`}>{page.title}</span>
                                                 <div className="flex-1" />
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        togglePageCollapsed(page.id);
+                                                    }}
+                                                    className={`flex h-6 w-6 items-center justify-center rounded-full transition ${isActive ? "hover:bg-[#ea4335]/18" : "hover:bg-[#2f3742]"}`}
+                                                    title={isCollapsed ? `Expand ${page.title}` : `Collapse ${page.title}`}
+                                                >
+                                                    <svg
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke={isActive ? "#f87171" : "#94a3b8"}
+                                                        strokeWidth="2"
+                                                        className={`transition-transform ${isCollapsed ? "-rotate-90" : "rotate-0"}`}
+                                                    >
+                                                        <polyline points="6 9 12 15 18 9" />
+                                                    </svg>
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onMouseDown={(e) => e.preventDefault()}
@@ -1356,26 +1433,30 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                                 </button>
                                             </div>
 
+                                            {!isCollapsed && (
                                             <div className="ml-[23px] mt-3 border-l border-white/10 pl-4">
                                                 <div className="space-y-2.5">
                                                     {previewLines.length > 0 ? (
-                                                        previewLines.map((line, lineIndex) => (
+                                                        previewLines.map((line, lineIndex) => {
+                                                            const isBulletActive = activeOutlineKey === `${page.id}:${lineIndex}`;
+                                                            return (
                                                             <button
                                                                 key={`${page.id}-preview-${lineIndex}`}
                                                                 type="button"
                                                                 onMouseDown={(e) => e.preventDefault()}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    locateParagraphOnPage(page.id, line);
+                                                                    locateParagraphOnPage(page.id, line, lineIndex);
                                                                 }}
-                                                                className={`group flex w-full items-start gap-2 text-left transition ${isActive ? "" : ""}`}
+                                                                className="group flex w-full items-start gap-2 text-left transition"
                                                             >
-                                                                <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full transition ${isActive ? "bg-[#ff8a80]" : "bg-[#8ea0bb] group-hover:bg-[#d6deea]"}`} />
-                                                                <span className={`line-clamp-2 text-[11px] leading-4 transition ${isActive ? "text-white/88" : "text-[#a9b4c7] group-hover:text-[#e2e8f0]"}`}>
-                                                                    {line}
+                                                                <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full transition ${isBulletActive ? "bg-[#f87171]" : "bg-[#8ea0bb] group-hover:bg-[#d6deea]"}`} />
+                                                                <span className={`line-clamp-2 text-[11px] leading-4 transition ${isBulletActive ? "text-[#f87171]" : "text-[#a9b4c7] group-hover:text-[#e2e8f0]"}`}>
+                                                                    {line.preview}
                                                                 </span>
                                                             </button>
-                                                        ))
+                                                        );
+                                                        })
                                                     ) : (
                                                         <div className="flex items-start gap-2">
                                                             <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#64748b]" />
@@ -1384,6 +1465,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                                     )}
                                                 </div>
                                             </div>
+                                            )}
                                         </div>
                                     );
                                 })}
