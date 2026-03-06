@@ -42,7 +42,7 @@ export default function AuthView() {
         <div className="grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr]">
           <section className="flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-9 lg:py-8">
             <div className="space-y-5">
-              <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/88 backdrop-blur-xl">
+              <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-black backdrop-blur-xl">
                 <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
                 <span>Octopilot Web</span>
               </div>
