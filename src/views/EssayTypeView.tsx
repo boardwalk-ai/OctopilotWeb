@@ -245,7 +245,7 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
             </div>
 
             {/* Bottom Action Bar */}
-            <div className="flex items-center gap-3 py-5">
+            <div className="flex items-center justify-between gap-4 py-5">
                 <button
                     onClick={onBack}
                     className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
@@ -263,7 +263,7 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
                             onNext("instructions");
                         }
                     }}
-                    className={`flex w-full max-w-[440px] items-center justify-center gap-2 rounded-full py-3 text-[14px] font-semibold transition-all duration-200 ${selected !== null
+                    className={`flex min-w-[240px] max-w-[440px] items-center justify-center gap-2 rounded-full px-8 py-3 text-[14px] font-semibold transition-all duration-200 ${selected !== null
                         ? "bg-red-500 text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] hover:bg-red-400"
                         : "bg-white/[0.04] text-white/30 cursor-not-allowed"
                         }`}

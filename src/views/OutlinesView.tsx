@@ -315,8 +315,8 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                             </svg>
                                         </div>
                                         {/* Drag handle */}
-                                        <div className="absolute left-10 top-5 text-white/15">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <div className="absolute left-10 top-5 text-red-500/70">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
                                                 <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
                                                 <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
@@ -581,7 +581,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
 
             {/* Fixed Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md">
-                <div className="flex w-full items-center justify-between py-5">
+                <div className="flex w-full items-center justify-between gap-4 py-5">
                     <button
                         onClick={onBack}
                         className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
@@ -595,7 +595,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <button
                         onClick={() => setShowConfirmModal(true)}
                         disabled={!outlines.some((c) => c.selected && !c.hidden)}
-                        className={`group relative flex w-full max-w-[420px] items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-3 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
+                        className={`group relative flex min-w-[240px] max-w-[420px] items-center justify-center gap-2 overflow-hidden rounded-full px-8 py-3 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
                             ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-red-400"
                             : "border border-white/[0.1] bg-white/[0.04] text-white/30 cursor-not-allowed"
                             }`}
