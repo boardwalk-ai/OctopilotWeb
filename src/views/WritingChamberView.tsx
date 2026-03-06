@@ -358,6 +358,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     }, [sectionHtml, sections]);
     const totalWords = useMemo(() => Object.values(sectionWordCounts).reduce((sum, n) => sum + n, 0), [sectionWordCounts]);
     const progressDeg = Math.round(clamp(totalWords / Math.max(1, targetWords), 0, 1) * 360);
+    const canContinueToPreview = totalWords >= 200;
 
     const activeSection = useMemo(() => sections.find((s) => s.id === activeSectionId) || sections[0], [activeSectionId, sections]);
 
@@ -865,6 +866,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     }, [sections, syncSectionFromDom]);
 
     const continueToPreview = useCallback(() => {
+        if (!canContinueToPreview) return;
         syncAllEditors();
 
         const essayParts = sections
@@ -885,7 +887,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                 : org.generatedBibliography,
         });
         onNext("preview");
-    }, [onNext, org.citationStyle, org.generatedBibliography, sectionHtml, sections, sourceThreads, syncAllEditors, usedSourceIndices]);
+    }, [canContinueToPreview, onNext, org.citationStyle, org.generatedBibliography, sectionHtml, sections, sourceThreads, syncAllEditors, usedSourceIndices]);
 
     const handleSummaryClick = useCallback(async () => {
         if (summaryLoading) return;
@@ -965,9 +967,11 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     const continueButton = (
         <button
             onClick={continueToPreview}
-            className="fixed bottom-4 right-4 z-[95] rounded-xl bg-[#a43e37] px-6 py-3 text-[15px] font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition hover:bg-[#be4a42]"
+            disabled={!canContinueToPreview}
+            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"}`}
         >
-            Continue to Preview →
+            <span>Continue to Preview</span>
+            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>→</span>
         </button>
     );
     return (
@@ -991,7 +995,17 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
                 <div className="flex min-w-0 flex-1 flex-col items-center">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5a52]">Writing Chamber</div>
-                    <div className="mt-0.5 truncate text-[15px] font-bold text-[#f4f4f5]">{org.finalEssayTitle || "Untitled Essay"}</div>
+                    <label className="mt-0.5 flex min-w-0 max-w-[520px] items-center gap-2 rounded-full border border-white/10 bg-[#111318] px-3 py-1.5 text-white/80 transition hover:border-white/20">
+                        <span className="text-[#f0c84a]">
+                            <EditIcon />
+                        </span>
+                        <input
+                            value={org.finalEssayTitle || ""}
+                            onChange={(event) => Organizer.set({ finalEssayTitle: event.target.value })}
+                            placeholder="Untitled Essay"
+                            className="min-w-0 flex-1 bg-transparent text-center text-[15px] font-bold text-[#f4f4f5] outline-none placeholder:text-white/35"
+                        />
+                    </label>
                 </div>
 
                 <div className="ml-3 flex items-center gap-2.5">
@@ -1026,6 +1040,12 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                     </div>
                 </div>
             </div>
+
+            {!canContinueToPreview && (
+                <div className="border-b border-white/10 bg-[#0b0b0c] px-5 py-2 text-center text-[12px] font-semibold text-[#f1c26f]">
+                    Write at least 200 words to continue to Preview.
+                </div>
+            )}
 
             <div className="flex min-h-0 flex-1">
                 <div className="flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707]">
