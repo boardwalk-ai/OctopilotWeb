@@ -68,6 +68,36 @@ const INSIGHTS_MIN_HEIGHT = 140;
 const INSIGHTS_MAX_HEIGHT = 460;
 const ZWSP = "\u200B";
 
+function normalizeHexColor(value: string): string {
+    const trimmed = value.trim();
+    if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+        const [, r, g, b] = trimmed;
+        return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return "#35b6ff";
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+    const normalized = normalizeHexColor(hex);
+    return {
+        r: Number.parseInt(normalized.slice(1, 3), 16),
+        g: Number.parseInt(normalized.slice(3, 5), 16),
+        b: Number.parseInt(normalized.slice(5, 7), 16),
+    };
+}
+
+function buildPaletteFromHex(border: string) {
+    const normalized = normalizeHexColor(border);
+    const { r, g, b } = hexToRgb(normalized);
+    const text = `rgb(${Math.round(r + (255 - r) * 0.28)}, ${Math.round(g + (255 - g) * 0.28)}, ${Math.round(b + (255 - b) * 0.28)})`;
+    return {
+        border: normalized,
+        soft: `rgba(${r}, ${g}, ${b}, 0.16)`,
+        text,
+    };
+}
+
 function escapeHtml(text: string): string {
     return (text || "")
         .replace(/&/g, "&amp;")
@@ -779,9 +809,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     }, [newSectionTitle, newSectionType, sections]);
 
     const updateSourcePalette = useCallback((sourceIndex: number, border: string) => {
-        const selected = SOURCE_PICKER_COLORS.find((palette) => palette.border.toLowerCase() === border.toLowerCase());
-        if (!selected) return;
-        setSourcePalettes((prev) => ({ ...prev, [sourceIndex]: selected }));
+        setSourcePalettes((prev) => ({ ...prev, [sourceIndex]: buildPaletteFromHex(border) }));
     }, []);
 
     const deleteSection = useCallback((sectionId: string) => {
@@ -999,6 +1027,9 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 return (
                                     <div
                                         key={section.id}
+                                        draggable
+                                        onDragStart={() => setDraggedSectionId(section.id)}
+                                        onDragEnd={() => setDraggedSectionId(null)}
                                         onDragOver={(event) => {
                                             if (draggedSectionId && draggedSectionId !== section.id) {
                                                 const draggedSection = sections.find((item) => item.id === draggedSectionId);
@@ -1015,11 +1046,8 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                         <div className="flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5">
                                             <button
                                                 type="button"
-                                                draggable
-                                                onDragStart={() => setDraggedSectionId(section.id)}
-                                                onDragEnd={() => setDraggedSectionId(null)}
-                                                className="cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70 active:cursor-grabbing"
-                                                title="Drag to reorder within the same paragraph type"
+                                                className="cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70"
+                                                title="Drag card to reorder within the same paragraph type"
                                             >
                                                 ≡
                                             </button>
@@ -1037,6 +1065,11 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                 className="h-8 min-w-0 max-w-[860px] flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35"
                                             />
 
+                                            <div className="flex items-center gap-1 rounded-full border border-[#695d1c] bg-[#282109] px-2.5 py-1 text-[#ffe35a]">
+                                                <EditIcon />
+                                                <MaterialSparkleIcon />
+                                            </div>
+
                                             <button
                                                 onClick={() => handleMoreIdeas(section)}
                                                 disabled={isLoadingAssistant}
@@ -1044,11 +1077,6 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                             >
                                                 {isLoadingAssistant ? "Thinking..." : "More ideas"}
                                             </button>
-
-                                            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-[#121317] px-2 py-1 text-white/45">
-                                                <EditIcon />
-                                                <MaterialSparkleIcon />
-                                            </div>
 
                                             <div className="ml-auto flex items-center gap-2.5">
                                                 <button
@@ -1252,7 +1280,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                     </button>
                                 </div>
 
-                                <div className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.32em] text-[#ff5a52]">SUMMARY</div>
+                                <div className="-mt-1 mb-4 text-center text-[13px] font-black uppercase tracking-[0.34em] text-[#ff5a52]">SUMMARY</div>
 
                                 {!summaryInsights && !summaryLoading && (
                                     <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#0d1117] px-4 text-center text-[13px] text-white/45">
