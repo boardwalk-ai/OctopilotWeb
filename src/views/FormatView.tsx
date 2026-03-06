@@ -72,7 +72,7 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
         "appearance-none rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none transition hover:bg-white/[0.05] focus:border-red-500/50 cursor-pointer";
 
     return (
-        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[140px] lg:px-10">
+        <div className="flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14">
             {/* Header */}
             <div className="mb-10">
                 <h1 className="mb-2 text-[42px] font-bold tracking-tight text-white">Format Your Essay</h1>

@@ -1424,7 +1424,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     return (
-        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[140px] lg:px-10">
+        <div className="flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14">
             {/* Header */}
             <div className="mb-10">
                 <h1 className="mb-2 text-[42px] font-bold tracking-tight text-white">Customize Your Essay</h1>

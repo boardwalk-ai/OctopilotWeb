@@ -135,7 +135,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
     };
 
     return (
-        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-8 min-h-full relative lg:px-10">
+        <div className="flex w-full flex-col px-6 pt-32 pb-8 min-h-full relative lg:px-10 2xl:px-14">
 
             {/* Absolute Spinner Overlay */}
             {isHumanizing && (

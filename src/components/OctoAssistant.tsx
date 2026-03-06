@@ -75,7 +75,7 @@ export default function OctoAssistant({ currentPage }: OctoAssistantProps) {
     };
 
     return (
-        <div ref={containerRef} className="pointer-events-none fixed bottom-2 left-4 z-[80] flex flex-col items-start">
+        <div ref={containerRef} className="pointer-events-none fixed bottom-1 left-4 z-[80] flex flex-col items-start">
             {isOpen && (
                 <div className="pointer-events-auto mb-3 w-[340px] rounded-[24px] border border-[#f97316]/20 bg-[#0f141c]/95 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl">
                     <p className="text-[16px] font-semibold text-white">Hi. I am Octo. Your Assistant. How can I help you?</p>

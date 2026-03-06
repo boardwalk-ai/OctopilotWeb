@@ -51,7 +51,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     };
 
     return (
-        <div className="mx-auto flex min-h-full w-full max-w-[1480px] flex-col px-6 pt-32 pb-[100px] lg:px-10">
+        <div className="flex min-h-full w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14">
             {/* Title row with Imperfect Mode toggle */}
             <div className="mb-6 flex items-start justify-between">
                 <div>
@@ -157,7 +157,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
 
             {/* Fixed Bottom Action Bar — Back + Read */}
             <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md">
-                <div className="mx-auto flex w-full max-w-[1480px] items-center gap-3 py-5">
+                <div className="flex w-full items-center gap-3 py-5">
                     <button
                         onClick={onBack}
                         className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
