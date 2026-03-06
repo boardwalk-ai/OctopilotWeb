@@ -38,6 +38,8 @@ interface SummaryInsights {
     suggestions: string[];
 }
 
+type SectionTypeOption = "Introduction" | "Body Paragraph" | "Conclusion";
+
 type DialogState =
     | { type: "confirm-clear"; title: string; message: string }
     | { type: "info"; title: string; message: string };
@@ -48,6 +50,12 @@ const SOURCE_COLOR_POOL = [
     { border: "#f6b02d", soft: "rgba(246, 176, 45, 0.14)", text: "#fcd34d" },
     { border: "#bf7bff", soft: "rgba(191, 123, 255, 0.14)", text: "#d8b4fe" },
     { border: "#ff6b6b", soft: "rgba(255, 107, 107, 0.14)", text: "#fda4af" },
+];
+
+const SOURCE_PICKER_COLORS = [
+    ...SOURCE_COLOR_POOL,
+    { border: "#4ade80", soft: "rgba(74, 222, 128, 0.14)", text: "#bbf7d0" },
+    { border: "#fb7185", soft: "rgba(251, 113, 133, 0.14)", text: "#fecdd3" },
 ];
 
 const TYPE_BADGE: Record<string, string> = {
@@ -150,6 +158,7 @@ function placeCaretAfterNode(node: Node, selection: Selection): void {
 function buildSourceTokenHtml(params: {
     quote?: string;
     citation?: string;
+    sourceIndex: number;
     border: string;
     soft: string;
     text: string;
@@ -159,7 +168,7 @@ function buildSourceTokenHtml(params: {
     const content = [quote, citation].filter(Boolean).join(" ");
     if (!content) return "";
 
-    return `<span data-source-token="1" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span><span data-source-gap="1">${ZWSP}</span>`;
+    return `<span data-source-token="1" data-source-index="${params.sourceIndex}" style="display:inline;background:${params.soft};border:1px solid ${params.border};border-radius:8px;padding:1px 6px;color:${params.text};font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.6;">${escapeHtml(content)}</span><span data-source-gap="1">${ZWSP}</span>`;
 }
 
 function buildInitialSections(org: ReturnType<typeof useOrganizer>): ChamberSection[] {
@@ -208,6 +217,22 @@ function MaterialDeleteIcon() {
     );
 }
 
+function MaterialSparkleIcon() {
+    return (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="m12 2 1.8 4.7L18.5 8l-4.7 1.3L12 14l-1.8-4.7L5.5 8l4.7-1.3L12 2Zm7 11 1 2.5L22.5 17 20 18l-1 2.5L18 18l-2.5-1.5L18 15l1-2.5ZM5 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" />
+        </svg>
+    );
+}
+
+function EditIcon() {
+    return (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25Zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79Z" />
+        </svg>
+    );
+}
+
 export default function WritingChamberView({ onBack, onNext }: WritingChamberViewProps) {
     const org = useOrganizer();
     const sourceStyleBadge = (org.citationStyle || "None").trim() || "None";
@@ -238,16 +263,60 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     const [dialog, setDialog] = useState<DialogState | null>(null);
     const [isClientMounted, setIsClientMounted] = useState(false);
+    const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+    const [newSectionTitle, setNewSectionTitle] = useState("");
+    const [newSectionType, setNewSectionType] = useState<SectionTypeOption>("Body Paragraph");
+    const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+    const [switchMenuSectionId, setSwitchMenuSectionId] = useState<string | null>(null);
+    const [swapFlashSectionIds, setSwapFlashSectionIds] = useState<string[]>([]);
+    const [sourcePalettes, setSourcePalettes] = useState<Record<number, typeof SOURCE_COLOR_POOL[number]>>({});
 
     const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const rangeRefs = useRef<Record<string, Range | null>>({});
     const sourceContentRef = useRef<HTMLDivElement>(null);
+    const switchMenuRef = useRef<HTMLDivElement>(null);
 
     const sourceThreads = useMemo<SourceThread[]>(() => {
         return org.manualSources
             .map((source, index) => ({ ...source, index }))
             .filter((source) => source.url?.trim() || source.fullContent?.trim() || source.title?.trim());
     }, [org.manualSources]);
+
+    useEffect(() => {
+        setSourcePalettes((prev) => {
+            const next: Record<number, typeof SOURCE_COLOR_POOL[number]> = {};
+            sourceThreads.forEach((source) => {
+                next[source.index] = prev[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
+            });
+            return next;
+        });
+    }, [sourceThreads]);
+
+    useEffect(() => {
+        if (!switchMenuSectionId) return;
+        const close = (event: MouseEvent) => {
+            if (switchMenuRef.current && !switchMenuRef.current.contains(event.target as Node)) {
+                setSwitchMenuSectionId(null);
+            }
+        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [switchMenuSectionId]);
+
+    useEffect(() => {
+        sections.forEach((section) => {
+            const editor = editorRefs.current[section.id];
+            if (!editor) return;
+            editor.querySelectorAll<HTMLElement>("[data-source-token='1'][data-source-index]").forEach((token) => {
+                const sourceIndex = Number(token.dataset.sourceIndex || "-1");
+                const palette = sourcePalettes[sourceIndex];
+                if (!palette) return;
+                token.style.background = palette.soft;
+                token.style.borderColor = palette.border;
+                token.style.color = palette.text;
+            });
+        });
+    }, [sectionHtml, sections, sourcePalettes]);
 
     const targetWords = org.wordCount === "Custom" ? 1500 : (org.wordCount || 1000);
     const sectionWordCounts = useMemo(() => {
@@ -533,7 +602,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
 
     const insertFromModalSelection = useCallback(() => {
         if (!sourceModal || !activeSectionId) return;
-        const palette = SOURCE_COLOR_POOL[sourceModal.index % SOURCE_COLOR_POOL.length];
+        const palette = sourcePalettes[sourceModal.index] || SOURCE_PICKER_COLORS[sourceModal.index % SOURCE_PICKER_COLORS.length];
         const selected = getSelectedModalText();
         const quote = selected || (sourceModal.fullContent || sourceModal.title || "").slice(0, 260).trim();
         if (!quote) return;
@@ -542,28 +611,30 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         const tokenHtml = buildSourceTokenHtml({
             quote,
             citation,
+            sourceIndex: sourceModal.index,
             border: palette.border,
             soft: palette.soft,
             text: palette.text,
         });
         insertHtmlToActiveSection(tokenHtml, sourceModal.index);
         closeSourceModal();
-    }, [activeSectionId, closeSourceModal, getCitationForSource, getSelectedModalText, insertHtmlToActiveSection, sourceModal]);
+    }, [activeSectionId, closeSourceModal, getCitationForSource, getSelectedModalText, insertHtmlToActiveSection, sourceModal, sourcePalettes]);
 
     const quickInsertCitation = useCallback((source: SourceThread) => {
         if (!activeSectionId) return;
-        const palette = SOURCE_COLOR_POOL[source.index % SOURCE_COLOR_POOL.length];
+        const palette = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
         const citation = getCitationForSource(source);
         if (!citation) return;
 
         const tokenHtml = buildSourceTokenHtml({
             citation,
+            sourceIndex: source.index,
             border: palette.border,
             soft: palette.soft,
             text: palette.text,
         });
         insertHtmlToActiveSection(tokenHtml, source.index);
-    }, [activeSectionId, getCitationForSource, insertHtmlToActiveSection]);
+    }, [activeSectionId, getCitationForSource, insertHtmlToActiveSection, sourcePalettes]);
 
     const updateSectionTitle = useCallback((sectionId: string, title: string) => {
         setSections((prev) => prev.map((section) => section.id === sectionId ? { ...section, title } : section));
@@ -657,21 +728,61 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         }
     }, [assistantQuestionBySection, org.citationStyle, org.essayTopic, org.finalEssayTitle, sectionHtml, setSectionAssistantLoading, upsertAssistantAnswer]);
 
-    const addSection = useCallback(() => {
+    const openAddSectionModal = useCallback(() => {
+        setNewSectionTitle("");
+        setNewSectionType("Body Paragraph");
+        setShowAddSectionModal(true);
+    }, []);
+
+    const swapSectionsById = useCallback((sectionIdA: string, sectionIdB: string) => {
+        if (sectionIdA === sectionIdB) return;
+        setSections((prev) => {
+            const firstIndex = prev.findIndex((section) => section.id === sectionIdA);
+            const secondIndex = prev.findIndex((section) => section.id === sectionIdB);
+            if (firstIndex < 0 || secondIndex < 0) return prev;
+            if (prev[firstIndex].type !== prev[secondIndex].type) return prev;
+            const next = [...prev];
+            [next[firstIndex], next[secondIndex]] = [next[secondIndex], next[firstIndex]];
+            return next;
+        });
+        setSwapFlashSectionIds([sectionIdA, sectionIdB]);
+        setSwitchMenuSectionId(null);
+        window.setTimeout(() => setSwapFlashSectionIds([]), 450);
+    }, []);
+
+    const createSection = useCallback(() => {
+        const finalTitle = newSectionTitle.trim() || `${newSectionType} ${sections.filter((section) => section.type === newSectionType).length + 1}`;
         const newId = `manual-${Date.now()}-${sections.length + 1}`;
         const nextSection: ChamberSection = {
             id: newId,
-            type: "Body Paragraph",
-            title: `New Section ${sections.length + 1}`,
+            type: newSectionType,
+            title: finalTitle,
             description: "New writing section",
         };
-        setSections((prev) => [...prev, nextSection]);
+
+        setSections((prev) => {
+            const next = [...prev];
+            const sameTypeIndices = next.reduce<number[]>((acc, section, index) => {
+                if (section.type === newSectionType) acc.push(index);
+                return acc;
+            }, []);
+            const insertAt = sameTypeIndices.length > 0 ? sameTypeIndices[sameTypeIndices.length - 1] + 1 : next.length;
+            next.splice(insertAt, 0, nextSection);
+            return next;
+        });
         setSectionHtml((prev) => ({ ...prev, [newId]: "" }));
         setCollapsed((prev) => ({ ...prev, [newId]: false }));
         setAssistantQuestionBySection((prev) => ({ ...prev, [newId]: "" }));
         setAssistantItemsBySection((prev) => ({ ...prev, [newId]: [] }));
         setActiveSectionId(newId);
-    }, [sections.length]);
+        setShowAddSectionModal(false);
+    }, [newSectionTitle, newSectionType, sections]);
+
+    const updateSourcePalette = useCallback((sourceIndex: number, border: string) => {
+        const selected = SOURCE_PICKER_COLORS.find((palette) => palette.border.toLowerCase() === border.toLowerCase());
+        if (!selected) return;
+        setSourcePalettes((prev) => ({ ...prev, [sourceIndex]: selected }));
+    }, []);
 
     const deleteSection = useCallback((sectionId: string) => {
         if (sections.length <= 1) return;
@@ -828,7 +939,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                 </button>
 
                 <button
-                    onClick={addSection}
+                    onClick={openAddSectionModal}
                     className="mr-5 flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a52] text-[24px] font-medium text-white shadow-[0_4px_12px_rgba(255,90,82,0.4)] transition hover:bg-[#ff736b]"
                     title="Add section"
                 >
@@ -888,10 +999,30 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 return (
                                     <div
                                         key={section.id}
-                                        className={`overflow-hidden rounded-2xl border transition ${isActive ? "border-[#ff5a52] shadow-[inset_0_0_0_1px_rgba(255,90,82,0.35)]" : "border-white/15"}`}
+                                        onDragOver={(event) => {
+                                            if (draggedSectionId && draggedSectionId !== section.id) {
+                                                const draggedSection = sections.find((item) => item.id === draggedSectionId);
+                                                if (draggedSection?.type === section.type) event.preventDefault();
+                                            }
+                                        }}
+                                        onDrop={() => {
+                                            if (!draggedSectionId || draggedSectionId === section.id) return;
+                                            swapSectionsById(draggedSectionId, section.id);
+                                            setDraggedSectionId(null);
+                                        }}
+                                        className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? "border-[#ff5a52] shadow-[inset_0_0_0_1px_rgba(255,90,82,0.35)]" : "border-white/15"} ${swapFlashSectionIds.includes(section.id) ? "scale-[1.01] ring-1 ring-[#ff8f89]/60" : ""}`}
                                     >
                                         <div className="flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5">
-                                            <button className="text-[15px] font-bold text-white/35">≡</button>
+                                            <button
+                                                type="button"
+                                                draggable
+                                                onDragStart={() => setDraggedSectionId(section.id)}
+                                                onDragEnd={() => setDraggedSectionId(null)}
+                                                className="cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70 active:cursor-grabbing"
+                                                title="Drag to reorder within the same paragraph type"
+                                            >
+                                                ≡
+                                            </button>
                                             <span className="px-1 text-[16px] font-black text-white">{index + 1}</span>
 
                                             <span className={`rounded-full px-3.5 py-1 text-[9px] font-black uppercase tracking-wider ${TYPE_BADGE[typeKey] || "border border-[#4f3517] bg-[#33230f] text-[#f4c37a]"}`}>
@@ -903,16 +1034,21 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                 onFocus={() => setActiveSectionId(section.id)}
                                                 onChange={(e) => updateSectionTitle(section.id, e.target.value)}
                                                 placeholder="Section title"
-                                                className="h-8 min-w-0 flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35"
+                                                className="h-8 min-w-0 max-w-[860px] flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35"
                                             />
 
                                             <button
                                                 onClick={() => handleMoreIdeas(section)}
                                                 disabled={isLoadingAssistant}
-                                                className="rounded-full bg-[#332e10] px-3.5 py-1 text-[10px] font-bold text-[#ffe35a] disabled:opacity-45"
+                                                className="rounded-full bg-[#332e10] px-4 py-1.5 text-[11px] font-bold text-[#ffe35a] disabled:opacity-45"
                                             >
                                                 {isLoadingAssistant ? "Thinking..." : "More ideas"}
                                             </button>
+
+                                            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-[#121317] px-2 py-1 text-white/45">
+                                                <EditIcon />
+                                                <MaterialSparkleIcon />
+                                            </div>
 
                                             <div className="ml-auto flex items-center gap-2.5">
                                                 <button
@@ -923,6 +1059,40 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                 >
                                                     <MaterialDeleteIcon />
                                                 </button>
+
+                                                <div className="relative" ref={switchMenuSectionId === section.id ? switchMenuRef : undefined}>
+                                                    <button
+                                                        onClick={() => setSwitchMenuSectionId((prev) => prev === section.id ? null : section.id)}
+                                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-[#151922] text-white/75 hover:bg-[#242832]"
+                                                        title="Switch with another section of the same type"
+                                                    >
+                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="m8 7 4-4 4 4" />
+                                                            <path d="M12 3v13" />
+                                                            <path d="m16 17-4 4-4-4" />
+                                                            <path d="M12 21V8" />
+                                                        </svg>
+                                                    </button>
+                                                    {switchMenuSectionId === section.id && (
+                                                        <div className="absolute right-0 top-[calc(100%+8px)] z-20 min-w-[130px] rounded-xl border border-white/10 bg-[#0f1319] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
+                                                            <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/45">Switch to:</div>
+                                                            {sections
+                                                                .filter((candidate) => candidate.type === section.type && candidate.id !== section.id)
+                                                                .map((candidate) => {
+                                                                    const candidateIndex = sections.findIndex((item) => item.id === candidate.id);
+                                                                    return (
+                                                                        <button
+                                                                            key={candidate.id}
+                                                                            onClick={() => swapSectionsById(section.id, candidate.id)}
+                                                                            className="flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-white/80 transition hover:bg-white/[0.06]"
+                                                                        >
+                                                                            {candidateIndex + 1}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    )}
+                                                </div>
 
                                                 <span className="min-w-[70px] text-right text-[12px] font-semibold text-white/55">{words} words</span>
 
@@ -1082,6 +1252,8 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                     </button>
                                 </div>
 
+                                <div className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.32em] text-[#ff5a52]">SUMMARY</div>
+
                                 {!summaryInsights && !summaryLoading && (
                                     <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#0d1117] px-4 text-center text-[13px] text-white/45">
                                         Ai insights? Su returned Nothing .... To get AI insights, summarize your essay at the top.
@@ -1159,7 +1331,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                             <div className="flex-1 overflow-y-auto p-2.5">
                                 <div className="flex flex-col gap-2.5">
                                     {sourceThreads.map((source) => {
-                                        const palette = SOURCE_COLOR_POOL[source.index % SOURCE_COLOR_POOL.length];
+                                        const palette = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
                                         const citation = getCitationForSource(source);
                                         const snippet = (source.fullContent || "").replace(/\s+/g, " ").slice(0, 110);
 
@@ -1170,10 +1342,27 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                 style={{ borderColor: `${palette.border}66`, backgroundColor: palette.soft }}
                                                 onClick={() => openSourceModal(source)}
                                             >
-                                                <h4 className="truncate text-[15px] font-bold text-white">{source.title || "Untitled Source"}</h4>
-                                                <p className="mt-1 text-[12px] text-white/70">
-                                                    {source.author || "Unknown author"} ({source.publishedYear || "n.d."})
-                                                </p>
+                                                <div className="mb-2 flex items-center gap-2">
+                                                    <label
+                                                        className="relative flex h-4 w-4 shrink-0 cursor-pointer overflow-hidden rounded-full border border-white/30"
+                                                        style={{ backgroundColor: palette.border }}
+                                                        title="Change source highlight color"
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <input
+                                                            type="color"
+                                                            value={palette.border}
+                                                            onChange={(event) => updateSourcePalette(source.index, event.target.value)}
+                                                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                                        />
+                                                    </label>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="truncate text-[15px] font-bold text-white">{source.title || "Untitled Source"}</h4>
+                                                        <p className="mt-1 text-[12px] text-white/70">
+                                                            {source.author || "Unknown author"} ({source.publishedYear || "n.d."})
+                                                        </p>
+                                                    </div>
+                                                </div>
                                                 {snippet && <p className="mt-2 line-clamp-2 text-[11px] text-white/45">{snippet}</p>}
 
                                                 <div className="mt-2.5 flex items-center justify-between rounded-full border border-white/10 bg-[#101418] px-3 py-1.5">
@@ -1265,6 +1454,58 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                 className={`rounded-xl px-5 py-2 text-[14px] font-semibold ${activeSection?.id ? "bg-[#cfd5df] text-[#1a2433] hover:bg-white" : "cursor-not-allowed bg-white/15 text-white/40"}`}
                             >
                                 Insert with Citation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAddSectionModal && (
+                <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-[460px] rounded-2xl border border-white/15 bg-[#0f1218] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                        <div className="text-[20px] font-bold text-white">Add Paragraph</div>
+                        <div className="mt-2 text-[14px] text-white/60">Create a new paragraph box and place it within the matching type group.</div>
+
+                        <div className="mt-5 space-y-4">
+                            <label className="block">
+                                <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">Title</div>
+                                <input
+                                    value={newSectionTitle}
+                                    onChange={(event) => setNewSectionTitle(event.target.value)}
+                                    placeholder="Enter paragraph title"
+                                    className="h-11 w-full rounded-xl border border-white/15 bg-[#12161d] px-3 text-[14px] font-semibold text-white outline-none focus:border-white/30"
+                                />
+                            </label>
+
+                            <label className="block">
+                                <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">Type</div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(["Introduction", "Body Paragraph", "Conclusion"] as SectionTypeOption[]).map((option) => (
+                                        <button
+                                            key={option}
+                                            type="button"
+                                            onClick={() => setNewSectionType(option)}
+                                            className={`rounded-xl px-3 py-2 text-[12px] font-bold transition ${newSectionType === option ? "bg-[#ff5a52] text-white" : "border border-white/15 bg-[#12161d] text-white/70 hover:bg-[#1a1f28]"}`}
+                                        >
+                                            {option === "Body Paragraph" ? "Body" : option}
+                                        </button>
+                                    ))}
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowAddSectionModal(false)}
+                                className="rounded-lg border border-white/15 bg-[#181c24] px-4 py-2 text-[13px] font-semibold text-white/80 hover:bg-[#212633]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={createSection}
+                                className="rounded-lg bg-[#b3473f] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#cc544a]"
+                            >
+                                Add Section
                             </button>
                         </div>
                     </div>
