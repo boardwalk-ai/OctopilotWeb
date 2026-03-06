@@ -59,6 +59,8 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
 
     // One Paragraph Only dropdown
     const [showParagraphDropdown, setShowParagraphDropdown] = useState(false);
+    const [draggedOutlineId, setDraggedOutlineId] = useState<string | null>(null);
+    const [dragTargetOutlineId, setDragTargetOutlineId] = useState<string | null>(null);
 
     // Hidden outlines toggle
     const [showHidden, setShowHidden] = useState(false);
@@ -162,6 +164,30 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
         );
         setEditingCard(null);
     };
+
+    const canSwapOutlineCards = useCallback(
+        (sourceId: string, targetId: string) => {
+            if (sourceId === targetId) return false;
+            const source = outlines.find((card) => card.id === sourceId);
+            const target = outlines.find((card) => card.id === targetId);
+            if (!source || !target) return false;
+            return !source.hidden && !target.hidden && source.type === target.type;
+        },
+        [outlines]
+    );
+
+    const swapOutlineCards = useCallback((sourceId: string, targetId: string) => {
+        setOutlines((prev) => {
+            const sourceIdx = prev.findIndex((card) => card.id === sourceId);
+            const targetIdx = prev.findIndex((card) => card.id === targetId);
+            if (sourceIdx === -1 || targetIdx === -1) return prev;
+            if (prev[sourceIdx].type !== prev[targetIdx].type) return prev;
+
+            const next = [...prev];
+            [next[sourceIdx], next[targetIdx]] = [next[targetIdx], next[sourceIdx]];
+            return next;
+        });
+    }, []);
 
     // ─── Filtering ───
     const hiddenOutlines = outlines.filter((c) => c.hidden);
@@ -423,7 +449,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
             )}
 
             {/* Outline cards */}
-            <div className="pb-2">
+            <div className="pb-2 select-none">
                 {visibleOutlines.length === 0 && !isGenerating ? (
                     <div className="flex flex-col items-center justify-center py-16">
                         <svg className="mb-4 text-white/15" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -448,11 +474,42 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                             return (
                                 <div
                                     key={card.id}
+                                    draggable
+                                    onDragStart={() => {
+                                        setDraggedOutlineId(card.id);
+                                        setDragTargetOutlineId(null);
+                                    }}
+                                    onDragOver={(event) => {
+                                        if (draggedOutlineId && canSwapOutlineCards(draggedOutlineId, card.id)) {
+                                            event.preventDefault();
+                                            setDragTargetOutlineId(card.id);
+                                        }
+                                    }}
+                                    onDragLeave={() => {
+                                        if (dragTargetOutlineId === card.id) {
+                                            setDragTargetOutlineId(null);
+                                        }
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        if (draggedOutlineId && canSwapOutlineCards(draggedOutlineId, card.id)) {
+                                            swapOutlineCards(draggedOutlineId, card.id);
+                                        }
+                                        setDraggedOutlineId(null);
+                                        setDragTargetOutlineId(null);
+                                    }}
+                                    onDragEnd={() => {
+                                        setDraggedOutlineId(null);
+                                        setDragTargetOutlineId(null);
+                                    }}
                                     className={`relative rounded-2xl border p-5 pl-14 transition-all duration-200 ${card.hidden ? "opacity-40" : ""
                                         } ${card.selected
                                             ? "border-red-500/30 bg-red-500/[0.04]"
                                             : "border-white/[0.06] bg-white/[0.015] hover:border-white/10"
-                                        }`}
+                                        } ${dragTargetOutlineId === card.id && draggedOutlineId && canSwapOutlineCards(draggedOutlineId, card.id)
+                                            ? "ring-2 ring-red-500/40"
+                                            : ""
+                                        } cursor-grab active:cursor-grabbing`}
                                 >
                                     {/* Checkbox */}
                                     <button
@@ -527,7 +584,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <div className="flex w-full items-center justify-between py-5">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                        className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -538,7 +595,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <button
                         onClick={() => setShowConfirmModal(true)}
                         disabled={!outlines.some((c) => c.selected && !c.hidden)}
-                        className={`group relative flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
+                        className={`group relative flex w-full max-w-[420px] items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-3 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
                             ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-red-400"
                             : "border border-white/[0.1] bg-white/[0.04] text-white/30 cursor-not-allowed"
                             }`}
