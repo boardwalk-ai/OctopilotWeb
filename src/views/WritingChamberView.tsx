@@ -976,7 +976,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     );
     return (
         <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            <div className="flex h-[68px] items-center border-b border-white/10 bg-[#0a0a0a] px-5">
+            <div className="relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5">
                 <button
                     onClick={onBack}
                     className="mr-3 flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-[#121317] px-4 text-[13px] font-bold text-[#f4f4f5] transition hover:bg-[#1f2127]"
@@ -993,9 +993,9 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                     +
                 </button>
 
-                <div className="flex min-w-0 flex-1 flex-col items-center">
+                <div className="pointer-events-none absolute left-1/2 top-1/2 flex w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5a52]">Writing Chamber</div>
-                    <label className="mt-0.5 flex min-w-0 max-w-[520px] items-center gap-2 rounded-full border border-white/10 bg-[#111318] px-3 py-1.5 text-white/80 transition hover:border-white/20">
+                    <label className="pointer-events-auto mt-0.5 flex min-w-0 w-full max-w-[520px] items-center gap-2 rounded-full border border-white/10 bg-[#111318] px-3 py-1.5 text-white/80 transition hover:border-white/20">
                         <span className="text-[#f0c84a]">
                             <EditIcon />
                         </span>
@@ -1008,7 +1008,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                     </label>
                 </div>
 
-                <div className="ml-3 flex items-center gap-2.5">
+                <div className="ml-auto flex items-center gap-2.5">
                     <button
                         onClick={handleSummaryClick}
                         disabled={summaryLoading}
@@ -1042,8 +1042,10 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
             </div>
 
             {!canContinueToPreview && (
-                <div className="border-b border-white/10 bg-[#0b0b0c] px-5 py-2 text-center text-[12px] font-semibold text-[#f1c26f]">
-                    Write at least 200 words to continue to Preview.
+                <div className="flex justify-center border-b border-white/10 bg-[#0b0b0c] px-5 py-2">
+                    <div className="text-center text-[12px] font-semibold text-[#f1c26f]">
+                        Write at least 200 words to continue to Preview.
+                    </div>
                 </div>
             )}
 
