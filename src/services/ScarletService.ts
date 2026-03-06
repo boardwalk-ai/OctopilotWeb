@@ -6,6 +6,12 @@ interface BackendKeyResponse {
     secondary_model: string;
 }
 
+type CompactionInput = {
+    sourceTitle: string;
+    fullContent: string;
+    sourceType: "search" | "pdf" | "image" | "fieldwork" | "manual";
+};
+
 export class ScarletService {
     /**
      * Fetch the API key + secondary model from the backend.
@@ -31,12 +37,14 @@ export class ScarletService {
         apiKey: string,
         model: string
     ): Promise<CompactedSource> {
+        const compactionInput = ScarletService.buildCompactionInput(source);
         const res = await fetch("/api/scarlet/compact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                fullContent: source.fullContent,
-                sourceTitle: source.title || "",
+                fullContent: compactionInput.fullContent,
+                sourceTitle: compactionInput.sourceTitle,
+                sourceType: compactionInput.sourceType,
                 apiKey,
                 model,
             }),
@@ -57,6 +65,84 @@ export class ScarletService {
             publishedYear: source.publishedYear,
             publisher: source.publisher,
             compactedContent: result.compacted_content || "",
+        };
+    }
+
+    static buildCompactionInput(source: SourceData): CompactionInput {
+        if (source.manualSourceType === "pdf") {
+            const pageRange = source.pdfMeta ? `${source.pdfMeta.startPage}-${source.pdfMeta.endPage}` : "Unknown";
+            const pageText = source.pdfMeta?.pages?.slice(
+                Math.max(0, (source.pdfMeta.startPage || 1) - 1),
+                source.pdfMeta?.endPage || source.pdfMeta?.pages?.length || undefined
+            ).join("\n\n") || source.fullContent || "";
+
+            return {
+                sourceTitle: source.pdfMeta?.documentTitle || source.title || "PDF Source",
+                sourceType: "pdf",
+                fullContent: [
+                    "Source Type: PDF excerpt",
+                    `Document Title: ${source.pdfMeta?.documentTitle || source.title || "Unknown"}`,
+                    `Author(s): ${source.author || "Unknown"}`,
+                    `Publication Year: ${source.pdfMeta?.publicationYear || source.publishedYear || "Unknown"}`,
+                    `Publisher / Journal: ${source.pdfMeta?.journalName || source.pdfMeta?.publisher || source.publisher || "Unknown"}`,
+                    `Selected Pages: ${pageRange}`,
+                    "Selected Text:",
+                    pageText,
+                ].join("\n"),
+            };
+        }
+
+        if (source.manualSourceType === "image") {
+            return {
+                sourceTitle: source.imageMeta?.sourceLabel || source.title || "Image OCR Source",
+                sourceType: "image",
+                fullContent: [
+                    "Source Type: Image OCR source",
+                    `Source Label: ${source.imageMeta?.sourceLabel || source.title || "Unknown"}`,
+                    `Citation Type: ${source.imageMeta?.citationKind || "Unknown"}`,
+                    `Image Count: ${source.imageMeta?.imageCount || 0}`,
+                    `Author / Contributor: ${source.author || "Unknown"}`,
+                    `Publication Year: ${source.publishedYear || "Unknown"}`,
+                    "Confirmed OCR Text:",
+                    source.imageMeta?.finalSnippet || source.fullContent || "",
+                ].join("\n"),
+            };
+        }
+
+        if (source.manualSourceType === "fieldwork" && source.fieldworkMeta) {
+            const customFieldLines = Object.entries(source.fieldworkMeta.customFields || {})
+                .filter(([, value]) => Boolean((value || "").trim()))
+                .map(([key, value]) => `${key}: ${value}`);
+
+            return {
+                sourceTitle: source.fieldworkMeta.title || source.title || "Fieldwork Entry",
+                sourceType: "fieldwork",
+                fullContent: [
+                    "Source Type: Primary fieldwork entry",
+                    `Research Type: ${source.fieldworkMeta.researchType || "Unknown"}`,
+                    `Title / Topic: ${source.fieldworkMeta.title || source.title || "Unknown"}`,
+                    `Date Conducted: ${source.fieldworkMeta.dateConducted || source.publishedYear || "Unknown"}`,
+                    `Researcher / Recorder: ${source.fieldworkMeta.researcherName || source.author || "Unknown"}`,
+                    `Location: ${source.fieldworkMeta.location || "Unknown"}`,
+                    `Participants / Subjects: ${source.fieldworkMeta.participants || "Unknown"}`,
+                    ...customFieldLines,
+                    "Method Summary:",
+                    source.fieldworkMeta.methodSummary || "",
+                    "Key Findings:",
+                    source.fieldworkMeta.keyFindings || "",
+                    "Notes:",
+                    source.fieldworkMeta.notes || "",
+                ].join("\n"),
+            };
+        }
+
+        return {
+            sourceTitle: source.title || "Source",
+            sourceType: source.manualSourceType === "url" || !source.manualSourceType ? "search" : "manual",
+            fullContent: [
+                source.manualSourceType ? `Source Type: ${source.manualSourceType}` : "Source Type: Search / web source",
+                source.fullContent || "",
+            ].join("\n\n"),
         };
     }
 

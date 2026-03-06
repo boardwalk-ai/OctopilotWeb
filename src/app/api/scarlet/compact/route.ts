@@ -7,7 +7,7 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { fullContent, sourceTitle, apiKey, model } = body;
+        const { fullContent, sourceTitle, sourceType, apiKey, model } = body;
 
         if (!fullContent || !apiKey || !model) {
             return NextResponse.json(
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         const agentFile = path.resolve(process.cwd(), "agents/scarlet.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
-        const userMessage = `Source Title: ${sourceTitle || "Unknown"}\n\nFull Content:\n${fullContent}`;
+        const userMessage = `Source Type: ${sourceType || "unknown"}\nSource Title: ${sourceTitle || "Unknown"}\n\nFull Content:\n${fullContent}`;
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: "POST",
