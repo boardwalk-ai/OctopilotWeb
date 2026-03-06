@@ -159,7 +159,7 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
     );
 
     return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-10 pt-32 pb-0">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-1 flex-col px-6 pt-32 pb-0 lg:px-10">
             {/* Title */}
             <h1 className="mb-2 text-[36px] font-bold text-white">Select Essay Type</h1>
             <div className="mb-6 flex items-center gap-2.5 text-[15px]">

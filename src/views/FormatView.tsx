@@ -72,7 +72,7 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
         "appearance-none rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none transition hover:bg-white/[0.05] focus:border-red-500/50 cursor-pointer";
 
     return (
-        <div className="mx-auto flex w-full flex-col px-10 pt-32 pb-[140px]">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[140px] lg:px-10">
             {/* Header */}
             <div className="mb-10">
                 <h1 className="mb-2 text-[42px] font-bold tracking-tight text-white">Format Your Essay</h1>
@@ -255,7 +255,7 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
             </div>
 
             {/* Fixed Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-10 backdrop-blur-md">
+            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10">
                 <div className="mx-auto flex w-full items-center justify-between py-5 gap-4">
                     <button
                         onClick={onBack}

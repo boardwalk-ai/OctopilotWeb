@@ -22,7 +22,7 @@ export default function MajorSelectionView({ onBack, onNext, onSelectMajor }: Ma
     );
 
     return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-10 pt-32 pb-0">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-1 flex-col px-6 pt-32 pb-0 lg:px-10">
             {/* Title */}
             <h1 className="mb-2 text-[36px] font-bold text-white">Select Your Major</h1>
             <p className="mb-6 text-[16px] text-white/50">

@@ -1424,7 +1424,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     return (
-        <div className="mx-auto flex w-full flex-col px-10 pt-32 pb-[140px]">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[140px] lg:px-10">
             {/* Header */}
             <div className="mb-10">
                 <h1 className="mb-2 text-[42px] font-bold tracking-tight text-white">Customize Your Essay</h1>
@@ -2001,7 +2001,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             )}
 
             {/* Fixed Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-10 backdrop-blur-md">
+            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10 backdrop-blur-md">
                 <div className="mx-auto flex w-full items-center justify-between py-5 gap-4">
                     <button
                         onClick={onBack}

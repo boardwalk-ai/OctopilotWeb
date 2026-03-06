@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer } from "@/services/OrganizerService";
@@ -10,7 +10,26 @@ interface PreviewViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
-export default function PreviewView({ onBack, onNext }: PreviewViewProps) {
+function StatCard({ icon, label, value, tooltip = false }: { icon: ReactNode; label: string; value: string; tooltip?: boolean }) {
+    return (
+        <div className="relative flex flex-col justify-center rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5 shadow-sm transition hover:bg-white/[0.04]">
+            <div className="mb-3 flex items-center gap-2">
+                <div className="text-[#3b82f6]/70">
+                    {icon}
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">{label}</span>
+                {tooltip && (
+                    <div className="absolute right-4 top-4 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-[10px] text-white/40 hover:bg-white/10">
+                        ?
+                    </div>
+                )}
+            </div>
+            <span className="truncate text-[16px] font-medium text-white/90">{value || "-"}</span>
+        </div>
+    );
+}
+
+export default function PreviewView({ onNext }: PreviewViewProps) {
     const org = useOrganizer();
     const [isEditing, setIsEditing] = useState(false);
     const [editableText, setEditableText] = useState(org.generatedEssay);
@@ -51,26 +70,8 @@ export default function PreviewView({ onBack, onNext }: PreviewViewProps) {
         });
     };
 
-    // Helper to render a stat card
-    const StatCard = ({ icon, label, value, tooltip = false }: { icon: React.ReactNode, label: string, value: string, tooltip?: boolean }) => (
-        <div className="flex flex-col justify-center rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5 shadow-sm transition hover:bg-white/[0.04] relative">
-            <div className="flex items-center gap-2 mb-3">
-                <div className="text-[#3b82f6]/70">
-                    {icon}
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">{label}</span>
-                {tooltip && (
-                    <div className="absolute right-4 top-4 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-[10px] text-white/40 hover:bg-white/10">
-                        ?
-                    </div>
-                )}
-            </div>
-            <span className="text-[16px] font-medium text-white/90 truncate">{value || "-"}</span>
-        </div>
-    );
-
     return (
-        <div className="mx-auto flex w-full flex-col px-10 pt-32 pb-[140px] max-w-[1200px]">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[140px] lg:px-10">
 
             {/* Header */}
             <div className="mb-10 flex items-center justify-between">

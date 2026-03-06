@@ -188,7 +188,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
     }, [showParagraphDropdown]);
 
     return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col px-10 pt-32 pb-[100px]">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-[100px] lg:px-10">
             {/* ─── Assignment Analysis ─── */}
             <div className="mb-10">
                 {/* Centered title & subtitle */}
@@ -436,7 +436,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {visibleOutlines.map((card, idx) => {
+                        {visibleOutlines.map((card) => {
                             const orderIdx = outlines.indexOf(card) + 1;
                             const badgeColor =
                                 card.type === "Introduction"
@@ -524,7 +524,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
 
             {/* Fixed Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md">
-                <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between py-5">
+                <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between py-5">
                     <button
                         onClick={onBack}
                         className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"

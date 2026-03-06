@@ -106,7 +106,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     }, [onNext, org.isTestMode, org.generatedEssay]);
 
     return (
-        <div className="mx-auto flex h-full w-full max-w-[1200px] flex-col items-center overflow-hidden px-10 pb-8 pt-20">
+        <div className="mx-auto flex h-full w-full max-w-[1480px] flex-col items-center overflow-hidden px-6 pb-8 pt-20 lg:px-10">
 
             {/* Pulsing Logo */}
             <div className="relative mb-8 flex h-24 w-24 items-center justify-center">

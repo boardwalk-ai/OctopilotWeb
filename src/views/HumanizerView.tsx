@@ -120,9 +120,9 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
 
             setTextEditable(resultText);
             Organizer.set({ generatedEssay: resultText });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Humanizing Error:", err);
-            setError(err.message || "Failed to humanize text.");
+            setError(err instanceof Error ? err.message : "Failed to humanize text.");
         } finally {
             setIsHumanizing(false);
         }
@@ -135,7 +135,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
     };
 
     return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col px-10 pt-32 pb-8 min-h-full relative">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col px-6 pt-32 pb-8 min-h-full relative lg:px-10">
 
             {/* Absolute Spinner Overlay */}
             {isHumanizing && (
@@ -202,7 +202,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
                     <h2 className="text-[18px] font-bold text-white">Important Disclaimer</h2>
                 </div>
                 <p className="text-[14px] leading-relaxed text-white/60 mb-6 font-medium">
-                    By using this AI humanizer, you acknowledge that the generated content is for educational purposes only. Please ensure compliance with your institution's academic integrity policies.
+                    By using this AI humanizer, you acknowledge that the generated content is for educational purposes only. Please ensure compliance with your institution&apos;s academic integrity policies.
                 </p>
                 <div className="flex items-center gap-4 border-t border-white/[0.05] pt-4">
                     <span className="text-[15px] font-bold text-white">I understand and accept these terms</span>
