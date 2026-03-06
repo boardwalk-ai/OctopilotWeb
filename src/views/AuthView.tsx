@@ -40,48 +40,50 @@ export default function AuthView() {
 
       <div className="relative mx-auto flex h-screen w-full max-w-[1600px] items-center px-6 py-6 lg:px-10">
         <div className="grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr]">
-          <section className="flex min-h-0 flex-col justify-between rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-10 lg:py-10">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.38em] text-white/78 backdrop-blur-xl">
+          <section className="flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-10 lg:py-10">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/88 backdrop-blur-xl">
                 <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
-              Octopilot Web
+                <span>Octopilot Web</span>
               </div>
 
-              <div className="max-w-4xl space-y-6">
-                <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-6xl lg:text-[7.2rem]">
+              <div className="max-w-4xl space-y-5">
+                <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-6xl lg:text-[6.5rem]">
                   Enter the
                   <span className="mt-1 block text-red-500">writing engine.</span>
                 </h1>
                 <p className="max-w-2xl text-base leading-7 text-white/66 sm:text-lg">
-                  A fullscreen launch surface for Octopilot Web with sharper contrast, quieter motion, and a cleaner
-                  login flow that does not fight the user while typing.
+                  Build stronger essays with research, outlining, drafting, and humanizing inside one sharp academic
+                  workspace designed for speed.
                 </p>
               </div>
+            </div>
 
+            <div className="mt-auto space-y-4 pt-6">
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
-                  ["Zero-scroll", "Every major action stays inside the first viewport."],
-                  ["Google first", "Primary entry is instant and visible before the form."],
-                  ["Cursor alive", "Background light shifts with the pointer, not the form itself."],
+                  ["Research Faster", "Move from topic to credible sources without leaving the workspace."],
+                  ["Draft with Control", "Shape structure, tone, and formatting before the first full pass."],
+                  ["Humanize Output", "Refine AI-written text into cleaner, more natural academic prose."],
                 ].map(([title, body]) => (
                   <article
                     key={title}
-                    className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                   >
                     <h2 className="text-sm font-semibold tracking-[0.04em] text-white">{title}</h2>
                     <p className="mt-3 text-sm leading-6 text-white/62">{body}</p>
                   </article>
                 ))}
               </div>
-            </div>
 
-            <div className="auth-footer-line flex items-center justify-between gap-4 rounded-[28px] border border-red-500/16 bg-[linear-gradient(90deg,rgba(127,29,29,0.18),rgba(0,0,0,0.02))] px-5 py-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/45">Launch Mode</p>
-                <p className="mt-2 text-sm text-white/78">Browser-first entry for the new web stack.</p>
-              </div>
-              <div className="rounded-full border border-red-500/30 bg-red-500/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-200">
-                Fullscreen
+              <div className="auth-footer-line flex items-center justify-between gap-4 rounded-[28px] border border-red-500/16 bg-[linear-gradient(90deg,rgba(127,29,29,0.18),rgba(0,0,0,0.02))] px-5 py-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/45">What You Get</p>
+                  <p className="mt-2 text-sm text-white/78">One clean launch point for outlining, writing, and polish.</p>
+                </div>
+                <div className="rounded-full border border-red-500/30 bg-red-500/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-200">
+                  Ready
+                </div>
               </div>
             </div>
           </section>
@@ -199,7 +201,7 @@ export default function AuthView() {
 
                   <button
                     type="submit"
-                    className="w-full rounded-[22px] bg-[linear-gradient(90deg,#ffffff_0%,#ff4d4d_100%)] px-5 py-4 text-sm font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(239,68,68,0.3)]"
+                    className="w-full rounded-[22px] bg-red-500 px-5 py-4 text-sm font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)]"
                   >
                     {isLogin ? "Enter Octopilot" : "Launch my account"}
                   </button>
