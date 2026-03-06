@@ -42,6 +42,7 @@ type SectionTypeOption = "Introduction" | "Body Paragraph" | "Conclusion";
 
 type DialogState =
     | { type: "confirm-clear"; title: string; message: string }
+    | { type: "source-in-use"; title: string; message: string }
     | { type: "info"; title: string; message: string };
 
 const SOURCE_COLOR_POOL = [
@@ -875,7 +876,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const deleteSourceThread = useCallback((source: SourceThread) => {
         if (isSourceReferenced(source.index)) {
             setDialog({
-                type: "info",
+                type: "source-in-use",
                 title: "Source In Use",
                 message: "This source is already used in the writing area. Remove its highlighted citations first.",
             });
@@ -1622,25 +1623,50 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
             {dialog && (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-[440px] rounded-2xl border border-white/15 bg-[#0f1218] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                        <div className="text-[18px] font-bold text-white">{dialog.title}</div>
-                        <div className="mt-2 text-[14px] text-white/70">{dialog.message}</div>
-
-                        <div className="mt-5 flex justify-end gap-2">
-                            <button
-                                onClick={() => setDialog(null)}
-                                className="rounded-lg border border-white/15 bg-[#181c24] px-4 py-2 text-[13px] font-semibold text-white/80 hover:bg-[#212633]"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDialog}
-                                className="rounded-lg bg-[#b3473f] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#cc544a]"
-                            >
-                                {dialog.type === "confirm-clear" ? "Yes, Delete" : "OK"}
-                            </button>
+                    {dialog.type === "source-in-use" ? (
+                        <div className="w-full max-w-[460px] rounded-[28px] border border-[#6c4b20] bg-[radial-gradient(circle_at_top,rgba(120,82,22,0.22),rgba(11,14,20,0.98)_58%)] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#8d6329] bg-[#2b1f0b] text-[#ffd36d] shadow-[0_10px_26px_rgba(0,0,0,0.35)]">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M12 9v4" />
+                                    <path d="M12 17h.01" />
+                                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                                </svg>
+                            </div>
+                            <div className="mt-4 text-center text-[21px] font-bold text-white">{dialog.title}</div>
+                            <div className="mt-2 text-center text-[14px] leading-6 text-white/70">{dialog.message}</div>
+                            <div className="mt-5 rounded-2xl border border-[#5e4724] bg-[#17120c] px-4 py-3 text-[12px] text-[#f1cf88]">
+                                Delete ကိုလုပ်မယ်ဆိုရင် paragraph box ထဲက source highlight / citation token ကိုအရင်ဖျက်ရမယ်။
+                            </div>
+                            <div className="mt-6 flex justify-center">
+                                <button
+                                    onClick={() => setDialog(null)}
+                                    className="rounded-full border border-[#8b6227] bg-[#3a2910] px-6 py-2.5 text-[13px] font-bold text-[#ffe08b] transition hover:bg-[#4a3414]"
+                                >
+                                    Got it
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="w-full max-w-[440px] rounded-2xl border border-white/15 bg-[#0f1218] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                            <div className="text-[18px] font-bold text-white">{dialog.title}</div>
+                            <div className="mt-2 text-[14px] text-white/70">{dialog.message}</div>
+
+                            <div className="mt-5 flex justify-end gap-2">
+                                <button
+                                    onClick={() => setDialog(null)}
+                                    className="rounded-lg border border-white/15 bg-[#181c24] px-4 py-2 text-[13px] font-semibold text-white/80 hover:bg-[#212633]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDialog}
+                                    className="rounded-lg bg-[#b3473f] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#cc544a]"
+                                >
+                                    {dialog.type === "confirm-clear" ? "Yes, Delete" : "OK"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
