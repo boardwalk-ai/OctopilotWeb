@@ -40,26 +40,26 @@ export default function AuthView() {
 
       <div className="relative mx-auto flex h-screen w-full max-w-[1600px] items-center px-6 py-6 lg:px-10">
         <div className="grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr]">
-          <section className="flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-10 lg:py-10">
-            <div className="space-y-6">
+          <section className="flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-9 lg:py-8">
+            <div className="space-y-5">
               <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/88 backdrop-blur-xl">
                 <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
                 <span>Octopilot Web</span>
               </div>
 
-              <div className="max-w-4xl space-y-5">
-                <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-6xl lg:text-[6.5rem]">
+              <div className="max-w-4xl space-y-4">
+                <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-[4.75rem] lg:text-[5.7rem]">
                   Enter the
                   <span className="mt-1 block text-red-500">writing engine.</span>
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-white/66 sm:text-lg">
+                <p className="max-w-2xl text-[15px] leading-7 text-white/66 sm:text-[17px]">
                   Build stronger essays with research, outlining, drafting, and humanizing inside one sharp academic
                   workspace designed for speed.
                 </p>
               </div>
             </div>
 
-            <div className="mt-auto space-y-4 pt-6">
+            <div className="mt-auto space-y-4 pt-5">
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
                   ["Research Faster", "Move from topic to credible sources without leaving the workspace."],
@@ -68,10 +68,10 @@ export default function AuthView() {
                 ].map(([title, body]) => (
                   <article
                     key={title}
-                    className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                   >
-                    <h2 className="text-sm font-semibold tracking-[0.04em] text-white">{title}</h2>
-                    <p className="mt-3 text-sm leading-6 text-white/62">{body}</p>
+                    <h2 className="text-[13px] font-semibold tracking-[0.04em] text-white">{title}</h2>
+                    <p className="mt-2.5 text-[13px] leading-6 text-white/62">{body}</p>
                   </article>
                 ))}
               </div>
@@ -89,13 +89,13 @@ export default function AuthView() {
           </section>
 
           <section className="relative flex min-h-0 items-center justify-center lg:justify-end">
-            <div className="auth-card relative w-full max-w-xl rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,18,0.96),rgba(3,3,3,0.98))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.55)] sm:p-5">
+            <div className="auth-card relative w-full max-w-[34rem] rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,18,0.96),rgba(3,3,3,0.98))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.55)] sm:p-4.5">
               <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.14),transparent_36%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.06),transparent_45%)]" />
-              <div className="relative rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-6 sm:p-8">
+              <div className="relative rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/45">Portal Access</p>
-                    <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">Portal Access</p>
+                    <h2 className="mt-2.5 text-[2.15rem] font-semibold tracking-[-0.04em] text-white">
                       {isLogin ? "Welcome back" : "Create your cockpit"}
                     </h2>
                   </div>
@@ -104,7 +104,7 @@ export default function AuthView() {
                   </div>
                 </div>
 
-                <div className="mt-8 grid grid-cols-2 gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-1.5">
+                <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-1.5">
                   <button
                     type="button"
                     onClick={() => setMode("login")}
@@ -131,7 +131,7 @@ export default function AuthView() {
 
                 <button
                   type="button"
-                  className="group mt-6 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-4 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white"
+                  className="group mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-3.5 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white"
                 >
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -157,57 +157,51 @@ export default function AuthView() {
                   <span className="transition-transform duration-300 group-hover:translate-x-1">↗</span>
                 </button>
 
-                <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.28em] text-white/35">
+                <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-white/35">
                   <span className="h-px flex-1 bg-white/10" />
                   or use email
                   <span className="h-px flex-1 bg-white/10" />
                 </div>
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
+                <form className="space-y-3" onSubmit={handleSubmit}>
                   {!isLogin && (
                     <label className="block space-y-2">
-                      <span className="text-sm font-medium text-white/88">Full name</span>
+                      <span className="text-[15px] font-medium text-white/88">Full name</span>
                       <input
                         type="text"
                         placeholder="Captain name"
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
                       />
                     </label>
                   )}
 
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-white/88">Email</span>
+                    <span className="text-[15px] font-medium text-white/88">Email</span>
                     <input
                       type="email"
                       placeholder="pilot@octopilotai.com"
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
                     />
                   </label>
 
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-white/88">Password</span>
+                    <span className="text-[15px] font-medium text-white/88">Password</span>
                     <input
                       type="password"
                       placeholder={isLogin ? "Enter your password" : "Choose a secure password"}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
                     />
                   </label>
 
-                  {!isLogin && (
-                    <p className="rounded-2xl border border-red-500/16 bg-red-500/8 px-4 py-3 text-sm leading-6 text-white/74">
-                      New web accounts get a cleaner entry lane with Stripe-ready billing and a browser-first workspace.
-                    </p>
-                  )}
-
                   <button
                     type="submit"
-                    className="w-full rounded-[22px] bg-red-500 px-5 py-4 text-sm font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)]"
+                    className="w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)]"
                   >
                     {isLogin ? "Enter Octopilot" : "Launch my account"}
                   </button>
                 </form>
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-white/42">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[15px] text-white/42">
                   <span>{isLogin ? "Need an account?" : "Already registered?"}</span>
                   <button
                     type="button"
