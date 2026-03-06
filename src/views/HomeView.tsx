@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Organizer } from "@/services/OrganizerService";
 import { useOrganizer } from "@/hooks/useOrganizer";
@@ -42,6 +42,7 @@ export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
   const [selectedMajor, setSelectedMajor] = useState(0);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
+  const stepScrollRef = useRef<HTMLDivElement>(null);
 
   const org = useOrganizer();
 
@@ -53,21 +54,6 @@ export default function HomeView() {
   const handleSplashFinished = useCallback(() => {
     setShowSplash(false);
   }, []);
-
-  if (page === "methodology") {
-    return (
-      <>
-        <MethodologyView
-          onBack={() => setPage("home")}
-          onSelect={(method) => {
-            Organizer.set({ writingMode: method });
-            setPage("writing-style");
-          }}
-        />
-        <OctoAssistant currentPage={page} />
-      </>
-    );
-  }
 
   const automationStepsMap: Record<Page, number> = {
     home: -1,
@@ -99,6 +85,27 @@ export default function HomeView() {
     0,
     Math.min(100, ((adjustedStepIndexForProgress + 1) / totalStepsForProgress) * 100)
   );
+
+  useEffect(() => {
+    if (stepIndex >= 0) {
+      stepScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [page, stepIndex]);
+
+  if (page === "methodology") {
+    return (
+      <>
+        <MethodologyView
+          onBack={() => setPage("home")}
+          onSelect={(method) => {
+            Organizer.set({ writingMode: method });
+            setPage("writing-style");
+          }}
+        />
+        <OctoAssistant currentPage={page} />
+      </>
+    );
+  }
 
   if (page === "editor") {
     const goBack = () => setPage("humanizer");
@@ -286,7 +293,7 @@ export default function HomeView() {
             writingMode={org.writingMode}
           />
 
-          <div className="flex-1 min-h-0 overflow-y-auto relative z-10">
+          <div ref={stepScrollRef} className="flex-1 min-h-0 overflow-y-auto relative z-10">
             {page === "writing-style" ? (
               <WritingStyleView
                 onBack={goBack}

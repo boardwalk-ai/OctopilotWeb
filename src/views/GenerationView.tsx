@@ -92,12 +92,12 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                     setTimeout(() => {
                         onNext("preview");
                     }, 1000);
-                } catch (e) {
+                } catch {
                     setError("Failed to parse the generated essay. Model did not return valid JSON.");
                     setIsGenerating(false);
                 }
-            } catch (err: any) {
-                setError(err.message || "An unknown error occurred during generation.");
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : "An unknown error occurred during generation.");
                 setIsGenerating(false);
             }
         };
@@ -106,25 +106,25 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     }, [onNext, org.isTestMode, org.generatedEssay]);
 
     return (
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center justify-center px-10 pt-32 pb-[140px] min-h-screen">
+        <div className="mx-auto flex h-full w-full max-w-[1200px] flex-col items-center overflow-hidden px-10 pb-8 pt-20">
 
             {/* Pulsing Logo */}
-            <div className="relative mb-12 flex h-32 w-32 items-center justify-center">
+            <div className="relative mb-8 flex h-24 w-24 items-center justify-center">
                 <div className={`absolute inset-0 rounded-full bg-red-500/20 blur-[50px] transition-all duration-1000 ${isGenerating ? 'animate-pulse scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
                 <Image
                     src="/OCTOPILOT.png"
                     alt="Octopilot Logo"
-                    width={80}
-                    height={80}
+                    width={68}
+                    height={68}
                     className={`relative z-10 rounded-full drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-transform duration-[3000ms] ${isGenerating ? 'scale-110' : 'scale-100'}`}
                 />
             </div>
 
             {/* Title */}
-            <h1 className="mb-2 text-center text-[36px] font-bold tracking-tight text-white">
+            <h1 className="mb-2 text-center text-[32px] font-bold tracking-tight text-white">
                 {error ? "Generation Failed" : isGenerating ? "Crafting Your Essay" : "Generation Complete"}
             </h1>
-            <p className="mb-10 text-center text-[18px] text-white/50">
+            <p className="mb-7 text-center text-[16px] text-white/50">
                 {error
                     ? "We encountered an issue while writing your essay."
                     : isGenerating
@@ -133,7 +133,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
             </p>
 
             {/* Progress Bar */}
-            <div className="w-full max-w-xl mb-12">
+            <div className="mb-7 w-full max-w-xl">
                 <div className="flex justify-between text-[13px] font-bold text-white/60 mb-3">
                     <span>{progressPercent}% Complete</span>
                     <span>{currentWords} / {targetWords} words</span>
@@ -154,11 +154,11 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
             </div>
 
             {/* Streaming UI Box (No border, no bg, just text) */}
-            <div className="relative w-full max-w-[1000px] overflow-hidden -mt-4 mb-10">
+            <div className="relative mb-4 -mt-2 w-full max-w-[1000px] flex-1 overflow-hidden">
                 {/* Read Only Stream with 3D Perspective */}
                 <div
                     ref={scrollRef}
-                    className="relative z-10 mx-auto max-h-[45vh] min-h-[350px] w-full overflow-y-auto px-10 text-[18px] leading-[2] text-white/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] origin-bottom"
+                    className="relative z-10 mx-auto h-full min-h-[300px] w-full overflow-y-auto px-10 text-[17px] leading-[1.95] text-white/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] origin-bottom"
                     style={{
                         whiteSpace: 'pre-wrap',
                         userSelect: 'none',
