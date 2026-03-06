@@ -263,7 +263,7 @@ function EditIcon() {
     );
 }
 
-export default function WritingChamberView({ onBack, onNext }: WritingChamberViewProps) {
+export default function WritingChamberView({ onNext }: WritingChamberViewProps) {
     const org = useOrganizer();
     const sourceStyleBadge = (org.citationStyle || "None").trim() || "None";
 
@@ -865,6 +865,46 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         sections.forEach((section) => syncSectionFromDom(section.id));
     }, [sections, syncSectionFromDom]);
 
+    const isSourceReferenced = useCallback((sourceIndex: number) => {
+        return sections.some((section) => {
+            const html = sectionHtml[section.id] || "";
+            return html.includes(`data-source-index="${sourceIndex}"`);
+        });
+    }, [sectionHtml, sections]);
+
+    const deleteSourceThread = useCallback((source: SourceThread) => {
+        if (isSourceReferenced(source.index)) {
+            setDialog({
+                type: "info",
+                title: "Source In Use",
+                message: "This source is already used in the writing area. Remove its highlighted citations first.",
+            });
+            return;
+        }
+
+        Organizer.set({
+            manualSources: org.manualSources.map((item, index) => (
+                index === source.index ? { url: "", status: "empty" as const } : item
+            )),
+        });
+
+        setUsedSourceIndices((prev) => prev.filter((value) => value !== source.index));
+        setInTextCitationMap((prev) => {
+            const next = { ...prev };
+            delete next[source.index];
+            return next;
+        });
+        setSourcePalettes((prev) => {
+            const next = { ...prev };
+            delete next[source.index];
+            return next;
+        });
+
+        if (sourceModal?.index === source.index) {
+            setSourceModal(null);
+        }
+    }, [isSourceReferenced, org.manualSources, sourceModal]);
+
     const continueToPreview = useCallback(() => {
         if (!canContinueToPreview) return;
         syncAllEditors();
@@ -978,16 +1018,8 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
             <div className="relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5">
                 <button
-                    onClick={onBack}
-                    className="mr-3 flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-[#121317] px-4 text-[13px] font-bold text-[#f4f4f5] transition hover:bg-[#1f2127]"
-                >
-                    <span className="text-[14px] font-black">{"<"}</span>
-                    <span>Back</span>
-                </button>
-
-                <button
                     onClick={openAddSectionModal}
-                    className="mr-5 flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a52] text-[24px] font-medium text-white shadow-[0_4px_12px_rgba(255,90,82,0.4)] transition hover:bg-[#ff736b]"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a52] text-[24px] font-medium text-white shadow-[0_4px_12px_rgba(255,90,82,0.4)] transition hover:bg-[#ff736b]"
                     title="Add section"
                 >
                     +
@@ -1406,7 +1438,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                 style={{ borderColor: `${palette.border}66`, backgroundColor: palette.soft }}
                                                 onClick={() => openSourceModal(source)}
                                             >
-                                                <div className="mb-2 flex items-center gap-2">
+                                                <div className="mb-2 flex items-start gap-2">
                                                     <label
                                                         className="relative flex h-4 w-4 shrink-0 cursor-pointer overflow-hidden rounded-full border border-white/30"
                                                         style={{ backgroundColor: palette.border }}
@@ -1426,6 +1458,18 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                                                             {source.author || "Unknown author"} ({source.publishedYear || "n.d."})
                                                         </p>
                                                     </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            deleteSourceThread(source);
+                                                        }}
+                                                        disabled={isSourceReferenced(source.index)}
+                                                        title={isSourceReferenced(source.index) ? "This source is used in the writing area" : "Delete source"}
+                                                        className={`flex h-6 w-6 items-center justify-center rounded-full border text-[14px] font-bold transition ${isSourceReferenced(source.index) ? "cursor-not-allowed border-white/10 bg-white/5 text-white/25" : "border-white/15 bg-[#101418] text-white/75 hover:bg-[#1b2028] hover:text-white"}`}
+                                                    >
+                                                        ×
+                                                    </button>
                                                 </div>
                                                 {snippet && <p className="mt-2 line-clamp-2 text-[11px] text-white/45">{snippet}</p>}
 

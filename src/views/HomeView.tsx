@@ -106,7 +106,6 @@ export default function HomeView() {
           className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
           left={
             <>
-              <BackToHome onClick={goBack} />
               <LogoNav />
             </>
           }
