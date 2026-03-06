@@ -24,6 +24,8 @@ interface PageFormatMeta {
     lineHeight?: number;
 }
 
+type PagePreviewMap = Record<number, string[]>;
+
 const TEXT_STYLE_PRESETS = {
     p: { label: "Normal text", block: "p", size: 12, bold: false },
     h1: { label: "Heading 1", block: "h1", size: 24, bold: true },
@@ -130,6 +132,15 @@ const HIGHLIGHT_COLORS = ["transparent", "#fce4ec", "#fff9c4", "#e8f5e9", "#e3f2
 const FONT_SIZE_TEMPLATES = [4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 60, 120, 126, 200, 246, 254];
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36];
 
+function buildPagePreviewLines(text: string): string[] {
+    return text
+        .split(/\n+/)
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((line) => (line.length > 42 ? `${line.slice(0, 42).trimEnd()}...` : line));
+}
+
 export default function EditorView({ onBack, onNext }: EditorViewProps) {
     const org = useOrganizer();
 
@@ -206,6 +217,11 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
     const [showPageNumber] = useState(Boolean(formattedDoc.profile.showPageNumber));
     const [pageNumberOverrides, setPageNumberOverrides] = useState<Record<number, string>>({});
     const [headings, setHeadings] = useState<string[]>(initialHeadings);
+    const [pagePreviewMap, setPagePreviewMap] = useState<PagePreviewMap>(() => initialPageHtmls.reduce<PagePreviewMap>((acc, html, index) => {
+        const plainText = html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ");
+        acc[index + 1] = buildPagePreviewLines(plainText);
+        return acc;
+    }, {}));
 
     const [isBold, setIsBold] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
@@ -253,16 +269,21 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
 
     const updateStats = useCallback(() => {
         const parser = document.createElement("div");
+        const nextPreviewMap: PagePreviewMap = {};
         const allText = pages.map((p) => {
             const editor = editorRefs.current[p.id];
-            if (editor) return editor.innerText || "";
-            parser.innerHTML = pageContentRef.current[p.id] || "";
-            return parser.innerText || "";
+            const pageText = editor ? (editor.innerText || "") : (() => {
+                parser.innerHTML = pageContentRef.current[p.id] || "";
+                return parser.innerText || "";
+            })();
+            nextPreviewMap[p.id] = buildPagePreviewLines(pageText);
+            return pageText;
         }).join("\n");
 
         const words = allText.split(/\s+/).filter(w => w.length > 0).length;
         setWordCount(words);
         setCharCount(allText.length);
+        setPagePreviewMap(nextPreviewMap);
 
         const lines = allText.split("\n").filter(l => l.trim().length > 0);
         const extracted = lines.filter(l => l.trim().length < 60 && l.trim().length > 3).slice(0, 8);
@@ -1278,25 +1299,45 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                     <div
                                         key={page.id}
                                         onClick={() => scrollToPage(page.id)}
-                                        className={`flex cursor-pointer items-center gap-2 rounded-[8px] px-3 py-2 text-left ${isActive ? "bg-[#ea4335]/16" : "bg-transparent hover:bg-[#262d37]"}`}
+                                        className={`cursor-pointer rounded-[10px] px-3 py-2.5 text-left transition ${isActive ? "bg-[#ea4335]/16" : "bg-transparent hover:bg-[#262d37]"}`}
                                     >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill={isActive ? "#ea4335" : "#9ca3af"} /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.3" strokeLinecap="round" /></svg>
-                                        <span className={`text-[13px] font-medium ${isActive ? "text-[#f87171]" : "text-[#cbd5e1]"}`}>{page.title}</span>
-                                        <div className="flex-1" />
-                                        <button
-                                            type="button"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={(e) => { e.stopPropagation(); deletePage(page.id); }}
-                                                className={`flex h-5 w-5 items-center justify-center rounded-full ${isActive ? "hover:bg-[#ea4335]/22" : "hover:bg-[#2f3742]"}`}
-                                            title={pages.length <= 1 ? "Cannot delete the only page" : `Delete ${page.title}`}
-                                            disabled={pages.length <= 1}
-                                        >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#f87171" : "#94a3b8"} strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-                                            </button>
+                                        <div className="flex items-start gap-2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0"><rect x="3" y="3" width="18" height="18" rx="2" fill={isActive ? "#ea4335" : "#9ca3af"} /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[13px] font-medium ${isActive ? "text-[#f87171]" : "text-[#cbd5e1]"}`}>{page.title}</span>
+                                                    <div className="flex-1" />
+                                                    <button
+                                                        type="button"
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={(e) => { e.stopPropagation(); deletePage(page.id); }}
+                                                        className={`flex h-5 w-5 items-center justify-center rounded-full ${isActive ? "hover:bg-[#ea4335]/22" : "hover:bg-[#2f3742]"}`}
+                                                        title={pages.length <= 1 ? "Cannot delete the only page" : `Delete ${page.title}`}
+                                                        disabled={pages.length <= 1}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#f87171" : "#94a3b8"} strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+                                                    </button>
+                                                </div>
+                                                <div className="mt-1.5 space-y-1">
+                                                    {(pagePreviewMap[page.id] || []).length > 0 ? (
+                                                        pagePreviewMap[page.id].map((line, lineIndex) => (
+                                                            <div
+                                                                key={`${page.id}-preview-${lineIndex}`}
+                                                                className={`truncate text-[11px] leading-4 ${isActive ? "text-white/80" : "text-[#94a3b8]"}`}
+                                                            >
+                                                                {line}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="truncate text-[11px] italic leading-4 text-[#64748b]">No content yet</div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
                         <div className="mt-4 px-4">
                             {headings.length > 0 ? (
