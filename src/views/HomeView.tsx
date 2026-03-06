@@ -22,6 +22,7 @@ import EditorView from "@/views/EditorView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import StepperHeader, { automationSteps, AutomationStepId } from "@/components/StepperHeader";
+import OctoAssistant from "@/components/OctoAssistant";
 import {
   AppHeader,
   BackToHome,
@@ -55,13 +56,16 @@ export default function HomeView() {
 
   if (page === "methodology") {
     return (
-      <MethodologyView
-        onBack={() => setPage("home")}
-        onSelect={(method) => {
-          Organizer.set({ writingMode: method });
-          setPage("writing-style");
-        }}
-      />
+      <>
+        <MethodologyView
+          onBack={() => setPage("home")}
+          onSelect={(method) => {
+            Organizer.set({ writingMode: method });
+            setPage("writing-style");
+          }}
+        />
+        <OctoAssistant currentPage={page} />
+      </>
     );
   }
 
@@ -101,65 +105,68 @@ export default function HomeView() {
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
 
     return (
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
-        <AppHeader
-          className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
-          left={
-            <>
-              <LogoNav />
-            </>
-          }
-          right={
-            <>
-              <NotificationBell />
-              <PlanInfo />
-              <StoreButton />
-              <SaveButton />
-              <ReportButton />
-              <UserAvatar />
-            </>
-          }
-        />
-
-        {isWorkspaceTopBarCollapsed ? (
-          <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
-            <div
-              className="h-full rounded-r-full bg-red-500"
-              style={{
-                width: `${progressPercent}%`,
-                boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
-              }}
-            />
-          </div>
-        ) : (
-          <StepperHeader
-            currentStepIndex={stepIndex}
-            skipFormat={skipFormat}
-            writingMode={org.writingMode}
-            className="top-16"
+      <>
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
+          <AppHeader
+            className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
+            left={
+              <>
+                <LogoNav />
+              </>
+            }
+            right={
+              <>
+                <NotificationBell />
+                <PlanInfo />
+                <StoreButton />
+                <SaveButton />
+                <ReportButton />
+                <UserAvatar />
+              </>
+            }
           />
-        )}
 
-        <button
-          type="button"
-          onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
-          className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isWorkspaceTopBarCollapsed ? "top-3" : "top-[86px]"}`}
-          title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            {isWorkspaceTopBarCollapsed ? (
-              <path d="m6 15 6-6 6 6" />
-            ) : (
-              <path d="m6 9 6 6 6-6" />
-            )}
-          </svg>
-          {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
-        </button>
+          {isWorkspaceTopBarCollapsed ? (
+            <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
+              <div
+                className="h-full rounded-r-full bg-red-500"
+                style={{
+                  width: `${progressPercent}%`,
+                  boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
+                }}
+              />
+            </div>
+          ) : (
+            <StepperHeader
+              currentStepIndex={stepIndex}
+              skipFormat={skipFormat}
+              writingMode={org.writingMode}
+              className="top-16"
+            />
+          )}
 
-        <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
-          <EditorView onBack={goBack} onNext={goNext} />
+          <button
+            type="button"
+            onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
+            className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isWorkspaceTopBarCollapsed ? "top-3" : "top-[86px]"}`}
+            title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              {isWorkspaceTopBarCollapsed ? (
+                <path d="m6 15 6-6 6 6" />
+              ) : (
+                <path d="m6 9 6 6 6-6" />
+              )}
+            </svg>
+            {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
+          </button>
+
+          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
+            <EditorView onBack={goBack} onNext={goNext} />
+          </div>
         </div>
-      </div>
+        <OctoAssistant currentPage={page} />
+      </>
     );
   }
 
@@ -168,66 +175,69 @@ export default function HomeView() {
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
 
     return (
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
-        <AppHeader
-          className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
-          left={
-            <>
-              <BackToHome onClick={goBack} />
-              <LogoNav />
-            </>
-          }
-          right={
-            <>
-              <NotificationBell />
-              <PlanInfo />
-              <StoreButton />
-              <SaveButton />
-              <ReportButton />
-              <UserAvatar />
-            </>
-          }
-        />
-
-        {isWorkspaceTopBarCollapsed ? (
-          <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
-            <div
-              className="h-full rounded-r-full bg-red-500"
-              style={{
-                width: `${progressPercent}%`,
-                boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
-              }}
-            />
-          </div>
-        ) : (
-          <StepperHeader
-            currentStepIndex={stepIndex}
-            skipFormat={skipFormat}
-            writingMode={org.writingMode}
-            className="top-16"
+      <>
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
+          <AppHeader
+            className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
+            left={
+              <>
+                <BackToHome onClick={goBack} />
+                <LogoNav />
+              </>
+            }
+            right={
+              <>
+                <NotificationBell />
+                <PlanInfo />
+                <StoreButton />
+                <SaveButton />
+                <ReportButton />
+                <UserAvatar />
+              </>
+            }
           />
-        )}
 
-        <button
-          type="button"
-          onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
-          className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isWorkspaceTopBarCollapsed ? "top-3" : "top-[86px]"}`}
-          title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            {isWorkspaceTopBarCollapsed ? (
-              <path d="m6 15 6-6 6 6" />
-            ) : (
-              <path d="m6 9 6 6 6-6" />
-            )}
-          </svg>
-          {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
-        </button>
+          {isWorkspaceTopBarCollapsed ? (
+            <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
+              <div
+                className="h-full rounded-r-full bg-red-500"
+                style={{
+                  width: `${progressPercent}%`,
+                  boxShadow: "0 0 8px rgba(239, 68, 68, 0.5), 0 0 2px rgba(239, 68, 68, 0.8)",
+                }}
+              />
+            </div>
+          ) : (
+            <StepperHeader
+              currentStepIndex={stepIndex}
+              skipFormat={skipFormat}
+              writingMode={org.writingMode}
+              className="top-16"
+            />
+          )}
 
-        <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
-          <WritingChamberView onBack={goBack} onNext={goNext} />
+          <button
+            type="button"
+            onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
+            className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isWorkspaceTopBarCollapsed ? "top-3" : "top-[86px]"}`}
+            title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              {isWorkspaceTopBarCollapsed ? (
+                <path d="m6 15 6-6 6 6" />
+              ) : (
+                <path d="m6 9 6 6 6-6" />
+              )}
+            </svg>
+            {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
+          </button>
+
+          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
+            <WritingChamberView onBack={goBack} onNext={goNext} />
+          </div>
         </div>
-      </div>
+        <OctoAssistant currentPage={page} />
+      </>
     );
   }
 
@@ -249,97 +259,98 @@ export default function HomeView() {
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
 
     return (
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
-        <AppHeader
-          left={
-            <>
-              <BackToHome onClick={goBack} />
-              <LogoNav />
-            </>
-          }
-          right={
-            <>
-              <NotificationBell />
-              <PlanInfo />
-              <StoreButton />
-              <SaveButton />
-              <ReportButton />
-              <UserAvatar />
-            </>
-          }
-        />
+      <>
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
+          <AppHeader
+            left={
+              <>
+                <BackToHome onClick={goBack} />
+                <LogoNav />
+              </>
+            }
+            right={
+              <>
+                <NotificationBell />
+                <PlanInfo />
+                <StoreButton />
+                <SaveButton />
+                <ReportButton />
+                <UserAvatar />
+              </>
+            }
+          />
 
-        {/* Persistent StepperHeader — never unmounts during automation flow */}
-        <StepperHeader
-          currentStepIndex={stepIndex}
-          skipFormat={skipFormat}
-          writingMode={org.writingMode}
-        />
+          <StepperHeader
+            currentStepIndex={stepIndex}
+            skipFormat={skipFormat}
+            writingMode={org.writingMode}
+          />
 
-        {/* Step Content Wrapper — Handles All Scrolling */}
-        <div className="flex-1 min-h-0 overflow-y-auto relative z-10">
-          {page === "writing-style" ? (
-            <WritingStyleView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "major-selection" ? (
-            <MajorSelectionView
-              onBack={goBack}
-              onNext={goNext}
-              onSelectMajor={handleSelectMajor}
-            />
-          ) : page === "essay-type" ? (
-            <EssayTypeView
-              selectedMajor={selectedMajor}
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "instructions" ? (
-            <InstructionsView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "outlines" ? (
-            <OutlinesView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "configuration" ? (
-            <ConfigurationView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "format" ? (
-            <FormatView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "generation" ? (
-            <GenerationView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "preview" ? (
-            <PreviewView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : page === "humanizer" ? (
-            <HumanizerView
-              onBack={goBack}
-              onNext={goNext}
-            />
-          ) : (
-            <PlaceholderView
-              step={currentStep}
-              index={stepIndex}
-              onBack={goBack}
-              onNext={goNext}
-            />
-          )}
+          <div className="flex-1 min-h-0 overflow-y-auto relative z-10">
+            {page === "writing-style" ? (
+              <WritingStyleView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "major-selection" ? (
+              <MajorSelectionView
+                onBack={goBack}
+                onNext={goNext}
+                onSelectMajor={handleSelectMajor}
+              />
+            ) : page === "essay-type" ? (
+              <EssayTypeView
+                selectedMajor={selectedMajor}
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "instructions" ? (
+              <InstructionsView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "outlines" ? (
+              <OutlinesView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "configuration" ? (
+              <ConfigurationView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "format" ? (
+              <FormatView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "generation" ? (
+              <GenerationView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "preview" ? (
+              <PreviewView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "humanizer" ? (
+              <HumanizerView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : (
+              <PlaceholderView
+                step={currentStep}
+                index={stepIndex}
+                onBack={goBack}
+                onNext={goNext}
+              />
+            )}
+          </div>
         </div>
-      </div>
+        <OctoAssistant currentPage={page} />
+      </>
     );
   }
 
@@ -420,6 +431,7 @@ export default function HomeView() {
           </a>
         </div>
       </div>
+      <OctoAssistant currentPage={page} />
     </>
   );
 }
