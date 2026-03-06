@@ -290,6 +290,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     const [insightsHeight, setInsightsHeight] = useState(220);
     const [isDraggingInsights, setIsDraggingInsights] = useState(false);
     const dragStartRef = useRef<{ y: number; height: number }>({ y: 0, height: 220 });
+    const insightsPointerRef = useRef<{ pointerId: number | null; moved: boolean }>({ pointerId: null, moved: false });
 
     const [dialog, setDialog] = useState<DialogState | null>(null);
     const [isClientMounted, setIsClientMounted] = useState(false);
@@ -386,21 +387,33 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
     useEffect(() => {
         if (!isDraggingInsights) return;
 
-        const onMove = (event: MouseEvent) => {
+        const onMove = (event: PointerEvent) => {
+            if (insightsPointerRef.current.pointerId !== null && event.pointerId !== insightsPointerRef.current.pointerId) return;
             const delta = dragStartRef.current.y - event.clientY;
+            if (Math.abs(delta) > 3) {
+                insightsPointerRef.current.moved = true;
+            }
             const next = clamp(dragStartRef.current.height + delta, INSIGHTS_MIN_HEIGHT, INSIGHTS_MAX_HEIGHT);
             setInsightsHeight(next);
         };
 
-        const onUp = () => {
+        const onUp = (event: PointerEvent) => {
+            if (insightsPointerRef.current.pointerId !== null && event.pointerId !== insightsPointerRef.current.pointerId) return;
+            const shouldToggle = !insightsPointerRef.current.moved;
+            insightsPointerRef.current = { pointerId: null, moved: false };
             setIsDraggingInsights(false);
+            if (shouldToggle) {
+                setIsInsightsOpen((prev) => !prev);
+            }
         };
 
-        window.addEventListener("mousemove", onMove);
-        window.addEventListener("mouseup", onUp);
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
         return () => {
-            window.removeEventListener("mousemove", onMove);
-            window.removeEventListener("mouseup", onUp);
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
         };
     }, [isDraggingInsights]);
 
@@ -938,12 +951,14 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
         setDialog(null);
     }, [dialog]);
 
-    const startInsightsDrag = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    const startInsightsDrag = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
         if (!isInsightsOpen) {
             setIsInsightsOpen(true);
         }
+        insightsPointerRef.current = { pointerId: event.pointerId, moved: false };
         dragStartRef.current = { y: event.clientY, height: insightsHeight };
         setIsDraggingInsights(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
         event.preventDefault();
     }, [insightsHeight, isInsightsOpen]);
 
@@ -1245,9 +1260,8 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                         <div className="relative h-12">
                             <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
                             <button
-                                onClick={() => setIsInsightsOpen((prev) => !prev)}
-                                onMouseDown={startInsightsDrag}
-                                className="group absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/25 bg-[#121317] p-2.5 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24]"
+                                onPointerDown={startInsightsDrag}
+                                className="group absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#121317] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24]"
                                 title="Drag or click"
                             >
                                 <span className="pointer-events-none flex items-center justify-center text-white">
@@ -1265,7 +1279,7 @@ export default function WritingChamberView({ onBack, onNext }: WritingChamberVie
                         </div>
 
                         <div
-                            className="overflow-hidden transition-[height] duration-300 ease-in-out"
+                            className={`overflow-hidden transition-[height] ease-in-out ${isDraggingInsights ? "duration-0" : "duration-300"}`}
                             style={{ height: isInsightsOpen ? insightsHeight : 0 }}
                         >
                             <div className="h-full border-t border-white/10 px-4 py-3">
