@@ -7,6 +7,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { InTextCitationService } from "@/services/InTextCitationService";
 import { Organizer, SourceData } from "@/services/OrganizerService";
+import { SpoonieService } from "@/services/SpoonieService";
 import { SuService } from "@/services/SuService";
 
 interface WritingChamberViewProps {
@@ -37,6 +38,12 @@ interface SummaryInsights {
     done: string[];
     suggestions: string[];
 }
+
+type ResolvedCitation = {
+    sourceIndex: number;
+    citation: string;
+    source: SourceData;
+};
 
 type SectionTypeOption = "Introduction" | "Body Paragraph" | "Conclusion";
 
@@ -264,6 +271,33 @@ function EditIcon() {
     );
 }
 
+function getStoredCitation(source: SourceData): string {
+    return source.citationPreview
+        || source.pdfMeta?.citationPreview
+        || source.imageMeta?.citationPreview
+        || source.fieldworkMeta?.citationPreview
+        || "";
+}
+
+function parseAuthors(author: string | undefined): Array<{ firstName: string; lastName: string }> {
+    return (author || "")
+        .split(/;| and |&/i)
+        .map((chunk) => chunk.trim())
+        .filter(Boolean)
+        .map((chunk) => {
+            if (chunk.includes(",")) {
+                const [lastName, firstName] = chunk.split(",").map((part) => part.trim());
+                return { firstName: firstName || "", lastName: lastName || "" };
+            }
+            const tokens = chunk.split(/\s+/).filter(Boolean);
+            return {
+                firstName: tokens.slice(0, -1).join(" "),
+                lastName: tokens[tokens.length - 1] || "",
+            };
+        })
+        .filter((authorItem) => authorItem.firstName || authorItem.lastName);
+}
+
 export default function WritingChamberView({ onNext }: WritingChamberViewProps) {
     const org = useOrganizer();
     const sourceStyleBadge = (org.citationStyle || "None").trim() || "None";
@@ -280,7 +314,6 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const [assistantLoadingBySection, setAssistantLoadingBySection] = useState<Record<string, boolean>>({});
 
     const [sourceModal, setSourceModal] = useState<SourceThread | null>(null);
-    const [usedSourceIndices, setUsedSourceIndices] = useState<number[]>([]);
     const [inTextCitationMap, setInTextCitationMap] = useState<Record<number, string>>({});
 
     const [isSourcesCollapsed, setIsSourcesCollapsed] = useState(false);
@@ -290,6 +323,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const [isInsightsOpen, setIsInsightsOpen] = useState(false);
     const [insightsHeight, setInsightsHeight] = useState(220);
     const [isDraggingInsights, setIsDraggingInsights] = useState(false);
+    const [isPreparingPreview, setIsPreparingPreview] = useState(false);
     const dragStartRef = useRef<{ y: number; height: number }>({ y: 0, height: 220 });
     const insightsPointerRef = useRef<{ pointerId: number | null; moved: boolean }>({ pointerId: null, moved: false });
 
@@ -614,7 +648,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             || CitationTemplateService.formatInText(org.citationStyle, source, source.index + 1);
     }, [inTextCitationMap, org.citationStyle]);
 
-    const insertHtmlToActiveSection = useCallback((html: string, sourceIndex: number) => {
+    const insertHtmlToActiveSection = useCallback((html: string) => {
         if (!activeSectionId) return;
         const editor = editorRefs.current[activeSectionId];
         if (!editor) return;
@@ -625,7 +659,6 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         document.execCommand("insertHTML", false, html);
         syncSectionFromDom(activeSectionId);
         saveSelection(activeSectionId);
-        setUsedSourceIndices((prev) => prev.includes(sourceIndex) ? prev : [...prev, sourceIndex]);
     }, [activeSectionId, restoreSelection, saveSelection, syncSectionFromDom]);
 
     const openSourceModal = useCallback((source: SourceThread) => {
@@ -661,7 +694,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             soft: palette.soft,
             text: palette.text,
         });
-        insertHtmlToActiveSection(tokenHtml, sourceModal.index);
+        insertHtmlToActiveSection(tokenHtml);
         closeSourceModal();
     }, [activeSectionId, closeSourceModal, getCitationForSource, getSelectedModalText, insertHtmlToActiveSection, sourceModal, sourcePalettes]);
 
@@ -678,7 +711,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             soft: palette.soft,
             text: palette.text,
         });
-        insertHtmlToActiveSection(tokenHtml, source.index);
+        insertHtmlToActiveSection(tokenHtml);
     }, [activeSectionId, getCitationForSource, insertHtmlToActiveSection, sourcePalettes]);
 
     const updateSectionTitle = useCallback((sectionId: string, title: string) => {
@@ -889,7 +922,6 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             )),
         });
 
-        setUsedSourceIndices((prev) => prev.filter((value) => value !== source.index));
         setInTextCitationMap((prev) => {
             const next = { ...prev };
             delete next[source.index];
@@ -906,8 +938,119 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         }
     }, [isSourceReferenced, org.manualSources, sourceModal]);
 
-    const continueToPreview = useCallback(() => {
+    const ensurePreviewCitations = useCallback(async (): Promise<ResolvedCitation[]> => {
+        const activeSources = org.manualSources
+            .map((source, sourceIndex) => ({ source, sourceIndex }))
+            .filter(({ source }) => source.status === "scraped" || Boolean(source.fullContent?.trim()));
+
+        const resolved = await Promise.all(activeSources.map(async ({ source, sourceIndex }) => {
+            const existingCitation = getStoredCitation(source).trim();
+            if (existingCitation) {
+                return { sourceIndex, citation: existingCitation, source };
+            }
+
+            try {
+                let citation = "";
+                if (source.manualSourceType === "fieldwork" && source.fieldworkMeta) {
+                    citation = await SpoonieService.generateFieldworkCitation({
+                        citationStyle: org.citationStyle,
+                        researchType: source.fieldworkMeta.researchType,
+                        title: source.fieldworkMeta.title,
+                        dateConducted: source.fieldworkMeta.dateConducted,
+                        researcherName: source.fieldworkMeta.researcherName,
+                        location: source.fieldworkMeta.location,
+                        participants: source.fieldworkMeta.participants,
+                        methodSummary: source.fieldworkMeta.methodSummary,
+                        keyFindings: source.fieldworkMeta.keyFindings,
+                        notes: source.fieldworkMeta.notes,
+                        customFields: source.fieldworkMeta.customFields,
+                    });
+                } else {
+                    const documentTitle = source.manualSourceType === "pdf"
+                        ? (source.pdfMeta?.documentTitle || source.title || "Untitled Source")
+                        : source.manualSourceType === "image"
+                            ? (source.imageMeta?.citationKind === "journal"
+                                ? (source.imageMeta?.citationData.articleTitle || source.title || "Untitled Source")
+                                : (source.imageMeta?.citationData.title || source.title || "Untitled Source"))
+                            : (source.title || "Untitled Source");
+
+                    const publicationYear = source.manualSourceType === "pdf"
+                        ? (source.pdfMeta?.publicationYear || source.publishedYear || "n.d.")
+                        : source.manualSourceType === "image"
+                            ? (source.imageMeta?.citationData.publicationYear || source.publishedYear || "n.d.")
+                            : (source.publishedYear || "n.d.");
+
+                    const authors = source.manualSourceType === "pdf"
+                        ? (source.pdfMeta?.authors || []).map((author) => ({ firstName: author.firstName, lastName: author.lastName }))
+                        : source.manualSourceType === "image"
+                            ? (source.imageMeta?.citationData.contributors || []).map((author) => ({ firstName: author.firstName, lastName: author.lastName }))
+                            : parseAuthors(source.author);
+
+                    citation = await SpoonieService.generateCitation({
+                        citationStyle: org.citationStyle,
+                        documentTitle,
+                        publicationYear,
+                        authors: authors.length ? authors : [{ firstName: "", lastName: source.author?.trim() || "Unknown" }],
+                        journalName: source.manualSourceType === "pdf"
+                            ? (source.pdfMeta?.journalName || "")
+                            : source.manualSourceType === "image"
+                                ? (source.imageMeta?.citationData.journalTitle || "")
+                                : "",
+                        publisher: source.manualSourceType === "pdf"
+                            ? (source.pdfMeta?.publisher || source.publisher || "")
+                            : source.manualSourceType === "image"
+                                ? (source.imageMeta?.citationData.publisher || source.publisher || "")
+                                : (source.publisher || ""),
+                        volume: source.manualSourceType === "pdf"
+                            ? (source.pdfMeta?.volume || "")
+                            : source.manualSourceType === "image"
+                                ? (source.imageMeta?.citationData.volume || "")
+                                : "",
+                        issue: source.manualSourceType === "pdf"
+                            ? (source.pdfMeta?.issue || "")
+                            : source.manualSourceType === "image"
+                                ? (source.imageMeta?.citationData.issue || "")
+                                : "",
+                        edition: source.manualSourceType === "pdf" ? (source.pdfMeta?.edition || "") : "",
+                        pageRange: source.manualSourceType === "pdf"
+                            ? `${source.pdfMeta?.startPage || 1}-${source.pdfMeta?.endPage || 1}`
+                            : source.manualSourceType === "image"
+                                ? (source.imageMeta?.citationData.pageRange || "")
+                                : "",
+                    });
+                }
+
+                return { sourceIndex, citation: citation.trim(), source };
+            } catch (error) {
+                console.warn("[WritingChamber] Spoonie citation fallback", sourceIndex, error);
+                return {
+                    sourceIndex,
+                    citation: CitationTemplateService.formatReference(org.citationStyle, source, sourceIndex + 1),
+                    source,
+                };
+            }
+        }));
+
+        Organizer.set({
+            manualSources: org.manualSources.map((source, sourceIndex) => {
+                const match = resolved.find((entry) => entry.sourceIndex === sourceIndex);
+                if (!match) return source;
+                return {
+                    ...source,
+                    citationPreview: match.citation,
+                    pdfMeta: source.pdfMeta ? { ...source.pdfMeta, citationPreview: match.citation } : source.pdfMeta,
+                    imageMeta: source.imageMeta ? { ...source.imageMeta, citationPreview: match.citation } : source.imageMeta,
+                    fieldworkMeta: source.fieldworkMeta ? { ...source.fieldworkMeta, citationPreview: match.citation } : source.fieldworkMeta,
+                };
+            }),
+        });
+
+        return resolved;
+    }, [org.citationStyle, org.manualSources]);
+
+    const continueToPreview = useCallback(async () => {
         if (!canContinueToPreview) return;
+        setIsPreparingPreview(true);
         syncAllEditors();
 
         const essayParts = sections
@@ -915,20 +1058,23 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             .filter(Boolean);
         const generatedEssay = essayParts.join("\n\n");
 
-        const bibliographyLines = usedSourceIndices
-            .map((idx) => sourceThreads.find((s) => s.index === idx))
-            .filter((s): s is SourceThread => Boolean(s))
-            .map((source, i) => CitationTemplateService.formatReference(org.citationStyle, source, i + 1))
-            .filter(Boolean);
+        try {
+            const resolvedCitations = await ensurePreviewCitations();
+            const bibliographyLines = resolvedCitations
+                .map((entry) => entry.citation.trim())
+                .filter(Boolean);
 
-        Organizer.set({
-            generatedEssay,
-            generatedBibliography: bibliographyLines.length > 0
-                ? bibliographyLines.join("\n")
-                : org.generatedBibliography,
-        });
-        onNext("preview");
-    }, [canContinueToPreview, onNext, org.citationStyle, org.generatedBibliography, sectionHtml, sections, sourceThreads, syncAllEditors, usedSourceIndices]);
+            Organizer.set({
+                generatedEssay,
+                generatedBibliography: bibliographyLines.length > 0
+                    ? bibliographyLines.join("\n")
+                    : org.generatedBibliography,
+            });
+            onNext("preview");
+        } finally {
+            setIsPreparingPreview(false);
+        }
+    }, [canContinueToPreview, ensurePreviewCitations, onNext, org.generatedBibliography, sectionHtml, sections, syncAllEditors]);
 
     const handleSummaryClick = useCallback(async () => {
         if (summaryLoading) return;
@@ -1008,11 +1154,13 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const continueButton = (
         <button
             onClick={continueToPreview}
-            disabled={!canContinueToPreview}
-            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"}`}
+            disabled={!canContinueToPreview || isPreparingPreview}
+            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"}`}
         >
-            <span>Continue to Preview</span>
-            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>→</span>
+            <span>{isPreparingPreview ? "Preparing Preview" : "Continue to Preview"}</span>
+            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview && !isPreparingPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>
+                {isPreparingPreview ? "…" : "→"}
+            </span>
         </button>
     );
     return (

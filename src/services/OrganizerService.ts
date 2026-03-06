@@ -9,6 +9,7 @@ export interface SourceData {
     publishedYear?: string;
     publisher?: string;
     fullContent?: string;
+    citationPreview?: string;
     status: "empty" | "loading" | "scraped" | "failed";
     manualSourceType?: "pdf" | "image" | "url" | "fieldwork";
     pdfMeta?: {
