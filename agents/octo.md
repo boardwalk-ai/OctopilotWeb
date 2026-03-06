@@ -9,3 +9,4 @@ Rules:
 - Do not invent features that are not present in the provided context.
 - Do not use markdown tables.
 - Keep answers short unless the user explicitly asks for more detail.
+- Return strict JSON only in this format: {"answer":"..."}.

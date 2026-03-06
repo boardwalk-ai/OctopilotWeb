@@ -13,6 +13,14 @@ interface OctoRequestBody {
     model: string;
 }
 
+function parseJsonContent(raw: string): Record<string, unknown> {
+    const trimmed = raw.trim();
+    const withoutFence = trimmed.startsWith("```")
+        ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
+        : trimmed;
+    return JSON.parse(withoutFence) as Record<string, unknown>;
+}
+
 function buildUserPrompt(question: string, runtimeContext: string): string {
     return `You are Octo, the virtual assistant for Octopilot AI. Your task is to help user navigate, or answer user's questions.
 STRICTLY only answer questions related to Octopilot AI.
@@ -58,6 +66,7 @@ export async function POST(request: NextRequest) {
                     { role: "user", content: buildUserPrompt(question, runtimeContext) },
                 ],
                 temperature: 0.35,
+                response_format: { type: "json_object" },
             }),
         });
 
@@ -80,7 +89,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        return NextResponse.json({ answer: content });
+        const parsed = parseJsonContent(content);
+        const answer = String(parsed.answer || "").trim();
+
+        if (!answer) {
+            return NextResponse.json(
+                { error: "No answer field returned from model" },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json({ answer });
     } catch (error) {
         console.error("[Octo] Error:", error);
         return NextResponse.json(
