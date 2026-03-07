@@ -11,6 +11,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Octopilot AI",
   description: "AI-powered academic writing assistant",
+  verification: {
+    google: "kFLKADeSqboaC7NTYAa9VIrV-kUP1Nff8dggD-I5Ap4",
+  },
 };
 
 export default function RootLayout({
