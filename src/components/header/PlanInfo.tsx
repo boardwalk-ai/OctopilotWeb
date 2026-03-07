@@ -40,12 +40,12 @@ export default function PlanInfo({
   }, []);
 
   return (
-    <div ref={rootRef} className="relative h-[150px] w-[156px]">
+    <div ref={rootRef} className="relative h-[52px] w-[156px]">
       <div
-        className={`absolute right-0 top-0 overflow-hidden rounded-[28px] border border-white/10 bg-[#141414]/96 shadow-[0_22px_70px_rgba(0,0,0,0.34)] transition-[width,height,background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`absolute right-0 top-0 z-20 overflow-hidden rounded-[24px] border border-white/10 bg-[#141414]/96 shadow-[0_18px_50px_rgba(0,0,0,0.28)] transition-[width,height,background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           expanded
-            ? "h-[132px] w-[470px] border-white/12 bg-[#151515]/98 shadow-[0_28px_90px_rgba(0,0,0,0.42)]"
-            : "h-[52px] w-[156px] border-[#20436b]/50 bg-[#101c2b]/96 shadow-[0_16px_40px_rgba(45,140,255,0.14)]"
+            ? "h-[106px] w-[360px] border-white/12 bg-[#151515]/98 shadow-[0_24px_70px_rgba(0,0,0,0.36)]"
+            : "h-[52px] w-[156px] border-[#20436b]/50 bg-[#101c2b]/96 shadow-[0_14px_32px_rgba(45,140,255,0.12)]"
         }`}
       >
         <button
@@ -82,8 +82,8 @@ export default function PlanInfo({
         </button>
 
         <div
-          className={`grid grid-cols-3 items-stretch px-6 pb-5 pt-2 transition-all duration-300 ${
-            expanded ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
+          className={`grid grid-cols-3 items-stretch px-4 pb-4 pt-1 transition-all duration-300 ${
+            expanded ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1 opacity-0"
           }`}
         >
           {credits.map((credit, index) => (
@@ -93,10 +93,10 @@ export default function PlanInfo({
                 index !== credits.length - 1 ? "border-r border-white/12" : ""
               }`}
             >
-              <div className="text-[2.05rem] font-semibold tracking-[-0.07em] text-white">
+              <div className="text-[1.15rem] font-semibold tracking-[-0.05em] text-white">
                 {credit.value.toLocaleString()}
               </div>
-              <div className="mt-1 text-[0.78rem] font-semibold text-white/78">{credit.label}</div>
+              <div className="mt-1 text-[0.72rem] font-semibold text-white/70">{credit.label}</div>
             </div>
           ))}
         </div>
