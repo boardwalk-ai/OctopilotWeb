@@ -53,7 +53,7 @@ function PillOtpInput({
   const chars = Array.from({ length }, (_, index) => value[index] || "");
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2.5">
       {chars.map((char, index) => (
         <input
           key={`${length}-${index}`}
@@ -75,7 +75,7 @@ function PillOtpInput({
               event.currentTarget.previousElementSibling.focus();
             }
           }}
-          className="h-11 w-10 rounded-full border border-white/12 bg-white/[0.03] text-center text-sm font-semibold text-white outline-none transition focus:border-red-500/55 focus:bg-white/[0.06] sm:h-12 sm:w-11 sm:text-base"
+          className="h-12 w-10 rounded-[14px] border border-white/12 bg-white/[0.03] text-center text-sm font-semibold text-white outline-none transition focus:border-red-500/55 focus:bg-white/[0.06] sm:w-11 sm:text-base"
         />
       ))}
     </div>
@@ -174,11 +174,11 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
             <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Redeem Area</div>
-              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
                 <PillOtpInput length={6} value={redeemCode} onChange={setRedeemCode} />
                 <button
                   type="button"
-                  className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
+                  className="w-full rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 xl:w-auto"
                 >
                   Redeem
                 </button>
@@ -208,17 +208,17 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
               {referralMode === "refer" ? (
                 <div className="mt-4 rounded-[22px] border border-red-500/18 bg-red-500/[0.06] p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Your Referral Code</div>
-                  <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
-                    {referralCode}
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
+                <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
+                  {referralCode}
                 </div>
-              ) : (
-                <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
+              </div>
+            ) : (
+                <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
                   <PillOtpInput length={5} value={referralRedeemCode} onChange={setReferralRedeemCode} />
                   <button
                     type="button"
-                    className="rounded-full border border-white/12 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
+                    className="w-full rounded-full border border-white/12 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500 xl:w-auto"
                   >
                     Redeem
                   </button>
@@ -227,10 +227,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="flex-1 rounded-full border border-white/12 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
+              className="rounded-full border border-white/12 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
             >
               Invoices
             </button>
@@ -245,7 +245,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                   onClose();
                 }
               }}
-              className="flex-1 rounded-full border border-red-500/25 bg-red-500/12 px-5 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500 hover:text-black"
+              className="rounded-full border border-red-500/60 bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
             >
               {isSigningOut ? "Logging out..." : "Log Out"}
             </button>
