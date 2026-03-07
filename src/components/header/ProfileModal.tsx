@@ -41,6 +41,14 @@ function buildReferralCode(user: User | null): string {
   return `${head}${tail}`;
 }
 
+function getProfilePhotoUrl(user: User | null): string | null {
+  if (!user) {
+    return null;
+  }
+
+  return user.photoURL || user.providerData.find((provider) => provider.photoURL)?.photoURL || null;
+}
+
 function PillOtpInput({
   length,
   value,
@@ -98,6 +106,8 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   }, [user]);
 
   const referralCode = useMemo(() => buildReferralCode(user), [user]);
+  const profilePhotoUrl = useMemo(() => getProfilePhotoUrl(user), [user]);
+  const [copyLabel, setCopyLabel] = useState("Copy");
 
   if (!open) {
     return null;
@@ -112,10 +122,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
         onClick={onClose}
       />
 
-      <section className="relative z-10 w-full max-w-[min(92vw,74rem)] rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,16,16,0.98),rgba(5,5,5,0.99))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.65)]">
-        <div className="absolute inset-0 rounded-[34px] bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.15),transparent_32%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.05),transparent_42%)]" />
+      <section className="relative z-10 w-full max-w-[min(92vw,74rem)] rounded-[34px] border border-white/10 bg-[#090909] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.72)]">
+        <div className="absolute inset-0 rounded-[34px] bg-[radial-gradient(circle_at_top,rgba(164,18,18,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_38%)]" />
 
-        <div className="relative max-h-[min(86vh,46rem)] overflow-y-auto rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.01))] p-5 sm:p-6">
+        <div className="relative max-h-[min(86vh,46rem)] overflow-y-auto rounded-[28px] border border-white/8 bg-[#101010] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/42">Profile Access</p>
@@ -133,12 +143,17 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
           </div>
 
           <div className="mt-5 grid gap-4 xl:grid-cols-[1.18fr_0.82fr]">
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[26px] border border-white/10 bg-[#151515] p-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black text-xl font-semibold text-white">
-                  {user?.photoURL ? (
+                  {profilePhotoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.photoURL} alt={user.displayName || user.email || "User"} className="h-full w-full object-cover" />
+                    <img
+                      src={profilePhotoUrl}
+                      alt={user?.displayName || user?.email || "User"}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
                     initials
                   )}
@@ -160,32 +175,32 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-[24px] border border-white/10 bg-[#151515] p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Information</div>
                 <div className="mt-3 text-lg font-semibold text-white">{formatPlanName(user)}</div>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-[24px] border border-white/10 bg-[#151515] p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Expiration Date</div>
                 <div className="mt-3 text-lg font-semibold text-white">{formatPlanExpiry(user)}</div>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+            <div className="rounded-[26px] border border-white/10 bg-[#151515] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Redeem Area</div>
-              <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+              <div className="mt-4 flex flex-col items-start gap-4">
                 <PillOtpInput length={6} value={redeemCode} onChange={setRedeemCode} />
                 <button
                   type="button"
-                  className="w-full rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 xl:w-auto"
+                  className="rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
                 >
                   Redeem
                 </button>
               </div>
             </div>
 
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[26px] border border-white/10 bg-[#151515] p-4">
               <p className="text-sm leading-7 text-white/72">
                 <button
                   type="button"
@@ -206,19 +221,32 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
               </p>
 
               {referralMode === "refer" ? (
-                <div className="mt-4 rounded-[22px] border border-red-500/18 bg-red-500/[0.06] p-4">
+                <div className="mt-4 rounded-[22px] border border-red-500/18 bg-[#1a1010] p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Your Referral Code</div>
-                <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
-                  {referralCode}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="inline-flex rounded-full border border-white/12 bg-black px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
+                      {referralCode}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(referralCode);
+                        setCopyLabel("Copied");
+                        window.setTimeout(() => setCopyLabel("Copy"), 1500);
+                      }}
+                      className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80 transition hover:border-red-500/35 hover:text-white"
+                    >
+                      {copyLabel}
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
-              </div>
-            ) : (
-                <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+              ) : (
+                <div className="mt-4 flex flex-col items-start gap-4">
                   <PillOtpInput length={5} value={referralRedeemCode} onChange={setReferralRedeemCode} />
                   <button
                     type="button"
-                    className="w-full rounded-full border border-white/12 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500 xl:w-auto"
+                    className="rounded-full border border-white/12 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
                   >
                     Redeem
                   </button>
