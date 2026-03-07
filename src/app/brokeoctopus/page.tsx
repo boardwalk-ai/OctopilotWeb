@@ -448,9 +448,10 @@ function ReportInspectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/78 px-4 py-6">
-      <div className="w-full max-w-[960px] rounded-[30px] border border-white/10 bg-[#090909] p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-[95] overflow-y-auto bg-black/78 px-4 py-6">
+      <div className="flex min-h-full items-start justify-center">
+        <div className="w-full max-w-[960px] overflow-hidden rounded-[30px] border border-white/10 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/8 bg-[#090909] px-7 py-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/36">Inspect Report</p>
             <h2 className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{row.title || "Untitled report"}</h2>
@@ -459,144 +460,147 @@ function ReportInspectModal({
           <button
             onClick={onClose}
             className="rounded-full border border-white/10 bg-[#141414] px-4 py-2.5 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white"
-          >
-            Close
-          </button>
-        </div>
+            >
+              Close
+            </button>
+          </div>
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_1.15fr]">
-          <section className="space-y-4 rounded-[24px] border border-white/10 bg-[#101010] p-5">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Title</div>
-              <div className="mt-2 text-lg font-semibold text-white">{row.title || "-"}</div>
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Content</div>
-              <div className="mt-2 text-sm leading-7 text-white/62">{row.description || "-"}</div>
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Screenshot</div>
-              <div className="mt-3 rounded-[18px] border border-white/10 bg-[#080808] p-3">
-                {row.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={String(row.imageUrl)} alt={String(row.title || "Issue screenshot")} className="max-h-[320px] w-full rounded-[14px] object-contain" />
-                ) : (
-                  <div className="flex min-h-[180px] items-center justify-center text-sm text-white/42">No image attached for this issue.</div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[24px] border border-white/10 bg-[#101010] p-5">
-            <div className="flex flex-wrap gap-2">
-              <ResolveTypeButton active={activeMethod === "word"} label="Word" onClick={() => { setActiveMethod("word"); setTemplateIndex(0); syncTemplateMessage("word", 0, wordCredits); }} />
-              <ResolveTypeButton active={activeMethod === "humanizer"} label="Humanizer" onClick={() => { setActiveMethod("humanizer"); setTemplateIndex(0); syncTemplateMessage("humanizer", 0, humanizerCredits); }} />
-              <ResolveTypeButton active={activeMethod === "source"} label="Source" onClick={() => { setActiveMethod("source"); setTemplateIndex(0); syncTemplateMessage("source", 0, sourceCredits); }} />
-              <ResolveTypeButton active={activeMethod === "notify"} label="Notify" onClick={() => { setActiveMethod("notify"); setTemplateIndex(0); syncTemplateMessage("notify", 0, 0); }} />
-              <ResolveTypeButton active={activeMethod === "deny"} label="Deny" onClick={() => { setActiveMethod("deny"); setTemplateIndex(0); syncTemplateMessage("deny", 0, 0); }} />
-            </div>
-
-            {supportsCredits ? (
-              <div className="mt-5 rounded-[20px] border border-white/10 bg-[#0c0c0c] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-white/78">
-                    {row.name || row.email}&rsquo;s {activeMethod} credit
+          <div className="max-h-[calc(100vh-120px)] overflow-y-auto px-7 pb-7">
+            <div className="pt-6 grid gap-5 lg:grid-cols-[1.05fr_1.15fr]">
+              <section className="space-y-4 rounded-[24px] border border-white/10 bg-[#101010] p-5">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Title</div>
+                  <div className="mt-2 text-lg font-semibold text-white">{row.title || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Content</div>
+                  <div className="mt-2 text-sm leading-7 text-white/62">{row.description || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Screenshot</div>
+                  <div className="mt-3 rounded-[18px] border border-white/10 bg-[#080808] p-3">
+                    {row.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={String(row.imageUrl)} alt={String(row.title || "Issue screenshot")} className="max-h-[320px] w-full rounded-[14px] object-contain" />
+                    ) : (
+                      <div className="flex min-h-[180px] items-center justify-center text-sm text-white/42">No image attached for this issue.</div>
+                    )}
                   </div>
+                </div>
+              </section>
+
+              <section className="rounded-[24px] border border-white/10 bg-[#101010] p-5">
+                <div className="flex flex-wrap gap-2">
+                  <ResolveTypeButton active={activeMethod === "word"} label="Word" onClick={() => { setActiveMethod("word"); setTemplateIndex(0); syncTemplateMessage("word", 0, wordCredits); }} />
+                  <ResolveTypeButton active={activeMethod === "humanizer"} label="Humanizer" onClick={() => { setActiveMethod("humanizer"); setTemplateIndex(0); syncTemplateMessage("humanizer", 0, humanizerCredits); }} />
+                  <ResolveTypeButton active={activeMethod === "source"} label="Source" onClick={() => { setActiveMethod("source"); setTemplateIndex(0); syncTemplateMessage("source", 0, sourceCredits); }} />
+                  <ResolveTypeButton active={activeMethod === "notify"} label="Notify" onClick={() => { setActiveMethod("notify"); setTemplateIndex(0); syncTemplateMessage("notify", 0, 0); }} />
+                  <ResolveTypeButton active={activeMethod === "deny"} label="Deny" onClick={() => { setActiveMethod("deny"); setTemplateIndex(0); syncTemplateMessage("deny", 0, 0); }} />
+                </div>
+
+                {supportsCredits ? (
+                  <div className="mt-5 rounded-[20px] border border-white/10 bg-[#0c0c0c] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm text-white/78">
+                        {row.name || row.email}&rsquo;s {activeMethod} credit
+                      </div>
+                      <button
+                        onClick={() => setIsEditingCredits((value) => !value)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
+                      >
+                        <PencilIcon />
+                      </button>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        value={selectedCredits}
+                        disabled={!isEditingCredits}
+                        onChange={(event) => {
+                          const nextValue = Number(event.target.value || 0);
+                          if (activeMethod === "word") setWordCredits(nextValue);
+                          if (activeMethod === "humanizer") setHumanizerCredits(nextValue);
+                          if (activeMethod === "source") setSourceCredits(nextValue);
+                          if (selectedMessageKind === "template") {
+                            syncTemplateMessage(activeMethod, templateIndex, nextValue);
+                          }
+                        }}
+                        className="w-[180px] rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40 disabled:cursor-not-allowed disabled:text-white/38"
+                      />
+                      <div className="text-sm text-white/46">
+                        Current {originalCredits} <span className={`ml-2 font-semibold ${creditDelta >= 0 ? "text-emerald-300" : "text-red-300"}`}>{creditDelta >= 0 ? `+${creditDelta}` : creditDelta}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-5 space-y-4">
+                  <MessageOption checked={selectedMessageKind === "template"} label="Template message" onSelect={() => setSelectedMessageKind("template")}>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {RESOLUTION_TEMPLATE_PRESETS[activeMethod].map((_, index) => (
+                        <button
+                          key={`${activeMethod}-${index}`}
+                          onClick={() => {
+                            setTemplateIndex(index);
+                            syncTemplateMessage(activeMethod, index);
+                          }}
+                          className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
+                            templateIndex === index ? "bg-white text-black" : "border border-white/10 bg-[#151515] text-white/56 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          Template {index + 1}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={templateMessage}
+                      onChange={(event) => setTemplateMessage(event.target.value)}
+                      rows={5}
+                      className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+                    />
+                  </MessageOption>
+
+                  <MessageOption checked={selectedMessageKind === "custom"} label="Custom message" onSelect={() => setSelectedMessageKind("custom")}>
+                    <textarea
+                      value={customMessage}
+                      onChange={(event) => setCustomMessage(event.target.value)}
+                      rows={5}
+                      placeholder="Write a custom message"
+                      className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+                    />
+                  </MessageOption>
+                </div>
+
+                {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
+
+                <div className="mt-5 flex items-center justify-end gap-3">
                   <button
-                    onClick={() => setIsEditingCredits((value) => !value)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
+                    onClick={onClose}
+                    className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
                   >
-                    <PencilIcon />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() =>
+                      row.reportId
+                        ? onSend({
+                            reportId: row.reportId,
+                            method: activeMethod,
+                            credits: supportsCredits ? Math.max(0, selectedCredits - originalCredits) : undefined,
+                            message: selectedMessageKind === "template" ? templateMessage.trim() : customMessage.trim(),
+                          })
+                        : Promise.resolve()
+                    }
+                    disabled={saving || !row.reportId}
+                    className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saving ? "Sending..." : "Send"}
                   </button>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <input
-                    type="number"
-                    min="0"
-                    value={selectedCredits}
-                    disabled={!isEditingCredits}
-                    onChange={(event) => {
-                      const nextValue = Number(event.target.value || 0);
-                      if (activeMethod === "word") setWordCredits(nextValue);
-                      if (activeMethod === "humanizer") setHumanizerCredits(nextValue);
-                      if (activeMethod === "source") setSourceCredits(nextValue);
-                      if (selectedMessageKind === "template") {
-                        syncTemplateMessage(activeMethod, templateIndex, nextValue);
-                      }
-                    }}
-                    className="w-[180px] rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40 disabled:cursor-not-allowed disabled:text-white/38"
-                  />
-                  <div className="text-sm text-white/46">
-                    Current {originalCredits} <span className={`ml-2 font-semibold ${creditDelta >= 0 ? "text-emerald-300" : "text-red-300"}`}>{creditDelta >= 0 ? `+${creditDelta}` : creditDelta}</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-5 space-y-4">
-              <MessageOption checked={selectedMessageKind === "template"} label="Template message" onSelect={() => setSelectedMessageKind("template")}>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {RESOLUTION_TEMPLATE_PRESETS[activeMethod].map((_, index) => (
-                    <button
-                      key={`${activeMethod}-${index}`}
-                      onClick={() => {
-                        setTemplateIndex(index);
-                        syncTemplateMessage(activeMethod, index);
-                      }}
-                      className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
-                        templateIndex === index ? "bg-white text-black" : "border border-white/10 bg-[#151515] text-white/56 hover:border-white/20 hover:text-white"
-                      }`}
-                    >
-                      Template {index + 1}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={templateMessage}
-                  onChange={(event) => setTemplateMessage(event.target.value)}
-                  rows={5}
-                  className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
-                />
-              </MessageOption>
-
-              <MessageOption checked={selectedMessageKind === "custom"} label="Custom message" onSelect={() => setSelectedMessageKind("custom")}>
-                <textarea
-                  value={customMessage}
-                  onChange={(event) => setCustomMessage(event.target.value)}
-                  rows={5}
-                  placeholder="Write a custom message"
-                  className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
-                />
-              </MessageOption>
+              </section>
             </div>
-
-            {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
-
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  row.reportId
-                    ? onSend({
-                        reportId: row.reportId,
-                        method: activeMethod,
-                        credits: supportsCredits ? Math.max(0, selectedCredits - originalCredits) : undefined,
-                        message: selectedMessageKind === "template" ? templateMessage.trim() : customMessage.trim(),
-                      })
-                    : Promise.resolve()
-                }
-                disabled={saving || !row.reportId}
-                className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? "Sending..." : "Send"}
-              </button>
-            </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>
