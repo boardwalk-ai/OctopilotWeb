@@ -33,3 +33,11 @@ export function ensureFirebasePersistence(): Promise<void> {
 
   return persistencePromise;
 }
+
+export function getEmailLinkRedirectUrl(): string {
+  if (typeof window !== "undefined") {
+    return process.env.NEXT_PUBLIC_EMAIL_LINK_REDIRECT_URL || `${window.location.origin}/`;
+  }
+
+  return process.env.NEXT_PUBLIC_EMAIL_LINK_REDIRECT_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000/";
+}

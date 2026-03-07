@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, MouseEvent, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useState } from "react";
 import { AuthService } from "@/services/AuthService";
 
 export default function AuthView() {
@@ -8,24 +8,85 @@ export default function AuthView() {
   const [cursor, setCursor] = useState({ x: 50, y: 50 });
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [emailLinkNotice, setEmailLinkNotice] = useState<string | null>(null);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isLinkCompleting, setIsLinkCompleting] = useState(false);
+  const [needsLinkEmail, setNeedsLinkEmail] = useState(false);
 
   const isLogin = mode === "login";
-  const isBusy = isEmailLoading || isGoogleLoading;
+  const isBusy = isEmailLoading || isGoogleLoading || isLinkCompleting;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !AuthService.isEmailLink(window.location.href)) {
+      return;
+    }
+
+    const storedEmail = AuthService.getStoredEmailForSignIn();
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+
+    setEmailLinkNotice("Finishing your email link sign-in...");
+    setIsLinkCompleting(true);
+
+    AuthService.completeEmailLinkSignIn(window.location.href)
+      .then((result) => {
+        if (result.status === "needs_email") {
+          setNeedsLinkEmail(true);
+          setEmailLinkNotice("Confirm your email to finish signing in.");
+          return;
+        }
+
+        if (result.status === "signed_in") {
+          setNeedsLinkEmail(false);
+          setEmailLinkNotice(result.isNewUser ? "Your account is ready." : "You are signed in.");
+          return;
+        }
+
+        setEmailLinkNotice(null);
+      })
+      .catch((completionError) => {
+        setError(completionError instanceof Error ? completionError.message : "Could not finish email sign-in.");
+        setEmailLinkNotice(null);
+      })
+      .finally(() => {
+        setIsLinkCompleting(false);
+      });
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setEmailLinkNotice(null);
     setIsEmailLoading(true);
 
     try {
-      if (isLogin) {
-        await AuthService.signInWithEmail(email.trim(), password);
+      if (typeof window !== "undefined" && AuthService.isEmailLink(window.location.href)) {
+        const result = await AuthService.completeEmailLinkSignIn(window.location.href, email.trim());
+
+        if (result.status === "needs_email") {
+          setNeedsLinkEmail(true);
+          setEmailLinkNotice("Enter the email address that requested the sign-in link.");
+          return;
+        }
+
+        if (result.status === "signed_in") {
+          setNeedsLinkEmail(false);
+          setEmailLinkNotice(result.isNewUser ? "Your account is ready." : "You are signed in.");
+        }
       } else {
-        await AuthService.signUpWithEmail(fullName, email.trim(), password);
+        await AuthService.sendEmailLink(email.trim(), {
+          mode,
+          name: fullName,
+        });
+        setNeedsLinkEmail(false);
+        setEmailLinkNotice(
+          isLogin
+            ? `A secure sign-in link was sent to ${email.trim()}.`
+            : `A setup link was sent to ${email.trim()}. Open it to finish creating your account.`
+        );
       }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Authentication failed.");
@@ -43,6 +104,7 @@ export default function AuthView() {
 
   const handleGoogle = async () => {
     setError(null);
+    setEmailLinkNotice(null);
     setIsGoogleLoading(true);
 
     try {
@@ -198,7 +260,7 @@ export default function AuthView() {
 
                 <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-white/35">
                   <span className="h-px flex-1 bg-white/10" />
-                  or use email
+                  or use email link
                   <span className="h-px flex-1 bg-white/10" />
                 </div>
 
@@ -233,23 +295,21 @@ export default function AuthView() {
                     />
                   </label>
 
-                  <label className="block space-y-2">
-                    <span className="text-[15px] font-medium text-white/88">Password</span>
-                    <input
-                      type="password"
-                      placeholder={isLogin ? "Enter your password" : "Choose a secure password"}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
-                      autoComplete={isLogin ? "current-password" : "new-password"}
-                      disabled={isBusy}
-                      required
-                    />
-                  </label>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/60">
+                    {needsLinkEmail
+                      ? "Open the link from your inbox, then confirm the same email address here to finish signing in."
+                      : "We will email you a secure sign-in link. No password is required on the web app."}
+                  </div>
 
                   {error && (
                     <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
                       {error}
+                    </div>
+                  )}
+
+                  {emailLinkNotice && !error && (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/78">
+                      {emailLinkNotice}
                     </div>
                   )}
 
@@ -258,7 +318,15 @@ export default function AuthView() {
                     disabled={isBusy}
                     className="w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isEmailLoading ? "Authorizing..." : isLogin ? "Enter Octopilot" : "Launch my account"}
+                    {isLinkCompleting
+                      ? "Finishing sign-in..."
+                      : isEmailLoading
+                        ? "Sending link..."
+                        : needsLinkEmail
+                          ? "Complete sign-in"
+                          : isLogin
+                            ? "Send login link"
+                            : "Send signup link"}
                   </button>
                 </form>
 
