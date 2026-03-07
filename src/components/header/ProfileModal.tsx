@@ -186,7 +186,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+          <div className="mt-4 grid items-start gap-4 xl:grid-cols-[0.82fr_1.18fr]">
             <div className="rounded-[26px] border border-white/10 bg-[#151515] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Redeem Area</div>
               <div className="mt-4 flex flex-col items-start gap-4">

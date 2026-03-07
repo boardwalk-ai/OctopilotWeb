@@ -17,7 +17,7 @@ export default function UserAvatar({ src, name = "U" }: UserAvatarProps) {
   useEffect(() => AuthService.subscribe(setUser), []);
 
   const displayName = user?.displayName || user?.email || name;
-  const avatarSrc = src || user?.photoURL || undefined;
+  const avatarSrc = src || user?.photoURL || user?.providerData.find((provider) => provider.photoURL)?.photoURL || undefined;
   const initials = useMemo(() => {
     return (displayName || "U")
       .split(/\s+/)
@@ -35,7 +35,7 @@ export default function UserAvatar({ src, name = "U" }: UserAvatarProps) {
       >
         {avatarSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" />
+          <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
         ) : user ? (
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80">{initials}</span>
         ) : (
