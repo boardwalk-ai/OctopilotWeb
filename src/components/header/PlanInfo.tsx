@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { AuthService } from "@/services/AuthService";
+import { OctopilotAPIService } from "@/services/OctopilotAPIService";
+import { StreamService } from "@/services/StreamService";
 
 interface Credit {
   label: string;
   value: number;
-  color: string;
 }
 
 interface PlanInfoProps {
@@ -15,10 +17,24 @@ interface PlanInfoProps {
 }
 
 const defaultCredits: Credit[] = [
-  { label: "Essay", value: 5000, color: "#ef4444" },
-  { label: "Humanizer", value: 5000, color: "#a855f7" },
-  { label: "Source", value: 500, color: "#3b82f6" },
+  { label: "Essay", value: 50 },
+  { label: "Humanizer", value: 50 },
+  { label: "Source", value: 5 },
 ];
+
+type MeResponse = {
+  plan?: string | null;
+  word_credits?: number | null;
+  humanizer_credits?: number | null;
+  source_credits?: number | null;
+};
+
+type StreamCreditsPayload = {
+  plan?: string | null;
+  wordCredits?: number | null;
+  humanizerCredits?: number | null;
+  sourceCredits?: number | null;
+};
 
 function getPlanTheme(planName: string) {
   const normalized = planName.toLowerCase();
@@ -52,15 +68,51 @@ function getPlanTheme(planName: string) {
   };
 }
 
+function getDisplayPlanName(planName: string) {
+  const normalized = planName.trim();
+  if (!normalized) {
+    return "Guest";
+  }
+  if (/^guest/i.test(normalized)) {
+    return "Guest";
+  }
+  if (/^pro/i.test(normalized)) {
+    return "Pro";
+  }
+  if (/^premium/i.test(normalized)) {
+    return "Premium";
+  }
+  return normalized.replace(/\s+plan$/i, "");
+}
+
+function mapMeToCredits(payload?: MeResponse | StreamCreditsPayload | null): Credit[] {
+  const resolvedPayload = payload as
+    | (MeResponse & Partial<StreamCreditsPayload>)
+    | (StreamCreditsPayload & Partial<MeResponse>)
+    | null
+    | undefined;
+  const wordCredits = resolvedPayload?.word_credits ?? resolvedPayload?.wordCredits;
+  const humanizerCredits = resolvedPayload?.humanizer_credits ?? resolvedPayload?.humanizerCredits;
+  const sourceCredits = resolvedPayload?.source_credits ?? resolvedPayload?.sourceCredits;
+
+  return [
+    { label: "Essay", value: Number(wordCredits ?? 50) },
+    { label: "Humanizer", value: Number(humanizerCredits ?? 50) },
+    { label: "Source", value: Number(sourceCredits ?? 5) },
+  ];
+}
+
 export default function PlanInfo({
   planName = "Guest",
   credits = defaultCredits,
   defaultExpanded = false,
 }: PlanInfoProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [resolvedPlanName, setResolvedPlanName] = useState(getDisplayPlanName(planName));
+  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(credits);
   const rootRef = useRef<HTMLDivElement>(null);
   const shellWidth = expanded ? 388 : 138;
-  const theme = getPlanTheme(planName);
+  const theme = getPlanTheme(resolvedPlanName);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -72,6 +124,64 @@ export default function PlanInfo({
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let stopStream: (() => void) | undefined;
+
+    const applyPayload = (payload?: MeResponse | StreamCreditsPayload | null) => {
+      if (cancelled || !payload) {
+        return;
+      }
+
+      if (payload.plan) {
+        setResolvedPlanName(getDisplayPlanName(payload.plan));
+      }
+      setResolvedCredits(mapMeToCredits(payload));
+    };
+
+    const boot = async () => {
+      const currentUser = AuthService.getCurrentUser();
+      if (!currentUser) {
+        setResolvedPlanName(getDisplayPlanName(planName));
+        setResolvedCredits(credits);
+        return;
+      }
+
+      try {
+        const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
+        applyPayload(me);
+      } catch {
+        // keep fallback values
+      }
+
+      try {
+        stopStream = await StreamService.connect({
+          onEvent: (event) => {
+            if (event.type !== "sync_credits" || !event.data) {
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(event.data) as StreamCreditsPayload;
+              applyPayload(parsed);
+            } catch {
+              // ignore malformed events
+            }
+          },
+        });
+      } catch {
+        // stream is optional; fallback stays functional without it
+      }
+    };
+
+    void boot();
+
+    return () => {
+      cancelled = true;
+      stopStream?.();
+    };
+  }, [credits, planName]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -91,7 +201,7 @@ export default function PlanInfo({
             <circle cx="12" cy="4.5" r="1" fill="currentColor" stroke="none" />
             <circle cx="19.5" cy="5.5" r="1" fill="currentColor" stroke="none" />
           </svg>
-          <span className="text-[0.9rem] font-semibold tracking-[-0.02em]">{planName}</span>
+          <span className="text-[0.9rem] font-semibold tracking-[-0.02em]">{resolvedPlanName}</span>
           <svg
             width="9"
             height="9"
@@ -112,7 +222,7 @@ export default function PlanInfo({
             expanded ? "max-w-[250px] opacity-100" : "max-w-0 opacity-0"
           }`}
         >
-          {credits.map((credit, index) => (
+          {resolvedCredits.map((credit, index) => (
             <span
               key={credit.label}
               className={`flex min-w-[82px] flex-col items-center justify-center px-2 text-center ${

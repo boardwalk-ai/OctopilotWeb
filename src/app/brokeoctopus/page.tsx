@@ -14,6 +14,15 @@ type MenuItem = {
 };
 
 type DataRow = Record<string, string | number | null>;
+type EditableSubscriptionRow = DataRow & {
+  userId?: string;
+  name?: string;
+  email?: string;
+  currentPlan?: string;
+  word?: string | number | null;
+  humanizer?: string | number | null;
+  source?: string | number | null;
+};
 type ControlCenterResponse = {
   quickMetrics: {
     totalUsers: number;
@@ -194,6 +203,107 @@ function getOrderedRowValues(sectionId: string, row: DataRow) {
   return keyOrder.map((key) => row[key] ?? "-");
 }
 
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+      <path d="M12 20h9" />
+      <path d="m16.5 3.5 4 4L8 20l-5 1 1-5 12.5-12.5Z" />
+    </svg>
+  );
+}
+
+function CreditEditModal({
+  row,
+  saving,
+  error,
+  onClose,
+  onSave,
+}: {
+  row: EditableSubscriptionRow;
+  saving: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSave: (payload: { wordCredits: number; humanizerCredits: number; sourceCredits: number }) => Promise<void>;
+}) {
+  const [wordCredits, setWordCredits] = useState(String(row.word ?? 0));
+  const [humanizerCredits, setHumanizerCredits] = useState(String(row.humanizer ?? 0));
+  const [sourceCredits, setSourceCredits] = useState(String(row.source ?? 0));
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4">
+      <div className="w-full max-w-[520px] rounded-[28px] border border-white/10 bg-[#0b0b0b] p-6 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Edit Credits</p>
+            <h2 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.05em] text-white">{row.name || row.email || "User"}</h2>
+            <p className="mt-2 text-sm text-white/45">{row.currentPlan || "Plan unavailable"}</p>
+          </div>
+          <button onClick={onClose} className="rounded-full border border-white/10 bg-[#141414] px-3 py-2 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white">
+            Close
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Word Credits</span>
+            <input
+              type="number"
+              min="0"
+              value={wordCredits}
+              onChange={(event) => setWordCredits(event.target.value)}
+              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Humanizer Credits</span>
+            <input
+              type="number"
+              min="0"
+              value={humanizerCredits}
+              onChange={(event) => setHumanizerCredits(event.target.value)}
+              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Source Credits</span>
+            <input
+              type="number"
+              min="0"
+              value={sourceCredits}
+              onChange={(event) => setSourceCredits(event.target.value)}
+              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+            />
+          </label>
+        </div>
+
+        {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() =>
+              onSave({
+                wordCredits: Number(wordCredits || 0),
+                humanizerCredits: Number(humanizerCredits || 0),
+                sourceCredits: Number(sourceCredits || 0),
+              })
+            }
+            disabled={saving}
+            className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save credits"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminLoginView({
   email,
   password,
@@ -274,6 +384,9 @@ export default function BrokeOctopusPage() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [editingRow, setEditingRow] = useState<EditableSubscriptionRow | null>(null);
+  const [isSavingCredits, setIsSavingCredits] = useState(false);
+  const [creditModalError, setCreditModalError] = useState<string | null>(null);
 
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
   const rows = data?.sections[activeSectionId] || [];
@@ -384,6 +497,67 @@ export default function BrokeOctopusPage() {
       setDashboardError(error instanceof Error ? error.message : "Failed to refresh admin data.");
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  const handleSaveCredits = async (payload: { wordCredits: number; humanizerCredits: number; sourceCredits: number }) => {
+    if (!editingRow?.userId) {
+      setCreditModalError("Missing user identifier for this row.");
+      return;
+    }
+
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setCreditModalError("You need to be signed in as an admin.");
+      return;
+    }
+
+    setIsSavingCredits(true);
+    setCreditModalError(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${editingRow.userId}/credits`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responsePayload = await response.json();
+      if (!response.ok) {
+        throw new Error(responsePayload.error || "Failed to update credits.");
+      }
+
+      setData((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          sections: {
+            ...current.sections,
+            "subscription-management": (current.sections["subscription-management"] || []).map((row) =>
+              row.userId === editingRow.userId
+                ? {
+                    ...row,
+                    word: payload.wordCredits,
+                    humanizer: payload.humanizerCredits,
+                    source: payload.sourceCredits,
+                  }
+                : row
+            ),
+          },
+        };
+      });
+
+      setEditingRow(null);
+    } catch (error) {
+      setCreditModalError(error instanceof Error ? error.message : "Failed to update credits.");
+    } finally {
+      setIsSavingCredits(false);
     }
   };
 
@@ -544,7 +718,24 @@ export default function BrokeOctopusPage() {
                       {rows.length > 0 ? (
                         rows.map((row, rowIndex) => (
                           <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
-                            {getOrderedRowValues(activeSection.id, row).map((cell, cellIndex) => (
+                            {keyOrderBySection[activeSection.id]?.map((key, cellIndex) => (
+                              <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
+                                {activeSection.id === "subscription-management" && key === "actions" && row.userId ? (
+                                  <button
+                                    onClick={() => {
+                                      setCreditModalError(null);
+                                      setEditingRow(row as EditableSubscriptionRow);
+                                    }}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
+                                    title="Edit credits"
+                                  >
+                                    <PencilIcon />
+                                  </button>
+                                ) : (
+                                  String(row[key] ?? "-")
+                                )}
+                              </td>
+                            )) || getOrderedRowValues(activeSection.id, row).map((cell, cellIndex) => (
                               <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
                                 {String(cell ?? "-")}
                               </td>
@@ -566,6 +757,20 @@ export default function BrokeOctopusPage() {
           </div>
         </section>
       </div>
+      {editingRow ? (
+        <CreditEditModal
+          row={editingRow}
+          saving={isSavingCredits}
+          error={creditModalError}
+          onClose={() => {
+            if (!isSavingCredits) {
+              setEditingRow(null);
+              setCreditModalError(null);
+            }
+          }}
+          onSave={handleSaveCredits}
+        />
+      ) : null}
     </main>
   );
 }
