@@ -418,24 +418,6 @@ export default function StoreButton() {
                           )}
                         </div>
 
-                        <div className="mt-4 flex-1 space-y-2.5">
-                          {plan.guestInclusions ? (
-                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-2.5 text-[0.88rem] text-neutral-400">
-                              Everything in Guest Plan, plus recurring credit refreshes.
-                            </div>
-                          ) : null}
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {plan.features.map((feature) => (
-                              <div key={feature} className="flex items-start gap-2.5 text-[0.88rem] leading-6 text-neutral-300">
-                                <span className={`mt-0.5 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border ${plan.accent} ${plan.accentText}`}>
-                                  <CheckIcon />
-                                </span>
-                                <span>{feature}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
                         <button
                           type="button"
                           disabled={plan.disabled}
@@ -447,6 +429,24 @@ export default function StoreButton() {
                         >
                           {plan.cta}
                         </button>
+
+                        <div className="mt-4 flex-1 space-y-2">
+                          {plan.guestInclusions ? (
+                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-2 text-[0.82rem] leading-5 text-neutral-400">
+                              Everything in Guest Plan, plus recurring credit refreshes.
+                            </div>
+                          ) : null}
+                          <div className="grid gap-x-3 gap-y-1.5 sm:grid-cols-2">
+                            {plan.features.map((feature) => (
+                              <div key={feature} className="flex items-start gap-2 text-[0.8rem] leading-5 text-neutral-300">
+                                <span className={`mt-0.5 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border ${plan.accent} ${plan.accentText}`}>
+                                  <CheckIcon />
+                                </span>
+                                <span>{feature}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </section>
                   ))}
