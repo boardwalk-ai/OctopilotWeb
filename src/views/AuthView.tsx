@@ -1,15 +1,37 @@
 "use client";
 
 import { FormEvent, MouseEvent, useState } from "react";
+import { AuthService } from "@/services/AuthService";
 
 export default function AuthView() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [cursor, setCursor] = useState({ x: 50, y: 50 });
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const isLogin = mode === "login";
+  const isBusy = isEmailLoading || isGoogleLoading;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
+    setIsEmailLoading(true);
+
+    try {
+      if (isLogin) {
+        await AuthService.signInWithEmail(email.trim(), password);
+      } else {
+        await AuthService.signUpWithEmail(fullName, email.trim(), password);
+      }
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Authentication failed.");
+    } finally {
+      setIsEmailLoading(false);
+    }
   };
 
   const handlePointerMove = (event: MouseEvent<HTMLElement>) => {
@@ -17,6 +39,19 @@ export default function AuthView() {
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     setCursor({ x, y });
+  };
+
+  const handleGoogle = async () => {
+    setError(null);
+    setIsGoogleLoading(true);
+
+    try {
+      await AuthService.signInWithGoogle();
+    } catch (googleError) {
+      setError(googleError instanceof Error ? googleError.message : "Google sign-in failed.");
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   return (
@@ -108,6 +143,7 @@ export default function AuthView() {
                   <button
                     type="button"
                     onClick={() => setMode("login")}
+                    disabled={isBusy}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                       isLogin
                         ? "bg-white text-black shadow-[0_14px_35px_rgba(255,255,255,0.12)]"
@@ -119,6 +155,7 @@ export default function AuthView() {
                   <button
                     type="button"
                     onClick={() => setMode("signup")}
+                    disabled={isBusy}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                       !isLogin
                         ? "bg-white text-black shadow-[0_14px_35px_rgba(255,255,255,0.12)]"
@@ -131,7 +168,9 @@ export default function AuthView() {
 
                 <button
                   type="button"
-                  className="group mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-3.5 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white"
+                  onClick={handleGoogle}
+                  disabled={isBusy}
+                  className="group mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-3.5 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -153,7 +192,7 @@ export default function AuthView() {
                       />
                     </svg>
                   </span>
-                  Continue with Google
+                  {isGoogleLoading ? "Connecting to Google..." : "Continue with Google"}
                   <span className="transition-transform duration-300 group-hover:translate-x-1">↗</span>
                 </button>
 
@@ -170,7 +209,12 @@ export default function AuthView() {
                       <input
                         type="text"
                         placeholder="Captain name"
+                        value={fullName}
+                        onChange={(event) => setFullName(event.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                        autoComplete="name"
+                        disabled={isBusy}
+                        required={!isLogin}
                       />
                     </label>
                   )}
@@ -180,7 +224,12 @@ export default function AuthView() {
                     <input
                       type="email"
                       placeholder="pilot@octopilotai.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
                       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                      autoComplete="email"
+                      disabled={isBusy}
+                      required
                     />
                   </label>
 
@@ -189,15 +238,27 @@ export default function AuthView() {
                     <input
                       type="password"
                       placeholder={isLogin ? "Enter your password" : "Choose a secure password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
                       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
+                      autoComplete={isLogin ? "current-password" : "new-password"}
+                      disabled={isBusy}
+                      required
                     />
                   </label>
 
+                  {error && (
+                    <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                      {error}
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)]"
+                    disabled={isBusy}
+                    className="w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isLogin ? "Enter Octopilot" : "Launch my account"}
+                    {isEmailLoading ? "Authorizing..." : isLogin ? "Enter Octopilot" : "Launch my account"}
                   </button>
                 </form>
 

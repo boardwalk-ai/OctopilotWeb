@@ -1,5 +1,5 @@
-import AuthView from "@/views/AuthView";
+import AuthGate from "@/components/AuthGate";
 
 export default function Home() {
-  return <AuthView />;
+  return <AuthGate />;
 }
