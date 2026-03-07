@@ -1,7 +1,7 @@
-// AuroraService — client-side service to invoke the Aurora outline generation agent.
+// LilyService — client-side service to invoke the Lily outline generation agent.
 
 import { Organizer } from "./OrganizerService";
-import { LunaService } from "./LunaService";
+import { HeinService } from "./HeinService";
 import { TestService } from "./TestService";
 
 export interface OutlineItem {
@@ -12,9 +12,9 @@ export interface OutlineItem {
 
 export type GenerateMode = "auto" | "build" | "single";
 
-export class AuroraService {
+export class LilyService {
     /**
-     * Generate outlines via Aurora.
+     * Generate outlines via Lily.
      * @param mode "auto" = 5 outlines, "build" = 1 custom, "single" = 1 of type
      * @param requestedType The paragraph type (for build/single modes)
      * @param customTitle User-provided topic (for build mode)
@@ -35,9 +35,9 @@ export class AuroraService {
         const state = Organizer.get();
 
         // Fetch API key + model from backend
-        const { apiKey, model } = await LunaService.fetchConfig();
+        const { apiKey, model } = await HeinService.fetchConfig();
 
-        const res = await fetch("/api/aurora/generate", {
+        const res = await fetch("/api/lily/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -56,7 +56,7 @@ export class AuroraService {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Aurora generation failed: ${res.status}`);
+            throw new Error(err.error || `Lily generation failed: ${res.status}`);
         }
 
         const data = await res.json();

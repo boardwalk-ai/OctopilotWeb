@@ -9,7 +9,7 @@ interface BackendKeyResponse {
     source_search_model?: string;
 }
 
-export interface JasmineSearchResult {
+export interface AlvinSearchResult {
     website_URL: string;
     Title: string;
     Author: string;
@@ -17,13 +17,13 @@ export interface JasmineSearchResult {
     Publisher: string;
 }
 
-export class JasmineService {
+export class AlvinService {
     private static async callSearchWithRetry(payload: object): Promise<Response> {
         let lastError: Error | null = null;
 
         for (let attempt = 0; attempt < 2; attempt++) {
             try {
-                const res = await fetch("/api/jasmine/search", {
+                const res = await fetch("/api/alvin/search", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
@@ -34,14 +34,14 @@ export class JasmineService {
                 const maybeRetryable = res.status >= 500 || res.status === 429;
                 if (!maybeRetryable || attempt === 1) return res;
             } catch (error) {
-                lastError = error instanceof Error ? error : new Error("Jasmine search request failed");
+                lastError = error instanceof Error ? error : new Error("Alvin search request failed");
                 if (attempt === 1) throw lastError;
             }
 
             await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
         }
 
-        throw lastError || new Error("Jasmine search request failed");
+        throw lastError || new Error("Alvin search request failed");
     }
 
     /**
@@ -69,8 +69,8 @@ export class JasmineService {
         const sourceModelSetting = settingsData.find(s => s.key === "source_search_model");
         const targetModel = sourceModelSetting?.value || keysData.secondary_model;
 
-        console.log("[Jasmine] source_search_model from DB:", sourceModelSetting?.value);
-        console.log("[Jasmine] Using model:", targetModel);
+        console.log("[Alvin] source_search_model from DB:", sourceModelSetting?.value);
+        console.log("[Alvin] Using model:", targetModel);
 
         if (!targetModel) {
             throw new Error("No source_search_model or secondary model configured in backend settings");
@@ -83,12 +83,12 @@ export class JasmineService {
     }
 
     /**
-     * Ask Jasmine to find academic sources based on the essay topic and outlines.
+     * Ask Alvin to find academic sources based on the essay topic and outlines.
      */
-    static async searchSources(targetCount: number): Promise<JasmineSearchResult[]> {
+    static async searchSources(targetCount: number): Promise<AlvinSearchResult[]> {
         if (TestService.isActive) {
             const mocks = await TestService.getSources();
-            return mocks as unknown as JasmineSearchResult[];
+            return mocks as unknown as AlvinSearchResult[];
         }
 
         const state = Organizer.get();
@@ -97,7 +97,7 @@ export class JasmineService {
             throw new Error("Essay Topic is missing. Cannot search for sources without a topic.");
         }
 
-        const { apiKey, model } = await JasmineService.fetchConfig();
+        const { apiKey, model } = await AlvinService.fetchConfig();
 
         const payload = {
             targetCount,
@@ -106,14 +106,14 @@ export class JasmineService {
             apiKey,
             model,
         };
-        const res = await JasmineService.callSearchWithRetry(payload);
+        const res = await AlvinService.callSearchWithRetry(payload);
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Jasmine search failed: ${res.status}`);
+            throw new Error(err.error || `Alvin search failed: ${res.status}`);
         }
 
-        const results: JasmineSearchResult[] = await res.json();
+        const results: AlvinSearchResult[] = await res.json();
         return results;
     }
 }

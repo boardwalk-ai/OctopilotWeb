@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         const safeTargetCount = Math.max(1, Math.min(20, Number(targetCount) || 1));
 
         // Read Alvin's system prompt from the agent file
-        const agentFile = path.resolve(process.cwd(), "agents/jasmine.md");
+        const agentFile = path.resolve(process.cwd(), "agents/alvin.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
         const userMessage = `
@@ -167,7 +167,7 @@ ${JSON.stringify(outlines, null, 2)}
         if (!response.ok) {
             const errorText = await response.text();
             console.error("[Alvin] OpenRouter error:", response.status, errorText);
-            fs.writeFileSync("/tmp/jasmine_error.log", `Status: ${response.status}\nError: ${errorText}\nPayload: ${JSON.stringify(payload, null, 2)}`);
+            fs.writeFileSync("/tmp/alvin_error.log", `Status: ${response.status}\nError: ${errorText}\nPayload: ${JSON.stringify(payload, null, 2)}`);
             return NextResponse.json(
                 { error: `OpenRouter API error: ${response.status}` },
                 { status: response.status }

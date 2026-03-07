@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { Organizer } from "@/services/OrganizerService";
-import { LunaService } from "@/services/LunaService";
+import { HeinService } from "@/services/HeinService";
 import { TestService } from "@/services/TestService";
 
 interface InstructionsViewProps {
@@ -41,7 +41,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         });
 
         try {
-            await LunaService.analyze();
+            await HeinService.analyze();
             onNext("outlines");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Analysis failed");

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Read Zuly's system prompt
-        const agentFile = path.resolve(process.cwd(), "agents/scarlet.md");
+        const agentFile = path.resolve(process.cwd(), "agents/zuly.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
         const userMessage = `Source Type: ${sourceType || "unknown"}\nSource Title: ${sourceTitle || "Unknown"}\n\nFull Content:\n${fullContent}`;

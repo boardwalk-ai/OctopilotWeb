@@ -6,9 +6,9 @@ import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer, SourceData } from "@/services/OrganizerService";
 import { CitationTemplateService } from "@/services/CitationTemplateService";
-import { JasmineService } from "@/services/JasmineService";
+import { AlvinService } from "@/services/AlvinService";
 import { ScraperService } from "@/services/ScraperService";
-import { ScarletService } from "@/services/ScarletService";
+import { ZulyService } from "@/services/ZulyService";
 import { SpoonieAuthorInput, SpoonieFieldworkCitationInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
 
@@ -17,7 +17,7 @@ interface ConfigurationViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
-type JasmineSourceMeta = {
+type AlvinSourceMeta = {
     Title?: string;
     Author?: string;
     "Published Year"?: string;
@@ -1324,7 +1324,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     // --- Search & Scrape Logic ---
-    const triggerScrape = async (index: number, url: string, jasmineMeta?: JasmineSourceMeta) => {
+    const triggerScrape = async (index: number, url: string, alvinMeta?: AlvinSourceMeta) => {
         try {
             const scrapeData = await ScraperService.scrape(url);
 
@@ -1332,10 +1332,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 const next = [...prev];
                 next[index] = {
                     ...next[index],
-                    title: scrapeData.title || jasmineMeta?.Title,
-                    author: scrapeData.author || jasmineMeta?.Author,
-                    publishedYear: scrapeData.publishedYear || jasmineMeta?.["Published Year"],
-                    publisher: scrapeData.publisher || jasmineMeta?.Publisher,
+                    title: scrapeData.title || alvinMeta?.Title,
+                    author: scrapeData.author || alvinMeta?.Author,
+                    publishedYear: scrapeData.publishedYear || alvinMeta?.["Published Year"],
+                    publisher: scrapeData.publisher || alvinMeta?.Publisher,
                     fullContent: scrapeData.fullContent,
                     status: "scraped"
                 };
@@ -1347,10 +1347,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 const next = [...prev];
                 const failedSrc: SourceData = {
                     ...next[index],
-                    title: jasmineMeta?.Title || "",
-                    author: jasmineMeta?.Author || "",
-                    publishedYear: jasmineMeta?.["Published Year"] || "",
-                    publisher: jasmineMeta?.Publisher || "",
+                    title: alvinMeta?.Title || "",
+                    author: alvinMeta?.Author || "",
+                    publishedYear: alvinMeta?.["Published Year"] || "",
+                    publisher: alvinMeta?.Publisher || "",
                     status: "failed"
                 };
                 next[index] = failedSrc;
@@ -1374,7 +1374,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
         setIsSearching(true);
         try {
-            const results = await JasmineService.searchSources(emptyIndices.length);
+            const results = await AlvinService.searchSources(emptyIndices.length);
 
             // Populate boxes with loading status immediately
             const newSources = [...manualSources];
@@ -2027,8 +2027,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             });
 
                             // Kick off Scarlet in background
-                            ScarletService.compactAllSources().catch(err =>
-                                console.error("[Scarlet] Background compaction error:", err)
+                            ZulyService.compactAllSources().catch(err =>
+                                console.error("[Zuly] Background compaction error:", err)
                             );
 
                             // Skip Format page if citation is "None"

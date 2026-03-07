@@ -41,7 +41,7 @@ Hein is triggered when the user presses the **Read** button on the Instructions 
 ```
 
 ## Architecture
-1. `LunaService.fetchConfig()` → calls `GET /api/v1/settings/api-keys` to get random API key + current model
-2. `LunaService.analyze()` → calls `/api/luna/analyze` (Next.js API route) with the key, model, and user data
-3. `/api/luna/analyze` → proxies the request to OpenRouter with Hein's system prompt
+1. `HeinService.fetchConfig()` → calls `GET /api/v1/settings/api-keys` to get random API key + current model
+2. `HeinService.analyze()` → calls `/api/hein/analyze` (Next.js API route) with the key, model, and user data
+3. `/api/hein/analyze` → proxies the request to OpenRouter with Hein's system prompt
 4. Results are stored in the Organizer for the Outlines page to consume

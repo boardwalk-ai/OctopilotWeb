@@ -12,7 +12,7 @@ type CompactionInput = {
     sourceType: "search" | "pdf" | "image" | "fieldwork" | "manual";
 };
 
-export class ScarletService {
+export class ZulyService {
     /**
      * Fetch the API key + secondary model from the backend.
      */
@@ -29,7 +29,7 @@ export class ScarletService {
     }
 
     /**
-     * Compact a single source's full content via the Scarlet API route.
+     * Compact a single source's full content via the Zuly API route.
      */
     static async compactSource(
         source: SourceData,
@@ -37,8 +37,8 @@ export class ScarletService {
         apiKey: string,
         model: string
     ): Promise<CompactedSource> {
-        const compactionInput = ScarletService.buildCompactionInput(source);
-        const res = await fetch("/api/scarlet/compact", {
+        const compactionInput = ZulyService.buildCompactionInput(source);
+        const res = await fetch("/api/zuly/compact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -52,7 +52,7 @@ export class ScarletService {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Scarlet compact failed: ${res.status}`);
+            throw new Error(err.error || `Zuly compact failed: ${res.status}`);
         }
 
         const result = await res.json();
@@ -148,7 +148,7 @@ export class ScarletService {
     }
 
     /**
-     * Run Scarlet on all scraped sources in the background.
+     * Run Zuly on all scraped sources in the background.
      * Updates Organizer.compactedSources as each completes.
      */
     static async compactAllSources(): Promise<void> {
@@ -174,30 +174,30 @@ export class ScarletService {
             .filter(({ source }) => source.status === "scraped" && source.fullContent);
 
         if (scrapedSources.length === 0) {
-            console.log("[Scarlet] No scraped sources to compact.");
+            console.log("[Zuly] No scraped sources to compact.");
             return;
         }
 
-        console.log(`[Scarlet] Compacting ${scrapedSources.length} sources...`);
+        console.log(`[Zuly] Compacting ${scrapedSources.length} sources...`);
 
-        const { apiKey, model } = await ScarletService.fetchConfig();
+        const { apiKey, model } = await ZulyService.fetchConfig();
 
         const results: CompactedSource[] = [];
 
         // Process sources one at a time to avoid rate limits
         for (const { source, index } of scrapedSources) {
             try {
-                console.log(`[Scarlet] Compacting source ${index}: ${source.title || source.url}`);
-                const compacted = await ScarletService.compactSource(source, index, apiKey, model);
+                console.log(`[Zuly] Compacting source ${index}: ${source.title || source.url}`);
+                const compacted = await ZulyService.compactSource(source, index, apiKey, model);
                 results.push(compacted);
 
                 // Update Organizer progressively
                 Organizer.set({ compactedSources: [...results] });
             } catch (err) {
-                console.error(`[Scarlet] Failed to compact source ${index}:`, err);
+                console.error(`[Zuly] Failed to compact source ${index}:`, err);
             }
         }
 
-        console.log(`[Scarlet] Done. Compacted ${results.length}/${scrapedSources.length} sources.`);
+        console.log(`[Zuly] Done. Compacted ${results.length}/${scrapedSources.length} sources.`);
     }
 }

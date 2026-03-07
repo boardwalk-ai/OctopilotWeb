@@ -9,7 +9,7 @@ export const TestService = {
     getInstructions: () => "Write a comprehensive essay detailing the architectural evolution of Bagan from the 9th to 13th centuries. Discuss the transition from Pyu influences to the distinct Pagan style, referencing specific monuments like the Ananda Temple.",
     getUploadedFileName: () => "Assignment_Prompt.pdf",
 
-    // 2. Luna Service Mock (Analysis)
+    // 2. Hein Service Mock (Analysis)
     getAnalysis: async () => {
         return {
             topic: "The Architectural Evolution of Bagan",
@@ -19,7 +19,7 @@ export const TestService = {
         };
     },
 
-    // 3. Aurora Service Mock (Outlines)
+    // 3. Lily Service Mock (Outlines)
     getOutlines: async () => {
         return [
             { title: "Historical Context", description: "The rise of the Pagan Empire and early Pyu influences.", type: "Introduction" },
@@ -40,7 +40,7 @@ export const TestService = {
         keywords: "pagoda, stupa, murals, stucco, UNESCO"
     }),
 
-    // 5. Jasmine Service Mock (Search)
+    // 5. Alvin Service Mock (Search)
     getSources: async () => {
         return [
             { url: "https://example.com/bagan-history", title: "History of Bagan", author: "Dr. Thant Myint-U", publisher: "Myanmar Historical Society", year: "2023", status: "scraped", fullContent: "Bagan was the capital of the Pagan Kingdom..." },

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer } from "@/services/OrganizerService";
-import { AuroraService, OutlineItem } from "@/services/AuroraService";
+import { LilyService, OutlineItem } from "@/services/LilyService";
 
 interface OutlinesViewProps {
     onBack: () => void;
@@ -96,7 +96,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
         setError(null);
         setIsGenerating(true);
         try {
-            const items = await AuroraService.generate("auto");
+            const items = await LilyService.generate("auto");
             insertOutlines(items);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Generation failed");
@@ -112,7 +112,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
         setError(null);
         setIsGenerating(true);
         try {
-            const items = await AuroraService.generate("build", buildType, buildTitle.trim());
+            const items = await LilyService.generate("build", buildType, buildTitle.trim());
             insertOutlines(items);
             setBuildTitle("");
         } catch (err) {
@@ -128,7 +128,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
         setError(null);
         setIsGenerating(true);
         try {
-            const items = await AuroraService.generate("single", type);
+            const items = await LilyService.generate("single", type);
             insertOutlines(items);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Generation failed");
