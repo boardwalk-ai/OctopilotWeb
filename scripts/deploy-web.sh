@@ -24,6 +24,10 @@ git fetch origin
 git checkout "${BRANCH}"
 git pull --ff-only origin "${BRANCH}"
 
+if systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
+  systemctl stop "${SERVICE_NAME}" || true
+fi
+
 npm ci
 npm run build
 
