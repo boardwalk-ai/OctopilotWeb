@@ -116,10 +116,19 @@ const sections: TableSection[] = [
       ["01", "OpenRouter", "sk-or-v1-397c...0d54", "Active"],
       ["02", "OpenRouter", "sk-or-v1-6837...3312", "Active"],
       ["03", "OpenRouter", "sk-or-v1-2e9b...79c9", "Active"],
-      ["04", "StealthGPT", "4eb8b6e9...d186", "Configured"],
-      ["05", "Undetectable", "9019253d...09fd", "Configured"],
+      ["04", "OpenRouter", "sk-or-v1-c07f...8625", "Active"],
+      ["05", "OpenRouter", "sk-or-v1-842a...df39", "Active"],
+      ["06", "OpenRouter", "sk-or-v1-6a19...6ebf", "Active"],
+      ["07", "OpenRouter", "sk-or-v1-3777...bbbd", "Active"],
+      ["08", "OpenRouter", "sk-or-v1-4070...f158", "Active"],
+      ["09", "OpenRouter", "sk-or-v1-1b12...d3bf", "Active"],
+      ["10", "OpenRouter", "sk-or-v1-dfef...e4dd", "Active"],
+      ["11", "OpenRouter", "sk-or-v1-d0df...52df", "Active"],
+      ["12", "OpenRouter", "sk-or-v1-8776...503f", "Active"],
+      ["13", "OpenRouter", "sk-or-v1-28be...9462", "Active"],
+      ["14", "OpenRouter", "sk-or-v1-6ec3...0ba1", "Active"],
     ],
-    badge: "Pool",
+    badge: "14 Keys",
   },
   {
     id: "usage-tracking",
@@ -159,12 +168,49 @@ function getSection(id: string) {
   return sections.find((section) => section.id === id) ?? sections[0];
 }
 
+function getQuickMetrics(sectionId: string) {
+  if (sectionId === "api-keys") {
+    return [
+      ["OpenRouter Keys", "14"],
+      ["Humanizers", "2"],
+      ["Pool Health", "Stable"],
+      ["Rotation", "Ready"],
+    ];
+  }
+
+  if (sectionId === "subscription-management") {
+    return [
+      ["Active Subs", "94"],
+      ["Renewals", "39"],
+      ["Failed Billing", "14"],
+      ["Plan Mix", "Pro-led"],
+    ];
+  }
+
+  if (sectionId === "reports") {
+    return [
+      ["Open Reports", "7"],
+      ["Escalated", "2"],
+      ["Avg Reply", "11m"],
+      ["Resolved", "42"],
+    ];
+  }
+
+  return [
+    ["Live Sessions", "218"],
+    ["Queued Reports", "7"],
+    ["Key Pool", "14"],
+    ["Renewals", "39"],
+  ];
+}
+
 export default function BrokeOctopusPage() {
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState(sections[0].id);
 
   const activeSection = getSection(activeSectionId);
+  const quickMetrics = getQuickMetrics(activeSectionId);
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -241,45 +287,66 @@ export default function BrokeOctopusPage() {
           <section className="flex min-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
             <aside
               className={`${
-                sidebarCollapsed ? "w-[92px]" : "w-[320px]"
-              } flex shrink-0 flex-col border-r border-white/8 bg-[#070707] transition-all duration-300`}
+                sidebarCollapsed ? "w-[92px]" : "w-[274px]"
+              } flex shrink-0 flex-col border-r border-white/8 bg-[#060606] transition-all duration-300`}
             >
-              <div className="flex items-center justify-between border-b border-white/8 px-4 py-4">
-                <div className={sidebarCollapsed ? "hidden" : "block"}>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">BrokeOctopus</p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white">Control Center</h2>
-                </div>
-                <button
-                  onClick={() => setSidebarCollapsed((value) => !value)}
-                  className="rounded-full border border-white/10 bg-[#121212] px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/72 transition hover:border-red-500/35 hover:text-white"
-                >
-                  {sidebarCollapsed ? "Open" : "Collapse"}
-                </button>
+              <div className="border-b border-white/8 px-4 py-4">
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35 ${sidebarCollapsed ? "text-center" : ""}`}>
+                  BrokeOctopus
+                </p>
+                {!sidebarCollapsed ? (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <h2 className="text-[1.9rem] font-semibold tracking-[-0.05em] text-white">Control Center</h2>
+                    <button
+                      onClick={() => setSidebarCollapsed((value) => !value)}
+                      className="rounded-full border border-white/10 bg-[#121212] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/72 transition hover:border-red-500/35 hover:text-white"
+                    >
+                      Collapse
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setSidebarCollapsed((value) => !value)}
+                    className="mt-3 w-full rounded-full border border-white/10 bg-[#121212] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/72 transition hover:border-red-500/35 hover:text-white"
+                  >
+                    Open
+                  </button>
+                )}
               </div>
 
-              <div className="flex-1 overflow-y-auto px-3 py-3">
-                <div className="space-y-2">
+              {!sidebarCollapsed ? (
+                <div className="border-b border-white/8 px-4 py-4">
+                  <div className="rounded-[22px] border border-red-500/18 bg-[#140b0b] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-200/70">Live Snapshot</div>
+                    <div className="mt-3 text-lg font-semibold text-white">Admin surfaces are staged for web launch.</div>
+                    <div className="mt-2 text-sm leading-6 text-white/48">Tables are shell-ready. Backend binding comes next.</div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex-1 overflow-y-auto px-2 py-3">
+                <div className="space-y-1.5">
                   {menuItems.map((item, index) => {
                     const isActive = item.id === activeSectionId;
                     return (
                       <button
                         key={item.id}
                         onClick={() => setActiveSectionId(item.id)}
-                        className={`flex w-full items-start gap-3 rounded-[20px] border px-3 py-3 text-left transition ${
+                        className={`flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition ${
                           isActive
-                            ? "border-red-500/40 bg-[#180b0b] text-white"
-                            : "border-white/8 bg-[#101010] text-white/72 hover:border-red-500/25 hover:text-white"
+                            ? "border-red-500/40 bg-[#140b0b] text-white"
+                            : "border-transparent bg-transparent text-white/58 hover:border-white/8 hover:bg-[#101010] hover:text-white"
                         }`}
                       >
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#050505] text-[11px] font-semibold text-red-300">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#0d0d0d] text-[10px] font-semibold text-red-300">
                           {String(index + 1).padStart(2, "0")}
                         </div>
-                        {!sidebarCollapsed && (
+                        {!sidebarCollapsed ? (
                           <div className="min-w-0">
                             <div className="text-sm font-semibold">{item.label}</div>
-                            <div className="mt-1 text-xs leading-5 text-white/42">{item.description}</div>
+                            <div className="mt-0.5 text-xs leading-5 text-white/38">{item.description}</div>
                           </div>
-                        )}
+                        ) : null}
                       </button>
                     );
                   })}
@@ -316,8 +383,28 @@ export default function BrokeOctopusPage() {
                 </div>
               </div>
 
-              <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[1.45fr_0.8fr] lg:p-6">
-                <section className="min-w-0 rounded-[26px] border border-white/8 bg-[#101010]">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
+                <section className="mb-4 rounded-[26px] border border-white/8 bg-[#101010] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Quick Metrics</div>
+                      <div className="mt-2 text-lg font-semibold text-white">Live admin pulse for {activeSection.title.toLowerCase()}.</div>
+                    </div>
+                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">Topline</div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {quickMetrics.map(([label, value]) => (
+                      <div key={label} className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">{label}</div>
+                        <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <div className="grid gap-4 xl:grid-cols-[1.38fr_0.62fr]">
+                  <section className="min-w-0 rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
@@ -363,41 +450,33 @@ export default function BrokeOctopusPage() {
                       </tbody>
                     </table>
                   </div>
-                </section>
+                  </section>
 
-                <section className="space-y-4">
-                  <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Quick Metrics</div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                      {[
-                        ["Live Sessions", "218"],
-                        ["Queued Reports", "7"],
-                        ["Renewals This Week", "39"],
-                        ["Key Pool Health", "Stable"],
-                      ].map(([label, value]) => (
-                        <div key={label} className="rounded-[18px] border border-white/8 bg-[#161616] px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">{label}</div>
-                          <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">{value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
+                  <section className="space-y-4">
+                    <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Section Brief</div>
+                      <div className="mt-4 rounded-[20px] border border-white/8 bg-[#151515] px-4 py-4">
+                        <div className="text-lg font-semibold text-white">{activeSection.title}</div>
+                        <p className="mt-2 text-sm leading-6 text-white/48">{activeSection.subtitle}</p>
+                      </div>
+                    </article>
 
-                  <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Operator Notes</div>
-                    <div className="mt-4 space-y-3">
-                      {[
-                        "Stripe webhooks are next backend task after domain cutover.",
-                        "Promo area and system settings remain intentionally deferred.",
-                        "Admin auth should be locked before exposing this route publicly.",
-                      ].map((note) => (
-                        <div key={note} className="rounded-[18px] border border-red-500/18 bg-[#160c0c] px-4 py-3 text-sm leading-6 text-white/78">
-                          {note}
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                </section>
+                    <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Operator Notes</div>
+                      <div className="mt-4 space-y-3">
+                        {[
+                          "Stripe webhooks are next backend task after domain cutover.",
+                          "Promo area and system settings remain intentionally deferred.",
+                          "Admin auth should be locked before exposing this route publicly.",
+                        ].map((note) => (
+                          <div key={note} className="rounded-[18px] border border-red-500/18 bg-[#160c0c] px-4 py-3 text-sm leading-6 text-white/78">
+                            {note}
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  </section>
+                </div>
               </div>
             </div>
           </section>
