@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 type MenuItem = {
   id: string;
   label: string;
   description: string;
+  icon: JSX.Element;
 };
 
 type TableSection = {
@@ -18,17 +20,17 @@ type TableSection = {
 };
 
 const menuItems: MenuItem[] = [
-  { id: "user-management", label: "User Management", description: "Accounts, status, and roles" },
-  { id: "subscription-management", label: "Subscription Management", description: "Plans, billing, and credits" },
-  { id: "reports", label: "Reports", description: "Support and issue intake" },
-  { id: "metadata", label: "Metadata", description: "Sessions and activity health" },
-  { id: "market-data", label: "Market Data", description: "Customer footprint snapshot" },
-  { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes" },
-  { id: "promo-area", label: "Promo Area", description: "Implement later" },
-  { id: "api-keys", label: "API Keys", description: "Key pool from database" },
-  { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator actions" },
-  { id: "analytics", label: "Analytics", description: "Performance and growth trends" },
-  { id: "system-settings", label: "System Settings", description: "Implement later" },
+  { id: "user-management", label: "User Management", description: "Accounts, status, and roles", icon: <UsersIcon /> },
+  { id: "subscription-management", label: "Subscription Management", description: "Plans, billing, and credits", icon: <CreditCardIcon /> },
+  { id: "reports", label: "Reports", description: "Support and issue intake", icon: <FlagIcon /> },
+  { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon /> },
+  { id: "market-data", label: "Market Data", description: "Customer footprint snapshot", icon: <GlobeIcon /> },
+  { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes", icon: <ReceiptIcon /> },
+  { id: "promo-area", label: "Promo Area", description: "Implement later", icon: <TagIcon /> },
+  { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon /> },
+  { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator actions", icon: <ChartIcon /> },
+  { id: "analytics", label: "Analytics", description: "Performance and growth trends", icon: <PulseIcon /> },
+  { id: "system-settings", label: "System Settings", description: "Implement later", icon: <SettingsIcon /> },
 ];
 
 const sections: TableSection[] = [
@@ -168,6 +170,139 @@ function getSection(id: string) {
   return sections.find((section) => section.id === id) ?? sections[0];
 }
 
+function IconFrame({ children }: { children: ReactNode }) {
+  return <span className="inline-flex h-4 w-4 items-center justify-center">{children}</span>;
+}
+
+function UsersIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+        <circle cx="9.5" cy="7" r="3.5" />
+        <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M14 3.2a3.5 3.5 0 0 1 0 6.6" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function CreditCardIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+        <path d="M2.5 9.5h19" />
+        <path d="M7 15h3" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M5 21V5" />
+        <path d="M5 5c5-3 9 3 14 0v9c-5 3-9-3-14 0" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5v5l3 1.8" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M3.5 12h17" />
+        <path d="M12 3.5c2.8 2.7 4.2 5.6 4.2 8.5S14.8 17.8 12 20.5C9.2 17.8 7.8 14.9 7.8 12S9.2 6.2 12 3.5Z" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M6 3.5h12v17l-2.5-1.7-2.5 1.7-2.5-1.7-2.5 1.7V3.5Z" />
+        <path d="M9 8h6" />
+        <path d="M9 12h6" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function TagIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M20.5 13 11 22.5 2.5 14V3.5H13L20.5 11a1.4 1.4 0 0 1 0 2Z" />
+        <circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function KeyIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <circle cx="8" cy="15" r="3.5" />
+        <path d="M11.5 15H21" />
+        <path d="M18 12v6" />
+        <path d="M15 13.5v3" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M4 19.5h16" />
+        <path d="M7 16v-4" />
+        <path d="M12 16V8" />
+        <path d="M17 16v-7" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function PulseIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M3 12h4l2-4 4 8 2-4h6" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .5-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.5H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6Z" />
+      </svg>
+    </IconFrame>
+  );
+}
+
 function getQuickMetrics(sectionId: string) {
   if (sectionId === "api-keys") {
     return [
@@ -213,8 +348,8 @@ export default function BrokeOctopusPage() {
   const quickMetrics = getQuickMetrics(activeSectionId);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] px-4 py-4 lg:px-6">
+    <main className="h-screen overflow-hidden bg-[#050505] text-white">
+      <div className="mx-auto flex h-screen w-full max-w-[1680px] px-4 py-4 lg:px-6">
         {!controlCenterOpen ? (
           <section className="flex w-full flex-col rounded-[30px] border border-white/8 bg-[#090909] p-6 shadow-[0_32px_80px_rgba(0,0,0,0.45)] lg:p-8">
             <div className="flex flex-col gap-5 border-b border-white/8 pb-6 lg:flex-row lg:items-end lg:justify-between">
@@ -284,7 +419,7 @@ export default function BrokeOctopusPage() {
             </div>
           </section>
         ) : (
-          <section className="flex min-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
+          <section className="flex h-[calc(100vh-2rem)] w-full overflow-hidden rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
             <aside
               className={`${
                 sidebarCollapsed ? "w-[92px]" : "w-[274px]"
@@ -314,19 +449,9 @@ export default function BrokeOctopusPage() {
                 )}
               </div>
 
-              {!sidebarCollapsed ? (
-                <div className="border-b border-white/8 px-4 py-4">
-                  <div className="rounded-[22px] border border-red-500/18 bg-[#140b0b] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-200/70">Live Snapshot</div>
-                    <div className="mt-3 text-lg font-semibold text-white">Admin surfaces are staged for web launch.</div>
-                    <div className="mt-2 text-sm leading-6 text-white/48">Tables are shell-ready. Backend binding comes next.</div>
-                  </div>
-                </div>
-              ) : null}
-
               <div className="flex-1 overflow-y-auto px-2 py-3">
                 <div className="space-y-1.5">
-                  {menuItems.map((item, index) => {
+                  {menuItems.map((item) => {
                     const isActive = item.id === activeSectionId;
                     return (
                       <button
@@ -338,8 +463,8 @@ export default function BrokeOctopusPage() {
                             : "border-transparent bg-transparent text-white/58 hover:border-white/8 hover:bg-[#101010] hover:text-white"
                         }`}
                       >
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#0d0d0d] text-[10px] font-semibold text-red-300">
-                          {String(index + 1).padStart(2, "0")}
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-[#0d0d0d] text-red-300">
+                          {item.icon}
                         </div>
                         {!sidebarCollapsed ? (
                           <div className="min-w-0">
@@ -404,7 +529,7 @@ export default function BrokeOctopusPage() {
                 </section>
 
                 <div className="grid gap-4 xl:grid-cols-[1.38fr_0.62fr]">
-                  <section className="min-w-0 rounded-[26px] border border-white/8 bg-[#101010]">
+                  <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
@@ -420,7 +545,7 @@ export default function BrokeOctopusPage() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto">
+                  <div className="max-h-[calc(100vh-23rem)] overflow-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="border-b border-white/8 bg-[#0c0c0c]">
@@ -453,14 +578,6 @@ export default function BrokeOctopusPage() {
                   </section>
 
                   <section className="space-y-4">
-                    <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Section Brief</div>
-                      <div className="mt-4 rounded-[20px] border border-white/8 bg-[#151515] px-4 py-4">
-                        <div className="text-lg font-semibold text-white">{activeSection.title}</div>
-                        <p className="mt-2 text-sm leading-6 text-white/48">{activeSection.subtitle}</p>
-                      </div>
-                    </article>
-
                     <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Operator Notes</div>
                       <div className="mt-4 space-y-3">
