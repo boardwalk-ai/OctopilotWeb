@@ -1105,7 +1105,7 @@ export default function BrokeOctopusPage() {
                                   >
                                     <PencilIcon />
                                   </button>
-                                ) : activeSection.id === "reports" && key === "action" && (row as ReportRow).reportId ? (
+                                ) : activeSection.id === "reports" && key === "action" ? (
                                   <button
                                     onClick={() => {
                                       setReportModalError(null);
