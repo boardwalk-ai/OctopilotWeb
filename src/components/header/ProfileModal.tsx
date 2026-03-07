@@ -53,7 +53,7 @@ function PillOtpInput({
   const chars = Array.from({ length }, (_, index) => value[index] || "");
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {chars.map((char, index) => (
         <input
           key={`${length}-${index}`}
@@ -75,7 +75,7 @@ function PillOtpInput({
               event.currentTarget.previousElementSibling.focus();
             }
           }}
-          className="h-12 w-11 rounded-full border border-white/12 bg-white/[0.03] text-center text-base font-semibold text-white outline-none transition focus:border-red-500/55 focus:bg-white/[0.06]"
+          className="h-11 w-10 rounded-full border border-white/12 bg-white/[0.03] text-center text-sm font-semibold text-white outline-none transition focus:border-red-500/55 focus:bg-white/[0.06] sm:h-12 sm:w-11 sm:text-base"
         />
       ))}
     </div>
@@ -104,7 +104,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-8">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-6 lg:px-8">
       <button
         type="button"
         aria-label="Close profile modal"
@@ -112,13 +112,16 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
         onClick={onClose}
       />
 
-      <section className="relative z-10 w-full max-w-[32rem] rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,16,16,0.98),rgba(5,5,5,0.99))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.65)]">
+      <section className="relative z-10 w-full max-w-[min(92vw,74rem)] rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,16,16,0.98),rgba(5,5,5,0.99))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.65)]">
         <div className="absolute inset-0 rounded-[34px] bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.15),transparent_32%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.05),transparent_42%)]" />
-        <div className="relative rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.01))] p-5 sm:p-6">
+
+        <div className="relative max-h-[min(86vh,46rem)] overflow-y-auto rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.01))] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/42">Profile Access</p>
-              <h2 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white">Your cockpit</h2>
+              <h2 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white sm:text-[2.5rem]">
+                Your cockpit
+              </h2>
             </div>
             <button
               type="button"
@@ -129,96 +132,102 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
             </button>
           </div>
 
-          <div className="mt-6 flex items-center gap-4 rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black text-xl font-semibold text-white">
-              {user?.photoURL ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.photoURL} alt={user.displayName || user.email || "User"} className="h-full w-full object-cover" />
-              ) : (
-                initials
-              )}
+          <div className="mt-5 grid gap-4 xl:grid-cols-[1.18fr_0.82fr]">
+            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black text-xl font-semibold text-white">
+                  {user?.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.photoURL} alt={user.displayName || user.email || "User"} className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xl font-semibold text-white">{user?.displayName || "Octopilot User"}</div>
+                  <div className="mt-1 truncate text-sm text-white/52">{user?.email || "Not signed in"}</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-red-100">
+                      {formatPlanName(user)}
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-white/58">
+                      {user?.emailVerified ? "Verified" : "Unverified"}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xl font-semibold text-white">{user?.displayName || "Octopilot User"}</div>
-              <div className="mt-1 truncate text-sm text-white/52">{user?.email || "Not signed in"}</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <div className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-red-100">
-                  {formatPlanName(user)}
-                </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-white/58">
-                  {user?.emailVerified ? "Verified" : "Unverified"}
-                </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Information</div>
+                <div className="mt-3 text-lg font-semibold text-white">{formatPlanName(user)}</div>
+              </div>
+              <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Expiration Date</div>
+                <div className="mt-3 text-lg font-semibold text-white">{formatPlanExpiry(user)}</div>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Information</div>
-              <div className="mt-3 text-lg font-semibold text-white">{formatPlanName(user)}</div>
-            </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Plan Expiration Date</div>
-              <div className="mt-3 text-lg font-semibold text-white">{formatPlanExpiry(user)}</div>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Redeem Area</div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <PillOtpInput length={6} value={redeemCode} onChange={setRedeemCode} />
-              <button
-                type="button"
-                className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
-              >
-                Redeem
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-sm leading-7 text-white/72">
-              <button
-                type="button"
-                onClick={() => setReferralMode("refer")}
-                className={`underline decoration-white/30 underline-offset-4 transition ${referralMode === "refer" ? "text-red-500" : "text-white/75 hover:text-white"}`}
-              >
-                Refer Octopilot AI
-              </button>{" "}
-              to someone or{" "}
-              <button
-                type="button"
-                onClick={() => setReferralMode("redeem")}
-                className={`underline decoration-white/30 underline-offset-4 transition ${referralMode === "redeem" ? "text-red-500" : "text-white/75 hover:text-white"}`}
-              >
-                redeem your referral
-              </button>
-              ?
-            </p>
-
-            {referralMode === "refer" ? (
-              <div className="mt-4 rounded-[22px] border border-red-500/18 bg-red-500/[0.06] p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Your Referral Code</div>
-                <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
-                  {referralCode}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
-              </div>
-            ) : (
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <PillOtpInput length={5} value={referralRedeemCode} onChange={setReferralRedeemCode} />
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
+            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Redeem Area</div>
+              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <PillOtpInput length={6} value={redeemCode} onChange={setRedeemCode} />
                 <button
                   type="button"
-                  className="rounded-full border border-white/12 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
+                  className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
                 >
                   Redeem
                 </button>
               </div>
-            )}
+            </div>
+
+            <div className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm leading-7 text-white/72">
+                <button
+                  type="button"
+                  onClick={() => setReferralMode("refer")}
+                  className={`underline decoration-white/30 underline-offset-4 transition ${referralMode === "refer" ? "text-red-500" : "text-white/75 hover:text-white"}`}
+                >
+                  Refer Octopilot AI
+                </button>{" "}
+                to someone or{" "}
+                <button
+                  type="button"
+                  onClick={() => setReferralMode("redeem")}
+                  className={`underline decoration-white/30 underline-offset-4 transition ${referralMode === "redeem" ? "text-red-500" : "text-white/75 hover:text-white"}`}
+                >
+                  redeem your referral
+                </button>
+                ?
+              </p>
+
+              {referralMode === "refer" ? (
+                <div className="mt-4 rounded-[22px] border border-red-500/18 bg-red-500/[0.06] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Your Referral Code</div>
+                  <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-4 py-2 text-lg font-semibold tracking-[0.26em] text-white">
+                    {referralCode}
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-white/65">Share this with your friends for rewards.</p>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <PillOtpInput length={5} value={referralRedeemCode} onChange={setReferralRedeemCode} />
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/12 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
+                  >
+                    Redeem
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               className="flex-1 rounded-full border border-white/12 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
