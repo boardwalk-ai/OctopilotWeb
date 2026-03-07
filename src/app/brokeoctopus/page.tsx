@@ -231,57 +231,57 @@ function CreditEditModal({
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4">
-      <div className="w-full max-w-[520px] rounded-[28px] border border-white/10 bg-[#0b0b0b] p-6 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+      <div className="w-full max-w-[580px] rounded-[28px] border border-white/10 bg-[#0b0b0b] p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Edit Credits</p>
             <h2 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.05em] text-white">{row.name || row.email || "User"}</h2>
             <p className="mt-2 text-sm text-white/45">{row.currentPlan || "Plan unavailable"}</p>
           </div>
-          <button onClick={onClose} className="rounded-full border border-white/10 bg-[#141414] px-3 py-2 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white">
+          <button onClick={onClose} className="rounded-full border border-white/10 bg-[#141414] px-4 py-2.5 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white">
             Close
           </button>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <label className="block">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Word Credits</span>
+        <div className="mt-7 grid gap-4 md:grid-cols-3">
+          <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
+            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Word Credits</span>
             <input
               type="number"
               min="0"
               value={wordCredits}
               onChange={(event) => setWordCredits(event.target.value)}
-              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+              className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
             />
           </label>
-          <label className="block">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Humanizer Credits</span>
+          <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
+            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Humanizer Credits</span>
             <input
               type="number"
               min="0"
               value={humanizerCredits}
               onChange={(event) => setHumanizerCredits(event.target.value)}
-              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+              className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
             />
           </label>
-          <label className="block">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">Source Credits</span>
+          <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
+            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Source Credits</span>
             <input
               type="number"
               min="0"
               value={sourceCredits}
               onChange={(event) => setSourceCredits(event.target.value)}
-              className="w-full rounded-[18px] border border-white/10 bg-[#151515] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+              className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
             />
           </label>
         </div>
 
         {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
 
-        <div className="mt-6 flex items-center justify-end gap-3">
+        <div className="mt-7 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
+            className="min-w-[132px] rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
           >
             Cancel
           </button>
@@ -294,7 +294,7 @@ function CreditEditModal({
               })
             }
             disabled={saving}
-            className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-w-[168px] rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save credits"}
           </button>
