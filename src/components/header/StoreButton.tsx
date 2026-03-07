@@ -266,19 +266,19 @@ export default function StoreButton() {
       {open ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <div
-            className="relative flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[#090909] shadow-[0_40px_120px_rgba(0,0,0,0.58)]"
+            className="relative flex h-[88vh] w-full max-w-[1680px] flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[#090909] shadow-[0_40px_120px_rgba(0,0,0,0.58)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_24%),#090909] px-6 py-6 sm:px-8">
+            <div className="border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_24%),#090909] px-6 py-5 sm:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-2xl">
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-neutral-400">
                     Octopilot Store
                   </div>
-                  <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-[2.5rem]">
+                  <h2 className="text-[2.15rem] font-semibold leading-[1.02] tracking-[-0.05em] text-white sm:text-[2.5rem]">
                     Pick a plan, then layer in credits only when you need them.
                   </h2>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-400 sm:text-[0.95rem]">
+                  <p className="mt-2 max-w-2xl text-[0.92rem] leading-6 text-neutral-400">
                     Clean subscription tiers for recurring access, plus add-on packs for moments when your monthly bucket runs dry before refresh.
                   </p>
                 </div>
@@ -292,19 +292,19 @@ export default function StoreButton() {
                 </button>
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
                   <button
                     type="button"
                     onClick={() => setTab("plans")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${tab === "plans" ? "bg-white text-neutral-950" : "text-neutral-400 hover:text-white"}`}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "plans" ? "bg-white text-neutral-950" : "text-neutral-400 hover:text-white"}`}
                   >
                     Plans
                   </button>
                   <button
                     type="button"
                     onClick={() => setTab("addons")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${tab === "addons" ? "bg-white text-neutral-950" : "text-neutral-400 hover:text-white"}`}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${tab === "addons" ? "bg-white text-neutral-950" : "text-neutral-400 hover:text-white"}`}
                   >
                     Add-on Store
                   </button>
@@ -312,7 +312,7 @@ export default function StoreButton() {
 
                 <div className="flex flex-wrap gap-2">
                   {creditRules.map((rule) => (
-                    <span key={rule} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-neutral-400">
+                    <span key={rule} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.78rem] font-medium text-neutral-400">
                       {rule}
                     </span>
                   ))}
@@ -320,21 +320,21 @@ export default function StoreButton() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+            <div className="min-h-0 flex-1 overflow-hidden px-6 py-5 sm:px-8">
               {tab === "plans" ? (
-                <div className="grid gap-5 xl:grid-cols-[1.05fr_1.05fr_1.15fr]">
+                <div className="grid h-full gap-4 xl:grid-cols-3">
                   {renderedPlanCards.map((plan) => (
                     <section
                       key={plan.key}
                       className={`relative overflow-hidden rounded-[28px] border bg-[#101010] shadow-[0_18px_50px_rgba(0,0,0,0.28)] ${plan.accent}`}
                     >
-                      <div className="relative flex h-full flex-col p-6">
+                      <div className="relative flex h-full flex-col p-5">
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${plan.accentText}`}>
                               {plan.name}
                             </p>
-                            <p className="mt-3 text-sm leading-6 text-neutral-400">{plan.blurb}</p>
+                            <p className="mt-2 line-clamp-3 text-[0.92rem] leading-7 text-neutral-400">{plan.blurb}</p>
                           </div>
                           {plan.activeBilling?.badge ? (
                             <span className="rounded-full bg-red-500 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white">
@@ -344,7 +344,7 @@ export default function StoreButton() {
                         </div>
 
                         {plan.billing?.length ? (
-                          <div className="mt-5 inline-flex flex-wrap gap-2 rounded-[20px] border border-white/8 bg-white/[0.04] p-2">
+                          <div className="mt-4 inline-flex flex-wrap gap-2 rounded-[20px] border border-white/8 bg-white/[0.04] p-2">
                             {plan.billing.map((option) => {
                               const active = option.key === plan.activeBilling?.key;
                               return (
@@ -352,7 +352,7 @@ export default function StoreButton() {
                                   key={option.key}
                                   type="button"
                                   onClick={() => setSelectedBilling((current) => ({ ...current, [plan.key]: option.key }))}
-                                  className={`rounded-2xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                                  className={`rounded-2xl px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.16em] transition ${
                                     active
                                       ? "bg-white text-neutral-950 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
                                       : "bg-transparent text-neutral-500 hover:text-white"
@@ -365,79 +365,81 @@ export default function StoreButton() {
                           </div>
                         ) : null}
 
-                        <div className="mt-6 rounded-[24px] border border-white/8 bg-[#141414] px-5 py-5 text-white">
+                        <div className="mt-4 rounded-[24px] border border-white/8 bg-[#141414] px-4 py-4 text-white">
                           {plan.activeBilling ? (
                             <>
                               <div className="flex items-end gap-2">
-                                <span className="text-4xl font-semibold tracking-[-0.05em]">{plan.activeBilling.price}</span>
-                                <span className="pb-1 text-sm text-white/60">{plan.activeBilling.unit}</span>
+                                <span className="text-[2.15rem] font-semibold tracking-[-0.05em]">{plan.activeBilling.price}</span>
+                                <span className="pb-1 text-[0.92rem] text-white/60">{plan.activeBilling.unit}</span>
                               </div>
                               {plan.activeBilling.struck ? (
-                                <p className="mt-2 text-sm text-white/45 line-through">{plan.activeBilling.struck}</p>
+                                <p className="mt-1 text-[0.92rem] text-white/45 line-through">{plan.activeBilling.struck}</p>
                               ) : (
-                                <p className="mt-2 text-sm text-white/45">{plan.disabled ? "Included by default on signup" : "Recurring Stripe subscription"}</p>
+                                <p className="mt-1 text-[0.92rem] text-white/45">{plan.disabled ? "Included by default on signup" : "Recurring Stripe subscription"}</p>
                               )}
 
-                              <div className="mt-5 grid grid-cols-3 gap-3">
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                              <div className="mt-4 grid grid-cols-3 gap-2.5">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.6rem] uppercase tracking-[0.18em] text-white/45">Word</p>
-                                  <p className="mt-2 text-lg font-semibold">{plan.activeBilling.credits.word}</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">{plan.activeBilling.credits.word}</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.57rem] uppercase tracking-[0.12em] text-white/45">Humanizer</p>
-                                  <p className="mt-2 text-lg font-semibold">{plan.activeBilling.credits.humanizer}</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">{plan.activeBilling.credits.humanizer}</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.6rem] uppercase tracking-[0.18em] text-white/45">Source</p>
-                                  <p className="mt-2 text-lg font-semibold">{plan.activeBilling.credits.source}</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">{plan.activeBilling.credits.source}</p>
                                 </div>
                               </div>
                             </>
                           ) : (
                             <>
                               <div className="flex items-end gap-2">
-                                <span className="text-4xl font-semibold tracking-[-0.05em]">Free</span>
-                                <span className="pb-1 text-sm text-white/60">default access</span>
+                                <span className="text-[2.15rem] font-semibold tracking-[-0.05em]">Free</span>
+                                <span className="pb-1 text-[0.92rem] text-white/60">default access</span>
                               </div>
-                              <p className="mt-3 text-sm text-white/45">Starter access assigned automatically when a new user signs in.</p>
-                              <div className="mt-5 grid grid-cols-3 gap-3">
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                              <p className="mt-2 text-[0.92rem] text-white/45">Starter access assigned automatically when a new user signs in.</p>
+                              <div className="mt-4 grid grid-cols-3 gap-2.5">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.6rem] uppercase tracking-[0.18em] text-white/45">Word</p>
-                                  <p className="mt-2 text-lg font-semibold">50</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">50</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.57rem] uppercase tracking-[0.12em] text-white/45">Humanizer</p>
-                                  <p className="mt-2 text-lg font-semibold">50</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">50</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
                                   <p className="text-[0.6rem] uppercase tracking-[0.18em] text-white/45">Source</p>
-                                  <p className="mt-2 text-lg font-semibold">5</p>
+                                  <p className="mt-2 text-[1.6rem] font-semibold leading-none">5</p>
                                 </div>
                               </div>
                             </>
                           )}
                         </div>
 
-                        <div className="mt-6 flex-1 space-y-3">
+                        <div className="mt-4 flex-1 space-y-2.5">
                           {plan.guestInclusions ? (
-                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-neutral-400">
+                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-2.5 text-[0.88rem] text-neutral-400">
                               Everything in Guest Plan, plus recurring credit refreshes.
                             </div>
                           ) : null}
-                          {plan.features.map((feature) => (
-                            <div key={feature} className="flex items-start gap-3 text-sm text-neutral-300">
-                              <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border ${plan.accent} ${plan.accentText}`}>
-                                <CheckIcon />
-                              </span>
-                              <span>{feature}</span>
-                            </div>
-                          ))}
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {plan.features.map((feature) => (
+                              <div key={feature} className="flex items-start gap-2.5 text-[0.88rem] leading-6 text-neutral-300">
+                                <span className={`mt-0.5 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border ${plan.accent} ${plan.accentText}`}>
+                                  <CheckIcon />
+                                </span>
+                                <span>{feature}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         <button
                           type="button"
                           disabled={plan.disabled}
-                          className={`mt-6 inline-flex h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
+                          className={`mt-4 inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
                             plan.disabled
                               ? "cursor-not-allowed border border-white/8 bg-white/[0.04] text-neutral-500"
                               : "bg-white text-neutral-950 hover:bg-neutral-200"
@@ -450,13 +452,13 @@ export default function StoreButton() {
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-5 xl:grid-cols-[1.2fr_1.2fr_1.2fr_0.9fr]">
+                <div className="grid h-full gap-4 xl:grid-cols-[1.2fr_1.2fr_1.2fr_0.9fr]">
                   {addOnGroups.map((group) => (
-                    <section key={group.title} className="rounded-[28px] border border-white/8 bg-[#101010] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+                    <section key={group.title} className="rounded-[28px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
                       <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${group.accent}`}>{group.title}</p>
                       <div className="mt-5 space-y-3">
                         {group.packs.map((pack) => (
-                          <div key={pack.label} className="rounded-2xl border border-white/8 bg-white/[0.04] p-4">
+                          <div key={pack.label} className="rounded-2xl border border-white/8 bg-white/[0.04] p-3.5">
                             <div className="flex items-center justify-between gap-4">
                               <div>
                                 <p className="text-sm font-semibold text-white">{pack.label}</p>
@@ -470,7 +472,7 @@ export default function StoreButton() {
                     </section>
                   ))}
 
-                  <aside className="rounded-[28px] border border-white/8 bg-[#101010] p-6 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+                  <aside className="rounded-[28px] border border-white/8 bg-[#101010] p-5 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">How add-ons work</p>
                     <div className="mt-5 space-y-4 text-sm leading-6 text-white/72">
                       <p>Add-ons are one-time purchases. They sit on top of your subscription bucket and are ideal when your refresh date is still far away.</p>
