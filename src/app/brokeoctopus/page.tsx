@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
+import { StreamService } from "@/services/StreamService";
 
 type MenuItem = {
   id: string;
@@ -23,6 +24,15 @@ type EditableSubscriptionRow = DataRow & {
   humanizer?: string | number | null;
   source?: string | number | null;
 };
+type ReportRow = DataRow & {
+  reportId?: string;
+  email?: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string | null;
+  status?: string;
+  timestamp?: string;
+};
 type ControlCenterResponse = {
   quickMetrics: {
     totalUsers: number;
@@ -32,6 +42,8 @@ type ControlCenterResponse = {
   };
   sections: Record<string, DataRow[]>;
 };
+
+type ResolveMethod = "word" | "humanizer" | "source" | "notify" | "deny";
 
 const menuItems: MenuItem[] = [
   { id: "user-management", label: "User Management", description: "Accounts, status, and roles", icon: <UsersIcon />, columns: ["No", "Name", "Email", "Status", "Role", "Actions"] },
@@ -304,6 +316,293 @@ function CreditEditModal({
   );
 }
 
+const RESOLUTION_TEMPLATE_PRESETS: Record<ResolveMethod, string[]> = {
+  word: [
+    "We are sorry for your experience. We have added {credits} word credits to your account to make things right. Thank you for trusting Octopilot.",
+    "Thanks for reporting this. We reviewed the issue and restored {credits} word credits to your balance.",
+    "Our team confirmed the problem and added {credits} word credits back to your account.",
+    "We appreciate the report. {credits} word credits have now been credited to your account.",
+    "We are sorry for the inconvenience. {credits} word credits were added to your account by our support team.",
+  ],
+  humanizer: [
+    "We are sorry for your experience. We have added {credits} humanizer credits to your account to make things right. Thank you for trusting Octopilot.",
+    "Thanks for reporting this. We reviewed the issue and restored {credits} humanizer credits to your balance.",
+    "Our team confirmed the problem and added {credits} humanizer credits back to your account.",
+    "We appreciate the report. {credits} humanizer credits have now been credited to your account.",
+    "We are sorry for the inconvenience. {credits} humanizer credits were added to your account by our support team.",
+  ],
+  source: [
+    "We are sorry for your experience. We have added {credits} source credits to your account to make things right. Thank you for trusting Octopilot.",
+    "Thanks for reporting this. We reviewed the issue and restored {credits} source credits to your balance.",
+    "Our team confirmed the problem and added {credits} source credits back to your account.",
+    "We appreciate the report. {credits} source credits have now been credited to your account.",
+    "We are sorry for the inconvenience. {credits} source credits were added to your account by our support team.",
+  ],
+  notify: [
+    "Thank you for reporting this. Our team has reviewed the issue and a fix is already in progress.",
+    "We have reproduced the problem and our engineers are currently working on the resolution.",
+    "Your report has been logged successfully. We will keep improving this area and appreciate your patience.",
+    "Thanks for raising this issue. The case is now under review by our internal team.",
+    "We reviewed your report and the issue has been forwarded to the responsible team for a fix.",
+  ],
+  deny: [
+    "Thank you for the report. After review, we are unable to approve a credit adjustment for this case.",
+    "We carefully reviewed the issue but could not confirm an account credit reimbursement at this time.",
+    "Thanks for reaching out. We investigated the report, but this request is outside our refund criteria.",
+    "Our team reviewed your case and we are unable to issue a credit refund for this report.",
+    "We appreciate the report. At the moment, we are unable to approve the requested adjustment.",
+  ],
+};
+
+function formatTemplate(template: string, credits: number) {
+  return template.replaceAll("{credits}", String(credits));
+}
+
+function ResolveTypeButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] transition ${
+        active ? "bg-red-500 text-black" : "border border-white/10 bg-[#111111] text-white/62 hover:border-red-500/35 hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MessageOption({
+  checked,
+  label,
+  children,
+  onSelect,
+}: {
+  checked: boolean;
+  label: string;
+  children: ReactNode;
+  onSelect: () => void;
+}) {
+  return (
+    <div className={`rounded-[20px] border px-4 py-4 transition ${checked ? "border-red-500/35 bg-[#130b0b]" : "border-white/10 bg-[#101010]"}`}>
+      <button onClick={onSelect} className="mb-3 flex items-center gap-3 text-left">
+        <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${checked ? "border-red-500 bg-red-500" : "border-white/20 bg-transparent"}`}>
+          {checked ? <span className="h-2 w-2 rounded-full bg-black" /> : null}
+        </span>
+        <span className="text-sm font-semibold text-white">{label}</span>
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function ReportInspectModal({
+  row,
+  saving,
+  error,
+  onClose,
+  onSend,
+}: {
+  row: ReportRow;
+  saving: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSend: (payload: { reportId: string; method: ResolveMethod; credits?: number; message: string }) => Promise<void>;
+}) {
+  const [activeMethod, setActiveMethod] = useState<ResolveMethod>("word");
+  const [selectedMessageKind, setSelectedMessageKind] = useState<"template" | "custom">("template");
+  const [templateIndex, setTemplateIndex] = useState(0);
+  const [isEditingCredits, setIsEditingCredits] = useState(false);
+  const [wordCredits, setWordCredits] = useState(Number(row.word ?? 0));
+  const [humanizerCredits, setHumanizerCredits] = useState(Number(row.humanizer ?? 0));
+  const [sourceCredits, setSourceCredits] = useState(Number(row.source ?? 0));
+  const [templateMessage, setTemplateMessage] = useState(formatTemplate(RESOLUTION_TEMPLATE_PRESETS.word[0], Number(row.word ?? 0)));
+  const [customMessage, setCustomMessage] = useState("");
+
+  const creditDelta =
+    activeMethod === "word"
+      ? wordCredits - Number(row.word ?? 0)
+      : activeMethod === "humanizer"
+        ? humanizerCredits - Number(row.humanizer ?? 0)
+        : sourceCredits - Number(row.source ?? 0);
+
+  const selectedCredits =
+    activeMethod === "word" ? wordCredits : activeMethod === "humanizer" ? humanizerCredits : sourceCredits;
+  const originalCredits =
+    activeMethod === "word" ? Number(row.word ?? 0) : activeMethod === "humanizer" ? Number(row.humanizer ?? 0) : Number(row.source ?? 0);
+
+  const supportsCredits = activeMethod === "word" || activeMethod === "humanizer" || activeMethod === "source";
+
+  const syncTemplateMessage = (method: ResolveMethod, nextTemplateIndex: number, nextCredits?: number) => {
+    const baseCredits =
+      nextCredits ?? (method === "word" ? wordCredits : method === "humanizer" ? humanizerCredits : sourceCredits);
+    const nextTemplate = RESOLUTION_TEMPLATE_PRESETS[method][nextTemplateIndex] || RESOLUTION_TEMPLATE_PRESETS[method][0];
+    setTemplateMessage(formatTemplate(nextTemplate, baseCredits));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/78 px-4 py-6">
+      <div className="w-full max-w-[960px] rounded-[30px] border border-white/10 bg-[#090909] p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/36">Inspect Report</p>
+            <h2 className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{row.title || "Untitled report"}</h2>
+            <p className="mt-2 text-sm text-white/45">{row.email || "-"}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full border border-white/10 bg-[#141414] px-4 py-2.5 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_1.15fr]">
+          <section className="space-y-4 rounded-[24px] border border-white/10 bg-[#101010] p-5">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Title</div>
+              <div className="mt-2 text-lg font-semibold text-white">{row.title || "-"}</div>
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Issue Content</div>
+              <div className="mt-2 text-sm leading-7 text-white/62">{row.description || "-"}</div>
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Screenshot</div>
+              <div className="mt-3 rounded-[18px] border border-white/10 bg-[#080808] p-3">
+                {row.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={String(row.imageUrl)} alt={String(row.title || "Issue screenshot")} className="max-h-[320px] w-full rounded-[14px] object-contain" />
+                ) : (
+                  <div className="flex min-h-[180px] items-center justify-center text-sm text-white/42">No image attached for this issue.</div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-white/10 bg-[#101010] p-5">
+            <div className="flex flex-wrap gap-2">
+              <ResolveTypeButton active={activeMethod === "word"} label="Word" onClick={() => { setActiveMethod("word"); setTemplateIndex(0); syncTemplateMessage("word", 0, wordCredits); }} />
+              <ResolveTypeButton active={activeMethod === "humanizer"} label="Humanizer" onClick={() => { setActiveMethod("humanizer"); setTemplateIndex(0); syncTemplateMessage("humanizer", 0, humanizerCredits); }} />
+              <ResolveTypeButton active={activeMethod === "source"} label="Source" onClick={() => { setActiveMethod("source"); setTemplateIndex(0); syncTemplateMessage("source", 0, sourceCredits); }} />
+              <ResolveTypeButton active={activeMethod === "notify"} label="Notify" onClick={() => { setActiveMethod("notify"); setTemplateIndex(0); syncTemplateMessage("notify", 0, 0); }} />
+              <ResolveTypeButton active={activeMethod === "deny"} label="Deny" onClick={() => { setActiveMethod("deny"); setTemplateIndex(0); syncTemplateMessage("deny", 0, 0); }} />
+            </div>
+
+            {supportsCredits ? (
+              <div className="mt-5 rounded-[20px] border border-white/10 bg-[#0c0c0c] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-white/78">
+                    {row.name || row.email}&rsquo;s {activeMethod} credit
+                  </div>
+                  <button
+                    onClick={() => setIsEditingCredits((value) => !value)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
+                  >
+                    <PencilIcon />
+                  </button>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    value={selectedCredits}
+                    disabled={!isEditingCredits}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value || 0);
+                      if (activeMethod === "word") setWordCredits(nextValue);
+                      if (activeMethod === "humanizer") setHumanizerCredits(nextValue);
+                      if (activeMethod === "source") setSourceCredits(nextValue);
+                      if (selectedMessageKind === "template") {
+                        syncTemplateMessage(activeMethod, templateIndex, nextValue);
+                      }
+                    }}
+                    className="w-[180px] rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40 disabled:cursor-not-allowed disabled:text-white/38"
+                  />
+                  <div className="text-sm text-white/46">
+                    Current {originalCredits} <span className={`ml-2 font-semibold ${creditDelta >= 0 ? "text-emerald-300" : "text-red-300"}`}>{creditDelta >= 0 ? `+${creditDelta}` : creditDelta}</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-5 space-y-4">
+              <MessageOption checked={selectedMessageKind === "template"} label="Template message" onSelect={() => setSelectedMessageKind("template")}>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {RESOLUTION_TEMPLATE_PRESETS[activeMethod].map((_, index) => (
+                    <button
+                      key={`${activeMethod}-${index}`}
+                      onClick={() => {
+                        setTemplateIndex(index);
+                        syncTemplateMessage(activeMethod, index);
+                      }}
+                      className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
+                        templateIndex === index ? "bg-white text-black" : "border border-white/10 bg-[#151515] text-white/56 hover:border-white/20 hover:text-white"
+                      }`}
+                    >
+                      Template {index + 1}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={templateMessage}
+                  onChange={(event) => setTemplateMessage(event.target.value)}
+                  rows={5}
+                  className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+                />
+              </MessageOption>
+
+              <MessageOption checked={selectedMessageKind === "custom"} label="Custom message" onSelect={() => setSelectedMessageKind("custom")}>
+                <textarea
+                  value={customMessage}
+                  onChange={(event) => setCustomMessage(event.target.value)}
+                  rows={5}
+                  placeholder="Write a custom message"
+                  className="w-full resize-none rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/40"
+                />
+              </MessageOption>
+            </div>
+
+            {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white/72 transition hover:border-white/20 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  row.reportId
+                    ? onSend({
+                        reportId: row.reportId,
+                        method: activeMethod,
+                        credits: supportsCredits ? Math.max(0, selectedCredits - originalCredits) : undefined,
+                        message: selectedMessageKind === "template" ? templateMessage.trim() : customMessage.trim(),
+                      })
+                    : Promise.resolve()
+                }
+                disabled={saving || !row.reportId}
+                className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminLoginView({
   email,
   password,
@@ -387,6 +686,9 @@ export default function BrokeOctopusPage() {
   const [editingRow, setEditingRow] = useState<EditableSubscriptionRow | null>(null);
   const [isSavingCredits, setIsSavingCredits] = useState(false);
   const [creditModalError, setCreditModalError] = useState<string | null>(null);
+  const [inspectingReport, setInspectingReport] = useState<ReportRow | null>(null);
+  const [isResolvingReport, setIsResolvingReport] = useState(false);
+  const [reportModalError, setReportModalError] = useState<string | null>(null);
 
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
   const rows = data?.sections[activeSectionId] || [];
@@ -462,6 +764,38 @@ export default function BrokeOctopusPage() {
       ignore = true;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !isAdmin) {
+      return;
+    }
+
+    let cleanup: (() => void) | undefined;
+    let mounted = true;
+
+    const connect = async () => {
+      try {
+        cleanup = await StreamService.connect({
+          onEvent: (event) => {
+            if (!mounted) {
+              return;
+            }
+            if (event.type === "admin_reports" || event.type === "sync_reports") {
+              void loadDashboard().catch(() => undefined);
+            }
+          },
+        });
+      } catch {
+        // best effort
+      }
+    };
+
+    void connect();
+    return () => {
+      mounted = false;
+      cleanup?.();
+    };
+  }, [user, isAdmin]);
 
   const handleEmailLogin = async () => {
     setIsBusy(true);
@@ -558,6 +892,46 @@ export default function BrokeOctopusPage() {
       setCreditModalError(error instanceof Error ? error.message : "Failed to update credits.");
     } finally {
       setIsSavingCredits(false);
+    }
+  };
+
+  const handleResolveReport = async (payload: { reportId: string; method: ResolveMethod; credits?: number; message: string }) => {
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setReportModalError("You need to be signed in as an admin.");
+      return;
+    }
+
+    setIsResolvingReport(true);
+    setReportModalError(null);
+
+    try {
+      const backendMethod =
+        payload.method === "word" ? "word" : payload.method === "humanizer" ? "humanizer" : payload.method === "source" ? "source" : payload.method;
+      const response = await fetch(`/backend/api/v1/admin/reports/${payload.reportId}/resolve`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          method: backendMethod,
+          credits: payload.credits,
+          message: payload.message,
+        }),
+      });
+
+      const responsePayload = await response.json();
+      if (!response.ok) {
+        throw new Error(responsePayload.detail || responsePayload.error || "Failed to resolve report.");
+      }
+
+      await loadDashboard();
+      setInspectingReport(null);
+    } catch (error) {
+      setReportModalError(error instanceof Error ? error.message : "Failed to resolve report.");
+    } finally {
+      setIsResolvingReport(false);
     }
   };
 
@@ -731,6 +1105,16 @@ export default function BrokeOctopusPage() {
                                   >
                                     <PencilIcon />
                                   </button>
+                                ) : activeSection.id === "reports" && key === "action" && (row as ReportRow).reportId ? (
+                                  <button
+                                    onClick={() => {
+                                      setReportModalError(null);
+                                      setInspectingReport(row as ReportRow);
+                                    }}
+                                    className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                                  >
+                                    Inspect
+                                  </button>
                                 ) : (
                                   String(row[key] ?? "-")
                                 )}
@@ -769,6 +1153,20 @@ export default function BrokeOctopusPage() {
             }
           }}
           onSave={handleSaveCredits}
+        />
+      ) : null}
+      {inspectingReport ? (
+        <ReportInspectModal
+          row={inspectingReport}
+          saving={isResolvingReport}
+          error={reportModalError}
+          onClose={() => {
+            if (!isResolvingReport) {
+              setInspectingReport(null);
+              setReportModalError(null);
+            }
+          }}
+          onSend={handleResolveReport}
         />
       ) : null}
     </main>
