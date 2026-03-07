@@ -53,7 +53,7 @@ function mapFirebaseError(error: unknown): Error {
       "auth/network-request-failed": "Network error. Check your connection and try again.",
     } satisfies Record<string, string>;
 
-    return new Error(readable[code] || "Authentication failed. Please try again.");
+    return new Error(readable[code as keyof typeof readable] || "Authentication failed. Please try again.");
   }
 
   return error instanceof Error ? error : new Error("Authentication failed. Please try again.");
