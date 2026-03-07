@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Luna's system prompt
-const SYSTEM_PROMPT = `You are Luna, an academic assignment analysis agent for OctoPilot AI.
+// Hein's system prompt
+const SYSTEM_PROMPT = `You are Hein, an academic assignment analysis agent for OctoPilot AI.
 Your job is to analyze the user's assignment instructions along with their selected major and essay type.
 You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
 
@@ -59,7 +59,7 @@ ${instructions}
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[Luna] OpenRouter error:", response.status, errorText);
+            console.error("[Hein] OpenRouter error:", response.status, errorText);
             return NextResponse.json(
                 { error: `OpenRouter API error: ${response.status}` },
                 { status: response.status }
@@ -76,7 +76,7 @@ ${instructions}
             );
         }
 
-        // Parse the JSON response from Luna
+        // Parse the JSON response from Hein
         const parsed = JSON.parse(content);
 
         return NextResponse.json({
@@ -87,7 +87,7 @@ ${instructions}
             structure: parsed.structure || "",
         });
     } catch (error) {
-        console.error("[Luna] Error:", error);
+        console.error("[Hein] Error:", error);
         return NextResponse.json(
             { error: "Internal server error during analysis" },
             { status: 500 }

@@ -444,7 +444,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    Aurora is generating outlines...
+                    Lily is generating outlines...
                 </div>
             )}
 

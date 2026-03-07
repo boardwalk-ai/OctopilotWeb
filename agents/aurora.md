@@ -1,9 +1,9 @@
-# Aurora Agent
+# Lily Agent
 
-Aurora is an outline generation agent for OctoPilot AI.
+Lily is an outline generation agent for OctoPilot AI.
 
 ## Purpose
-Aurora generates essay outlines based on Luna's assignment analysis data.
+Lily generates essay outlines based on Hein's assignment analysis data.
 She produces structured outline items (Introduction, Body Paragraph, Conclusion)
 with titles and descriptions.
 
@@ -21,7 +21,7 @@ with titles and descriptions.
 ## Input
 ```json
 {
-  "analysis": "Luna's analysis text",
+  "analysis": "Hein's analysis text",
   "essayTopic": "...",
   "essayType": "...",
   "scope": "...",

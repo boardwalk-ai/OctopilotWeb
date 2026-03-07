@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 function getSystemPrompt(mode: string, requestedType?: string, customTitle?: string): string {
-    const basePrompt = `You are Aurora, an academic outline generation agent for OctoPilot AI.
+    const basePrompt = `You are Lily, an academic outline generation agent for OctoPilot AI.
 You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
 
 Each outline item must have:
@@ -92,7 +92,7 @@ ${analysis || "No analysis available"}
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[Aurora] OpenRouter error:", response.status, errorText);
+            console.error("[Lily] OpenRouter error:", response.status, errorText);
             return NextResponse.json(
                 { error: `OpenRouter API error: ${response.status}` },
                 { status: response.status }
@@ -119,7 +119,7 @@ ${analysis || "No analysis available"}
             })),
         });
     } catch (error) {
-        console.error("[Aurora] Error:", error);
+        console.error("[Lily] Error:", error);
         return NextResponse.json(
             { error: "Internal server error during outline generation" },
             { status: 500 }

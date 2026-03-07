@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Read Scarlet's system prompt
+        // Read Zuly's system prompt
         const agentFile = path.resolve(process.cwd(), "agents/scarlet.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[Scarlet] OpenRouter error:", response.status, errorText);
+            console.error("[Zuly] OpenRouter error:", response.status, errorText);
             return NextResponse.json(
                 { error: `OpenRouter API error: ${response.status}` },
                 { status: response.status }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(parsed);
 
     } catch (error) {
-        console.error("[Scarlet] Error:", error);
+        console.error("[Zuly] Error:", error);
         return NextResponse.json(
             { error: "Internal server error during compaction" },
             { status: 500 }

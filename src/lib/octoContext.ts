@@ -58,7 +58,7 @@ Format page:
 
 Automation mode generation:
 - Lucas generates the essay after Octopilot Search sources and manual sources are compacted.
-- Scarlet compacts source content before Lucas sees it.
+- Zuly compacts source content before Lucas sees it.
 - Preview, Humanizer, Editor, and Export follow after generation.
 
 Manual mode Writing Chamber:

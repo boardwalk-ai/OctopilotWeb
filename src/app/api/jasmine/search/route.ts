@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         }
         const safeTargetCount = Math.max(1, Math.min(20, Number(targetCount) || 1));
 
-        // Read Jasmine's system prompt from the agent file
+        // Read Alvin's system prompt from the agent file
         const agentFile = path.resolve(process.cwd(), "agents/jasmine.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
@@ -166,7 +166,7 @@ ${JSON.stringify(outlines, null, 2)}
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[Jasmine] OpenRouter error:", response.status, errorText);
+            console.error("[Alvin] OpenRouter error:", response.status, errorText);
             fs.writeFileSync("/tmp/jasmine_error.log", `Status: ${response.status}\nError: ${errorText}\nPayload: ${JSON.stringify(payload, null, 2)}`);
             return NextResponse.json(
                 { error: `OpenRouter API error: ${response.status}` },
@@ -177,7 +177,7 @@ ${JSON.stringify(outlines, null, 2)}
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content;
 
-        console.log("[Jasmine] Raw model response:", content?.slice(0, 300));
+        console.log("[Alvin] Raw model response:", content?.slice(0, 300));
 
         if (!content) {
             return NextResponse.json(
@@ -190,14 +190,14 @@ ${JSON.stringify(outlines, null, 2)}
         const results = normalizeResults(parsed, safeTargetCount);
         if (results.length === 0) {
             return NextResponse.json(
-                { error: "Jasmine returned empty or invalid source list. Please retry." },
+                { error: "Alvin returned empty or invalid source list. Please retry." },
                 { status: 502 }
             );
         }
         return NextResponse.json(results);
 
     } catch (error) {
-        console.error("[Jasmine] Error:", error);
+        console.error("[Alvin] Error:", error);
         return NextResponse.json(
             { error: "Internal server error during search" },
             { status: 500 }

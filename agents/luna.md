@@ -1,9 +1,9 @@
-# Luna Agent
+# Hein Agent
 
-Luna is an assignment analysis agent for OctoPilot AI.
+Hein is an assignment analysis agent for OctoPilot AI.
 
 ## Purpose
-Luna receives the user's selected Major, Essay Type, and their assignment instructions.
+Hein receives the user's selected Major, Essay Type, and their assignment instructions.
 She analyzes them and returns a structured JSON response containing:
 - **analysis**: A comprehensive summary of what the assignment is asking
 - **essayTopic**: The identified topic/subject of the essay
@@ -18,7 +18,7 @@ She analyzes them and returns a structured JSON response containing:
 - **Response Format**: JSON only
 
 ## Trigger
-Luna is triggered when the user presses the **Read** button on the Instructions page.
+Hein is triggered when the user presses the **Read** button on the Instructions page.
 
 ## Input
 ```json
@@ -43,5 +43,5 @@ Luna is triggered when the user presses the **Read** button on the Instructions 
 ## Architecture
 1. `LunaService.fetchConfig()` → calls `GET /api/v1/settings/api-keys` to get random API key + current model
 2. `LunaService.analyze()` → calls `/api/luna/analyze` (Next.js API route) with the key, model, and user data
-3. `/api/luna/analyze` → proxies the request to OpenRouter with Luna's system prompt
+3. `/api/luna/analyze` → proxies the request to OpenRouter with Hein's system prompt
 4. Results are stored in the Organizer for the Outlines page to consume
