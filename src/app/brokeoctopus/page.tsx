@@ -1,174 +1,119 @@
 "use client";
 
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode, JSX } from "react";
+import { AuthService } from "@/services/AuthService";
 
 type MenuItem = {
   id: string;
   label: string;
   description: string;
   icon: JSX.Element;
+  columns: string[];
 };
 
-type TableSection = {
-  id: string;
-  title: string;
-  subtitle: string;
-  columns: string[];
-  rows: string[][];
-  badge?: string;
+type DataRow = Record<string, string | number | null>;
+type ControlCenterResponse = {
+  quickMetrics: {
+    totalUsers: number;
+    activeSubscriptions: number;
+    openReports: number;
+    openRouterPool: number;
+  };
+  sections: Record<string, DataRow[]>;
 };
 
 const menuItems: MenuItem[] = [
-  { id: "user-management", label: "User Management", description: "Accounts, status, and roles", icon: <UsersIcon /> },
-  { id: "subscription-management", label: "Subscription Management", description: "Plans, billing, and credits", icon: <CreditCardIcon /> },
-  { id: "reports", label: "Reports", description: "Support and issue intake", icon: <FlagIcon /> },
-  { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon /> },
-  { id: "market-data", label: "Market Data", description: "Customer footprint snapshot", icon: <GlobeIcon /> },
-  { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes", icon: <ReceiptIcon /> },
-  { id: "promo-area", label: "Promo Area", description: "Implement later", icon: <TagIcon /> },
-  { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon /> },
-  { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator actions", icon: <ChartIcon /> },
-  { id: "analytics", label: "Analytics", description: "Performance and growth trends", icon: <PulseIcon /> },
-  { id: "system-settings", label: "System Settings", description: "Implement later", icon: <SettingsIcon /> },
-];
-
-const sections: TableSection[] = [
   {
     id: "user-management",
-    title: "User Management",
-    subtitle: "Access control and account health.",
+    label: "User Management",
+    description: "Accounts, status, and roles",
+    icon: <UsersIcon />,
     columns: ["No", "Name", "Email", "Status", "Role", "Actions"],
-    rows: [
-      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "Active", "Admin", "View / Suspend"],
-      ["02", "Mia Carter", "mia@octopilot.ai", "Pending", "Member", "Verify / Promote"],
-      ["03", "Noah King", "noah@writerlab.com", "Disabled", "Member", "Restore / Delete"],
-    ],
   },
   {
     id: "subscription-management",
-    title: "Subscription Management",
-    subtitle: "Stripe-side plans and credit balances.",
+    label: "Subscription Management",
+    description: "Plans, billing, and credits",
+    icon: <CreditCardIcon />,
     columns: ["No", "Name", "Email", "Next Billing", "Current Plan", "Word", "Humanizer", "Source", "Actions"],
-    rows: [
-      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "Mar 29, 2026", "Pro", "120k", "45", "18", "Edit / Cancel"],
-      ["02", "Mia Carter", "mia@octopilot.ai", "Mar 18, 2026", "Starter", "30k", "8", "6", "Upgrade / Pause"],
-      ["03", "Noah King", "noah@writerlab.com", "Expired", "Free", "5k", "0", "1", "Renew / Lock"],
-    ],
   },
   {
     id: "reports",
-    title: "Reports",
-    subtitle: "Triage recent issues and moderation flags.",
+    label: "Reports",
+    description: "Support and issue intake",
+    icon: <FlagIcon />,
     columns: ["No", "Email", "Status", "Timestamp", "Action"],
-    rows: [
-      ["01", "lucastobyshelby@gmail.com", "Open", "07 Mar 2026 16:28", "Review"],
-      ["02", "mia@octopilot.ai", "Resolved", "07 Mar 2026 14:02", "Archive"],
-      ["03", "noah@writerlab.com", "Escalated", "07 Mar 2026 11:47", "Assign"],
-    ],
-    badge: "7 Open",
   },
   {
     id: "metadata",
-    title: "Metadata",
-    subtitle: "Session heartbeat and runtime state.",
+    label: "Metadata",
+    description: "Sessions and activity health",
+    icon: <ClockIcon />,
     columns: ["No", "Email", "Session ID", "Last Activity", "Status"],
-    rows: [
-      ["01", "lucastobyshelby@gmail.com", "SESS-81F2", "3 min ago", "Live"],
-      ["02", "mia@octopilot.ai", "SESS-09A4", "22 min ago", "Idle"],
-      ["03", "noah@writerlab.com", "SESS-77CD", "2 hrs ago", "Expired"],
-    ],
   },
   {
     id: "market-data",
-    title: "Market Data",
-    subtitle: "Customer footprint and growth-side context.",
+    label: "Market Data",
+    description: "Customer footprint snapshot",
+    icon: <GlobeIcon />,
     columns: ["No", "Email", "IP Address", "Plan", "Customer Since"],
-    rows: [
-      ["01", "lucastobyshelby@gmail.com", "203.81.78.14", "Pro", "Jan 2026"],
-      ["02", "mia@octopilot.ai", "103.44.19.83", "Starter", "Feb 2026"],
-      ["03", "noah@writerlab.com", "95.211.17.20", "Free", "Mar 2026"],
-    ],
   },
   {
     id: "purchase-history",
-    title: "Purchase History",
-    subtitle: "Track plan upgrades, renewals, and downgrades.",
+    label: "Purchase History",
+    description: "Plan timeline and changes",
+    icon: <ReceiptIcon />,
     columns: ["No", "Email", "Current Plan", "Plan History"],
-    rows: [
-      ["01", "lucastobyshelby@gmail.com", "Pro", "Free > Starter > Pro"],
-      ["02", "mia@octopilot.ai", "Starter", "Free > Starter"],
-      ["03", "noah@writerlab.com", "Free", "Starter > Free"],
-    ],
   },
   {
     id: "promo-area",
-    title: "Promo Area",
-    subtitle: "Promo tooling is intentionally deferred.",
-    columns: ["Status", "Notes"],
-    rows: [["Later", "Promo workflows will be implemented after launch hardening."]],
-    badge: "Later",
+    label: "Promo Area",
+    description: "Implement later",
+    icon: <TagIcon />,
+    columns: ["Status"],
   },
   {
     id: "api-keys",
-    title: "API Keys",
-    subtitle: "Current key pool mirrored from database.",
+    label: "API Keys",
+    description: "Key pool from database",
+    icon: <KeyIcon />,
     columns: ["No", "Provider", "Key", "Status"],
-    rows: [
-      ["01", "OpenRouter", "sk-or-v1-397c...0d54", "Active"],
-      ["02", "OpenRouter", "sk-or-v1-6837...3312", "Active"],
-      ["03", "OpenRouter", "sk-or-v1-2e9b...79c9", "Active"],
-      ["04", "OpenRouter", "sk-or-v1-c07f...8625", "Active"],
-      ["05", "OpenRouter", "sk-or-v1-842a...df39", "Active"],
-      ["06", "OpenRouter", "sk-or-v1-6a19...6ebf", "Active"],
-      ["07", "OpenRouter", "sk-or-v1-3777...bbbd", "Active"],
-      ["08", "OpenRouter", "sk-or-v1-4070...f158", "Active"],
-      ["09", "OpenRouter", "sk-or-v1-1b12...d3bf", "Active"],
-      ["10", "OpenRouter", "sk-or-v1-dfef...e4dd", "Active"],
-      ["11", "OpenRouter", "sk-or-v1-d0df...52df", "Active"],
-      ["12", "OpenRouter", "sk-or-v1-8776...503f", "Active"],
-      ["13", "OpenRouter", "sk-or-v1-28be...9462", "Active"],
-      ["14", "OpenRouter", "sk-or-v1-6ec3...0ba1", "Active"],
-    ],
-    badge: "14 Keys",
   },
   {
     id: "usage-tracking",
-    title: "Usage Tracking",
-    subtitle: "Spot heavy usage and session anomalies.",
+    label: "Usage Tracking",
+    description: "Session count and operator action",
+    icon: <ChartIcon />,
     columns: ["No", "Name", "Email", "Total Sessions", "Action"],
-    rows: [
-      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "48", "Inspect"],
-      ["02", "Mia Carter", "mia@octopilot.ai", "13", "Inspect"],
-      ["03", "Noah King", "noah@writerlab.com", "4", "Inspect"],
-    ],
   },
   {
     id: "analytics",
-    title: "Analytics",
-    subtitle: "High-level platform health and conversion trends.",
+    label: "Analytics",
+    description: "Performance and growth trends",
+    icon: <PulseIcon />,
     columns: ["Metric", "Value", "Change"],
-    rows: [
-      ["New Signups", "182", "+14%"],
-      ["Active Subscriptions", "94", "+9%"],
-      ["Report Rate", "3.8%", "-2%"],
-      ["Session Depth", "22 min", "+6%"],
-    ],
-    badge: "Live",
   },
   {
     id: "system-settings",
-    title: "System Settings",
-    subtitle: "Settings editor is intentionally deferred.",
-    columns: ["Status", "Notes"],
-    rows: [["Later", "System settings UI will be implemented after backend/admin auth is finalized."]],
-    badge: "Later",
+    label: "System Settings",
+    description: "Implement later",
+    icon: <SettingsIcon />,
+    columns: ["Status"],
   },
 ];
 
-function getSection(id: string) {
-  return sections.find((section) => section.id === id) ?? sections[0];
-}
+const keyOrderBySection: Record<string, string[]> = {
+  "user-management": ["no", "name", "email", "status", "role", "actions"],
+  "subscription-management": ["no", "name", "email", "nextBilling", "currentPlan", "word", "humanizer", "source", "actions"],
+  reports: ["no", "email", "status", "timestamp", "action"],
+  metadata: ["no", "email", "sessionId", "lastActivity", "status"],
+  "market-data": ["no", "email", "ipAddress", "plan", "customerSince"],
+  "purchase-history": ["no", "email", "currentPlan", "planHistory"],
+  "api-keys": ["no", "provider", "key", "status"],
+  "usage-tracking": ["no", "name", "email", "totalSessions", "action"],
+  analytics: ["metric", "value", "change"],
+};
 
 function IconFrame({ children }: { children: ReactNode }) {
   return <span className="inline-flex h-4 w-4 items-center justify-center">{children}</span>;
@@ -303,49 +248,62 @@ function SettingsIcon() {
   );
 }
 
-function getQuickMetrics(sectionId: string) {
-  if (sectionId === "api-keys") {
-    return [
-      ["OpenRouter Keys", "14"],
-      ["Humanizers", "2"],
-      ["Pool Health", "Stable"],
-      ["Rotation", "Ready"],
-    ];
-  }
+function getActiveMenuItem(id: string) {
+  return menuItems.find((item) => item.id === id) ?? menuItems[0];
+}
 
-  if (sectionId === "subscription-management") {
-    return [
-      ["Active Subs", "94"],
-      ["Renewals", "39"],
-      ["Failed Billing", "14"],
-      ["Plan Mix", "Pro-led"],
-    ];
-  }
-
-  if (sectionId === "reports") {
-    return [
-      ["Open Reports", "7"],
-      ["Escalated", "2"],
-      ["Avg Reply", "11m"],
-      ["Resolved", "42"],
-    ];
-  }
-
-  return [
-    ["Live Sessions", "218"],
-    ["Queued Reports", "7"],
-    ["Key Pool", "14"],
-    ["Renewals", "39"],
-  ];
+function getOrderedRowValues(sectionId: string, row: DataRow) {
+  const keyOrder = keyOrderBySection[sectionId] || Object.keys(row);
+  return keyOrder.map((key) => row[key] ?? "-");
 }
 
 export default function BrokeOctopusPage() {
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState(sections[0].id);
+  const [activeSectionId, setActiveSectionId] = useState(menuItems[0].id);
+  const [data, setData] = useState<ControlCenterResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const activeSection = getSection(activeSectionId);
-  const quickMetrics = getQuickMetrics(activeSectionId);
+  const activeSection = getActiveMenuItem(activeSectionId);
+  const rows = data?.sections[activeSectionId] || [];
+
+  const loadControlCenter = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) {
+        throw new Error("You need to be signed in as an admin.");
+      }
+
+      const response = await fetch("/api/admin/control-center", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to load admin data.");
+      }
+
+      setData(payload);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to load admin data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!controlCenterOpen) {
+      return;
+    }
+
+    loadControlCenter();
+  }, [controlCenterOpen]);
 
   return (
     <main className="h-screen overflow-hidden bg-[#050505] text-white">
@@ -388,10 +346,10 @@ export default function BrokeOctopusPage() {
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
                   {[
-                    { label: "Active Users", value: "12,480", delta: "+8.2%" },
-                    { label: "MRR", value: "$18,240", delta: "+12.4%" },
-                    { label: "Failed Payments", value: "14", delta: "Needs review" },
-                    { label: "Open Reports", value: "7", delta: "2 urgent" },
+                    { label: "Active Users", value: String(data?.quickMetrics.totalUsers || 0), delta: "Live" },
+                    { label: "Active Subs", value: String(data?.quickMetrics.activeSubscriptions || 0), delta: "Live" },
+                    { label: "Open Reports", value: String(data?.quickMetrics.openReports || 0), delta: "Live" },
+                    { label: "OpenRouter Pool", value: String(data?.quickMetrics.openRouterPool || 14), delta: "Live" },
                   ].map((card) => (
                     <article key={card.label} className="rounded-[22px] border border-white/8 bg-[#151515] p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">{card.label}</div>
@@ -406,9 +364,9 @@ export default function BrokeOctopusPage() {
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Priority Flags</div>
                 <div className="mt-4 space-y-3">
                   {[
-                    "3 users are pending manual billing recovery.",
-                    "Referral redemptions spiked 41% over baseline.",
-                    "One AI provider pool is within 8% of quota.",
+                    "Admin tables now read from the FastAPI backend.",
+                    "Use the control center for real users, subscriptions, reports, and key pool data.",
+                    "Promo and system settings remain deferred until backend admin tooling is complete.",
                   ].map((item) => (
                     <div key={item} className="rounded-[18px] border border-red-500/18 bg-[#160d0d] px-4 py-3 text-sm leading-6 text-white/78">
                       {item}
@@ -492,60 +450,42 @@ export default function BrokeOctopusPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4 lg:px-6">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">Admin Section</p>
-                  <h1 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white">{activeSection.title}</h1>
-                  <p className="mt-2 text-sm leading-6 text-white/46">{activeSection.subtitle}</p>
+                  <h1 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white">{activeSection.label}</h1>
+                  <p className="mt-2 text-sm leading-6 text-white/46">{activeSection.description}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  {activeSection.badge ? (
-                    <div className="rounded-full border border-red-500/30 bg-[#190b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-200">
-                      {activeSection.badge}
+                  {isLoading ? (
+                    <div className="rounded-full border border-white/10 bg-[#131313] px-4 py-2 text-sm font-semibold text-white/70">
+                      Loading...
                     </div>
                   ) : null}
-                  <button className="rounded-full border border-white/10 bg-[#131313] px-4 py-2 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-300">
-                    Export
+                  <button
+                    onClick={loadControlCenter}
+                    className="rounded-full border border-white/10 bg-[#131313] px-4 py-2 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-300"
+                  >
+                    Refresh
                   </button>
                 </div>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
-                <section className="mb-4 rounded-[26px] border border-white/8 bg-[#101010] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Quick Metrics</div>
-                      <div className="mt-2 text-lg font-semibold text-white">Live admin pulse for {activeSection.title.toLowerCase()}.</div>
-                    </div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">Topline</div>
-                  </div>
+                {error ? (
+                  <div className="rounded-[22px] border border-red-500/25 bg-[#140b0b] px-5 py-4 text-sm text-red-100">{error}</div>
+                ) : null}
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {quickMetrics.map(([label, value]) => (
-                      <div key={label} className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">{label}</div>
-                        <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <div className="grid gap-4 xl:grid-cols-[1.38fr_0.62fr]">
-                  <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
+                <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
-                      <div className="mt-2 text-lg font-semibold text-white">{activeSection.title}</div>
+                      <div className="mt-2 text-lg font-semibold text-white">{activeSection.label}</div>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="rounded-full border border-white/10 bg-[#151515] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-red-500/35 hover:text-white">
-                        Refresh
-                      </button>
-                      <button className="rounded-full bg-red-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:bg-white hover:text-red-500">
-                        Action
-                      </button>
+                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">
+                      {rows.length > 0 ? `${rows.length} rows` : "No data"}
                     </div>
                   </div>
 
-                  <div className="max-h-[calc(100vh-23rem)] overflow-auto">
+                  <div className="max-h-[calc(100vh-12rem)] overflow-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="border-b border-white/8 bg-[#0c0c0c]">
@@ -560,40 +500,33 @@ export default function BrokeOctopusPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {activeSection.rows.map((row, rowIndex) => (
-                          <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
-                            {row.map((cell, cellIndex) => (
-                              <td
-                                key={`${activeSection.id}-${rowIndex}-${cellIndex}`}
-                                className="px-4 py-4 text-sm leading-6 text-white/78"
-                              >
-                                {cell}
-                              </td>
-                            ))}
+                        {rows.length > 0 ? (
+                          rows.map((row, rowIndex) => (
+                            <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
+                              {getOrderedRowValues(activeSection.id, row).map((cell, cellIndex) => (
+                                <td
+                                  key={`${activeSection.id}-${rowIndex}-${cellIndex}`}
+                                  className="px-4 py-4 text-sm leading-6 text-white/78"
+                                >
+                                  {String(cell ?? "-")}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={activeSection.columns.length}
+                              className="px-4 py-10 text-center text-sm text-white/42"
+                            >
+                              {isLoading ? "Loading real data..." : "No data available for this section yet."}
+                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Operator Notes</div>
-                      <div className="mt-4 space-y-3">
-                        {[
-                          "Stripe webhooks are next backend task after domain cutover.",
-                          "Promo area and system settings remain intentionally deferred.",
-                          "Admin auth should be locked before exposing this route publicly.",
-                        ].map((note) => (
-                          <div key={note} className="rounded-[18px] border border-red-500/18 bg-[#160c0c] px-4 py-3 text-sm leading-6 text-white/78">
-                            {note}
-                          </div>
-                        ))}
-                      </div>
-                    </article>
-                  </section>
-                </div>
+                </section>
               </div>
             </div>
           </section>
