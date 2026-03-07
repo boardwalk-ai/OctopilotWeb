@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Organizer } from "@/services/OrganizerService";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { majorTypes } from "@/lib/majorConstants";
-import SplashScreen from "@/components/SplashScreen";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import MethodologyView from "@/views/MethodologyView";
 import WritingStyleView from "@/views/WritingStyleView";
@@ -38,7 +37,6 @@ import {
 type Page = "home" | "methodology" | AutomationStepId;
 
 export default function HomeView() {
-  const [showSplash, setShowSplash] = useState(true);
   const [page, setPage] = useState<Page>("home");
   const [selectedMajor, setSelectedMajor] = useState(0);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
@@ -49,10 +47,6 @@ export default function HomeView() {
   const handleSelectMajor = useCallback((index: number) => {
     setSelectedMajor(index);
     Organizer.set({ majorIndex: index, majorName: majorTypes[index]?.name || "" });
-  }, []);
-
-  const handleSplashFinished = useCallback(() => {
-    setShowSplash(false);
   }, []);
 
   const automationStepsMap: Record<Page, number> = {
@@ -363,8 +357,6 @@ export default function HomeView() {
 
   return (
     <>
-      {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
-
       <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
         <AppHeader
           right={
