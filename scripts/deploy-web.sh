@@ -28,7 +28,8 @@ if systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
   systemctl stop "${SERVICE_NAME}" || true
 fi
 
-npm ci
+rm -rf node_modules .next
+npm install
 npm run build
 
 systemctl restart "${SERVICE_NAME}"
