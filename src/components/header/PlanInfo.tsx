@@ -49,11 +49,11 @@ export default function PlanInfo({
           onClick={() => setExpanded(!expanded)}
           className={`group relative z-20 flex h-[48px] items-center gap-2.5 overflow-hidden rounded-[20px] border px-4.5 text-[#2d8cff] transition-all duration-300 ${
             expanded
-              ? "border-[#27548b]/70 bg-[linear-gradient(180deg,rgba(19,34,53,0.96),rgba(12,24,39,0.98))] shadow-[0_18px_34px_rgba(27,94,181,0.18)]"
-              : "border-[#20436b]/55 bg-[linear-gradient(180deg,rgba(17,29,45,0.96),rgba(12,22,36,0.98))] shadow-[0_14px_26px_rgba(27,94,181,0.12)] hover:border-[#2a5f9d]/70 hover:shadow-[0_18px_34px_rgba(27,94,181,0.16)]"
+              ? "border-[#1f62bb] bg-[linear-gradient(90deg,rgba(18,38,64,0.96),rgba(6,18,34,0.98))] shadow-[0_18px_34px_rgba(27,94,181,0.18)]"
+              : "border-[#1b58aa] bg-[linear-gradient(90deg,rgba(18,38,64,0.96),rgba(8,22,40,0.98))] shadow-[0_14px_26px_rgba(27,94,181,0.12)] hover:border-[#2a6fd0] hover:shadow-[0_18px_34px_rgba(27,94,181,0.16)]"
           }`}
         >
-          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(63,146,255,0.12),transparent_58%)] opacity-80" />
+          <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(58,130,246,0.12),transparent_38%,transparent_100%)] opacity-90" />
           <span className="text-[#2d8cff]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="relative h-[13px] w-[13px]">
               <path d="m4 18 2-9 6 4 6-4 2 9H4Z" />
@@ -82,28 +82,24 @@ export default function PlanInfo({
         </button>
 
         <div
-          className={`relative flex items-center overflow-hidden rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,24,0.98),rgba(17,17,17,0.98))] shadow-[0_16px_32px_rgba(0,0,0,0.26)] transition-[max-width,opacity,transform,padding,margin] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`relative flex items-center overflow-hidden rounded-[22px] border border-[#1f62bb] bg-[linear-gradient(90deg,rgba(18,38,64,0.96),rgba(5,17,33,0.98))] shadow-[0_16px_32px_rgba(8,30,63,0.35)] transition-[max-width,opacity,transform,padding,margin] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             expanded
-              ? "ml-1.5 max-w-[244px] translate-x-0 px-2.5 py-2 opacity-100"
+              ? "ml-1.5 max-w-[252px] translate-x-0 px-3 py-2 opacity-100"
               : "pointer-events-none ml-0 max-w-0 translate-x-[-6px] px-0 py-0 opacity-0"
           }`}
         >
-          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_60%)]" />
+          <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(63,146,255,0.08),transparent_35%,transparent_100%)]" />
           {credits.map((credit, index) => (
             <div
               key={credit.label}
               className={`relative flex min-w-[76px] flex-col items-center px-2.5 text-center ${
-                index !== credits.length - 1 ? "border-r border-white/10" : ""
+                index !== credits.length - 1 ? "border-r border-white/12" : ""
               }`}
             >
-              <span
-                className="mb-1 h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: credit.color, boxShadow: `0 0 12px ${credit.color}66` }}
-              />
               <div className="text-[0.92rem] font-semibold tracking-[-0.03em] text-white">
                 {credit.value.toLocaleString()}
               </div>
-              <div className="mt-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em] text-white/52">
+              <div className="mt-1 text-[0.58rem] font-medium uppercase tracking-[0.24em] text-white/58">
                 {credit.label}
               </div>
             </div>
