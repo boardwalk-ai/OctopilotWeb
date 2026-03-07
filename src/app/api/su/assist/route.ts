@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -11,8 +12,6 @@ type SuInput = Record<string, unknown>;
 interface SuRequestBody {
     mode: SuMode;
     input: SuInput;
-    apiKey: string;
-    model: string;
 }
 
 function parseJsonContent(raw: string): unknown {
@@ -46,14 +45,15 @@ function buildTaskPrompt(mode: SuMode, input: SuInput): string {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { mode, input, apiKey, model } = body as SuRequestBody;
+        const { mode, input } = body as SuRequestBody;
 
-        if (!mode || !input || !apiKey || !model) {
+        if (!mode || !input) {
             return NextResponse.json(
-                { error: "Missing required fields: mode, input, apiKey, model" },
+                { error: "Missing required fields: mode, input" },
                 { status: 400 }
             );
         }
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
 
         const agentFile = path.resolve(process.cwd(), "agents/su.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");

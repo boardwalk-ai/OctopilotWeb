@@ -1,14 +1,6 @@
 import { Organizer } from "./OrganizerService";
 import { TestService } from "./TestService";
 
-interface BackendKeyResponse {
-    openrouter_api_key: string;
-    brave_api_key: string;
-    primary_model: string;
-    secondary_model: string;
-    source_search_model?: string;
-}
-
 export interface AlvinSearchResult {
     website_URL: string;
     Title: string;
@@ -44,47 +36,6 @@ export class AlvinService {
         throw lastError || new Error("Alvin search request failed");
     }
 
-    /**
-     * Fetch a random active OpenRouter API key + the current source search model
-     */
-    static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
-        // Fetch the API keys from the public endpoint
-        // and the full admin settings (via our local proxy to avoid CORS) in parallel
-        const [keysRes, settingsRes] = await Promise.all([
-            fetch("https://api.octopilotai.com/api/v1/settings/keys"),
-            fetch("/api/settings")
-        ]);
-
-        if (!keysRes.ok) throw new Error("Failed to fetch API keys from backend");
-        if (!settingsRes.ok) throw new Error("Failed to fetch admin settings from proxy");
-
-        const keysData: BackendKeyResponse = await keysRes.json();
-        const settingsData: { key: string; value: string }[] = await settingsRes.json();
-
-        if (!keysData.openrouter_api_key) {
-            throw new Error("No active OpenRouter key available in the pool");
-        }
-
-        // Find the source_search_model from admin settings
-        const sourceModelSetting = settingsData.find(s => s.key === "source_search_model");
-        const targetModel = sourceModelSetting?.value || keysData.secondary_model;
-
-        console.log("[Alvin] source_search_model from DB:", sourceModelSetting?.value);
-        console.log("[Alvin] Using model:", targetModel);
-
-        if (!targetModel) {
-            throw new Error("No source_search_model or secondary model configured in backend settings");
-        }
-
-        return {
-            apiKey: keysData.openrouter_api_key,
-            model: targetModel,
-        };
-    }
-
-    /**
-     * Ask Alvin to find academic sources based on the essay topic and outlines.
-     */
     static async searchSources(targetCount: number): Promise<AlvinSearchResult[]> {
         if (TestService.isActive) {
             const mocks = await TestService.getSources();
@@ -97,14 +48,10 @@ export class AlvinService {
             throw new Error("Essay Topic is missing. Cannot search for sources without a topic.");
         }
 
-        const { apiKey, model } = await AlvinService.fetchConfig();
-
         const payload = {
             targetCount,
             essayTopic: state.essayTopic,
             outlines: state.selectedOutlines.length > 0 ? state.selectedOutlines : state.outlines,
-            apiKey,
-            model,
         };
         const res = await AlvinService.callSearchWithRetry(payload);
 

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 interface SpoonieRequestBody {
     task?: string;
     input: Record<string, unknown>;
-    apiKey: string;
-    model: string;
 }
 
 type OpenRouterMessage =
@@ -115,14 +114,15 @@ function buildMessages(
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { task, input, apiKey, model } = body as SpoonieRequestBody;
+        const { task, input } = body as SpoonieRequestBody;
 
-        if (!input || !apiKey || !model) {
+        if (!input) {
             return NextResponse.json(
-                { error: "Missing required fields: input, apiKey, model" },
+                { error: "Missing required field: input" },
                 { status: 400 }
             );
         }
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
 
         const agentFile = path.resolve(process.cwd(), "agents/spoonie.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");

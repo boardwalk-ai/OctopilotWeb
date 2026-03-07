@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -50,14 +51,8 @@ Make it specific, detailed, and directly related to the assignment.`;
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle, apiKey, model } = body;
-
-        if (!apiKey || !model) {
-            return NextResponse.json(
-                { error: "Missing required fields: apiKey and model" },
-                { status: 400 }
-            );
-        }
+        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle } = body;
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
 
         const systemPrompt = getSystemPrompt(mode, requestedType, customTitle);
 

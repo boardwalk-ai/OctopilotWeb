@@ -1,7 +1,6 @@
 // LilyService — client-side service to invoke the Lily outline generation agent.
 
 import { Organizer } from "./OrganizerService";
-import { HeinService } from "./HeinService";
 import { TestService } from "./TestService";
 
 export interface OutlineItem {
@@ -34,9 +33,6 @@ export class LilyService {
 
         const state = Organizer.get();
 
-        // Fetch API key + model from backend
-        const { apiKey, model } = await HeinService.fetchConfig();
-
         const res = await fetch("/api/lily/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -49,8 +45,6 @@ export class LilyService {
                 mode,
                 requestedType,
                 customTitle,
-                apiKey,
-                model,
             }),
         });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { OCTO_APP_CONTEXT } from "@/lib/octoContext";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -9,8 +10,6 @@ interface OctoRequestBody {
     question: string;
     currentPage: string;
     runtimeContext: string;
-    apiKey: string;
-    model: string;
 }
 
 function parseJsonContent(raw: string): Record<string, unknown> {
@@ -39,14 +38,15 @@ ${runtimeContext}`;
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { question, runtimeContext, apiKey, model } = body as OctoRequestBody;
+        const { question, runtimeContext } = body as OctoRequestBody;
 
-        if (!question || !apiKey || !model) {
+        if (!question) {
             return NextResponse.json(
-                { error: "Missing required fields: question, apiKey, model" },
+                { error: "Missing required field: question" },
                 { status: 400 }
             );
         }
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
 
         const agentFile = path.resolve(process.cwd(), "agents/octo.md");
         const systemPrompt = fs.readFileSync(agentFile, "utf-8");

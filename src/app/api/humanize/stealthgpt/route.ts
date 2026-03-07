@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const STEALTHGPT_API_KEY = "4eb8b6e952b182138bdfd32352bf0ae9166b0147e8bbae3cf936fc39ca99d186";
+import { getHumanizerApiKey } from "@/server/backendConfig";
 const STEALTHGPT_API_URL = "https://www.stealthgpt.ai/api/stealthify";
 
 export async function POST(request: NextRequest) {
@@ -14,12 +13,13 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        const apiKey = await getHumanizerApiKey("stealthgpt");
 
         const response = await fetch(STEALTHGPT_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-token": STEALTHGPT_API_KEY,
+                "api-token": apiKey,
             },
             body: JSON.stringify(body),
         });

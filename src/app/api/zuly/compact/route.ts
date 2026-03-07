@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { fullContent, sourceTitle, sourceType, apiKey, model } = body;
+        const { fullContent, sourceTitle, sourceType } = body;
 
-        if (!fullContent || !apiKey || !model) {
+        if (!fullContent) {
             return NextResponse.json(
-                { error: "Missing required fields: fullContent, apiKey, or model" },
+                { error: "Missing required field: fullContent" },
                 { status: 400 }
             );
         }
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
 
         // Read Zuly's system prompt
         const agentFile = path.resolve(process.cwd(), "agents/zuly.md");
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
                 "X-Title": "OctoPilot AI",
             },
             body: JSON.stringify({
-                model: model,
+                model,
                 messages: [
                     { role: "system", content: SYSTEM_PROMPT },
                     { role: "user", content: userMessage },

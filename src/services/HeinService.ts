@@ -1,7 +1,3 @@
-// HeinService — client-side service to invoke the Hein analysis agent.
-// Fetches API key + model dynamically from the backend, then calls the
-// Next.js API route which proxies to OpenRouter.
-
 import { Organizer } from "./OrganizerService";
 import { TestService } from "./TestService";
 
@@ -13,41 +9,7 @@ export interface HeinAnalysisResult {
     structure: string;
 }
 
-interface BackendKeyResponse {
-    openrouter_api_key: string;
-    brave_api_key: string;
-    primary_model: string;
-    secondary_model: string;
-}
-
 export class HeinService {
-    /**
-     * Fetch a random active OpenRouter API key + the current secondary model
-     * from the backend key pool.
-     */
-    static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
-        const res = await fetch("https://api.octopilotai.com/api/v1/settings/keys");
-        if (!res.ok) throw new Error("Failed to fetch API configuration from backend");
-        const data: BackendKeyResponse = await res.json();
-
-        if (!data.openrouter_api_key) {
-            throw new Error("No active OpenRouter key available in the pool");
-        }
-
-        if (!data.secondary_model) {
-            throw new Error("No secondary model configured in backend settings");
-        }
-
-        return {
-            apiKey: data.openrouter_api_key,
-            model: data.secondary_model,
-        };
-    }
-
-    /**
-     * Run Hein's analysis on the current Organizer state.
-     * Updates the Organizer with results when done.
-     */
     static async analyze(): Promise<HeinAnalysisResult> {
         if (TestService.isActive) {
             const mock = await TestService.getAnalysis();
@@ -70,10 +32,6 @@ export class HeinService {
 
         const state = Organizer.get();
 
-        // 1. Grab an API key + model from the backend pool
-        const { apiKey, model } = await HeinService.fetchConfig();
-
-        // 2. Call our Next.js API route
         const res = await fetch("/api/hein/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -81,8 +39,6 @@ export class HeinService {
                 major: state.majorName,
                 essayType: state.essayType,
                 instructions: state.instructions,
-                apiKey,
-                model,
             }),
         });
 
@@ -93,7 +49,6 @@ export class HeinService {
 
         const result: HeinAnalysisResult = await res.json();
 
-        // 3. Store results in the Organizer
         Organizer.set({
             analysis: result.analysis,
             essayTopic: result.essayTopic,

@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { OrganizerState, CompactedSource } from "@/services/OrganizerService";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { organizerState, apiKey, model } = body as { organizerState: OrganizerState; apiKey: string; model: string };
+        const { organizerState } = body as { organizerState: OrganizerState };
 
-        if (!organizerState || !apiKey || !model) {
+        if (!organizerState) {
             return NextResponse.json(
-                { error: "Missing required fields: organizerState, apiKey, or model" },
+                { error: "Missing required field: organizerState" },
                 { status: 400 }
             );
         }
+        const { apiKey, model } = await getOpenRouterConfig("primary");
 
         // Read Lucas's system prompt
         const agentFile = path.resolve(process.cwd(), "agents/lucas.md");
@@ -63,7 +65,7 @@ ${sourcesString}
                 "X-Title": "OctoPilot AI",
             },
             body: JSON.stringify({
-                model: model,
+                model,
                 messages: [
                     { role: "system", content: SYSTEM_PROMPT },
                     { role: "user", content: userMessage },

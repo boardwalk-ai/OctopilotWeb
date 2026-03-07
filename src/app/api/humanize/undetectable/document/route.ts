@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const UNDETECTABLE_API_KEY = "9019253d-a30c-49a3-aeae-9a5f18e209fd";
+import { getHumanizerApiKey } from "@/server/backendConfig";
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,12 +12,13 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        const apiKey = await getHumanizerApiKey("undetectable");
 
         const response = await fetch("https://api.undetectable.ai/document", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-key": UNDETECTABLE_API_KEY,
+                "api-key": apiKey,
             },
             body: JSON.stringify({ id }),
         });
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         const data = await response.json();
         return NextResponse.json(data);
 
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

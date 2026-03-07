@@ -1,11 +1,6 @@
 import { Organizer, SourceData, CompactedSource } from "./OrganizerService";
 import { TestService } from "./TestService";
 
-interface BackendKeyResponse {
-    openrouter_api_key: string;
-    secondary_model: string;
-}
-
 type CompactionInput = {
     sourceTitle: string;
     fullContent: string;
@@ -13,30 +8,7 @@ type CompactionInput = {
 };
 
 export class ZulyService {
-    /**
-     * Fetch the API key + secondary model from the backend.
-     */
-    static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
-        const res = await fetch("https://api.octopilotai.com/api/v1/settings/keys");
-        if (!res.ok) throw new Error("Failed to fetch API configuration");
-        const data: BackendKeyResponse = await res.json();
-
-        if (!data.openrouter_api_key || !data.secondary_model) {
-            throw new Error("Missing API key or secondary model");
-        }
-
-        return { apiKey: data.openrouter_api_key, model: data.secondary_model };
-    }
-
-    /**
-     * Compact a single source's full content via the Zuly API route.
-     */
-    static async compactSource(
-        source: SourceData,
-        sourceIndex: number,
-        apiKey: string,
-        model: string
-    ): Promise<CompactedSource> {
+    static async compactSource(source: SourceData, sourceIndex: number): Promise<CompactedSource> {
         const compactionInput = ZulyService.buildCompactionInput(source);
         const res = await fetch("/api/zuly/compact", {
             method: "POST",
@@ -45,8 +17,6 @@ export class ZulyService {
                 fullContent: compactionInput.fullContent,
                 sourceTitle: compactionInput.sourceTitle,
                 sourceType: compactionInput.sourceType,
-                apiKey,
-                model,
             }),
         });
 
@@ -180,15 +150,13 @@ export class ZulyService {
 
         console.log(`[Zuly] Compacting ${scrapedSources.length} sources...`);
 
-        const { apiKey, model } = await ZulyService.fetchConfig();
-
         const results: CompactedSource[] = [];
 
         // Process sources one at a time to avoid rate limits
         for (const { source, index } of scrapedSources) {
             try {
                 console.log(`[Zuly] Compacting source ${index}: ${source.title || source.url}`);
-                const compacted = await ZulyService.compactSource(source, index, apiKey, model);
+                const compacted = await ZulyService.compactSource(source, index);
                 results.push(compacted);
 
                 // Update Organizer progressively

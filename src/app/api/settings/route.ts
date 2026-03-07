@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { getApiBaseUrl } from "@/server/backendConfig";
 
 export async function GET() {
     try {
         const response = await fetch(
-            "https://api.octopilotai.com/api/v1/admin/settings",
+            `${getApiBaseUrl()}/api/v1/admin/settings`,
             { method: "GET", headers: { "Accept": "application/json" } }
         );
 

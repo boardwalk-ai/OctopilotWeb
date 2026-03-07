@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const UNDETECTABLE_API_KEY = "9019253d-a30c-49a3-aeae-9a5f18e209fd";
+import { getHumanizerApiKey } from "@/server/backendConfig";
 const UNDETECTABLE_API_URL = "https://api.undetectable.ai/submit";
 
 export async function POST(request: NextRequest) {
@@ -14,12 +13,13 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        const apiKey = await getHumanizerApiKey("undetectable");
 
         const response = await fetch(UNDETECTABLE_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-key": UNDETECTABLE_API_KEY,
+                "api-key": apiKey,
             },
             body: JSON.stringify({
                 content,

@@ -1,8 +1,3 @@
-interface BackendKeyResponse {
-    openrouter_api_key: string;
-    secondary_model: string;
-}
-
 interface SpoonieResponse {
     citation?: string;
     extracted_text?: string;
@@ -45,30 +40,11 @@ export interface SpoonieFieldworkCitationInput {
 }
 
 export class SpoonieService {
-    static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
-        const res = await fetch("https://api.octopilotai.com/api/v1/settings/keys");
-        if (!res.ok) throw new Error("Failed to fetch API configuration from backend");
-        const data: BackendKeyResponse = await res.json();
-
-        if (!data.openrouter_api_key) {
-            throw new Error("No active OpenRouter key available in the pool");
-        }
-        if (!data.secondary_model) {
-            throw new Error("No secondary model configured in backend settings");
-        }
-
-        return {
-            apiKey: data.openrouter_api_key,
-            model: data.secondary_model,
-        };
-    }
-
     static async generateCitation(input: SpoonieCitationInput): Promise<string> {
-        const { apiKey, model } = await SpoonieService.fetchConfig();
         const res = await fetch("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ task: "CITATION_PREVIEW", input, apiKey, model }),
+            body: JSON.stringify({ task: "CITATION_PREVIEW", input }),
         });
 
         if (!res.ok) {
@@ -85,11 +61,10 @@ export class SpoonieService {
     }
 
     static async extractImageText(input: SpoonieOcrInput): Promise<string> {
-        const { apiKey, model } = await SpoonieService.fetchConfig();
         const res = await fetch("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ task: "OCR_EXTRACT", input, apiKey, model }),
+            body: JSON.stringify({ task: "OCR_EXTRACT", input }),
         });
 
         if (!res.ok) {
@@ -106,11 +81,10 @@ export class SpoonieService {
     }
 
     static async generateFieldworkCitation(input: SpoonieFieldworkCitationInput): Promise<string> {
-        const { apiKey, model } = await SpoonieService.fetchConfig();
         const res = await fetch("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ task: "FIELDWORK_CITATION", input, apiKey, model }),
+            body: JSON.stringify({ task: "FIELDWORK_CITATION", input }),
         });
 
         if (!res.ok) {

@@ -1,11 +1,6 @@
 import { SourceData } from "./OrganizerService";
 import { TestService } from "./TestService";
 
-interface BackendKeyResponse {
-    openrouter_api_key: string;
-    secondary_model: string;
-}
-
 interface SuAssistResponse {
     bullets?: string[];
     answer?: string;
@@ -78,30 +73,11 @@ function fallbackIdeas(sectionTitle: string): string[] {
 }
 
 export class SuService {
-    static async fetchConfig(): Promise<{ apiKey: string; model: string }> {
-        const res = await fetch("https://api.octopilotai.com/api/v1/settings/keys");
-        if (!res.ok) throw new Error("Failed to fetch API configuration from backend");
-        const data: BackendKeyResponse = await res.json();
-
-        if (!data.openrouter_api_key) {
-            throw new Error("No active OpenRouter key available in the pool");
-        }
-        if (!data.secondary_model) {
-            throw new Error("No secondary model configured in backend settings");
-        }
-
-        return {
-            apiKey: data.openrouter_api_key,
-            model: data.secondary_model,
-        };
-    }
-
     private static async callAssist(payload: object): Promise<SuAssistResponse> {
-        const { apiKey, model } = await SuService.fetchConfig();
         const res = await fetch("/api/su/assist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...payload, apiKey, model }),
+            body: JSON.stringify(payload),
         });
 
         if (!res.ok) {

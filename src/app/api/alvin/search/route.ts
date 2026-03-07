@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_RETRIES = 2;
@@ -131,15 +132,16 @@ async function callOpenRouterWithRetry(payload: Record<string, unknown>, apiKey:
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { targetCount, essayTopic, outlines, apiKey, model } = body;
+        const { targetCount, essayTopic, outlines } = body;
 
-        if (!targetCount || !essayTopic || !outlines || !apiKey || !model) {
+        if (!targetCount || !essayTopic || !outlines) {
             return NextResponse.json(
-                { error: "Missing required fields: targetCount, essayTopic, outlines, apiKey, or model" },
+                { error: "Missing required fields: targetCount, essayTopic, or outlines" },
                 { status: 400 }
             );
         }
         const safeTargetCount = Math.max(1, Math.min(20, Number(targetCount) || 1));
+        const { apiKey, model } = await getOpenRouterConfig("source_search");
 
         // Read Alvin's system prompt from the agent file
         const agentFile = path.resolve(process.cwd(), "agents/alvin.md");

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -19,15 +20,16 @@ Respond in exactly this JSON format:
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { major, essayType, instructions, apiKey, model } = body;
+        const { major, essayType, instructions } = body;
 
-        if (!instructions || !apiKey || !model) {
+        if (!instructions) {
             return NextResponse.json(
-                { error: "Missing required fields: instructions, apiKey, and model" },
+                { error: "Missing required field: instructions" },
                 { status: 400 }
             );
         }
 
+        const { apiKey, model } = await getOpenRouterConfig("secondary");
         const targetModel = model;
 
         const userMessage = `
