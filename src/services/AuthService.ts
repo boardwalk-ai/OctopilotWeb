@@ -3,10 +3,13 @@
 import {
   ActionCodeSettings,
   User,
+  applyActionCode,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
   isSignInWithEmailLink,
   onAuthStateChanged,
+  reload,
+  sendEmailVerification,
   sendSignInLinkToEmail,
   signInWithEmailAndPassword,
   signInWithEmailLink,
@@ -84,6 +87,7 @@ export class AuthService {
       if (name.trim()) {
         await updateProfile(result.user, { displayName: name.trim() });
       }
+      await AuthService.sendVerificationEmail(result.user);
       return result.user;
     } catch (error) {
       throw mapFirebaseError(error);
@@ -174,6 +178,72 @@ export class AuthService {
     } catch (error) {
       throw mapFirebaseError(error);
     }
+  }
+
+  static async sendVerificationEmail(user: User = firebaseAuth.currentUser as User): Promise<void> {
+    if (!user) {
+      throw new Error("No authenticated user is available to verify.");
+    }
+
+    try {
+      await sendEmailVerification(user, {
+        url: getEmailLinkRedirectUrl(),
+        handleCodeInApp: true,
+      });
+    } catch (error) {
+      throw mapFirebaseError(error);
+    }
+  }
+
+  static async applyEmailActionFromUrl(url: string): Promise<"verified" | "ignored"> {
+    const parsedUrl = new URL(url);
+    const mode = parsedUrl.searchParams.get("mode");
+    const code = parsedUrl.searchParams.get("oobCode");
+
+    if (mode !== "verifyEmail" || !code) {
+      return "ignored";
+    }
+
+    try {
+      await applyActionCode(firebaseAuth, code);
+
+      if (firebaseAuth.currentUser) {
+        await reload(firebaseAuth.currentUser);
+      }
+
+      parsedUrl.searchParams.delete("apiKey");
+      parsedUrl.searchParams.delete("mode");
+      parsedUrl.searchParams.delete("oobCode");
+      parsedUrl.searchParams.delete("continueUrl");
+      parsedUrl.searchParams.delete("lang");
+
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, document.title, parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
+      }
+
+      return "verified";
+    } catch (error) {
+      throw mapFirebaseError(error);
+    }
+  }
+
+  static async reloadCurrentUser(): Promise<User | null> {
+    const user = firebaseAuth.currentUser;
+    if (!user) {
+      return null;
+    }
+
+    await reload(user);
+    return firebaseAuth.currentUser;
+  }
+
+  static requiresEmailVerification(user: User | null): boolean {
+    if (!user || !user.email) {
+      return false;
+    }
+
+    const usesPasswordProvider = user.providerData.some((provider) => provider.providerId === "password");
+    return usesPasswordProvider && !user.emailVerified;
   }
 
   static subscribe(listener: (user: User | null) => void): () => void {

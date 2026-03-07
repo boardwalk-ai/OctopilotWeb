@@ -3,13 +3,17 @@
 import { FormEvent, MouseEvent, useEffect, useState } from "react";
 import { AuthService } from "@/services/AuthService";
 
-export default function AuthView() {
+type AuthViewProps = {
+  initialError?: string | null;
+};
+
+export default function AuthView({ initialError = null }: AuthViewProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [cursor, setCursor] = useState({ x: 50, y: 50 });
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [emailLinkNotice, setEmailLinkNotice] = useState<string | null>(null);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -57,6 +61,10 @@ export default function AuthView() {
         setIsLinkCompleting(false);
       });
   }, []);
+
+  useEffect(() => {
+    setError(initialError);
+  }, [initialError]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
