@@ -1,171 +1,407 @@
-const statCards = [
-  { label: "Active Users", value: "12,480", delta: "+8.2%", tone: "neutral" },
-  { label: "MRR", value: "$18,240", delta: "+12.4%", tone: "up" },
-  { label: "Failed Payments", value: "14", delta: "Needs review", tone: "warn" },
-  { label: "Open Reports", value: "7", delta: "2 urgent", tone: "warn" },
+"use client";
+
+import { useState } from "react";
+
+type MenuItem = {
+  id: string;
+  label: string;
+  description: string;
+};
+
+type TableSection = {
+  id: string;
+  title: string;
+  subtitle: string;
+  columns: string[];
+  rows: string[][];
+  badge?: string;
+};
+
+const menuItems: MenuItem[] = [
+  { id: "user-management", label: "User Management", description: "Accounts, status, and roles" },
+  { id: "subscription-management", label: "Subscription Management", description: "Plans, billing, and credits" },
+  { id: "reports", label: "Reports", description: "Support and issue intake" },
+  { id: "metadata", label: "Metadata", description: "Sessions and activity health" },
+  { id: "market-data", label: "Market Data", description: "Customer footprint snapshot" },
+  { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes" },
+  { id: "promo-area", label: "Promo Area", description: "Implement later" },
+  { id: "api-keys", label: "API Keys", description: "Key pool from database" },
+  { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator actions" },
+  { id: "analytics", label: "Analytics", description: "Performance and growth trends" },
+  { id: "system-settings", label: "System Settings", description: "Implement later" },
 ];
 
-const queueCards = [
+const sections: TableSection[] = [
   {
-    title: "Billing Queue",
-    body: "Stripe disputes, failed renewals, and pending manual reviews.",
-    action: "Open billing ops",
+    id: "user-management",
+    title: "User Management",
+    subtitle: "Access control and account health.",
+    columns: ["No", "Name", "Email", "Status", "Role", "Actions"],
+    rows: [
+      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "Active", "Admin", "View / Suspend"],
+      ["02", "Mia Carter", "mia@octopilot.ai", "Pending", "Member", "Verify / Promote"],
+      ["03", "Noah King", "noah@writerlab.com", "Disabled", "Member", "Restore / Delete"],
+    ],
   },
   {
-    title: "Referral Ops",
-    body: "Track issued codes, redemptions, and fraud flags across campaigns.",
-    action: "Inspect referrals",
+    id: "subscription-management",
+    title: "Subscription Management",
+    subtitle: "Stripe-side plans and credit balances.",
+    columns: ["No", "Name", "Email", "Next Billing", "Current Plan", "Word", "Humanizer", "Source", "Actions"],
+    rows: [
+      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "Mar 29, 2026", "Pro", "120k", "45", "18", "Edit / Cancel"],
+      ["02", "Mia Carter", "mia@octopilot.ai", "Mar 18, 2026", "Starter", "30k", "8", "6", "Upgrade / Pause"],
+      ["03", "Noah King", "noah@writerlab.com", "Expired", "Free", "5k", "0", "1", "Renew / Lock"],
+    ],
   },
   {
-    title: "AI Key Health",
-    body: "Monitor provider rotation, exhausted pools, and fallback model pressure.",
-    action: "Review key status",
+    id: "reports",
+    title: "Reports",
+    subtitle: "Triage recent issues and moderation flags.",
+    columns: ["No", "Email", "Status", "Timestamp", "Action"],
+    rows: [
+      ["01", "lucastobyshelby@gmail.com", "Open", "07 Mar 2026 16:28", "Review"],
+      ["02", "mia@octopilot.ai", "Resolved", "07 Mar 2026 14:02", "Archive"],
+      ["03", "noah@writerlab.com", "Escalated", "07 Mar 2026 11:47", "Assign"],
+    ],
+    badge: "7 Open",
+  },
+  {
+    id: "metadata",
+    title: "Metadata",
+    subtitle: "Session heartbeat and runtime state.",
+    columns: ["No", "Email", "Session ID", "Last Activity", "Status"],
+    rows: [
+      ["01", "lucastobyshelby@gmail.com", "SESS-81F2", "3 min ago", "Live"],
+      ["02", "mia@octopilot.ai", "SESS-09A4", "22 min ago", "Idle"],
+      ["03", "noah@writerlab.com", "SESS-77CD", "2 hrs ago", "Expired"],
+    ],
+  },
+  {
+    id: "market-data",
+    title: "Market Data",
+    subtitle: "Customer footprint and growth-side context.",
+    columns: ["No", "Email", "IP Address", "Plan", "Customer Since"],
+    rows: [
+      ["01", "lucastobyshelby@gmail.com", "203.81.78.14", "Pro", "Jan 2026"],
+      ["02", "mia@octopilot.ai", "103.44.19.83", "Starter", "Feb 2026"],
+      ["03", "noah@writerlab.com", "95.211.17.20", "Free", "Mar 2026"],
+    ],
+  },
+  {
+    id: "purchase-history",
+    title: "Purchase History",
+    subtitle: "Track plan upgrades, renewals, and downgrades.",
+    columns: ["No", "Email", "Current Plan", "Plan History"],
+    rows: [
+      ["01", "lucastobyshelby@gmail.com", "Pro", "Free > Starter > Pro"],
+      ["02", "mia@octopilot.ai", "Starter", "Free > Starter"],
+      ["03", "noah@writerlab.com", "Free", "Starter > Free"],
+    ],
+  },
+  {
+    id: "promo-area",
+    title: "Promo Area",
+    subtitle: "Promo tooling is intentionally deferred.",
+    columns: ["Status", "Notes"],
+    rows: [["Later", "Promo workflows will be implemented after launch hardening."]],
+    badge: "Later",
+  },
+  {
+    id: "api-keys",
+    title: "API Keys",
+    subtitle: "Current key pool mirrored from database.",
+    columns: ["No", "Provider", "Key", "Status"],
+    rows: [
+      ["01", "OpenRouter", "sk-or-v1-397c...0d54", "Active"],
+      ["02", "OpenRouter", "sk-or-v1-6837...3312", "Active"],
+      ["03", "OpenRouter", "sk-or-v1-2e9b...79c9", "Active"],
+      ["04", "StealthGPT", "4eb8b6e9...d186", "Configured"],
+      ["05", "Undetectable", "9019253d...09fd", "Configured"],
+    ],
+    badge: "Pool",
+  },
+  {
+    id: "usage-tracking",
+    title: "Usage Tracking",
+    subtitle: "Spot heavy usage and session anomalies.",
+    columns: ["No", "Name", "Email", "Total Sessions", "Action"],
+    rows: [
+      ["01", "Shun Lae", "lucastobyshelby@gmail.com", "48", "Inspect"],
+      ["02", "Mia Carter", "mia@octopilot.ai", "13", "Inspect"],
+      ["03", "Noah King", "noah@writerlab.com", "4", "Inspect"],
+    ],
+  },
+  {
+    id: "analytics",
+    title: "Analytics",
+    subtitle: "High-level platform health and conversion trends.",
+    columns: ["Metric", "Value", "Change"],
+    rows: [
+      ["New Signups", "182", "+14%"],
+      ["Active Subscriptions", "94", "+9%"],
+      ["Report Rate", "3.8%", "-2%"],
+      ["Session Depth", "22 min", "+6%"],
+    ],
+    badge: "Live",
+  },
+  {
+    id: "system-settings",
+    title: "System Settings",
+    subtitle: "Settings editor is intentionally deferred.",
+    columns: ["Status", "Notes"],
+    rows: [["Later", "System settings UI will be implemented after backend/admin auth is finalized."]],
+    badge: "Later",
   },
 ];
 
-const recentActivity = [
-  { time: "2 min ago", title: "Pro plan upgraded", meta: "lucastobyshelby@gmail.com" },
-  { time: "8 min ago", title: "Referral redeemed", meta: "Code SSXXSS applied successfully" },
-  { time: "19 min ago", title: "Failed payout retry", meta: "Stripe invoice #9X2 marked unpaid" },
-  { time: "41 min ago", title: "Humanizer key rotated", meta: "StealthGPT pool fallback engaged" },
-];
-
-function toneClass(tone: string) {
-  if (tone === "up") return "text-emerald-400";
-  if (tone === "warn") return "text-red-400";
-  return "text-white/58";
+function getSection(id: string) {
+  return sections.find((section) => section.id === id) ?? sections[0];
 }
 
 export default function BrokeOctopusPage() {
+  const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeSectionId, setActiveSectionId] = useState(sections[0].id);
+
+  const activeSection = getSection(activeSectionId);
+
   return (
-    <main className="min-h-screen overflow-y-auto bg-[#070707] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-5 py-6 lg:px-8">
-        <div className="rounded-[30px] border border-white/8 bg-[#0e0e0e] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.45)] lg:p-7">
-          <div className="flex flex-col gap-5 border-b border-white/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/35">BrokeOctopus</p>
-              <h1 className="mt-2 text-[2.8rem] font-semibold tracking-[-0.06em] text-white">Admin Dashboard</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/52">
-                Web operations panel for plans, referrals, support load, and infrastructure pressure.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button className="rounded-full border border-white/10 bg-[#151515] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-400">
-                Refresh snapshot
-              </button>
-              <button className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500">
-                Open control center
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-            <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Overview</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Live business pulse</div>
-                </div>
-                <div className="rounded-full border border-red-500/30 bg-[#170d0d] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-200">
-                  Today
-                </div>
+    <main className="min-h-screen bg-[#050505] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] px-4 py-4 lg:px-6">
+        {!controlCenterOpen ? (
+          <section className="flex w-full flex-col rounded-[30px] border border-white/8 bg-[#090909] p-6 shadow-[0_32px_80px_rgba(0,0,0,0.45)] lg:p-8">
+            <div className="flex flex-col gap-5 border-b border-white/8 pb-6 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/35">BrokeOctopus</p>
+                <h1 className="mt-2 text-[2.8rem] font-semibold tracking-[-0.06em] text-white">Admin Dashboard</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-white/52">
+                  Web operations panel for plans, referrals, support load, and infrastructure pressure.
+                </p>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-                {statCards.map((card) => (
-                  <article key={card.label} className="rounded-[22px] border border-white/8 bg-[#151515] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">{card.label}</div>
-                    <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{card.value}</div>
-                    <div className={`mt-2 text-sm font-medium ${toneClass(card.tone)}`}>{card.delta}</div>
-                  </article>
-                ))}
+              <div className="flex flex-wrap gap-3">
+                <button className="rounded-full border border-white/10 bg-[#151515] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-400">
+                  Refresh snapshot
+                </button>
+                <button
+                  onClick={() => setControlCenterOpen(true)}
+                  className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
+                >
+                  Open control center
+                </button>
               </div>
-            </section>
+            </div>
 
-            <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Priority Flags</div>
-              <div className="mt-4 space-y-3">
-                {[
-                  "3 users are pending manual billing recovery.",
-                  "Referral redemptions spiked 41% over baseline.",
-                  "One AI provider pool is within 8% of quota.",
-                ].map((item) => (
-                  <div key={item} className="rounded-[18px] border border-red-500/18 bg-[#160d0d] px-4 py-3 text-sm leading-6 text-white/78">
-                    {item}
+            <div className="mt-6 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+              <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Overview</div>
+                    <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Live business pulse</div>
                   </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                  <div className="rounded-full border border-red-500/30 bg-[#170d0d] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-200">
+                    Today
+                  </div>
+                </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Ops Queues</div>
-                <button className="rounded-full border border-white/10 bg-[#161616] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/72 transition hover:border-red-500/35 hover:text-white">
-                  View all
+                <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                  {[
+                    { label: "Active Users", value: "12,480", delta: "+8.2%" },
+                    { label: "MRR", value: "$18,240", delta: "+12.4%" },
+                    { label: "Failed Payments", value: "14", delta: "Needs review" },
+                    { label: "Open Reports", value: "7", delta: "2 urgent" },
+                  ].map((card) => (
+                    <article key={card.label} className="rounded-[22px] border border-white/8 bg-[#151515] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">{card.label}</div>
+                      <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] text-white">{card.value}</div>
+                      <div className="mt-2 text-sm font-medium text-red-300">{card.delta}</div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Priority Flags</div>
+                <div className="mt-4 space-y-3">
+                  {[
+                    "3 users are pending manual billing recovery.",
+                    "Referral redemptions spiked 41% over baseline.",
+                    "One AI provider pool is within 8% of quota.",
+                  ].map((item) => (
+                    <div key={item} className="rounded-[18px] border border-red-500/18 bg-[#160d0d] px-4 py-3 text-sm leading-6 text-white/78">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </section>
+        ) : (
+          <section className="flex min-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
+            <aside
+              className={`${
+                sidebarCollapsed ? "w-[92px]" : "w-[320px]"
+              } flex shrink-0 flex-col border-r border-white/8 bg-[#070707] transition-all duration-300`}
+            >
+              <div className="flex items-center justify-between border-b border-white/8 px-4 py-4">
+                <div className={sidebarCollapsed ? "hidden" : "block"}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">BrokeOctopus</p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white">Control Center</h2>
+                </div>
+                <button
+                  onClick={() => setSidebarCollapsed((value) => !value)}
+                  className="rounded-full border border-white/10 bg-[#121212] px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/72 transition hover:border-red-500/35 hover:text-white"
+                >
+                  {sidebarCollapsed ? "Open" : "Collapse"}
                 </button>
               </div>
 
-              <div className="mt-4 space-y-3">
-                {queueCards.map((card) => (
-                  <article key={card.title} className="rounded-[22px] border border-white/8 bg-[#151515] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-lg font-semibold text-white">{card.title}</div>
-                        <p className="mt-2 text-sm leading-6 text-white/52">{card.body}</p>
-                      </div>
-                      <button className="rounded-full border border-white/10 bg-[#0f0f0f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 transition hover:border-red-500/35 hover:text-white">
-                        {card.action}
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                <div className="space-y-2">
+                  {menuItems.map((item, index) => {
+                    const isActive = item.id === activeSectionId;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveSectionId(item.id)}
+                        className={`flex w-full items-start gap-3 rounded-[20px] border px-3 py-3 text-left transition ${
+                          isActive
+                            ? "border-red-500/40 bg-[#180b0b] text-white"
+                            : "border-white/8 bg-[#101010] text-white/72 hover:border-red-500/25 hover:text-white"
+                        }`}
+                      >
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#050505] text-[11px] font-semibold text-red-300">
+                          {String(index + 1).padStart(2, "0")}
+                        </div>
+                        {!sidebarCollapsed && (
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold">{item.label}</div>
+                            <div className="mt-1 text-xs leading-5 text-white/42">{item.description}</div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t border-white/8 p-3">
+                <button
+                  onClick={() => setControlCenterOpen(false)}
+                  className="w-full rounded-[18px] border border-white/10 bg-[#111111] px-4 py-3 text-sm font-semibold text-white transition hover:border-red-500/30 hover:text-red-300"
+                >
+                  {sidebarCollapsed ? "Back" : "Back to overview"}
+                </button>
+              </div>
+            </aside>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4 lg:px-6">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">Admin Section</p>
+                  <h1 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white">{activeSection.title}</h1>
+                  <p className="mt-2 text-sm leading-6 text-white/46">{activeSection.subtitle}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {activeSection.badge ? (
+                    <div className="rounded-full border border-red-500/30 bg-[#190b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-200">
+                      {activeSection.badge}
+                    </div>
+                  ) : null}
+                  <button className="rounded-full border border-white/10 bg-[#131313] px-4 py-2 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-300">
+                    Export
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[1.45fr_0.8fr] lg:p-6">
+                <section className="min-w-0 rounded-[26px] border border-white/8 bg-[#101010]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
+                      <div className="mt-2 text-lg font-semibold text-white">{activeSection.title}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="rounded-full border border-white/10 bg-[#151515] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-red-500/35 hover:text-white">
+                        Refresh
+                      </button>
+                      <button className="rounded-full bg-red-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:bg-white hover:text-red-500">
+                        Action
                       </button>
                     </div>
-                  </article>
-                ))}
-              </div>
-            </section>
+                  </div>
 
-            <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Recent Activity</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Operator timeline</div>
-                </div>
-                <div className="rounded-full border border-white/10 bg-[#151515] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/72">
-                  Auto-updating
-                </div>
-              </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/8 bg-[#0c0c0c]">
+                          {activeSection.columns.map((column) => (
+                            <th
+                              key={column}
+                              className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.24em] text-white/38"
+                            >
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeSection.rows.map((row, rowIndex) => (
+                          <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
+                            {row.map((cell, cellIndex) => (
+                              <td
+                                key={`${activeSection.id}-${rowIndex}-${cellIndex}`}
+                                className="px-4 py-4 text-sm leading-6 text-white/78"
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
 
-              <div className="mt-5 space-y-3">
-                {recentActivity.map((item) => (
-                  <article key={`${item.time}-${item.title}`} className="flex items-start gap-4 rounded-[22px] border border-white/8 bg-[#151515] px-4 py-4">
-                    <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="text-base font-semibold text-white">{item.title}</div>
-                        <div className="text-xs font-medium uppercase tracking-[0.2em] text-white/35">{item.time}</div>
-                      </div>
-                      <div className="mt-2 text-sm leading-6 text-white/52">{item.meta}</div>
+                <section className="space-y-4">
+                  <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Quick Metrics</div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                      {[
+                        ["Live Sessions", "218"],
+                        ["Queued Reports", "7"],
+                        ["Renewals This Week", "39"],
+                        ["Key Pool Health", "Stable"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-[18px] border border-white/8 bg-[#161616] px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">{label}</div>
+                          <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">{value}</div>
+                        </div>
+                      ))}
                     </div>
                   </article>
-                ))}
-              </div>
-            </section>
-          </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            {[
-              ["Plan Controls", "Manage plan mappings, credit bundles, and expiration rules."],
-              ["Referral Settings", "Tune campaign windows, reward values, and abuse limits."],
-              ["Invoice Audit", "Review invoice state, resend failures, and export records."],
-            ].map(([title, body]) => (
-              <section key={title} className="rounded-[24px] border border-white/8 bg-[#101010] p-5">
-                <div className="text-lg font-semibold text-white">{title}</div>
-                <p className="mt-3 text-sm leading-6 text-white/52">{body}</p>
-              </section>
-            ))}
-          </div>
-        </div>
+                  <article className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Operator Notes</div>
+                    <div className="mt-4 space-y-3">
+                      {[
+                        "Stripe webhooks are next backend task after domain cutover.",
+                        "Promo area and system settings remain intentionally deferred.",
+                        "Admin auth should be locked before exposing this route publicly.",
+                      ].map((note) => (
+                        <div key={note} className="rounded-[18px] border border-red-500/18 bg-[#160c0c] px-4 py-3 text-sm leading-6 text-white/78">
+                          {note}
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </section>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
