@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
+import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 
 type ProfileModalProps = {
   open: boolean;
@@ -104,6 +105,8 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   const [referralMode, setReferralMode] = useState<"refer" | "redeem">("refer");
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isOpeningInvoices, setIsOpeningInvoices] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const profilePhotoUrl = useMemo(() => getProfilePhotoUrl(user), [user]);
   const referralCode = useMemo(() => buildReferralCode(user), [user]);
@@ -118,6 +121,23 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
   if (!open) {
     return null;
+  }
+
+  async function openInvoices() {
+    try {
+      setInvoiceError(null);
+      setIsOpeningInvoices(true);
+
+      if (!AuthService.getCurrentUser()) {
+        throw new Error("Sign in first before opening invoices.");
+      }
+
+      const response = await OctopilotAPIService.post<{ url: string }>("/api/v1/billing/portal-session");
+      window.location.assign(response.url);
+    } catch (error) {
+      setInvoiceError(error instanceof Error ? error.message : "Could not open invoices.");
+      setIsOpeningInvoices(false);
+    }
   }
 
   return (
@@ -269,9 +289,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
+              onClick={() => void openInvoices()}
               className="rounded-full border border-white/10 bg-[#121212] px-6 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-400"
             >
-              Invoices
+              {isOpeningInvoices ? "Opening invoices..." : "Invoices"}
             </button>
             <button
               type="button"
@@ -289,6 +310,12 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
               {isSigningOut ? "Logging out..." : "Log Out"}
             </button>
           </div>
+
+          {invoiceError ? (
+            <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {invoiceError}
+            </div>
+          ) : null}
         </div>
       </section>
     </div>
