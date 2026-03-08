@@ -108,15 +108,10 @@ export default function PlanInfo({
   credits = defaultCredits,
   defaultExpanded = false,
 }: PlanInfoProps) {
-  const cachedSnapshot = AccountStateService.read();
-  const [authReadyUser, setAuthReadyUser] = useState(() => AuthService.getCurrentUser());
+  const [authReadyUser, setAuthReadyUser] = useState<ReturnType<typeof AuthService.getCurrentUser>>(null);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [resolvedPlanName, setResolvedPlanName] = useState(
-    getDisplayPlanName(cachedSnapshot?.plan || planName),
-  );
-  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(
-    cachedSnapshot ? mapMeToCredits(cachedSnapshot) : credits,
-  );
+  const [resolvedPlanName, setResolvedPlanName] = useState(getDisplayPlanName(planName));
+  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(credits);
   const rootRef = useRef<HTMLDivElement>(null);
   const shellWidth = expanded ? 388 : 138;
   const theme = getPlanTheme(resolvedPlanName);
@@ -133,6 +128,15 @@ export default function PlanInfo({
   }, []);
 
   useEffect(() => {
+    const snapshot = AccountStateService.read();
+    if (snapshot) {
+      if (snapshot.plan) {
+        setResolvedPlanName(getDisplayPlanName(snapshot.plan));
+      }
+      setResolvedCredits(mapMeToCredits(snapshot));
+    }
+
+    setAuthReadyUser(AuthService.getCurrentUser());
     return AuthService.subscribe((nextUser) => {
       setAuthReadyUser(nextUser);
     });

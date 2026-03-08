@@ -176,8 +176,7 @@ function Panel({
 }
 
 export default function ProfileModal({ open, onClose, user }: ProfileModalProps) {
-  const cachedSnapshot = AccountStateService.read();
-  const [authReadyUser, setAuthReadyUser] = useState(() => AuthService.getCurrentUser());
+  const [authReadyUser, setAuthReadyUser] = useState<ReturnType<typeof AuthService.getCurrentUser>>(null);
   const [redeemCode, setRedeemCode] = useState("");
   const [referralRedeemCode, setReferralRedeemCode] = useState("");
   const [referralMode, setReferralMode] = useState<"refer" | "redeem">("refer");
@@ -186,9 +185,9 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   const [isOpeningInvoices, setIsOpeningInvoices] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [profileState, setProfileState] = useState<ProfileState>({
-    planName: getDisplayPlanName(cachedSnapshot?.plan || getFallbackPlanName(user)),
-    subscriptionStatus: cachedSnapshot?.subscription_status ?? cachedSnapshot?.subscriptionStatus ?? "guest",
-    subscriptionEndDate: cachedSnapshot?.subscription_end_date ?? cachedSnapshot?.subscriptionEndDate ?? null,
+    planName: getDisplayPlanName(getFallbackPlanName(user)),
+    subscriptionStatus: "guest",
+    subscriptionEndDate: null,
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
@@ -205,10 +204,20 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   }, [user]);
 
   useEffect(() => {
+    const snapshot = AccountStateService.read();
+    if (snapshot) {
+      setProfileState({
+        planName: getDisplayPlanName(snapshot.plan || getFallbackPlanName(user)),
+        subscriptionStatus: snapshot.subscription_status ?? snapshot.subscriptionStatus ?? "guest",
+        subscriptionEndDate: snapshot.subscription_end_date ?? snapshot.subscriptionEndDate ?? null,
+      });
+    }
+
+    setAuthReadyUser(AuthService.getCurrentUser());
     return AuthService.subscribe((nextUser) => {
       setAuthReadyUser(nextUser);
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const resetInvoiceState = () => {
