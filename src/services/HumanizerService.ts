@@ -45,28 +45,43 @@ export class HumanizerService {
 
         const data = await res.json();
 
-        // Undetectable AI might return the ID in `documentId` or the actual `output` if it's synchronous.
-        // If it's asynchronous and returns an ID, we'd need to poll.
-        // Assuming synchronous output exists in `output` or `status: 'success'` based on common wrappers.
-        if (data.status === "success" && data.documentId && !data.output) {
-            // Polling logic for undetectable if it is strictly async
-            return await this.pollUndetectableDocument(data.documentId);
+        if (typeof data.output === "string" && data.output.trim()) {
+            return data.output;
         }
 
-        return data.output || "Humanized content not found.";
+        const documentId = data.documentId || data.id;
+        if (documentId) {
+            return await this.pollUndetectableDocument(documentId);
+        }
+
+        throw new Error("Undetectable AI did not return a document id.");
     }
 
     private static async pollUndetectableDocument(id: string): Promise<string> {
-        // Mock polling logic for now, undetectable API uses api.undetectable.ai/document
-        // Assuming the proxy returns the text. We might need to implement a document polling proxy endpoint.
-        const res = await fetch("/api/humanize/undetectable/document", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id }),
-        });
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+            if (attempt > 0) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
 
-        if (!res.ok) throw new Error("Failed to fetch humanized document.");
-        const data = await res.json();
-        return data.output;
+            const res = await fetch("/api/humanize/undetectable/document", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+
+            if (!res.ok) {
+                if (attempt === 7) {
+                    throw new Error("Failed to fetch humanized document.");
+                }
+                continue;
+            }
+
+            const data = await res.json();
+            if (typeof data.output === "string" && data.output.trim()) {
+                return data.output;
+            }
+        }
+
+        throw new Error("Undetectable AI is still processing. Please try again.");
     }
 }

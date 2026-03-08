@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHumanizerApiKey } from "@/server/backendConfig";
-const UNDETECTABLE_API_URL = "https://api.undetectable.ai/submit";
+const UNDETECTABLE_API_URL = "https://humanize.undetectable.ai/submit";
 
 export async function POST(request: NextRequest) {
     try {
@@ -19,13 +19,14 @@ export async function POST(request: NextRequest) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-key": apiKey,
+                apikey: apiKey,
             },
             body: JSON.stringify({
                 content,
                 readability,
                 purpose,
-                strength
+                strength,
+                model: "v11",
             }),
         });
 

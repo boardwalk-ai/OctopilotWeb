@@ -5,7 +5,7 @@ const STEALTHGPT_API_URL = "https://www.stealthgpt.ai/api/stealthify";
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { prompt, rephrase } = body;
+        const { prompt, rephrase, educationLevel, strength, detector } = body;
 
         if (!prompt || rephrase === undefined) {
             return NextResponse.json(
@@ -21,7 +21,18 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
                 "api-token": apiKey,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify({
+                prompt,
+                rephrase,
+                tone:
+                    educationLevel === "High School"
+                        ? "HighSchool"
+                        : educationLevel === "PHD"
+                            ? "PhD"
+                            : educationLevel || "Standard",
+                mode: strength || "Medium",
+                detector: detector || "GPTZero",
+            }),
         });
 
         if (!response.ok) {

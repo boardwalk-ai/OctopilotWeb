@@ -14,11 +14,11 @@ export async function POST(request: NextRequest) {
         }
         const apiKey = await getHumanizerApiKey("undetectable");
 
-        const response = await fetch("https://api.undetectable.ai/document", {
+        const response = await fetch("https://humanize.undetectable.ai/document", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "api-key": apiKey,
+                apikey: apiKey,
             },
             body: JSON.stringify({ id }),
         });
