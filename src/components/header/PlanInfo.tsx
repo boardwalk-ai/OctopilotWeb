@@ -187,12 +187,17 @@ export default function PlanInfo({
     <div ref={rootRef} className="relative">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group relative flex h-[44px] items-center overflow-hidden rounded-[20px] border transition-[width,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="group relative flex h-[46px] items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ width: `${shellWidth}px`, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
       >
+        {/* Glow overlay */}
         <span className="pointer-events-none absolute inset-0 opacity-90" style={{ background: theme.overlay }} />
-        <span className="relative flex h-full min-w-[138px] items-center gap-2 px-4 text-sm" style={{ color: theme.text }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3 w-3">
+        {/* Inner top edge glow */}
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-30" style={{ background: `linear-gradient(90deg, transparent, ${theme.text}, transparent)` }} />
+
+        {/* Plan name area — centered */}
+        <span className="relative flex h-full min-w-[138px] items-center justify-center gap-2.5 px-4" style={{ color: theme.text }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[14px] w-[14px] shrink-0">
             <path d="m4 18 2-9 6 4 6-4 2 9H4Z" />
             <path d="M7 9 4.5 5.5" />
             <path d="M12 9V4.5" />
@@ -201,38 +206,38 @@ export default function PlanInfo({
             <circle cx="12" cy="4.5" r="1" fill="currentColor" stroke="none" />
             <circle cx="19.5" cy="5.5" r="1" fill="currentColor" stroke="none" />
           </svg>
-          <span className="text-[0.9rem] font-semibold tracking-[-0.02em]">{resolvedPlanName}</span>
+          <span className="text-[0.92rem] font-bold tracking-[-0.01em]">{resolvedPlanName}</span>
           <svg
-            width="9"
-            height="9"
+            width="10"
+            height="10"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+            className={`shrink-0 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
 
+        {/* Credits panel */}
         <span
-          className={`relative flex h-[28px] items-stretch overflow-hidden transition-[max-width,opacity] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            expanded ? "max-w-[250px] opacity-100" : "max-w-0 opacity-0"
-          }`}
+          className={`relative flex h-[30px] items-stretch overflow-hidden transition-[max-width,opacity] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${expanded ? "max-w-[250px] opacity-100" : "max-w-0 opacity-0"
+            }`}
         >
           {resolvedCredits.map((credit, index) => (
             <span
               key={credit.label}
-              className={`flex min-w-[82px] flex-col items-center justify-center px-2 text-center ${
-                index !== credits.length - 1 ? "border-l border-white/12" : ""
-              }`}
+              className={`flex min-w-[82px] flex-col items-center justify-center px-2 text-center ${index === 0 ? "border-l" : index !== credits.length ? "border-l" : ""
+                }`}
+              style={{ borderColor: `${theme.text}22` }}
             >
-              <span className="text-[0.82rem] font-semibold tracking-[-0.03em] text-white">
+              <span className="text-[0.84rem] font-bold tabular-nums tracking-[-0.02em] text-white">
                 {credit.value.toLocaleString()}
               </span>
-              <span className="mt-0.5 text-[0.52rem] font-medium uppercase tracking-[0.22em] text-white/58">
+              <span className="mt-px text-[0.5rem] font-semibold uppercase tracking-[0.2em]" style={{ color: `${theme.text}88` }}>
                 {credit.label}
               </span>
             </span>
