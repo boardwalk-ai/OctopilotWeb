@@ -197,7 +197,12 @@ export default function StoreButton() {
     }
   }
 
-  async function startCheckout(payload: { kind: "subscription"; planKey: "pro" | "premium"; billingKey: BillingKey } | { kind: "addon"; addonKey: string }, requestKey: string) {
+  async function startCheckout(
+    payload:
+      | { kind: "subscription"; plan_key: "pro" | "premium"; billing_key: BillingKey }
+      | { kind: "addon"; addon_key: string },
+    requestKey: string,
+  ) {
     try {
       setError(null);
       setPendingKey(requestKey);
@@ -424,8 +429,8 @@ export default function StoreButton() {
                           void startCheckout(
                             {
                               kind: "subscription",
-                              planKey: plan.key,
-                              billingKey: plan.activeBilling.key,
+                              plan_key: plan.key,
+                              billing_key: plan.activeBilling.key,
                             },
                             `subscription:${plan.key}:${plan.activeBilling.key}`,
                           );
@@ -517,7 +522,7 @@ export default function StoreButton() {
                                 <span className="text-base font-bold text-white">{pack.price}</span>
                                 <button
                                   type="button"
-                                  onClick={() => void startCheckout({ kind: "addon", addonKey: pack.key }, `addon:${pack.key}`)}
+                                  onClick={() => void startCheckout({ kind: "addon", addon_key: pack.key }, `addon:${pack.key}`)}
                                   className="rounded-full px-3.5 py-1.5 text-[0.65rem] font-semibold transition hover:opacity-90"
                                   disabled={pendingKey === `addon:${pack.key}`}
                                   style={{ background: group.accentHex, color: '#0c0c0c' }}
