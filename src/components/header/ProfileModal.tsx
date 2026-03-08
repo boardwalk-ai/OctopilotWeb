@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
+import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 import { StreamService } from "@/services/StreamService";
@@ -175,6 +176,7 @@ function Panel({
 }
 
 export default function ProfileModal({ open, onClose, user }: ProfileModalProps) {
+  const cachedSnapshot = AccountStateService.read();
   const [redeemCode, setRedeemCode] = useState("");
   const [referralRedeemCode, setReferralRedeemCode] = useState("");
   const [referralMode, setReferralMode] = useState<"refer" | "redeem">("refer");
@@ -183,9 +185,9 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   const [isOpeningInvoices, setIsOpeningInvoices] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [profileState, setProfileState] = useState<ProfileState>({
-    planName: getFallbackPlanName(user),
-    subscriptionStatus: "guest",
-    subscriptionEndDate: null,
+    planName: getDisplayPlanName(cachedSnapshot?.plan || getFallbackPlanName(user)),
+    subscriptionStatus: cachedSnapshot?.subscription_status ?? cachedSnapshot?.subscriptionStatus ?? "guest",
+    subscriptionEndDate: cachedSnapshot?.subscription_end_date ?? cachedSnapshot?.subscriptionEndDate ?? null,
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
@@ -243,6 +245,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
         return;
       }
 
+      AccountStateService.write(payload);
       const mePayload = payload as MeResponse;
       const streamPayload = payload as StreamCreditsPayload;
       const nextPlan = mePayload.plan ?? streamPayload.plan;
@@ -258,13 +261,14 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
     const boot = async () => {
       const currentUser = AuthService.getCurrentUser();
-      setProfileState({
-        planName: getFallbackPlanName(currentUser),
-        subscriptionStatus: "guest",
-        subscriptionEndDate: null,
-      });
 
       if (!currentUser) {
+        AccountStateService.clear();
+        setProfileState({
+          planName: getFallbackPlanName(currentUser),
+          subscriptionStatus: "guest",
+          subscriptionEndDate: null,
+        });
         return;
       }
 

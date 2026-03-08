@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 import { StreamService } from "@/services/StreamService";
@@ -107,9 +108,14 @@ export default function PlanInfo({
   credits = defaultCredits,
   defaultExpanded = false,
 }: PlanInfoProps) {
+  const cachedSnapshot = AccountStateService.read();
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [resolvedPlanName, setResolvedPlanName] = useState(getDisplayPlanName(planName));
-  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(credits);
+  const [resolvedPlanName, setResolvedPlanName] = useState(
+    getDisplayPlanName(cachedSnapshot?.plan || planName),
+  );
+  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(
+    cachedSnapshot ? mapMeToCredits(cachedSnapshot) : credits,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const shellWidth = expanded ? 388 : 138;
   const theme = getPlanTheme(resolvedPlanName);
@@ -134,6 +140,7 @@ export default function PlanInfo({
         return;
       }
 
+      AccountStateService.write(payload);
       if (payload.plan) {
         setResolvedPlanName(getDisplayPlanName(payload.plan));
       }
@@ -143,6 +150,7 @@ export default function PlanInfo({
     const boot = async () => {
       const currentUser = AuthService.getCurrentUser();
       if (!currentUser) {
+        AccountStateService.clear();
         setResolvedPlanName(getDisplayPlanName(planName));
         setResolvedCredits(credits);
         return;
