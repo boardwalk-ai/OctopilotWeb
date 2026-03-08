@@ -11,10 +11,13 @@ interface UserAvatarProps {
 }
 
 export default function UserAvatar({ src, name = "U" }: UserAvatarProps) {
-  const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
+  const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => AuthService.subscribe(setUser), []);
+  useEffect(() => {
+    setUser(AuthService.getCurrentUser());
+    return AuthService.subscribe(setUser);
+  }, []);
 
   const displayName = user?.displayName || user?.email || name;
   const avatarSrc = src || user?.photoURL || user?.providerData.find((provider) => provider.photoURL)?.photoURL || undefined;

@@ -9,7 +9,7 @@ import VerifyEmailView from "@/components/VerifyEmailView";
 
 export default function AuthGate() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
-  const [isApplyingEmailAction, setIsApplyingEmailAction] = useState(() => typeof window !== "undefined");
+  const [isApplyingEmailAction, setIsApplyingEmailAction] = useState(false);
   const [emailActionError, setEmailActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +21,7 @@ export default function AuthGate() {
       return;
     }
 
+    setIsApplyingEmailAction(true);
     AuthService.applyEmailActionFromUrl(window.location.href)
       .catch((error) => {
         setEmailActionError(error instanceof Error ? error.message : "Could not complete email verification.");

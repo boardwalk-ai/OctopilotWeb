@@ -22,7 +22,6 @@ import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import StepperHeader, { automationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
-import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 import {
   AppHeader,
   BackToHome,
@@ -86,12 +85,6 @@ export default function HomeView() {
       stepScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
   }, [page, stepIndex]);
-
-  useEffect(() => {
-    void OctopilotAPIService.post("/api/v1/me/market-data-sync").catch(() => {
-      // Market data sync is best-effort and should not block app load.
-    });
-  }, []);
 
   if (page === "methodology") {
     return (
