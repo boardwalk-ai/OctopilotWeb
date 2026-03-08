@@ -1,4 +1,5 @@
 import { OctopilotAPIService } from "./OctopilotAPIService";
+import { AccountStateService } from "./AccountStateService";
 
 export type CreditType = "word" | "humanizer" | "source";
 
@@ -63,6 +64,20 @@ export class CreditService {
   }
 
   static async getAvailableCredits(): Promise<Record<CreditType, number>> {
+    const snapshot = AccountStateService.read();
+    if (snapshot) {
+      const cachedWord = snapshot.word_credits ?? snapshot.wordCredits;
+      const cachedHumanizer = snapshot.humanizer_credits ?? snapshot.humanizerCredits;
+      const cachedSource = snapshot.source_credits ?? snapshot.sourceCredits;
+      if (cachedWord != null || cachedHumanizer != null || cachedSource != null) {
+        return {
+          word: Number(cachedWord ?? 0),
+          humanizer: Number(cachedHumanizer ?? 0),
+          source: Number(cachedSource ?? 0),
+        };
+      }
+    }
+
     const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
     return {
       word: Number(me.word_credits ?? 0),
