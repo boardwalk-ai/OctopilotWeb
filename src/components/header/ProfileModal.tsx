@@ -71,22 +71,22 @@ function getPlanStatusCopy(profile: ProfileState): { title: string; detail: stri
 
   if (status === "cancelled") {
     return {
-      title: `${planName} ending soon`,
-      detail: `Subscription cancellation is scheduled. Your paid access stays active until ${expiry}.`,
+      title: `${planName} cancellation scheduled`,
+      detail: `You cancelled renewal for this plan. Your ${planName} access stays active until ${expiry}, then your account will return to Guest access.`,
     };
   }
 
   if (status === "billing_retry") {
     return {
       title: `${planName} payment issue`,
-      detail: `Stripe could not renew your subscription. Access is retained for now and may end on ${expiry} if payment is not fixed.`,
+      detail: `Stripe could not renew this subscription. Your access is still available for now, but it may end on ${expiry} if billing is not fixed.`,
     };
   }
 
   if (status === "active" || status === "trial") {
     return {
       title: planName,
-      detail: `Your current subscription is active and is set to renew or end on ${expiry}.`,
+      detail: `Your subscription is active right now. The current billing period ends on ${expiry}. If you cancel renewal, access still remains until that date.`,
     };
   }
 
@@ -406,9 +406,9 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                 </div>
                 <p className="mt-2 text-sm leading-6 text-white/55">
                   {profileState.subscriptionStatus === "cancelled"
-                    ? "Cancellation was requested in Stripe. Access remains active until the date above."
+                    ? "Renewal has been cancelled. You can keep using the paid plan until the date above, then the account will downgrade automatically."
                     : profileState.subscriptionStatus === "active" || profileState.subscriptionStatus === "trial"
-                      ? "This is the current renewal or access end date Stripe sent to the app."
+                      ? "This is the end of the current billing period. If renewal stays on, Stripe will extend it automatically."
                       : "No active paid subscription expiry is currently stored."}
                 </p>
               </Panel>
