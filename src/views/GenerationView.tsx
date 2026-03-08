@@ -19,6 +19,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     const [isGenerating, setIsGenerating] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const hasStarted = useRef(false);
+    const hasNavigated = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll when new text streams in
@@ -93,10 +94,6 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                         generatedBibliography: parsed.bibliography || "",
                     });
                     setIsGenerating(false);
-
-                    setTimeout(() => {
-                        onNext("preview");
-                    }, 1000);
                 } catch {
                     setError("Failed to parse the generated essay. Model did not return valid JSON.");
                     setIsGenerating(false);
@@ -109,6 +106,19 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
 
         startGeneration();
     }, [onNext, org.isTestMode, org.generatedEssay]);
+
+    useEffect(() => {
+        if (isGenerating || error || hasNavigated.current) {
+            return;
+        }
+
+        hasNavigated.current = true;
+        const timer = window.setTimeout(() => {
+            onNext("preview");
+        }, 900);
+
+        return () => window.clearTimeout(timer);
+    }, [error, isGenerating, onNext]);
 
     return (
         <div className="flex h-full w-full flex-col items-center overflow-hidden px-6 pb-8 pt-20 lg:px-10 2xl:px-14">
@@ -181,6 +191,16 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                                 className="mt-6 rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
                             >
                                 Try Again
+                            </button>
+                        </div>
+                    ) : !isGenerating ? (
+                        <div className="text-center py-10">
+                            <p className="mb-3 text-white/60">Preparing your preview...</p>
+                            <button
+                                onClick={() => onNext("preview")}
+                                className="rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+                            >
+                                Continue to Preview
                             </button>
                         </div>
                     ) : (
