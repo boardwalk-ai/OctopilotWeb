@@ -21,6 +21,32 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     const hasStarted = useRef(false);
     const hasNavigated = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const targetTextRef = useRef("");
+    const flushTimerRef = useRef<number | null>(null);
+
+    const queueDisplayedText = (nextText: string) => {
+        targetTextRef.current = nextText;
+        if (flushTimerRef.current !== null) {
+            return;
+        }
+
+        flushTimerRef.current = window.setInterval(() => {
+            setStreamedText((current) => {
+                const target = targetTextRef.current;
+                if (current === target) {
+                    if (flushTimerRef.current !== null) {
+                        window.clearInterval(flushTimerRef.current);
+                        flushTimerRef.current = null;
+                    }
+                    return current;
+                }
+
+                const remaining = target.length - current.length;
+                const step = remaining > 120 ? 28 : remaining > 60 ? 18 : remaining > 24 ? 10 : 4;
+                return target.slice(0, current.length + step);
+            });
+        }, 24);
+    };
 
     // Auto-scroll when new text streams in
     useEffect(() => {
@@ -76,7 +102,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                     if (bibloIndex !== -1) {
                         pureText = pureText.substring(0, bibloIndex);
                     }
-                    setStreamedText(pureText);
+                    queueDisplayedText(pureText);
                 });
 
                 let cleanOutput = finalRawOutput.trim();
@@ -106,6 +132,15 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
 
         startGeneration();
     }, [onNext, org.isTestMode, org.generatedEssay]);
+
+    useEffect(() => {
+        return () => {
+            if (flushTimerRef.current !== null) {
+                window.clearInterval(flushTimerRef.current);
+                flushTimerRef.current = null;
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (isGenerating || error || hasNavigated.current) {
