@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
 import { OctopilotAPIService } from "@/services/OctopilotAPIService";
+import { StreamService } from "@/services/StreamService";
 
 type ProfileModalProps = {
   open: boolean;
@@ -11,16 +12,90 @@ type ProfileModalProps = {
   user: User | null;
 };
 
-function formatPlanName(user: User | null): string {
+type MeResponse = {
+  plan?: string | null;
+  subscription_status?: string | null;
+  subscription_end_date?: string | null;
+  billing_period?: string | null;
+  word_credits?: number | null;
+  humanizer_credits?: number | null;
+  source_credits?: number | null;
+};
+
+type StreamCreditsPayload = {
+  plan?: string | null;
+  subscriptionStatus?: string | null;
+  subscriptionEndDate?: string | null;
+  wordCredits?: number | null;
+  humanizerCredits?: number | null;
+  sourceCredits?: number | null;
+};
+
+type ProfileState = {
+  planName: string;
+  subscriptionStatus: string;
+  subscriptionEndDate: string | null;
+};
+
+function getFallbackPlanName(user: User | null): string {
   if (!user) return "Guest";
   if (user.providerData.some((provider) => provider.providerId === "google.com")) return "Google Access";
   if (user.providerData.some((provider) => provider.providerId === "password")) return "Email Access";
   return "Starter";
 }
 
-function formatPlanExpiry(user: User | null): string {
-  if (!user) return "Not available";
-  return "Pending server sync";
+function getDisplayPlanName(planName: string | null | undefined): string {
+  const normalized = (planName || "").trim();
+  if (!normalized) return "Guest";
+  if (/^guest/i.test(normalized)) return "Guest";
+  return normalized.replace(/\s+plan$/i, "");
+}
+
+function formatExpiryDate(dateString: string | null | undefined): string {
+  if (!dateString) return "No active expiry date";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "No active expiry date";
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getPlanStatusCopy(profile: ProfileState): { title: string; detail: string } {
+  const planName = getDisplayPlanName(profile.planName);
+  const status = (profile.subscriptionStatus || "").toLowerCase();
+  const expiry = formatExpiryDate(profile.subscriptionEndDate);
+
+  if (status === "cancelled") {
+    return {
+      title: `${planName} ending soon`,
+      detail: `Subscription cancellation is scheduled. Your paid access stays active until ${expiry}.`,
+    };
+  }
+
+  if (status === "billing_retry") {
+    return {
+      title: `${planName} payment issue`,
+      detail: `Stripe could not renew your subscription. Access is retained for now and may end on ${expiry} if payment is not fixed.`,
+    };
+  }
+
+  if (status === "active" || status === "trial") {
+    return {
+      title: planName,
+      detail: `Your current subscription is active and is set to renew or end on ${expiry}.`,
+    };
+  }
+
+  return {
+    title: planName,
+    detail: profile.subscriptionEndDate
+      ? `Your current access is scheduled to end on ${expiry}.`
+      : "You are currently on guest access with no active subscription.",
+  };
 }
 
 function buildReferralCode(user: User | null): string {
@@ -107,9 +182,16 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isOpeningInvoices, setIsOpeningInvoices] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [profileState, setProfileState] = useState<ProfileState>({
+    planName: getFallbackPlanName(user),
+    subscriptionStatus: "guest",
+    subscriptionEndDate: null,
+  });
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   const profilePhotoUrl = useMemo(() => getProfilePhotoUrl(user), [user]);
   const referralCode = useMemo(() => buildReferralCode(user), [user]);
+  const planStatusCopy = useMemo(() => getPlanStatusCopy(profileState), [profileState]);
   const initials = useMemo(() => {
     const label = user?.displayName || user?.email || "U";
     return label
@@ -119,9 +201,112 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       .join("") || "U";
   }, [user]);
 
-  if (!open) {
-    return null;
-  }
+  useEffect(() => {
+    const resetInvoiceState = () => {
+      setIsOpeningInvoices(false);
+      setInvoiceError(null);
+    };
+
+    if (!open) {
+      resetInvoiceState();
+      return;
+    }
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        resetInvoiceState();
+      }
+    };
+
+    const handlePageShow = () => {
+      resetInvoiceState();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let stopStream: (() => void) | undefined;
+
+    if (!open) {
+      return;
+    }
+
+    const applyPayload = (payload?: MeResponse | StreamCreditsPayload | null) => {
+      if (cancelled || !payload) {
+        return;
+      }
+
+      const mePayload = payload as MeResponse;
+      const streamPayload = payload as StreamCreditsPayload;
+      const nextPlan = mePayload.plan ?? streamPayload.plan;
+      const nextStatus = mePayload.subscription_status ?? streamPayload.subscriptionStatus;
+      const nextEndDate = mePayload.subscription_end_date ?? streamPayload.subscriptionEndDate;
+
+      setProfileState((current) => ({
+        planName: getDisplayPlanName(nextPlan || current.planName || getFallbackPlanName(user)),
+        subscriptionStatus: nextStatus || current.subscriptionStatus || "guest",
+        subscriptionEndDate: nextEndDate || current.subscriptionEndDate || null,
+      }));
+    };
+
+    const boot = async () => {
+      const currentUser = AuthService.getCurrentUser();
+      setProfileState({
+        planName: getFallbackPlanName(currentUser),
+        subscriptionStatus: "guest",
+        subscriptionEndDate: null,
+      });
+
+      if (!currentUser) {
+        return;
+      }
+
+      setIsLoadingProfile(true);
+      try {
+        const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
+        applyPayload(me);
+      } catch {
+        // Fallback state is already set above.
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
+        }
+      }
+
+      try {
+        stopStream = await StreamService.connect({
+          onEvent: (event) => {
+            if (event.type !== "sync_credits" || !event.data) {
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(event.data) as StreamCreditsPayload;
+              applyPayload(parsed);
+            } catch {
+              // Ignore malformed realtime events.
+            }
+          },
+        });
+      } catch {
+        // Streaming is optional here.
+      }
+    };
+
+    void boot();
+
+    return () => {
+      cancelled = true;
+      stopStream?.();
+    };
+  }, [open, user]);
 
   async function openInvoices() {
     try {
@@ -138,6 +323,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       setInvoiceError(error instanceof Error ? error.message : "Could not open invoices.");
       setIsOpeningInvoices(false);
     }
+  }
+
+  if (!open) {
+    return null;
   }
 
   return (
@@ -192,7 +381,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     <div className="rounded-full border border-red-500/30 bg-[#1a0d0d] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-100">
-                      {formatPlanName(user)}
+                      {profileState.planName}
                     </div>
                     <div className="rounded-full border border-white/10 bg-[#161616] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">
                       {user?.emailVerified ? "Verified" : "Unverified"}
@@ -204,10 +393,24 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
             <div className="grid gap-4">
               <Panel title="Plan Information">
-                <div className="text-3xl font-semibold tracking-[-0.04em] text-white">{formatPlanName(user)}</div>
+                <div className="text-3xl font-semibold tracking-[-0.04em] text-white">
+                  {isLoadingProfile ? "Loading..." : planStatusCopy.title}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  {planStatusCopy.detail}
+                </p>
               </Panel>
               <Panel title="Plan Expiration Date">
-                <div className="text-2xl font-semibold tracking-[-0.04em] text-white">{formatPlanExpiry(user)}</div>
+                <div className="text-2xl font-semibold tracking-[-0.04em] text-white">
+                  {isLoadingProfile ? "Loading..." : formatExpiryDate(profileState.subscriptionEndDate)}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  {profileState.subscriptionStatus === "cancelled"
+                    ? "Cancellation was requested in Stripe. Access remains active until the date above."
+                    : profileState.subscriptionStatus === "active" || profileState.subscriptionStatus === "trial"
+                      ? "This is the current renewal or access end date Stripe sent to the app."
+                      : "No active paid subscription expiry is currently stored."}
+                </p>
               </Panel>
             </div>
           </div>
