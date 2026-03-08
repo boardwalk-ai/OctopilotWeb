@@ -766,6 +766,9 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         const sectionId = section.id;
         setSectionAssistantLoading(sectionId, true);
         try {
+            if (!org.isTestMode) {
+                await CreditService.ensureSufficientCredits("source", 5);
+            }
             const ideas = await SuService.generateMoreIdeas({
                 essayTopic: org.essayTopic || org.finalEssayTitle || "Untitled Essay",
                 sectionType: section.type,
@@ -800,6 +803,9 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
         setSectionAssistantLoading(sectionId, true);
         try {
+            if (!org.isTestMode) {
+                await CreditService.ensureSufficientCredits("source", 1);
+            }
             const answer = await SuService.askQuestion({
                 essayTopic: org.essayTopic || org.finalEssayTitle || "Untitled Essay",
                 sectionType: section.type,
@@ -1128,13 +1134,17 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
         setSummaryLoading(true);
         try {
+            const requiredWordCredits = CreditService.creditsFromWords(CreditService.countWords(writtenEssay));
+            if (!org.isTestMode) {
+                await CreditService.ensureSufficientCredits("word", requiredWordCredits);
+            }
             const summary = await SuService.summarizeProgress({
                 essayTitle: org.finalEssayTitle || org.essayTopic || "Untitled Essay",
                 outlineTitles: sections.map((section) => section.title.trim()).filter(Boolean),
                 writtenEssay,
             });
             if (!org.isTestMode) {
-                await CreditService.deductWordCreditsForWords(CreditService.countWords(writtenEssay));
+                await CreditService.deduct("word", requiredWordCredits);
             }
             setSummaryInsights(summary);
             setIsInsightsOpen(true);

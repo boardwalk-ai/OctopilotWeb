@@ -2,6 +2,12 @@ import { OctopilotAPIService } from "./OctopilotAPIService";
 
 export type CreditType = "word" | "humanizer" | "source";
 
+type MeResponse = {
+  word_credits?: number | null;
+  humanizer_credits?: number | null;
+  source_credits?: number | null;
+};
+
 type DeductResponse = {
   word_credits?: number;
   humanizer_credits?: number;
@@ -54,5 +60,41 @@ export class CreditService {
 
   static async deductHumanizerCreditsForWords(words: number): Promise<DeductResponse | null> {
     return CreditService.deduct("humanizer", CreditService.creditsFromWords(words));
+  }
+
+  static async getAvailableCredits(): Promise<Record<CreditType, number>> {
+    const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
+    return {
+      word: Number(me.word_credits ?? 0),
+      humanizer: Number(me.humanizer_credits ?? 0),
+      source: Number(me.source_credits ?? 0),
+    };
+  }
+
+  static async ensureSufficientCredits(creditType: CreditType, amount: number): Promise<void> {
+    if (amount <= 0) return;
+
+    const available = await CreditService.getAvailableCredits();
+    const current = available[creditType];
+    if (current >= amount) return;
+
+    const label = creditType === "word" ? "word" : creditType === "humanizer" ? "humanizer" : "source";
+    throw new CreditDeductionError(
+      `You need ${amount} ${label} credits, but only ${current} are available.`,
+      creditType,
+      amount,
+    );
+  }
+
+  static async ensureSufficientWordCreditsForWords(words: number): Promise<number> {
+    const amount = CreditService.creditsFromWords(words);
+    await CreditService.ensureSufficientCredits("word", amount);
+    return amount;
+  }
+
+  static async ensureSufficientHumanizerCreditsForWords(words: number): Promise<number> {
+    const amount = CreditService.creditsFromWords(words);
+    await CreditService.ensureSufficientCredits("humanizer", amount);
+    return amount;
   }
 }

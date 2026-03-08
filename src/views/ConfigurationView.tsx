@@ -593,6 +593,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             const sourceCharge = Math.max(0, activeSourceCount - previouslyCharged);
 
             if (!org.isTestMode && sourceCharge > 0) {
+                await CreditService.ensureSufficientCredits("source", sourceCharge);
                 await CreditService.deductSourceCredits(sourceCharge);
             }
 

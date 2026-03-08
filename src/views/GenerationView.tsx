@@ -64,6 +64,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
             }
 
             try {
+                await CreditService.ensureSufficientWordCreditsForWords(targetWords);
                 const finalRawOutput = await LucasService.generate((chunkText) => {
                     let pureText = chunkText;
                     pureText = pureText.replace(/^[\s\S]*?"essay_content"\s*:\s*"/i, "");

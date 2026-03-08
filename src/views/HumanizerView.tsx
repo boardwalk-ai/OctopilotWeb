@@ -101,6 +101,11 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
         setError(null);
 
         try {
+            if (!org.isTestMode) {
+                const selectedWords = typeof org.wordCount === "number" ? org.wordCount : CreditService.countWords(textEditable);
+                await CreditService.ensureSufficientHumanizerCreditsForWords(selectedWords);
+            }
+
             let resultText = "";
             if (selectedAIEngine === "stealthgpt") {
                 resultText = await HumanizerService.stealthGPT({
