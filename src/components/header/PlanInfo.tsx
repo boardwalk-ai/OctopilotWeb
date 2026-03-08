@@ -109,6 +109,7 @@ export default function PlanInfo({
   defaultExpanded = false,
 }: PlanInfoProps) {
   const cachedSnapshot = AccountStateService.read();
+  const [authReadyUser, setAuthReadyUser] = useState(() => AuthService.getCurrentUser());
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [resolvedPlanName, setResolvedPlanName] = useState(
     getDisplayPlanName(cachedSnapshot?.plan || planName),
@@ -132,6 +133,12 @@ export default function PlanInfo({
   }, []);
 
   useEffect(() => {
+    return AuthService.subscribe((nextUser) => {
+      setAuthReadyUser(nextUser);
+    });
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     let stopStream: (() => void) | undefined;
 
@@ -148,7 +155,7 @@ export default function PlanInfo({
     };
 
     const boot = async () => {
-      const currentUser = AuthService.getCurrentUser();
+      const currentUser = authReadyUser;
       if (!currentUser) {
         AccountStateService.clear();
         setResolvedPlanName(getDisplayPlanName(planName));
@@ -189,7 +196,7 @@ export default function PlanInfo({
       cancelled = true;
       stopStream?.();
     };
-  }, [credits, planName]);
+  }, [authReadyUser, credits, planName]);
 
   return (
     <div ref={rootRef} className="relative">

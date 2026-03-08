@@ -177,6 +177,7 @@ function Panel({
 
 export default function ProfileModal({ open, onClose, user }: ProfileModalProps) {
   const cachedSnapshot = AccountStateService.read();
+  const [authReadyUser, setAuthReadyUser] = useState(() => AuthService.getCurrentUser());
   const [redeemCode, setRedeemCode] = useState("");
   const [referralRedeemCode, setReferralRedeemCode] = useState("");
   const [referralMode, setReferralMode] = useState<"refer" | "redeem">("refer");
@@ -202,6 +203,12 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       .map((part) => part[0]?.toUpperCase() || "")
       .join("") || "U";
   }, [user]);
+
+  useEffect(() => {
+    return AuthService.subscribe((nextUser) => {
+      setAuthReadyUser(nextUser);
+    });
+  }, []);
 
   useEffect(() => {
     const resetInvoiceState = () => {
@@ -260,7 +267,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
     };
 
     const boot = async () => {
-      const currentUser = AuthService.getCurrentUser();
+      const currentUser = authReadyUser;
 
       if (!currentUser) {
         AccountStateService.clear();
@@ -310,7 +317,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       cancelled = true;
       stopStream?.();
     };
-  }, [open, user]);
+  }, [authReadyUser, open, user]);
 
   async function openInvoices() {
     try {
