@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AuthService } from "@/services/AuthService";
+import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 
 /* ━━━ Types ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 type BillingKey = "weekly" | "monthly" | "quarterly" | "annual";
@@ -34,11 +36,12 @@ type PlanDef = {
 };
 
 type AddOnGroup = {
+  key: "word" | "humanizer" | "source";
   title: string;
   description: string;
   accentText: string;
   accentHex: string;
-  packs: Array<{ label: string; price: string }>;
+  packs: Array<{ key: string; label: string; price: string }>;
 };
 
 /* ━━━ Data ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -99,36 +102,39 @@ const plans: PlanDef[] = [
 
 const addOnGroups: AddOnGroup[] = [
   {
+    key: "word",
     title: "Word Credits",
     description: "Power your AI writer with extra word credits. Each credit covers 10 words of generated content — perfect for topping up before deadlines.",
     accentText: "text-rose-400",
     accentHex: "#fb7185",
     packs: [
-      { label: "1K word credits", price: "$0.99" },
-      { label: "2.5K word credits", price: "$1.99" },
-      { label: "7.5K word credits", price: "$4.99" },
+      { key: "word_1k", label: "1K word credits", price: "$0.99" },
+      { key: "word_2_5k", label: "2.5K word credits", price: "$1.99" },
+      { key: "word_7_5k", label: "7.5K word credits", price: "$4.99" },
     ],
   },
   {
+    key: "humanizer",
     title: "Humanizer Credits",
     description: "Make AI-generated text undetectable. Each humanizer credit covers 10 words of humanization — essential for academic submissions.",
     accentText: "text-violet-300",
     accentHex: "#c4b5fd",
     packs: [
-      { label: "100 humanizer credits", price: "$0.99" },
-      { label: "300 humanizer credits", price: "$1.99" },
-      { label: "1K humanizer credits", price: "$4.99" },
+      { key: "humanizer_100", label: "100 humanizer credits", price: "$0.99" },
+      { key: "humanizer_300", label: "300 humanizer credits", price: "$1.99" },
+      { key: "humanizer_1000", label: "1K humanizer credits", price: "$4.99" },
     ],
   },
   {
+    key: "source",
     title: "Source Credits",
     description: "Add real, credible citations to your work. One source credit fetches one verified academic source to strengthen your arguments.",
     accentText: "text-sky-400",
     accentHex: "#38bdf8",
     packs: [
-      { label: "50 source credits", price: "$0.99" },
-      { label: "150 source credits", price: "$1.99" },
-      { label: "450 source credits", price: "$4.99" },
+      { key: "source_50", label: "50 source credits", price: "$0.99" },
+      { key: "source_150", label: "150 source credits", price: "$1.99" },
+      { key: "source_450", label: "450 source credits", price: "$4.99" },
     ],
   },
 ];
@@ -158,6 +164,8 @@ export default function StoreButton() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"plans" | "addons">("plans");
   const [activePlan, setActivePlan] = useState<PlanKey>("pro");
+  const [error, setError] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [selectedBilling, setSelectedBilling] = useState<Record<PlanKey, BillingKey>>({
     guest: "monthly",
     pro: "monthly",
@@ -181,6 +189,43 @@ export default function StoreButton() {
   }, [activePlan, selectedBilling]);
 
   const hasBilling = !!plan.billing?.length;
+
+  async function ensureSignedIn() {
+    const currentUser = AuthService.getCurrentUser();
+    if (!currentUser) {
+      throw new Error("Sign in first before buying a plan or credits.");
+    }
+  }
+
+  async function startCheckout(payload: { kind: "subscription"; planKey: "pro" | "premium"; billingKey: BillingKey } | { kind: "addon"; addonKey: string }, requestKey: string) {
+    try {
+      setError(null);
+      setPendingKey(requestKey);
+      await ensureSignedIn();
+
+      const response = await OctopilotAPIService.post<{ url: string }>("/api/v1/billing/checkout-session", payload);
+      window.location.assign(response.url);
+    } catch (checkoutError) {
+      const message = checkoutError instanceof Error ? checkoutError.message : "Checkout could not be started.";
+      setError(message);
+      setPendingKey(null);
+    }
+  }
+
+  async function openPortal() {
+    try {
+      setError(null);
+      setPendingKey("portal");
+      await ensureSignedIn();
+
+      const response = await OctopilotAPIService.post<{ url: string }>("/api/v1/billing/portal-session");
+      window.location.assign(response.url);
+    } catch (portalError) {
+      const message = portalError instanceof Error ? portalError.message : "Billing portal could not be opened.";
+      setError(message);
+      setPendingKey(null);
+    }
+  }
 
   return (
     <>
@@ -372,20 +417,49 @@ export default function StoreButton() {
                       {/* CTA */}
                       <button
                         type="button"
-                        disabled={plan.disabled}
+                        onClick={() => {
+                          if (plan.disabled || !plan.activeBilling || (plan.key !== "pro" && plan.key !== "premium")) {
+                            return;
+                          }
+                          void startCheckout(
+                            {
+                              kind: "subscription",
+                              planKey: plan.key,
+                              billingKey: plan.activeBilling.key,
+                            },
+                            `subscription:${plan.key}:${plan.activeBilling.key}`,
+                          );
+                        }}
+                        disabled={plan.disabled || pendingKey === `subscription:${plan.key}:${plan.activeBilling?.key ?? ""}`}
                         className={`mt-5 w-full rounded-full py-3 text-[0.82rem] font-semibold tracking-wide transition ${plan.disabled
                           ? "cursor-not-allowed border border-white/8 bg-white/[0.04] text-neutral-500"
                           : "text-neutral-950 hover:opacity-90"
                           }`}
                         style={!plan.disabled ? { background: plan.accentHex } : undefined}
                       >
-                        {plan.cta}
+                        {pendingKey === `subscription:${plan.key}:${plan.activeBilling?.key ?? ""}` ? "Opening checkout..." : plan.cta}
                       </button>
 
                       {/* Bottom note */}
                       <p className="mt-2.5 text-center text-[0.65rem] text-neutral-600">
                         {plan.disabled ? "Included with every account" : "Cancel or switch plans anytime"}
                       </p>
+
+                      {!plan.disabled ? (
+                        <button
+                          type="button"
+                          onClick={() => void openPortal()}
+                          className="mt-2 text-center text-[0.68rem] text-neutral-500 transition hover:text-white"
+                        >
+                          {pendingKey === "portal" ? "Opening billing portal..." : "Manage billing"}
+                        </button>
+                      ) : null}
+
+                      {error ? (
+                        <p className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[0.7rem] leading-relaxed text-red-300">
+                          {error}
+                        </p>
+                      ) : null}
 
                       {/* Trust signals */}
                       <div className="mt-4 border-t border-white/6 pt-4">
@@ -443,10 +517,12 @@ export default function StoreButton() {
                                 <span className="text-base font-bold text-white">{pack.price}</span>
                                 <button
                                   type="button"
+                                  onClick={() => void startCheckout({ kind: "addon", addonKey: pack.key }, `addon:${pack.key}`)}
                                   className="rounded-full px-3.5 py-1.5 text-[0.65rem] font-semibold transition hover:opacity-90"
+                                  disabled={pendingKey === `addon:${pack.key}`}
                                   style={{ background: group.accentHex, color: '#0c0c0c' }}
                                 >
-                                  Buy
+                                  {pendingKey === `addon:${pack.key}` ? "Opening..." : "Buy"}
                                 </button>
                               </div>
                             </div>
@@ -455,6 +531,12 @@ export default function StoreButton() {
                       </div>
                     ))}
                   </div>
+
+                  {error ? (
+                    <p className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-[0.74rem] leading-relaxed text-red-300">
+                      {error}
+                    </p>
+                  ) : null}
 
                   {/* Bottom info row */}
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:gap-4">

@@ -7,7 +7,7 @@ export class OctopilotAPIService {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: await OctopilotAPIService.getHeaders(),
     });
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    if (!response.ok) throw new Error(await OctopilotAPIService.getErrorMessage(response));
     return response.json();
   }
 
@@ -17,7 +17,7 @@ export class OctopilotAPIService {
       headers: await OctopilotAPIService.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    if (!response.ok) throw new Error(await OctopilotAPIService.getErrorMessage(response));
     return response.json();
   }
 
@@ -28,5 +28,14 @@ export class OctopilotAPIService {
       "Content-Type": "application/json",
       ...(authorization ? { Authorization: authorization } : {}),
     };
+  }
+
+  private static async getErrorMessage(response: Response): Promise<string> {
+    try {
+      const payload = (await response.json()) as { detail?: string; message?: string };
+      return payload.detail || payload.message || `API error: ${response.status}`;
+    } catch {
+      return `API error: ${response.status}`;
+    }
   }
 }
