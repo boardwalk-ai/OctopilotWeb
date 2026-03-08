@@ -21,31 +21,40 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     const hasStarted = useRef(false);
     const hasNavigated = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const targetTextRef = useRef("");
-    const flushTimerRef = useRef<number | null>(null);
 
-    const queueDisplayedText = (nextText: string) => {
-        targetTextRef.current = nextText;
-        if (flushTimerRef.current !== null) {
-            return;
+    const extractGenerationResult = (raw: string): { essay_content: string; bibliography: string } | null => {
+        let cleanOutput = raw.trim();
+        if (cleanOutput.startsWith("```")) {
+            cleanOutput = cleanOutput.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
         }
 
-        flushTimerRef.current = window.setInterval(() => {
-            setStreamedText((current) => {
-                const target = targetTextRef.current;
-                if (current === target) {
-                    if (flushTimerRef.current !== null) {
-                        window.clearInterval(flushTimerRef.current);
-                        flushTimerRef.current = null;
-                    }
-                    return current;
-                }
+        const firstBrace = cleanOutput.indexOf("{");
+        const lastBrace = cleanOutput.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const candidate = cleanOutput.slice(firstBrace, lastBrace + 1);
+            try {
+                return JSON.parse(candidate) as { essay_content: string; bibliography: string };
+            } catch {
+                // fallback below
+            }
+        }
 
-                const remaining = target.length - current.length;
-                const step = remaining > 120 ? 28 : remaining > 60 ? 18 : remaining > 24 ? 10 : 4;
-                return target.slice(0, current.length + step);
-            });
-        }, 24);
+        const essayMatch = cleanOutput.match(/"essay_content"\s*:\s*"([\s\S]*?)"\s*,\s*"bibliography"/);
+        const bibliographyMatch = cleanOutput.match(/"bibliography"\s*:\s*"([\s\S]*?)"\s*\}?$/);
+        if (!essayMatch) {
+            return null;
+        }
+
+        const decode = (value: string) =>
+            value
+                .replace(/\\"/g, "\"")
+                .replace(/\\n/g, "\n")
+                .replace(/\\\\/g, "\\");
+
+        return {
+            essay_content: decode(essayMatch[1]).trim(),
+            bibliography: bibliographyMatch ? decode(bibliographyMatch[1]).trim() : "",
+        };
     };
 
     // Auto-scroll when new text streams in
@@ -102,28 +111,24 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                     if (bibloIndex !== -1) {
                         pureText = pureText.substring(0, bibloIndex);
                     }
-                    queueDisplayedText(pureText);
+                    setStreamedText(pureText);
                 });
 
-                let cleanOutput = finalRawOutput.trim();
-                if (cleanOutput.startsWith("```")) {
-                    cleanOutput = cleanOutput.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-                }
-
-                try {
-                    const parsed = JSON.parse(cleanOutput);
-                    if (!org.isTestMode) {
-                        await CreditService.deductWordCreditsForWords(targetWords);
-                    }
-                    Organizer.set({
-                        generatedEssay: parsed.essay_content || "",
-                        generatedBibliography: parsed.bibliography || "",
-                    });
-                    setIsGenerating(false);
-                } catch {
+                const parsed = extractGenerationResult(finalRawOutput);
+                if (!parsed) {
                     setError("Failed to parse the generated essay. Model did not return valid JSON.");
                     setIsGenerating(false);
+                    return;
                 }
+
+                if (!org.isTestMode) {
+                    await CreditService.deductWordCreditsForWords(targetWords);
+                }
+                Organizer.set({
+                    generatedEssay: parsed.essay_content || "",
+                    generatedBibliography: parsed.bibliography || "",
+                });
+                setIsGenerating(false);
             } catch (err: unknown) {
                 setError(err instanceof Error ? err.message : "An unknown error occurred during generation.");
                 setIsGenerating(false);
@@ -132,15 +137,6 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
 
         startGeneration();
     }, [onNext, org.isTestMode, org.generatedEssay]);
-
-    useEffect(() => {
-        return () => {
-            if (flushTimerRef.current !== null) {
-                window.clearInterval(flushTimerRef.current);
-                flushTimerRef.current = null;
-            }
-        };
-    }, []);
 
     useEffect(() => {
         if (isGenerating || error || hasNavigated.current) {

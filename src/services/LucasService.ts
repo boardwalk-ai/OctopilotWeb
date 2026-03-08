@@ -24,28 +24,50 @@ export class LucasService {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let fullContent = "";
+        let buffer = "";
+
+        const processLine = (line: string) => {
+            if (!line.startsWith("data: ") || line === "data: [DONE]") {
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(line.slice(6));
+                const token = parsed.choices?.[0]?.delta?.content || "";
+                if (token) {
+                    fullContent += token;
+                    onChunk(fullContent);
+                }
+            } catch {
+                // Wait for more buffered data if this event is incomplete.
+            }
+        };
 
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+                buffer += decoder.decode();
+                break;
+            }
 
-            const chunk = decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
 
-            // OpenRouter SSE format: "data: {...}\n\n"
-            const lines = chunk.split("\n");
-            for (const line of lines) {
-                if (line.startsWith("data: ") && line !== "data: [DONE]") {
-                    try {
-                        const parsed = JSON.parse(line.slice(6));
-                        const token = parsed.choices?.[0]?.delta?.content || "";
-                        if (token) {
-                            fullContent += token;
-                            onChunk(fullContent);
-                        }
-                    } catch {
-                        // Incomplete JSON chunk, ignore for now
-                    }
+            let boundaryIndex = buffer.indexOf("\n\n");
+            while (boundaryIndex !== -1) {
+                const rawEvent = buffer.slice(0, boundaryIndex);
+                buffer = buffer.slice(boundaryIndex + 2);
+
+                for (const line of rawEvent.split("\n")) {
+                    processLine(line.trim());
                 }
+
+                boundaryIndex = buffer.indexOf("\n\n");
+            }
+        }
+
+        if (buffer.trim()) {
+            for (const line of buffer.split("\n")) {
+                processLine(line.trim());
             }
         }
 
