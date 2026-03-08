@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
+import { CreditService } from "@/services/CreditService";
 import { Organizer } from "@/services/OrganizerService";
 import { LucasService } from "@/services/LucasService";
 
@@ -83,6 +84,9 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
 
                 try {
                     const parsed = JSON.parse(cleanOutput);
+                    if (!org.isTestMode) {
+                        await CreditService.deductWordCreditsForWords(targetWords);
+                    }
                     Organizer.set({
                         generatedEssay: parsed.essay_content || "",
                         generatedBibliography: parsed.bibliography || "",

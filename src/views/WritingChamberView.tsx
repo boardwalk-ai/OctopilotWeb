@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { CitationTemplateService } from "@/services/CitationTemplateService";
+import { CreditDeductionError, CreditService } from "@/services/CreditService";
 import { InTextCitationService } from "@/services/InTextCitationService";
 import { Organizer, SourceData } from "@/services/OrganizerService";
 import { SpoonieService } from "@/services/SpoonieService";
@@ -772,14 +773,25 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 currentDraft: toPlainText(sectionHtml[sectionId] || ""),
                 citationStyle: org.citationStyle,
             });
+            if (!org.isTestMode) {
+                await CreditService.deductSourceCredits(5);
+            }
             pushAssistantIdeas(sectionId, ideas);
         } catch (error) {
             console.error("[WritingChamber] More ideas failed", error);
-            pushAssistantIdeas(sectionId, ["Su could not generate suggestions right now. Try again."]);
+            if (error instanceof CreditDeductionError) {
+                setDialog({
+                    type: "info",
+                    title: "More Ideas Unavailable",
+                    message: error.message,
+                });
+            } else {
+                pushAssistantIdeas(sectionId, ["Su could not generate suggestions right now. Try again."]);
+            }
         } finally {
             setSectionAssistantLoading(sectionId, false);
         }
-    }, [org.citationStyle, org.essayTopic, org.finalEssayTitle, pushAssistantIdeas, sectionHtml, setSectionAssistantLoading]);
+    }, [org.citationStyle, org.essayTopic, org.finalEssayTitle, org.isTestMode, pushAssistantIdeas, sectionHtml, setSectionAssistantLoading]);
 
     const handleAskQuestion = useCallback(async (section: ChamberSection) => {
         const sectionId = section.id;
@@ -796,15 +808,26 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 currentDraft: toPlainText(sectionHtml[sectionId] || ""),
                 citationStyle: org.citationStyle,
             });
+            if (!org.isTestMode) {
+                await CreditService.deductSourceCredits(1);
+            }
             upsertAssistantAnswer(sectionId, answer);
             setAssistantQuestionBySection((prev) => ({ ...prev, [sectionId]: "" }));
         } catch (error) {
             console.error("[WritingChamber] Ask failed", error);
-            upsertAssistantAnswer(sectionId, "Su could not answer right now. Please try again.");
+            if (error instanceof CreditDeductionError) {
+                setDialog({
+                    type: "info",
+                    title: "Ask Unavailable",
+                    message: error.message,
+                });
+            } else {
+                upsertAssistantAnswer(sectionId, "Su could not answer right now. Please try again.");
+            }
         } finally {
             setSectionAssistantLoading(sectionId, false);
         }
-    }, [assistantQuestionBySection, org.citationStyle, org.essayTopic, org.finalEssayTitle, sectionHtml, setSectionAssistantLoading, upsertAssistantAnswer]);
+    }, [assistantQuestionBySection, org.citationStyle, org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, setSectionAssistantLoading, upsertAssistantAnswer]);
 
     const openAddSectionModal = useCallback(() => {
         setNewSectionTitle("");
@@ -1110,19 +1133,24 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 outlineTitles: sections.map((section) => section.title.trim()).filter(Boolean),
                 writtenEssay,
             });
+            if (!org.isTestMode) {
+                await CreditService.deductWordCreditsForWords(CreditService.countWords(writtenEssay));
+            }
             setSummaryInsights(summary);
             setIsInsightsOpen(true);
         } catch (error) {
             console.error("[WritingChamber] Summary failed", error);
             setDialog({
                 type: "info",
-                title: "Summary Failed",
-                message: "Su summary ကို မရနိုင်သေးပါ။ ခဏနေရင် ပြန်စမ်းပါ။",
+                title: error instanceof CreditDeductionError ? "Summary Unavailable" : "Summary Failed",
+                message: error instanceof CreditDeductionError
+                    ? error.message
+                    : "Su summary ကို မရနိုင်သေးပါ။ ခဏနေရင် ပြန်စမ်းပါ။",
             });
         } finally {
             setSummaryLoading(false);
         }
-    }, [org.essayTopic, org.finalEssayTitle, sectionHtml, sections, summaryInsights, summaryLoading, syncAllEditors]);
+    }, [org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, sections, summaryInsights, summaryLoading, syncAllEditors]);
 
     const requestClearInsights = useCallback(() => {
         setDialog({

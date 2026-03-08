@@ -93,17 +93,11 @@ export class SuService {
             return fallbackIdeas(input.sectionTitle);
         }
 
-        try {
-            const response = await SuService.callAssist({ mode: "more_ideas", input });
-            const bullets = Array.isArray(response.bullets)
-                ? response.bullets.map((v) => normalizeIdeaLine(String(v))).filter(Boolean)
-                : [];
-            if (bullets.length > 0) return bullets;
-        } catch {
-            // fallback below
-        }
-
-        return fallbackIdeas(input.sectionTitle);
+        const response = await SuService.callAssist({ mode: "more_ideas", input });
+        const bullets = Array.isArray(response.bullets)
+            ? response.bullets.map((v) => normalizeIdeaLine(String(v))).filter(Boolean)
+            : [];
+        return bullets.length > 0 ? bullets : fallbackIdeas(input.sectionTitle);
     }
 
     static async askQuestion(input: AskInput): Promise<string> {

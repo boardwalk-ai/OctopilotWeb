@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
+import { CreditService } from "@/services/CreditService";
 import { Organizer } from "@/services/OrganizerService";
 import { HumanizerService } from "@/services/HumanizerService";
 
@@ -116,6 +117,11 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
                     purpose: undetectableParams.purpose,
                     strength: undetectableParams.strength
                 });
+            }
+
+            if (!org.isTestMode) {
+                const selectedWords = typeof org.wordCount === "number" ? org.wordCount : CreditService.countWords(textEditable);
+                await CreditService.deductHumanizerCreditsForWords(selectedWords);
             }
 
             setTextEditable(resultText);

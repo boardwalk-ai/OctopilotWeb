@@ -11,6 +11,7 @@ import { ScraperService } from "@/services/ScraperService";
 import { ZulyService } from "@/services/ZulyService";
 import { SpoonieAuthorInput, SpoonieFieldworkCitationInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
+import { CreditDeductionError, CreditService } from "@/services/CreditService";
 
 interface ConfigurationViewProps {
     onBack: () => void;
@@ -413,6 +414,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [isFieldworkTypeDropdownOpen, setIsFieldworkTypeDropdownOpen] = useState(false);
     const [pendingManualSourceAction, setPendingManualSourceAction] = useState<ManualSourceAction>(null);
     const [canUsePortal, setCanUsePortal] = useState(false);
+    const [isContinuing, setIsContinuing] = useState(false);
+    const [continueError, setContinueError] = useState("");
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
@@ -577,6 +580,56 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         "Use My Source": uploadedPdfSources.length + imageSourceThreads.length,
         "Fieldwork Mode": fieldworkSourceThreads.length,
     }), [fieldworkSourceThreads.length, imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
+
+    const handleContinue = useCallback(async () => {
+        if (isContinuing) return;
+
+        setContinueError("");
+        setIsContinuing(true);
+
+        try {
+            const activeSourceCount = sourceCountByTab[sourcesTab as keyof typeof sourceCountByTab] ?? 0;
+            const previouslyCharged = org.chargedSourceCounts[sourcesTab] ?? 0;
+            const sourceCharge = Math.max(0, activeSourceCount - previouslyCharged);
+
+            if (!org.isTestMode && sourceCharge > 0) {
+                await CreditService.deductSourceCredits(sourceCharge);
+            }
+
+            Organizer.set({
+                wordCount,
+                citationStyle,
+                tone,
+                sourcesTab,
+                aiSearchKeywords,
+                manualSources,
+                keywords: specifyKeywords ? keywordsText : "",
+                chargedSourceCounts: {
+                    ...org.chargedSourceCounts,
+                    [sourcesTab]: Math.max(previouslyCharged, activeSourceCount),
+                },
+            });
+
+            void ZulyService.compactAllSources().catch(err =>
+                console.error("[Zuly] Background compaction error:", err)
+            );
+
+            if (citationStyle === "None") {
+                onNext("generation");
+            } else {
+                onNext("format");
+            }
+        } catch (error) {
+            const message = error instanceof CreditDeductionError
+                ? error.message
+                : error instanceof Error
+                    ? error.message
+                    : "Could not continue right now.";
+            setContinueError(message);
+        } finally {
+            setIsContinuing(false);
+        }
+    }, [aiSearchKeywords, citationStyle, isContinuing, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone, wordCount]);
 
     const activeFieldworkType = useMemo(
         () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],
@@ -2014,39 +2067,22 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     </button>
 
                     <button
-                        onClick={() => {
-                            // Save all config to Organizer
-                            Organizer.set({
-                                wordCount,
-                                citationStyle,
-                                tone,
-                                sourcesTab,
-                                aiSearchKeywords,
-                                manualSources,
-                                keywords: specifyKeywords ? keywordsText : "",
-                            });
-
-                            // Kick off Scarlet in background
-                            ZulyService.compactAllSources().catch(err =>
-                                console.error("[Zuly] Background compaction error:", err)
-                            );
-
-                            // Skip Format page if citation is "None"
-                            if (citationStyle === "None") {
-                                onNext("generation");
-                            } else {
-                                onNext("format");
-                            }
-                        }}
+                        onClick={() => { void handleContinue(); }}
+                        disabled={isContinuing}
                         className="group flex flex-[2] items-center justify-center gap-2 overflow-hidden relative rounded-xl bg-red-500 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400"
                     >
-                        Continue
+                        {isContinuing ? "Charging credits..." : "Continue"}
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
                             <path d="m9 18 6-6-6-6" />
                         </svg>
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
                     </button>
                 </div>
+                {continueError && (
+                    <div className="pb-5 text-center text-[13px] font-medium text-[#ff8e8e]">
+                        {continueError}
+                    </div>
+                )}
             </div>
 
             {/* ---> MODALS <--- */}

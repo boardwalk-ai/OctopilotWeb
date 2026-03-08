@@ -132,6 +132,9 @@ export interface OrganizerState {
     generatedEssay: string;
     generatedBibliography: string;
 
+    // Billing session state
+    chargedSourceCounts: Record<string, number>;
+
     // Test mode flag
     isTestMode: boolean;
 }
@@ -173,6 +176,7 @@ const defaultState: OrganizerState = {
     essayDate: "",
     generatedEssay: "",
     generatedBibliography: "",
+    chargedSourceCounts: {},
     isTestMode: false,
 };
 
