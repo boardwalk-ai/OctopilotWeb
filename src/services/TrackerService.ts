@@ -66,6 +66,7 @@ const STORAGE_KEY = "octopilot.tracker.session";
 let memorySession: StoredSession | null = null;
 let requestQueue: Promise<void> = Promise.resolve();
 let startPromise: Promise<string | null> | null = null;
+let trackingFlagCache: { enabled: boolean; expiresAt: number } | null = null;
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
@@ -105,6 +106,32 @@ function enqueue(task: () => Promise<void>): Promise<void> {
     console.error("[TrackerService] Request failed", error);
   });
   return requestQueue;
+}
+
+async function isTrackingEnabled(): Promise<boolean> {
+  if (trackingFlagCache && trackingFlagCache.expiresAt > Date.now()) {
+    return trackingFlagCache.enabled;
+  }
+
+  try {
+    const response = await fetch("/api/settings/session-tracking", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      trackingFlagCache = { enabled: true, expiresAt: Date.now() + 30_000 };
+      return true;
+    }
+
+    const payload = (await response.json()) as { enabled?: boolean };
+    const enabled = payload.enabled !== false;
+    trackingFlagCache = { enabled, expiresAt: Date.now() + 30_000 };
+    return enabled;
+  } catch {
+    trackingFlagCache = { enabled: true, expiresAt: Date.now() + 30_000 };
+    return true;
+  }
 }
 
 function countWords(text: string): number {
@@ -168,6 +195,10 @@ export class TrackerService {
   }
 
   static async startSession(writingMode: WritingMode): Promise<string | null> {
+    if (!(await isTrackingEnabled())) {
+      return null;
+    }
+
     const existing = readStored();
     if (existing?.sessionId && !existing.payload.session_closed_at) {
       await TrackerService.updateSession({
@@ -207,6 +238,10 @@ export class TrackerService {
   }
 
   static async updateSession(partial: SessionPayload): Promise<void> {
+    if (!(await isTrackingEnabled())) {
+      return;
+    }
+
     const current = readStored();
     if (!current?.sessionId) return;
 
@@ -228,10 +263,17 @@ export class TrackerService {
   }
 
   static async syncOrganizer(org: OrganizerState): Promise<void> {
+    if (!(await isTrackingEnabled())) {
+      return;
+    }
     await TrackerService.updateSession(buildPayloadFromOrganizer(org));
   }
 
   static async trackDownload(download: { type: "pdf" | "txt" | "docx"; fileName: string; pageCount: number }): Promise<void> {
+    if (!(await isTrackingEnabled())) {
+      return;
+    }
+
     const current = readStored();
     if (!current?.sessionId) return;
 
@@ -260,6 +302,11 @@ export class TrackerService {
   }
 
   static async closeSession(): Promise<void> {
+    if (!(await isTrackingEnabled())) {
+      TrackerService.clear();
+      return;
+    }
+
     const current = readStored();
     if (!current?.sessionId) return;
 
@@ -271,6 +318,7 @@ export class TrackerService {
   }
 
   static clear(): void {
+    trackingFlagCache = null;
     writeStored(null);
   }
 }
