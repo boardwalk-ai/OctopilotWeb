@@ -215,11 +215,12 @@ export default function HomeView() {
   if (page === "export") {
     const goBack = () => setPage("editor");
     const restartAdventure = () => {
-      void TrackerService.closeSession().finally(() => {
+      void (async () => {
+        await TrackerService.closeSession();
         TrackerService.clear();
-      });
-      Organizer.reset();
-      setPage("home");
+        Organizer.reset();
+        setPage("home");
+      })();
     };
 
     return (

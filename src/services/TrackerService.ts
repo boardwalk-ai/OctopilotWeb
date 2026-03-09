@@ -67,6 +67,7 @@ let memorySession: StoredSession | null = null;
 let requestQueue: Promise<void> = Promise.resolve();
 let startPromise: Promise<string | null> | null = null;
 let trackingFlagCache: { enabled: boolean; expiresAt: number } | null = null;
+let closingSessionId: string | null = null;
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
@@ -244,6 +245,10 @@ export class TrackerService {
 
     const current = readStored();
     if (!current?.sessionId) return;
+    const isClosePatch = Object.prototype.hasOwnProperty.call(partial, "session_closed_at");
+    if ((current.payload.session_closed_at || closingSessionId === current.sessionId) && !isClosePatch) {
+      return;
+    }
 
     const diff = getDiff(current.payload, partial);
     if (Object.keys(diff).length === 0) return;
@@ -311,6 +316,16 @@ export class TrackerService {
     if (!current?.sessionId) return;
 
     const closedAt = new Date().toISOString();
+    closingSessionId = current.sessionId;
+    writeStored({
+      sessionId: current.sessionId,
+      payload: {
+        ...current.payload,
+        session_closed_at: closedAt,
+        export_status: current.payload.export_status || "completed",
+      },
+    });
+
     await TrackerService.updateSession({
       session_closed_at: closedAt,
       export_status: current.payload.export_status || "completed",
@@ -319,6 +334,7 @@ export class TrackerService {
 
   static clear(): void {
     trackingFlagCache = null;
+    closingSessionId = null;
     writeStored(null);
   }
 }
