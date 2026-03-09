@@ -253,7 +253,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
 
                 <div ref={finaleScrollRef} className="relative z-10 mx-auto flex h-full w-full max-w-[1650px] flex-col overflow-y-auto px-6 py-8 lg:px-10">
                     <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col items-center justify-between">
-                        <section className="flex w-full flex-1 flex-col items-center justify-center pt-6 text-center">
+                        <section className="flex w-full flex-1 shrink-0 flex-col items-center justify-center pt-6 text-center">
                             <div className="mb-8">
                                 <Image
                                     src="/OCTOPILOT.png"
@@ -302,7 +302,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                             </div>
                         </section>
 
-                        <section className="relative mb-4 mt-10 w-full max-w-[1420px] overflow-hidden rounded-[42px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-5 py-8 backdrop-blur-xl sm:px-8 xl:px-12">
+                        <section className="relative mb-4 mt-10 w-full shrink-0 max-w-[1420px] overflow-hidden rounded-[42px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-5 py-8 backdrop-blur-xl sm:px-8 xl:px-12">
                             <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-red-400/55 to-transparent" />
                             <div className="mb-8 flex flex-col items-center text-center">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.5em] text-white/34">
