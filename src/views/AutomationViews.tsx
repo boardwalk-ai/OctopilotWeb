@@ -1,4 +1,4 @@
-import { AutomationStepId, automationSteps } from "@/components/StepperHeader";
+import { AutomationStepId, automationStepSequence } from "@/components/StepperHeader";
 
 interface PlaceholderViewProps {
     step: AutomationStepId;
@@ -8,7 +8,7 @@ interface PlaceholderViewProps {
 }
 
 export function PlaceholderView({ step, index, onBack, onNext }: PlaceholderViewProps) {
-    const stepName = automationSteps[index];
+    const stepName = automationStepSequence[index]?.label || step;
 
     return (
         <div className="flex flex-1 flex-col items-center justify-center px-6 pt-36">
@@ -23,7 +23,7 @@ export function PlaceholderView({ step, index, onBack, onNext }: PlaceholderView
                     Go Back
                 </button>
 
-                {index < automationSteps.length - 1 && (
+                {index < automationStepSequence.length - 1 && (
                     <button
                         onClick={() => {
                             const nextStepMaps: Record<number, AutomationStepId> = {

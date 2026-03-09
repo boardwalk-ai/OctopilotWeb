@@ -104,6 +104,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
         setError(null);
 
         try {
+            const beforeWordCount = CreditService.countWords(textEditable);
             if (!org.isTestMode) {
                 const selectedWords = typeof org.wordCount === "number" ? org.wordCount : CreditService.countWords(textEditable);
                 await CreditService.ensureSufficientHumanizerCreditsForWords(selectedWords);
@@ -135,7 +136,12 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
             }
 
             setTextEditable(resultText);
-            Organizer.set({ generatedEssay: resultText });
+            Organizer.set({
+                generatedEssay: resultText,
+                isHumanized: true,
+                humanizeBeforeWordCount: beforeWordCount,
+                humanizeAfterWordCount: CreditService.countWords(resultText),
+            });
         } catch (err: unknown) {
             console.error("Humanizing Error:", err);
             setError(err instanceof Error ? err.message : "Failed to humanize text.");

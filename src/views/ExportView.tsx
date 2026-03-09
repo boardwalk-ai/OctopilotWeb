@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { useOrganizer } from "@/hooks/useOrganizer";
+import { TrackerService } from "@/services/TrackerService";
 
 interface ExportViewProps {
     onBack: () => void;
@@ -134,6 +135,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
         if (!exportDocument || pages.length === 0) return;
         setError("");
         setActiveDownload("pdf");
+        const fileName = makeFileName(title, "pdf");
         try {
             const pdf = new jsPDF({
                 orientation: "portrait",
@@ -156,7 +158,8 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                 pdf.addImage(image, "PNG", 0, 0, PAGE_WIDTH_PX, PAGE_HEIGHT_PX, undefined, "FAST");
             }
 
-            pdf.save(makeFileName(title, "pdf"));
+            pdf.save(fileName);
+            await TrackerService.trackDownload({ type: "pdf", fileName, pageCount: pages.length });
             window.setTimeout(() => {
                 setIsFinaleAutoScrollEnabled(true);
                 setShowFinale(true);
@@ -172,11 +175,13 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
         if (!exportDocument || pages.length === 0) return;
         setError("");
         setActiveDownload("txt");
+        const fileName = makeFileName(title, "txt");
         try {
             const body = pages
                 .map((page, index) => `Page ${index + 1}\n\n${page.plainText.trim()}`)
                 .join("\n\n----------------------------------------\n\n");
-            downloadBlob(new Blob([body], { type: "text/plain;charset=utf-8" }), makeFileName(title, "txt"));
+            downloadBlob(new Blob([body], { type: "text/plain;charset=utf-8" }), fileName);
+            void TrackerService.trackDownload({ type: "txt", fileName, pageCount: pages.length });
         } catch (downloadError) {
             setError(downloadError instanceof Error ? downloadError.message : "TXT export failed.");
         } finally {
@@ -188,6 +193,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
         if (!exportDocument || pages.length === 0) return;
         setError("");
         setActiveDownload("docx");
+        const fileName = makeFileName(title, "docx");
         try {
             const sections = pages.map((page, index) => {
                 const paragraphs = page.plainText
@@ -225,7 +231,8 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                 sections,
             });
             const blob = await Packer.toBlob(doc);
-            downloadBlob(blob, makeFileName(title, "docx"));
+            downloadBlob(blob, fileName);
+            await TrackerService.trackDownload({ type: "docx", fileName, pageCount: pages.length });
         } catch (downloadError) {
             setError(downloadError instanceof Error ? downloadError.message : "DOCX export failed.");
         } finally {

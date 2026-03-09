@@ -35,9 +35,14 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         setIsAnalyzing(true);
 
         // Store instructions in Organizer
+        const hasText = instructions.trim().length > 0;
+        const hasDocument = uploadedFile !== null;
         Organizer.set({
             instructions: instructions.trim(),
             uploadedFileName: uploadedFile?.name || null,
+            instructionFileName: uploadedFile?.name || null,
+            instructionSource: hasText && hasDocument ? "text+document" : hasDocument ? "document" : "text",
+            imperfectModeEnabled: imperfectMode,
         });
 
         try {

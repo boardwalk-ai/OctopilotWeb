@@ -19,6 +19,15 @@ export class OctopilotAPIService {
     return response.json();
   }
 
+  static async patch<T>(endpoint: string, body?: unknown): Promise<T> {
+    const response = await OctopilotAPIService.fetchWithAuthRetry(`${API_BASE_URL}${endpoint}`, {
+      method: "PATCH",
+      headers: await OctopilotAPIService.getHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return response.json();
+  }
+
   private static async getHeaders(): Promise<HeadersInit> {
     const authorization = await AuthService.getAuthorizationHeader();
 

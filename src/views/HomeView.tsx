@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { AccountStateService } from "@/services/AccountStateService";
+import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 import { Organizer } from "@/services/OrganizerService";
+import { TrackerService } from "@/services/TrackerService";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { majorTypes } from "@/lib/majorConstants";
 import AnimatedBackground from "@/components/AnimatedBackground";
@@ -21,7 +24,7 @@ import EditorView from "@/views/EditorView";
 import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
-import StepperHeader, { automationSteps, AutomationStepId } from "@/components/StepperHeader";
+import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
 import {
   AppHeader,
@@ -36,13 +39,20 @@ import {
 } from "@/components/header";
 
 type Page = "home" | "methodology" | AutomationStepId;
+type MeResponse = { plan?: string | null };
+
+function hasWritingStyleAccess(plan?: string | null): boolean {
+  if (!plan) return false;
+  const normalized = plan.toLowerCase();
+  return (normalized.includes("pro") || normalized.includes("premium")) && !normalized.includes("guest");
+}
 
 export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
   const [selectedMajor, setSelectedMajor] = useState(0);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
+  const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const stepScrollRef = useRef<HTMLDivElement>(null);
-
   const org = useOrganizer();
 
   const handleSelectMajor = useCallback((index: number) => {
@@ -50,36 +60,40 @@ export default function HomeView() {
     Organizer.set({ majorIndex: index, majorName: majorTypes[index]?.name || "" });
   }, []);
 
-  const automationStepsMap: Record<Page, number> = {
-    home: -1,
-    methodology: -1,
-    "writing-style": 0,
-    "major-selection": 1,
-    "essay-type": 2,
-    "instructions": 3,
-    "outlines": 4,
-    "configuration": 5,
-    "format": 6,
-    "generation": 7,
-    "preview": 8,
-    "humanizer": 9,
-    "editor": 10,
-    "export": 11,
-  };
+  const skipWritingStyle = !hasWritingStyleAccess(accountPlan);
+  const skipFormat = org.citationStyle === "None";
+  const visibleSteps = useMemo(
+    () => getVisibleAutomationSteps({ skipFormat, skipWritingStyle, writingMode: org.writingMode }),
+    [org.writingMode, skipFormat, skipWritingStyle]
+  );
 
   const currentStep = page as AutomationStepId;
-  const stepIndex = automationStepsMap[page];
-  const skipFormat = org.citationStyle === "None";
-  const totalStepsForProgress = skipFormat
-    ? automationSteps.filter((s) => s !== "Format").length
-    : automationSteps.length;
-  const adjustedStepIndexForProgress = skipFormat && stepIndex > 5
-    ? stepIndex - 1
-    : stepIndex;
-  const progressPercent = Math.max(
-    0,
-    Math.min(100, ((adjustedStepIndexForProgress + 1) / totalStepsForProgress) * 100)
-  );
+  const stepIndex = visibleSteps.findIndex((step) => step.id === currentStep);
+  const progressPercent = stepIndex >= 0
+    ? Math.max(0, Math.min(100, ((stepIndex + 1) / visibleSteps.length) * 100))
+    : 0;
+
+  useEffect(() => {
+    const cachedPlan = AccountStateService.read()?.plan ?? null;
+    if (cachedPlan) {
+      setAccountPlan(cachedPlan);
+    }
+
+    let cancelled = false;
+    void OctopilotAPIService.get<MeResponse>("/api/v1/me")
+      .then((me) => {
+        if (!cancelled) {
+          setAccountPlan(me.plan ?? null);
+        }
+      })
+      .catch(() => {
+        // Keep cached snapshot.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (stepIndex >= 0) {
@@ -87,13 +101,46 @@ export default function HomeView() {
     }
   }, [page, stepIndex]);
 
+  useEffect(() => {
+    if (!TrackerService.getSessionId()) return;
+    void TrackerService.syncOrganizer(org);
+  }, [org]);
+
+  const resolveWritingStyleAccess = useCallback(async () => {
+    if (accountPlan !== null) {
+      return hasWritingStyleAccess(accountPlan);
+    }
+
+    try {
+      const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
+      const nextPlan = me.plan ?? null;
+      setAccountPlan(nextPlan);
+      return hasWritingStyleAccess(nextPlan);
+    } catch {
+      return false;
+    }
+  }, [accountPlan]);
+
   if (page === "methodology") {
     return (
       <>
         <MethodologyView
           onBack={() => setPage("home")}
-          onSelect={(method) => {
+          onSelect={async (method) => {
             Organizer.set({ writingMode: method });
+            await TrackerService.startSession(method);
+            const canUseWritingStyle = await resolveWritingStyleAccess();
+
+            if (!canUseWritingStyle) {
+              Organizer.set({
+                writingStyleStatus: "guest_bypass",
+                writingStyleFileName: null,
+              });
+              await TrackerService.updateSession({ writing_style_status: "guest_bypass" });
+              setPage("major-selection");
+              return;
+            }
+
             setPage("writing-style");
           }}
         />
@@ -111,11 +158,7 @@ export default function HomeView() {
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
             className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
-            left={
-              <>
-                <LogoNav />
-              </>
-            }
+            left={<LogoNav />}
             right={
               <>
                 <NotificationBell />
@@ -140,8 +183,9 @@ export default function HomeView() {
             </div>
           ) : (
             <StepperHeader
-              currentStepIndex={stepIndex}
+              currentStepId={currentStep}
               skipFormat={skipFormat}
+              skipWritingStyle={skipWritingStyle}
               writingMode={org.writingMode}
               className="top-16"
             />
@@ -154,11 +198,7 @@ export default function HomeView() {
             title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              {isWorkspaceTopBarCollapsed ? (
-                <path d="m6 15 6-6 6 6" />
-              ) : (
-                <path d="m6 9 6 6 6-6" />
-              )}
+              {isWorkspaceTopBarCollapsed ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
             </svg>
             {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
           </button>
@@ -175,6 +215,9 @@ export default function HomeView() {
   if (page === "export") {
     const goBack = () => setPage("editor");
     const restartAdventure = () => {
+      void TrackerService.closeSession().finally(() => {
+        TrackerService.clear();
+      });
       Organizer.reset();
       setPage("home");
     };
@@ -225,8 +268,9 @@ export default function HomeView() {
             </div>
           ) : (
             <StepperHeader
-              currentStepIndex={stepIndex}
+              currentStepId={currentStep}
               skipFormat={skipFormat}
+              skipWritingStyle={skipWritingStyle}
               writingMode={org.writingMode}
               className="top-16"
             />
@@ -239,11 +283,7 @@ export default function HomeView() {
             title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              {isWorkspaceTopBarCollapsed ? (
-                <path d="m6 15 6-6 6 6" />
-              ) : (
-                <path d="m6 9 6 6 6-6" />
-              )}
+              {isWorkspaceTopBarCollapsed ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
             </svg>
             {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
           </button>
@@ -261,15 +301,11 @@ export default function HomeView() {
     const goBack = () => {
       if (stepIndex === 0) {
         setPage("methodology");
-      } else {
-        const entries = Object.entries(automationStepsMap);
-        const previousEntry = entries.find(([, val]) => val === stepIndex - 1);
-        if (previousEntry) {
-          setPage(previousEntry[0] as Page);
-        } else {
-          setPage("methodology");
-        }
+        return;
       }
+
+      const previousStep = visibleSteps[stepIndex - 1];
+      setPage(previousStep ? previousStep.id : "methodology");
     };
 
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
@@ -297,71 +333,35 @@ export default function HomeView() {
           />
 
           <StepperHeader
-            currentStepIndex={stepIndex}
+            currentStepId={currentStep}
             skipFormat={skipFormat}
+            skipWritingStyle={skipWritingStyle}
             writingMode={org.writingMode}
           />
 
-          <div ref={stepScrollRef} className="flex-1 min-h-0 overflow-y-auto relative z-10">
+          <div ref={stepScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto">
             {page === "writing-style" ? (
-              <WritingStyleView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <WritingStyleView onBack={goBack} onNext={goNext} />
             ) : page === "major-selection" ? (
-              <MajorSelectionView
-                onBack={goBack}
-                onNext={goNext}
-                onSelectMajor={handleSelectMajor}
-              />
+              <MajorSelectionView onBack={goBack} onNext={goNext} onSelectMajor={handleSelectMajor} />
             ) : page === "essay-type" ? (
-              <EssayTypeView
-                selectedMajor={selectedMajor}
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <EssayTypeView selectedMajor={selectedMajor} onBack={goBack} onNext={goNext} />
             ) : page === "instructions" ? (
-              <InstructionsView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <InstructionsView onBack={goBack} onNext={goNext} />
             ) : page === "outlines" ? (
-              <OutlinesView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <OutlinesView onBack={goBack} onNext={goNext} />
             ) : page === "configuration" ? (
-              <ConfigurationView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <ConfigurationView onBack={goBack} onNext={goNext} />
             ) : page === "format" ? (
-              <FormatView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <FormatView onBack={goBack} onNext={goNext} />
             ) : page === "generation" ? (
-              <GenerationView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <GenerationView onBack={goBack} onNext={goNext} />
             ) : page === "preview" ? (
-              <PreviewView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <PreviewView onBack={goBack} onNext={goNext} />
             ) : page === "humanizer" ? (
-              <HumanizerView
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <HumanizerView onBack={goBack} onNext={goNext} />
             ) : (
-              <PlaceholderView
-                step={currentStep}
-                index={stepIndex}
-                onBack={goBack}
-                onNext={goNext}
-              />
+              <PlaceholderView step={currentStep} index={stepIndex} onBack={goBack} onNext={goNext} />
             )}
           </div>
         </div>
@@ -426,10 +426,10 @@ export default function HomeView() {
                   Organizer.reset();
                 } else {
                   Organizer.setTestData();
-                  setPage("writing-style");
+                  setPage(skipWritingStyle ? "major-selection" : "writing-style");
                 }
               }}
-              className={`group relative mb-4 overflow-hidden rounded-full border border-white/10 px-10 py-3 text-sm font-semibold transition ${org.isTestMode ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`group relative mb-4 overflow-hidden rounded-full border border-white/10 px-10 py-3 text-sm font-semibold transition ${org.isTestMode ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}
             >
               <span className="relative z-10">{org.isTestMode ? "Disable Test Mode" : "Test Mode (Bypass AI)"}</span>
             </button>

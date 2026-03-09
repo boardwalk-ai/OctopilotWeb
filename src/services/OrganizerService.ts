@@ -106,6 +106,11 @@ export interface OrganizerState {
     essayType: string;
     instructions: string;
     uploadedFileName: string | null;
+    writingStyleStatus: "not_started" | "uploaded" | "skipped" | "guest_bypass";
+    writingStyleFileName: string | null;
+    instructionSource: "text" | "document" | "text+document" | null;
+    instructionFileName: string | null;
+    imperfectModeEnabled: boolean;
 
     // Luna output (filled after analysis)
     analysis: string;
@@ -141,6 +146,7 @@ export interface OrganizerState {
     aiSearchKeywords: string;
     manualSources: SourceData[];
     keywords: string;
+    selectedSourceCount: number;
 
     // Scarlet output
     compactedSources: CompactedSource[];
@@ -158,6 +164,13 @@ export interface OrganizerState {
     generatedEssay: string;
     generatedBibliography: string;
     exportDocument: ExportDocumentSnapshot | null;
+    isHumanized: boolean;
+    humanizeBeforeWordCount: number;
+    humanizeAfterWordCount: number;
+    manualMoreIdeasCount: number;
+    manualMoreIdeasBulletCount: number;
+    manualAskCount: number;
+    manualSummaryCount: number;
 
     // Billing session state
     chargedSourceCounts: Record<string, number>;
@@ -173,6 +186,11 @@ const defaultState: OrganizerState = {
     essayType: "",
     instructions: "",
     uploadedFileName: null,
+    writingStyleStatus: "not_started",
+    writingStyleFileName: null,
+    instructionSource: null,
+    instructionFileName: null,
+    imperfectModeEnabled: false,
     analysis: "",
     essayTopic: "",
     analyzedEssayType: "",
@@ -193,6 +211,7 @@ const defaultState: OrganizerState = {
         { url: "", status: "empty" },
     ],
     keywords: "",
+    selectedSourceCount: 0,
     compactedSources: [],
     finalEssayTitle: "",
     studentName: "",
@@ -204,6 +223,13 @@ const defaultState: OrganizerState = {
     generatedEssay: "",
     generatedBibliography: "",
     exportDocument: null,
+    isHumanized: false,
+    humanizeBeforeWordCount: 0,
+    humanizeAfterWordCount: 0,
+    manualMoreIdeasCount: 0,
+    manualMoreIdeasBulletCount: 0,
+    manualAskCount: 0,
+    manualSummaryCount: 0,
     chargedSourceCounts: {},
     isTestMode: false,
 };

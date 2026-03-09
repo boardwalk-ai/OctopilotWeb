@@ -786,6 +786,11 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 });
             }
             pushAssistantIdeas(sectionId, ideas);
+            const nextManualMoreIdeasState = Organizer.get();
+            Organizer.set({
+                manualMoreIdeasCount: nextManualMoreIdeasState.manualMoreIdeasCount + 1,
+                manualMoreIdeasBulletCount: nextManualMoreIdeasState.manualMoreIdeasBulletCount + ideas.length,
+            });
         } catch (error) {
             console.error("[WritingChamber] More ideas failed", error);
             if (error instanceof CreditDeductionError) {
@@ -829,6 +834,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 });
             }
             upsertAssistantAnswer(sectionId, answer);
+            const nextManualAskState = Organizer.get();
+            Organizer.set({
+                manualAskCount: nextManualAskState.manualAskCount + 1,
+            });
             setAssistantQuestionBySection((prev) => ({ ...prev, [sectionId]: "" }));
         } catch (error) {
             console.error("[WritingChamber] Ask failed", error);
@@ -1162,6 +1171,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 });
             }
             setSummaryInsights(summary);
+            const nextManualSummaryState = Organizer.get();
+            Organizer.set({
+                manualSummaryCount: nextManualSummaryState.manualSummaryCount + 1,
+            });
             setIsInsightsOpen(true);
         } catch (error) {
             console.error("[WritingChamber] Summary failed", error);

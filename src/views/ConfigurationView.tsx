@@ -605,6 +605,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 citationStyle,
                 tone,
                 sourcesTab,
+                selectedSourceCount: activeSourceCount,
                 aiSearchKeywords,
                 manualSources,
                 keywords: specifyKeywords ? keywordsText : "",

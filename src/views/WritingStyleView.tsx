@@ -1,4 +1,6 @@
 import { AutomationStepId } from "@/components/StepperHeader";
+import { Organizer } from "@/services/OrganizerService";
+import { useState } from "react";
 
 interface WritingStyleViewProps {
     onBack: () => void;
@@ -6,6 +8,8 @@ interface WritingStyleViewProps {
 }
 
 export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
+    const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
     return (
         <div className="flex w-full flex-1 flex-col items-center px-6 pt-36 lg:px-10 2xl:px-14">
             <div className="flex w-full max-w-[1240px] flex-col items-center">
@@ -15,7 +19,16 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                 </p>
 
                 {/* Upload Box */}
-                <div className="flex w-full flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors hover:bg-white/[0.03]">
+                <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors hover:bg-white/[0.03]">
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(event) => {
+                            const file = event.target.files?.[0] || null;
+                            setUploadedFileName(file?.name || null);
+                        }}
+                    />
                     <div className="mb-6 flex">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -25,11 +38,24 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                     </div>
 
                     <h3 className="mb-2 text-[19px] font-bold text-white">Import your written essay in PDF format here</h3>
-                    <p className="text-[15px] font-medium text-white/50">Browse or drag and drop your PDF file</p>
-                </div>
+                    <p className="text-[15px] font-medium text-white/50">
+                        {uploadedFileName ? uploadedFileName : "Browse or drag and drop your PDF file"}
+                    </p>
+                </label>
 
                 {/* Let us learn — red pill button */}
-                <button className="mt-8 flex w-full max-w-[1380px] items-center justify-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] transition-all duration-200 hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.4)]">
+                <button
+                    type="button"
+                    disabled={!uploadedFileName}
+                    onClick={() => {
+                        Organizer.set({
+                            writingStyleStatus: "uploaded",
+                            writingStyleFileName: uploadedFileName,
+                        });
+                        onNext("major-selection");
+                    }}
+                    className="mt-8 flex w-full max-w-[1380px] items-center justify-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] transition-all duration-200 hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.4)] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-white/30 disabled:shadow-none"
+                >
                     Let us learn
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
@@ -39,7 +65,13 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                 </button>
 
                 <button
-                    onClick={() => onNext("major-selection")}
+                    onClick={() => {
+                        Organizer.set({
+                            writingStyleStatus: "skipped",
+                            writingStyleFileName: null,
+                        });
+                        onNext("major-selection");
+                    }}
                     className="mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white"
                 >
                     Skip this step
