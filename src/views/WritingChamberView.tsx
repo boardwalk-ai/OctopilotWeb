@@ -342,6 +342,8 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const rangeRefs = useRef<Record<string, Range | null>>({});
     const sourceContentRef = useRef<HTMLDivElement>(null);
     const switchMenuRef = useRef<HTMLDivElement>(null);
+    const assistantActionLockRef = useRef<Record<string, boolean>>({});
+    const summaryLockRef = useRef(false);
 
     const sourceThreads = useMemo<SourceThread[]>(() => {
         return org.manualSources
@@ -764,6 +766,8 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
     const handleMoreIdeas = useCallback(async (section: ChamberSection) => {
         const sectionId = section.id;
+        if (assistantActionLockRef.current[sectionId]) return;
+        assistantActionLockRef.current[sectionId] = true;
         setSectionAssistantLoading(sectionId, true);
         try {
             if (!org.isTestMode) {
@@ -794,15 +798,18 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 pushAssistantIdeas(sectionId, ["Su could not generate suggestions right now. Try again."]);
             }
         } finally {
+            assistantActionLockRef.current[sectionId] = false;
             setSectionAssistantLoading(sectionId, false);
         }
     }, [org.citationStyle, org.essayTopic, org.finalEssayTitle, org.isTestMode, pushAssistantIdeas, sectionHtml, setSectionAssistantLoading]);
 
     const handleAskQuestion = useCallback(async (section: ChamberSection) => {
         const sectionId = section.id;
+        if (assistantActionLockRef.current[sectionId]) return;
         const question = (assistantQuestionBySection[sectionId] || "").trim();
         if (!question) return;
 
+        assistantActionLockRef.current[sectionId] = true;
         setSectionAssistantLoading(sectionId, true);
         try {
             if (!org.isTestMode) {
@@ -835,6 +842,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 upsertAssistantAnswer(sectionId, "Su could not answer right now. Please try again.");
             }
         } finally {
+            assistantActionLockRef.current[sectionId] = false;
             setSectionAssistantLoading(sectionId, false);
         }
     }, [assistantQuestionBySection, org.citationStyle, org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, setSectionAssistantLoading, upsertAssistantAnswer]);
@@ -1110,7 +1118,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     }, [canContinueToPreview, ensurePreviewCitations, onNext, org.generatedBibliography, sectionHtml, sections, syncAllEditors]);
 
     const handleSummaryClick = useCallback(async () => {
-        if (summaryLoading) return;
+        if (summaryLockRef.current) return;
 
         if (summaryInsights) {
             setDialog({
@@ -1137,6 +1145,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         }
 
         setSummaryLoading(true);
+        summaryLockRef.current = true;
         try {
             const requiredWordCredits = CreditService.creditsFromWords(CreditService.countWords(writtenEssay));
             if (!org.isTestMode) {
@@ -1164,9 +1173,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                     : "Su summary ကို မရနိုင်သေးပါ။ ခဏနေရင် ပြန်စမ်းပါ။",
             });
         } finally {
+            summaryLockRef.current = false;
             setSummaryLoading(false);
         }
-    }, [org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, sections, summaryInsights, summaryLoading, syncAllEditors]);
+    }, [org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, sections, summaryInsights, syncAllEditors]);
 
     const requestClearInsights = useCallback(() => {
         setDialog({

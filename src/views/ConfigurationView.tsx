@@ -416,6 +416,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const [canUsePortal, setCanUsePortal] = useState(false);
     const [isContinuing, setIsContinuing] = useState(false);
     const [continueError, setContinueError] = useState("");
+    const isContinuingRef = useRef(false);
 
     const isInitialMount = useRef(true);
     const toneDropdownRef = useRef<HTMLDivElement>(null);
@@ -582,9 +583,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     }), [fieldworkSourceThreads.length, imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
 
     const handleContinue = useCallback(async () => {
-        if (isContinuing) return;
+        if (isContinuingRef.current) return;
 
         setContinueError("");
+        isContinuingRef.current = true;
         setIsContinuing(true);
 
         try {
@@ -629,9 +631,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     : "Could not continue right now.";
             setContinueError(message);
         } finally {
+            isContinuingRef.current = false;
             setIsContinuing(false);
         }
-    }, [aiSearchKeywords, citationStyle, isContinuing, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone, wordCount]);
+    }, [aiSearchKeywords, citationStyle, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone, wordCount]);
 
     const activeFieldworkType = useMemo(
         () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],

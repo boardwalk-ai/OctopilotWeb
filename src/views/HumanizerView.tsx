@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { CreditService } from "@/services/CreditService";
@@ -79,6 +79,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
     const [textEditable, setTextEditable] = useState(org.generatedEssay || "");
     const [isHumanizing, setIsHumanizing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const isHumanizingRef = useRef(false);
 
     // StealthGPT States
     const [stealthParams, setStealthParams] = useState({
@@ -96,7 +97,9 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
     });
 
     const handleHumanize = async () => {
+        if (isHumanizingRef.current) return;
         if (!textEditable.trim()) return;
+        isHumanizingRef.current = true;
         setIsHumanizing(true);
         setError(null);
 
@@ -137,6 +140,7 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
             console.error("Humanizing Error:", err);
             setError(err instanceof Error ? err.message : "Failed to humanize text.");
         } finally {
+            isHumanizingRef.current = false;
             setIsHumanizing(false);
         }
     };
