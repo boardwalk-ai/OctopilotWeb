@@ -172,6 +172,17 @@ export default function HomeView() {
     );
   }
 
+  if (page === "export") {
+    const goBack = () => setPage("editor");
+    const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
+
+    return (
+      <div className="fixed inset-0 overflow-hidden bg-[#0a0a0a]">
+        <ExportView onBack={goBack} onNext={goNext} />
+      </div>
+    );
+  }
+
   if (page === "generation" && org.writingMode === "manual") {
     const goBack = () => setPage("format");
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
@@ -338,11 +349,6 @@ export default function HomeView() {
               />
             ) : page === "humanizer" ? (
               <HumanizerView
-                onBack={goBack}
-                onNext={goNext}
-              />
-            ) : page === "export" ? (
-              <ExportView
                 onBack={goBack}
                 onNext={goNext}
               />
