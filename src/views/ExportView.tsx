@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
@@ -50,9 +51,12 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     const org = useOrganizer();
     const exportDocument = org.exportDocument;
     const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const finaleScrollRef = useRef<HTMLDivElement | null>(null);
+    const finaleAnimationRef = useRef<number | null>(null);
     const [activeDownload, setActiveDownload] = useState<"pdf" | "txt" | "docx" | null>(null);
     const [error, setError] = useState("");
     const [showFinale, setShowFinale] = useState(false);
+    const [isFinaleAutoScrollEnabled, setIsFinaleAutoScrollEnabled] = useState(true);
 
     const title = exportDocument?.title || org.finalEssayTitle || "Untitled document";
     const pages = exportDocument?.pages || [];
@@ -78,6 +82,53 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
         const lineThree = "Every paragraph here was carried by long nights, stubborn ideas, and a crew that kept building until the work felt worthy of your name.";
         return [lineOne, lineTwo, lineThree];
     }, []);
+
+    useEffect(() => {
+        if (!showFinale || !isFinaleAutoScrollEnabled) return undefined;
+
+        const container = finaleScrollRef.current;
+        if (!container) return undefined;
+
+        let start: number | null = null;
+        const initialScrollTop = 0;
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        const duration = Math.max(16000, maxScroll * 12);
+
+        container.scrollTo({ top: 0, behavior: "auto" });
+
+        const animate = (timestamp: number) => {
+            if (!finaleScrollRef.current || !isFinaleAutoScrollEnabled) return;
+            if (start === null) start = timestamp;
+            const elapsed = timestamp - start;
+            const progress = Math.min(1, elapsed / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            finaleScrollRef.current.scrollTop = initialScrollTop + maxScroll * eased;
+
+            if (progress < 1) {
+                finaleAnimationRef.current = window.requestAnimationFrame(animate);
+            } else {
+                finaleAnimationRef.current = null;
+            }
+        };
+
+        finaleAnimationRef.current = window.requestAnimationFrame(animate);
+
+        return () => {
+            if (finaleAnimationRef.current !== null) {
+                window.cancelAnimationFrame(finaleAnimationRef.current);
+                finaleAnimationRef.current = null;
+            }
+        };
+    }, [isFinaleAutoScrollEnabled, showFinale]);
+
+    const handleFinaleManualOverride = () => {
+        setIsFinaleAutoScrollEnabled(false);
+        if (finaleAnimationRef.current !== null) {
+            window.cancelAnimationFrame(finaleAnimationRef.current);
+            finaleAnimationRef.current = null;
+        }
+        finaleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
     const handleDownloadPdf = async () => {
         if (!exportDocument || pages.length === 0) return;
@@ -107,6 +158,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
 
             pdf.save(makeFileName(title, "pdf"));
             window.setTimeout(() => {
+                setIsFinaleAutoScrollEnabled(true);
                 setShowFinale(true);
             }, 240);
         } catch (downloadError) {
@@ -187,9 +239,30 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                 <AnimatedBackground />
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.22),transparent_28%),radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_35%),linear-gradient(180deg,rgba(8,8,8,0.1),rgba(8,8,8,0.94))]" />
 
-                <div className="relative z-10 mx-auto flex h-full w-full max-w-[1650px] flex-col overflow-y-auto px-6 py-8 lg:px-10">
+                <button
+                    type="button"
+                    onClick={handleFinaleManualOverride}
+                    className="absolute bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full border border-white/14 bg-black/45 text-white/80 shadow-[0_18px_50px_rgba(0,0,0,0.4)] backdrop-blur-md transition hover:border-white/24 hover:bg-black/62 hover:text-white"
+                    title="Back to top"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 19V5" />
+                        <path d="m5 12 7-7 7 7" />
+                    </svg>
+                </button>
+
+                <div ref={finaleScrollRef} className="relative z-10 mx-auto flex h-full w-full max-w-[1650px] flex-col overflow-y-auto px-6 py-8 lg:px-10">
                     <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col items-center justify-between">
                         <section className="flex w-full flex-1 flex-col items-center justify-center pt-6 text-center">
+                            <div className="mb-8">
+                                <Image
+                                    src="/OCTOPILOT.png"
+                                    alt="Octopilot AI"
+                                    width={132}
+                                    height={132}
+                                    className="mx-auto drop-shadow-[0_0_55px_rgba(239,68,68,0.22)]"
+                                />
+                            </div>
                             <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full border border-red-400/30 bg-red-500/14 shadow-[0_0_80px_rgba(239,68,68,0.28)]">
                                 <div className="h-10 w-10 rounded-full border-2 border-red-300/80 bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.22)]" />
                             </div>
@@ -211,7 +284,10 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                                 <button
                                     type="button"
-                                    onClick={() => setShowFinale(false)}
+                                    onClick={() => {
+                                        setIsFinaleAutoScrollEnabled(false);
+                                        setShowFinale(false);
+                                    }}
                                     className="rounded-full border border-white/12 bg-white/6 px-8 py-4 text-sm font-semibold uppercase tracking-[0.22em] text-white/82 transition hover:border-white/22 hover:bg-white/10 hover:text-white"
                                 >
                                     Download Another
