@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
@@ -33,6 +33,38 @@ type ReportRow = DataRow & {
   status?: string;
   timestamp?: string;
 };
+type MetadataRow = DataRow & {
+  userId?: string;
+  name?: string;
+  email?: string;
+  sessions?: string | number | null;
+  lastActivity?: string;
+  status?: string;
+  action?: string;
+};
+type SessionSummary = {
+  id: string;
+  sessionStartTime?: string | null;
+  lastHeartbeat?: string | null;
+  sessionClosedAt?: string | null;
+  writingMode?: string | null;
+  majorName?: string | null;
+  essayType?: string | null;
+  exportStatus?: string | null;
+  exportType?: string | null;
+  wordCount?: number | null;
+  generatedOutputWordCount?: number | null;
+  finalPageCount?: number | null;
+};
+type SessionDetail = Record<string, string | number | boolean | null>;
+type SessionInspectorPayload = {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+  };
+  sessions: SessionSummary[];
+};
 type ControlCenterResponse = {
   quickMetrics: {
     totalUsers: number;
@@ -55,7 +87,7 @@ const menuItems: MenuItem[] = [
     columns: ["No", "Name", "Email", "Next Billing", "Current Plan", "Word", "Humanizer", "Source", "Actions"],
   },
   { id: "reports", label: "Reports", description: "Support and issue intake", icon: <FlagIcon />, columns: ["No", "Email", "Status", "Timestamp", "Action"] },
-  { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon />, columns: ["No", "Email", "Session ID", "Last Activity", "Status"] },
+  { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon />, columns: ["No", "Email", "Sessions", "Last Activity", "Status", "Action"] },
   { id: "market-data", label: "Market Data", description: "Customer footprint snapshot", icon: <GlobeIcon />, columns: ["No", "Email", "IP Address", "Plan", "Customer Since"] },
   { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes", icon: <ReceiptIcon />, columns: ["No", "Email", "Current Plan", "Plan History"] },
   { id: "promo-area", label: "Promo Area", description: "Implement later", icon: <TagIcon />, columns: ["Status"] },
@@ -69,7 +101,7 @@ const keyOrderBySection: Record<string, string[]> = {
   "user-management": ["no", "name", "email", "status", "role", "actions"],
   "subscription-management": ["no", "name", "email", "nextBilling", "currentPlan", "word", "humanizer", "source", "actions"],
   reports: ["no", "email", "status", "timestamp", "action"],
-  metadata: ["no", "email", "sessionId", "lastActivity", "status"],
+  metadata: ["no", "email", "sessions", "lastActivity", "status", "action"],
   "market-data": ["no", "email", "ipAddress", "plan", "customerSince"],
   "purchase-history": ["no", "email", "currentPlan", "planHistory"],
   "api-keys": ["no", "provider", "key", "status"],
@@ -607,6 +639,141 @@ function ReportInspectModal({
   );
 }
 
+function formatDetailLabel(key: string) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function SessionInspectModal({
+  payload,
+  selectedSessionId,
+  detail,
+  loading,
+  deletingSessionId,
+  error,
+  onClose,
+  onSelectSession,
+  onDeleteSession,
+}: {
+  payload: SessionInspectorPayload;
+  selectedSessionId: string | null;
+  detail: SessionDetail | null;
+  loading: boolean;
+  deletingSessionId: string | null;
+  error: string | null;
+  onClose: () => void;
+  onSelectSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+}) {
+  const detailEntries = detail ? Object.entries(detail) : [];
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/78 px-4 py-6">
+      <div className="flex h-full max-h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/35">Session Inspector</p>
+            <h2 className="mt-2 text-[1.9rem] font-semibold tracking-[-0.05em] text-white">{payload.user.name || payload.user.email || "Unknown user"}</h2>
+            <p className="mt-2 text-sm text-white/45">{payload.user.email || "No email"}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full border border-white/10 bg-[#141414] px-4 py-2.5 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[420px_minmax(0,1fr)]">
+          <div className="min-h-0 overflow-y-auto border-r border-white/8 bg-[#070707] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Sessions</div>
+              <div className="text-xs text-white/35">{payload.sessions.length} total</div>
+            </div>
+
+            <div className="space-y-3">
+              {payload.sessions.map((session) => {
+                const isActive = selectedSessionId === session.id;
+                const displayStatus = session.exportStatus || (session.sessionClosedAt ? "closed" : "active");
+                return (
+                  <div
+                    key={session.id}
+                    className={`rounded-[22px] border p-4 transition ${isActive ? "border-red-500/40 bg-[#150b0b]" : "border-white/8 bg-[#101010]"}`}
+                  >
+                    <button onClick={() => onSelectSession(session.id)} className="w-full text-left">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">{session.writingMode || "Unknown mode"}</div>
+                          <div className="mt-2 text-base font-semibold text-white">{session.essayType || session.majorName || "Untitled session"}</div>
+                          <div className="mt-2 text-xs leading-6 text-white/45">
+                            Started: {session.sessionStartTime ? new Date(session.sessionStartTime).toLocaleString() : "-"}
+                          </div>
+                          <div className="text-xs leading-6 text-white/45">
+                            Last activity: {session.lastHeartbeat ? new Date(session.lastHeartbeat).toLocaleString() : "-"}
+                          </div>
+                        </div>
+                        <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">
+                          {displayStatus}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-white/42">
+                        <span className="rounded-full border border-white/10 px-2.5 py-1">Words: {session.generatedOutputWordCount ?? session.wordCount ?? 0}</span>
+                        <span className="rounded-full border border-white/10 px-2.5 py-1">Pages: {session.finalPageCount ?? 0}</span>
+                        <span className="rounded-full border border-white/10 px-2.5 py-1">Export: {session.exportType || "-"}</span>
+                      </div>
+                    </button>
+
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        onClick={() => onDeleteSession(session.id)}
+                        disabled={deletingSessionId === session.id}
+                        className="rounded-full border border-red-500/18 bg-[#160b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200 transition hover:border-red-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingSessionId === session.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="min-h-0 overflow-y-auto p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/35">Tracker Data</div>
+                <div className="mt-2 text-lg font-semibold text-white">{selectedSessionId ? "Session detail" : "Select a session"}</div>
+              </div>
+            </div>
+
+            {error ? <div className="mb-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
+
+            {loading ? (
+              <div className="rounded-[22px] border border-white/8 bg-[#101010] px-5 py-6 text-sm text-white/55">Loading session data...</div>
+            ) : detailEntries.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                {detailEntries.map(([key, value]) => (
+                  <div key={key} className="rounded-[20px] border border-white/8 bg-[#101010] px-4 py-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">{formatDetailLabel(key)}</div>
+                    <div className="mt-2 text-sm leading-6 text-white/82 break-words">{String(value ?? "-")}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[22px] border border-white/8 bg-[#101010] px-5 py-6 text-sm text-white/45">
+                Select a session card on the left to inspect the full tracker payload.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminLoginView({
   email,
   password,
@@ -693,9 +860,17 @@ export default function BrokeOctopusPage() {
   const [inspectingReport, setInspectingReport] = useState<ReportRow | null>(null);
   const [isResolvingReport, setIsResolvingReport] = useState(false);
   const [reportModalError, setReportModalError] = useState<string | null>(null);
+  const [inspectingMetadataRow, setInspectingMetadataRow] = useState<MetadataRow | null>(null);
+  const [sessionInspectorPayload, setSessionInspectorPayload] = useState<SessionInspectorPayload | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<SessionDetail | null>(null);
+  const [sessionInspectorError, setSessionInspectorError] = useState<string | null>(null);
+  const [isLoadingSessionInspector, setIsLoadingSessionInspector] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
   const rows = data?.sections[activeSectionId] || [];
+  const metadataRows = useMemo(() => (data?.sections.metadata || []) as MetadataRow[], [data?.sections.metadata]);
 
   const loadDashboard = async () => {
     const token = await AuthService.getIdToken(true);
@@ -939,6 +1114,146 @@ export default function BrokeOctopusPage() {
     }
   };
 
+  const loadSessionDetail = async (sessionId: string, token: string) => {
+    setIsLoadingSessionInspector(true);
+    setSessionInspectorError(null);
+
+    try {
+      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to load session detail.");
+      }
+      setSelectedSessionId(sessionId);
+      setSelectedSessionDetail(payload as SessionDetail);
+    } catch (error) {
+      setSessionInspectorError(error instanceof Error ? error.message : "Failed to load session detail.");
+    } finally {
+      setIsLoadingSessionInspector(false);
+    }
+  };
+
+  const handleInspectMetadata = async (row: MetadataRow) => {
+    if (!row.userId) {
+      setSessionInspectorError("Missing user identifier for this row.");
+      return;
+    }
+
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setSessionInspectorError("You need to be signed in as an admin.");
+      return;
+    }
+
+    setInspectingMetadataRow(row);
+    setSessionInspectorPayload(null);
+    setSelectedSessionId(null);
+    setSelectedSessionDetail(null);
+    setSessionInspectorError(null);
+    setIsLoadingSessionInspector(true);
+
+    try {
+      const response = await fetch(`/api/admin/users/${row.userId}/sessions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to load user sessions.");
+      }
+
+      const typedPayload = payload as SessionInspectorPayload;
+      setSessionInspectorPayload(typedPayload);
+      const firstSessionId = typedPayload.sessions[0]?.id || null;
+      if (firstSessionId) {
+        await loadSessionDetail(firstSessionId, token);
+      } else {
+        setIsLoadingSessionInspector(false);
+      }
+    } catch (error) {
+      setSessionInspectorError(error instanceof Error ? error.message : "Failed to load user sessions.");
+      setIsLoadingSessionInspector(false);
+    }
+  };
+
+  const handleSelectSession = async (sessionId: string) => {
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setSessionInspectorError("You need to be signed in as an admin.");
+      return;
+    }
+    await loadSessionDetail(sessionId, token);
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setSessionInspectorError("You need to be signed in as an admin.");
+      return;
+    }
+
+    setDeletingSessionId(sessionId);
+    setSessionInspectorError(null);
+    try {
+      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to delete session.");
+      }
+
+      const remainingSessions = (sessionInspectorPayload?.sessions || []).filter((session) => session.id !== sessionId);
+
+      setSessionInspectorPayload((current) =>
+        current
+          ? { ...current, sessions: current.sessions.filter((session) => session.id !== sessionId) }
+          : current
+      );
+
+      if (selectedSessionId === sessionId) {
+        const nextId = remainingSessions[0]?.id || null;
+        setSelectedSessionId(nextId);
+        setSelectedSessionDetail(null);
+        if (nextId) {
+          await loadSessionDetail(nextId, token);
+        }
+      }
+
+      setData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          sections: {
+            ...current.sections,
+            metadata: metadataRows
+              .map((metadataRow) =>
+                metadataRow.userId === inspectingMetadataRow?.userId
+                  ? {
+                      ...metadataRow,
+                      sessions: Math.max(0, Number(metadataRow.sessions || 0) - 1),
+                    }
+                  : metadataRow
+              )
+              .filter((metadataRow) => Number(metadataRow.sessions || 0) > 0),
+          },
+        };
+      });
+    } catch (error) {
+      setSessionInspectorError(error instanceof Error ? error.message : "Failed to delete session.");
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
   if (user === undefined || (isBusy && !isAdmin && !user)) {
     return (
       <main className="flex h-screen items-center justify-center bg-black text-white">
@@ -1119,6 +1434,16 @@ export default function BrokeOctopusPage() {
                                   >
                                     Inspect
                                   </button>
+                                ) : activeSection.id === "metadata" && key === "action" ? (
+                                  <button
+                                    onClick={() => {
+                                      setSessionInspectorError(null);
+                                      void handleInspectMetadata(row as MetadataRow);
+                                    }}
+                                    className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                                  >
+                                    Inspect
+                                  </button>
                                 ) : (
                                   String(row[key] ?? "-")
                                 )}
@@ -1171,6 +1496,31 @@ export default function BrokeOctopusPage() {
             }
           }}
           onSend={handleResolveReport}
+        />
+      ) : null}
+      {inspectingMetadataRow && sessionInspectorPayload ? (
+        <SessionInspectModal
+          payload={sessionInspectorPayload}
+          selectedSessionId={selectedSessionId}
+          detail={selectedSessionDetail}
+          loading={isLoadingSessionInspector}
+          deletingSessionId={deletingSessionId}
+          error={sessionInspectorError}
+          onClose={() => {
+            if (!deletingSessionId) {
+              setInspectingMetadataRow(null);
+              setSessionInspectorPayload(null);
+              setSelectedSessionId(null);
+              setSelectedSessionDetail(null);
+              setSessionInspectorError(null);
+            }
+          }}
+          onSelectSession={(sessionId) => {
+            void handleSelectSession(sessionId);
+          }}
+          onDeleteSession={(sessionId) => {
+            void handleDeleteSession(sessionId);
+          }}
         />
       ) : null}
     </main>
