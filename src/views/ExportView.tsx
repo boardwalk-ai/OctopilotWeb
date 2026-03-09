@@ -1,20 +1,30 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { AutomationStepId } from "@/components/StepperHeader";
+import AnimatedBackground from "@/components/AnimatedBackground";
 import { useOrganizer } from "@/hooks/useOrganizer";
 
 interface ExportViewProps {
     onBack: () => void;
-    onNext: (step: AutomationStepId) => void;
+    onRestart: () => void;
 }
 
 const PAGE_WIDTH_PX = 816;
 const PAGE_HEIGHT_PX = 1056;
 const DEFAULT_MARGIN_PX = 96;
+
+const CREW = [
+    { role: "Founder & CEO", name: "Mr. Hein Htet", accent: "from-red-500/60 to-red-300/10" },
+    { role: "Chief Product Officer", name: "Mrs. Su Pyae", accent: "from-amber-400/60 to-amber-300/10" },
+    { role: "Lead Engineer & CTO", name: "Lucas D. Marshall", subtitle: "Kaung Myat San", accent: "from-sky-400/60 to-sky-300/10" },
+    { role: "Chief Financial Officer", name: "Mr. Myat Hein Htet", accent: "from-emerald-400/60 to-emerald-300/10" },
+    { role: "Graphics", name: "Mr. Hein Htet Aung", subtitle: "Spoonie Soy", accent: "from-fuchsia-400/60 to-fuchsia-300/10" },
+    { role: "Graphics", name: "Michael", accent: "from-violet-400/60 to-violet-300/10" },
+    { role: "Manager", name: "Lily", accent: "from-orange-400/60 to-orange-300/10" },
+];
 
 function makeFileName(title: string, ext: string) {
     const safe = title
@@ -36,12 +46,13 @@ function downloadBlob(blob: Blob, fileName: string) {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function ExportView({ onBack, onNext }: ExportViewProps) {
+export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     const org = useOrganizer();
     const exportDocument = org.exportDocument;
     const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
     const [activeDownload, setActiveDownload] = useState<"pdf" | "txt" | "docx" | null>(null);
     const [error, setError] = useState("");
+    const [showFinale, setShowFinale] = useState(false);
 
     const title = exportDocument?.title || org.finalEssayTitle || "Untitled document";
     const pages = exportDocument?.pages || [];
@@ -60,6 +71,13 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
         if (pagePosition < profile.pageNumberStartPage) return "";
         return String(Math.max(1, profile.pageNumberStartNumber + (pagePosition - profile.pageNumberStartPage)));
     };
+
+    const emotionalCopy = useMemo(() => {
+        const lineOne = "Thanks for using Octopilot AI.";
+        const lineTwo = "This page is where your final draft stops being a file and starts becoming a memory.";
+        const lineThree = "Every paragraph here was carried by long nights, stubborn ideas, and a crew that kept building until the work felt worthy of your name.";
+        return [lineOne, lineTwo, lineThree];
+    }, []);
 
     const handleDownloadPdf = async () => {
         if (!exportDocument || pages.length === 0) return;
@@ -88,6 +106,9 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
             }
 
             pdf.save(makeFileName(title, "pdf"));
+            window.setTimeout(() => {
+                setShowFinale(true);
+            }, 240);
         } catch (downloadError) {
             setError(downloadError instanceof Error ? downloadError.message : "PDF export failed.");
         } finally {
@@ -126,9 +147,9 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                         spacing: { after: 220, line: Math.round((page.lineHeight || profile?.lineHeight || 1.5) * 240) },
                         alignment:
                             page.textAlign === "center" ? AlignmentType.CENTER :
-                                page.textAlign === "right" ? AlignmentType.RIGHT :
-                                    page.textAlign === "justify" ? AlignmentType.JUSTIFIED :
-                                        AlignmentType.LEFT,
+                            page.textAlign === "right" ? AlignmentType.RIGHT :
+                            page.textAlign === "justify" ? AlignmentType.JUSTIFIED :
+                            AlignmentType.LEFT,
                     }));
 
                 return {
@@ -160,9 +181,149 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
         }
     };
 
+    if (showFinale) {
+        return (
+            <div className="relative flex h-screen overflow-hidden bg-[#060606]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                <AnimatedBackground />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.22),transparent_28%),radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_35%),linear-gradient(180deg,rgba(8,8,8,0.1),rgba(8,8,8,0.94))]" />
+
+                <div className="relative z-10 mx-auto flex h-full w-full max-w-[1650px] flex-col overflow-y-auto px-6 py-8 lg:px-10">
+                    <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col items-center justify-between">
+                        <section className="flex w-full flex-1 flex-col items-center justify-center pt-6 text-center">
+                            <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full border border-red-400/30 bg-red-500/14 shadow-[0_0_80px_rgba(239,68,68,0.28)]">
+                                <div className="h-10 w-10 rounded-full border-2 border-red-300/80 bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.22)]" />
+                            </div>
+
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.5em] text-red-300/65">
+                                Export Complete
+                            </p>
+                            <h1 className="mt-5 max-w-5xl text-5xl font-semibold tracking-tight text-white sm:text-6xl xl:text-7xl">
+                                The story leaves Octopilot now,
+                                <span className="block text-red-400">but a piece of us goes with it.</span>
+                            </h1>
+
+                            <div className="mt-8 max-w-4xl space-y-4 text-lg leading-9 text-white/62 sm:text-xl">
+                                {emotionalCopy.map((line) => (
+                                    <p key={line}>{line}</p>
+                                ))}
+                            </div>
+
+                            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFinale(false)}
+                                    className="rounded-full border border-white/12 bg-white/6 px-8 py-4 text-sm font-semibold uppercase tracking-[0.22em] text-white/82 transition hover:border-white/22 hover:bg-white/10 hover:text-white"
+                                >
+                                    Download Another
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onRestart}
+                                    className="rounded-full border border-red-400/40 bg-red-500 px-8 py-4 text-sm font-semibold uppercase tracking-[0.22em] text-white shadow-[0_18px_70px_rgba(239,68,68,0.25)] transition hover:bg-red-400"
+                                >
+                                    Start New Adventure
+                                </button>
+                            </div>
+                        </section>
+
+                        <section className="relative mb-4 mt-10 w-full max-w-[1420px] overflow-hidden rounded-[42px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-5 py-8 backdrop-blur-xl sm:px-8 xl:px-12">
+                            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-red-400/55 to-transparent" />
+                            <div className="mb-8 flex flex-col items-center text-center">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.5em] text-white/34">
+                                    Meet Our Crew
+                                </p>
+                                <p className="mt-4 max-w-3xl text-base leading-8 text-white/52">
+                                    The people below poured patience, obsession, design instinct, and impossible hours into
+                                    the machine that just helped you finish something that matters.
+                                </p>
+                            </div>
+
+                            <div className="relative overflow-hidden">
+                                <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#101010] to-transparent" />
+                                <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#101010] to-transparent" />
+
+                                <div className="flex gap-5 crew-track crew-track-a">
+                                    {[...CREW, ...CREW].map((member, index) => (
+                                        <article
+                                            key={`a-${member.name}-${index}`}
+                                            className="group relative w-[220px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 bg-black/25 px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.22)]"
+                                        >
+                                            <div className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px] shadow-[0_10px_45px_rgba(239,68,68,0.12)]`}>
+                                                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-2xl font-semibold text-white">
+                                                    {member.name.charAt(0)}
+                                                </div>
+                                            </div>
+                                            <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">
+                                                {member.role}
+                                            </div>
+                                            <div className="mt-3 text-lg font-semibold text-white">{member.name}</div>
+                                            {member.subtitle ? (
+                                                <div className="mt-1 text-sm text-white/48">{member.subtitle}</div>
+                                            ) : null}
+                                        </article>
+                                    ))}
+                                </div>
+
+                                <div className="mt-5 flex gap-5 crew-track crew-track-b">
+                                    {[...CREW.slice().reverse(), ...CREW.slice().reverse()].map((member, index) => (
+                                        <article
+                                            key={`b-${member.name}-${index}`}
+                                            className="group relative w-[220px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.035] px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.18)]"
+                                        >
+                                            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
+                                                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-xl font-semibold text-white">
+                                                    {member.name.charAt(0)}
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/32">
+                                                {member.role}
+                                            </div>
+                                            <div className="mt-2 text-base font-semibold text-white">{member.name}</div>
+                                        </article>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-8 text-center text-sm leading-8 text-white/44">
+                                Copyright 2026 Boardwalk Labs LLC. Octopilot AI was built to help hard work feel seen.
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <style jsx>{`
+                    .crew-track {
+                        width: max-content;
+                    }
+                    .crew-track-a {
+                        animation: crew-drift-left 42s linear infinite;
+                    }
+                    .crew-track-b {
+                        animation: crew-drift-right 46s linear infinite;
+                    }
+                    @keyframes crew-drift-left {
+                        0% {
+                            transform: translateX(0);
+                        }
+                        100% {
+                            transform: translateX(-50%);
+                        }
+                    }
+                    @keyframes crew-drift-right {
+                        0% {
+                            transform: translateX(-50%);
+                        }
+                        100% {
+                            transform: translateX(0);
+                        }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0a0a0a]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            {/* ── Hero + Download Cards ── */}
             <div className="shrink-0 border-b border-white/8 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.18),transparent_50%),linear-gradient(180deg,rgba(12,12,14,0.98),rgba(10,10,10,0.95))]">
                 <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-6 py-7 lg:px-10 xl:flex-row xl:items-end xl:justify-between">
                     <div className="max-w-2xl">
@@ -173,13 +334,12 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                             Publish the version you actually want to send.
                         </h1>
                         <p className="mt-3 text-[0.84rem] leading-relaxed text-neutral-400">
-                            Your final editor draft is locked into a clean export package. Download a layout-preserving PDF,
-                            a plain-text copy for LMS uploads, or a DOCX handoff for last-mile editing.
+                            Export the last editor draft as a polished file. PDF keeps the visual rhythm intact. TXT and DOCX
+                            stay here when you need utility copies, but PDF is the handoff this page was built for.
                         </p>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[660px]">
-                        {/* PDF */}
                         <button
                             type="button"
                             onClick={handleDownloadPdf}
@@ -189,11 +349,10 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                             <div className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/60">Primary</div>
                             <div className="mt-2 text-xl font-bold">{activeDownload === "pdf" ? "Exporting..." : "Download PDF"}</div>
                             <div className="mt-2 text-[0.72rem] leading-relaxed text-white/70">
-                                Keeps your editor layout, spacing, headers, and page rhythm intact.
+                                Layout-preserving output. When this finishes, the final thank-you screen takes over.
                             </div>
                         </button>
 
-                        {/* TXT */}
                         <button
                             type="button"
                             onClick={handleDownloadTxt}
@@ -203,11 +362,10 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                             <div className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-neutral-500">Utility</div>
                             <div className="mt-2 text-xl font-bold">{activeDownload === "txt" ? "Exporting..." : "Download TXT"}</div>
                             <div className="mt-2 text-[0.72rem] leading-relaxed text-neutral-500">
-                                Lightweight backup for portals, archives, and raw content checks.
+                                Raw text fallback for LMS uploads, archive copies, and low-friction backups.
                             </div>
                         </button>
 
-                        {/* DOCX */}
                         <button
                             type="button"
                             onClick={handleDownloadDocx}
@@ -217,18 +375,15 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                             <div className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-[#f5c15f]/70">Optional</div>
                             <div className="mt-2 text-xl font-bold">{activeDownload === "docx" ? "Exporting..." : "Download DOCX"}</div>
                             <div className="mt-2 text-[0.72rem] leading-relaxed text-neutral-500">
-                                Structured text export with page breaks for Word-based revision passes.
+                                Editable handoff for Word-based revision passes and institutional workflows.
                             </div>
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* ── Body: Sidebar + Preview ── */}
             <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-6 overflow-hidden px-6 py-5 lg:px-10 xl:flex-row">
-                {/* Sidebar */}
                 <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
-                    {/* Document stats */}
                     <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-5">
                         <p className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-neutral-500">Document</p>
                         <h2 className="mt-2 text-lg font-bold tracking-tight text-white">{title}</h2>
@@ -247,12 +402,11 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                         </div>
                     </div>
 
-                    {/* Ready to submit */}
                     <div className="rounded-2xl border border-red-500/12 bg-[linear-gradient(180deg,rgba(50,10,10,0.6),rgba(14,14,14,0.9))] p-5">
                         <p className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-red-400/60">Ready To Submit</p>
                         <p className="mt-3 text-[0.76rem] leading-[1.65] text-neutral-400">
-                            Octopilot AI prepares your final draft for real-world handoff. Preserve formatting, retain page
-                            structure, and keep a clean text fallback in the same pass.
+                            When the PDF lands, this workspace fades out and the goodbye page takes over. It is meant to feel
+                            final, grateful, and bigger than a plain download confirmation.
                         </p>
                         <div className="mt-4 rounded-xl border border-white/6 bg-black/30 px-4 py-3 text-[0.72rem] leading-relaxed text-neutral-500">
                             Octopilot AI · Boardwalk Labs LLC
@@ -261,7 +415,6 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                         </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-2.5">
                         <button
                             type="button"
@@ -269,13 +422,6 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[0.76rem] font-semibold text-neutral-300 transition hover:bg-white/8 hover:text-white"
                         >
                             ← Back to Editor
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onNext("export")}
-                            className="rounded-xl border border-white/8 bg-transparent px-4 py-3 text-[0.76rem] font-semibold text-neutral-500 transition hover:text-neutral-300"
-                        >
-                            Stay Here
                         </button>
                     </div>
 
@@ -286,7 +432,6 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                     ) : null}
                 </aside>
 
-                {/* Preview */}
                 <section className="min-h-0 flex-1 overflow-y-auto">
                     <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 sm:p-5">
                         <div className="mb-5 flex items-baseline justify-between border-b border-white/6 pb-4">
@@ -319,9 +464,12 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                                                     <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/5 text-[0.6rem] font-bold text-neutral-500">
                                                         {index + 1}
                                                     </span>
-                                                    <span className="text-[0.72rem] font-semibold text-neutral-400">{page.title}</span>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">{page.title}</p>
+                                                        <p className="text-[0.68rem] text-neutral-500">Editor snapshot ready for export</p>
+                                                    </div>
                                                 </div>
-                                                <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[0.58rem] font-semibold text-neutral-500">
+                                                <span className="rounded-full border border-white/10 px-3 py-1 text-[0.62rem] font-semibold text-neutral-500">
                                                     Sheet {index + 1}
                                                 </span>
                                             </div>
@@ -331,7 +479,7 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                                                     ref={(node) => {
                                                         pageRefs.current[index] = node;
                                                     }}
-                                                    className="relative mx-auto bg-white text-[#111827] shadow-[0_24px_70px_rgba(0,0,0,0.28)]"
+                                                    className="relative mx-auto bg-white text-[#111827] shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
                                                     style={{
                                                         width: `${PAGE_WIDTH_PX}px`,
                                                         minHeight: `${PAGE_HEIGHT_PX}px`,
@@ -374,10 +522,6 @@ export default function ExportView({ onBack, onNext }: ExportViewProps) {
                                 })}
                             </div>
                         )}
-
-                        <div className="mt-6 text-center text-[0.62rem] text-neutral-600">
-                            © 2026 Boardwalk Labs LLC · Octopilot AI Export Suite
-                        </div>
                     </div>
                 </section>
             </div>

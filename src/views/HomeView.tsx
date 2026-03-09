@@ -174,11 +174,14 @@ export default function HomeView() {
 
   if (page === "export") {
     const goBack = () => setPage("editor");
-    const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
+    const restartAdventure = () => {
+      Organizer.reset();
+      setPage("home");
+    };
 
     return (
       <div className="fixed inset-0 overflow-hidden bg-[#0a0a0a]">
-        <ExportView onBack={goBack} onNext={goNext} />
+        <ExportView onBack={goBack} onRestart={restartAdventure} />
       </div>
     );
   }
