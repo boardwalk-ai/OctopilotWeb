@@ -163,14 +163,16 @@ function Panel({
 }) {
   return (
     <section
-      className={`rounded-[26px] border p-4 ${
-        tone === "accent"
-          ? "border-red-500/20 bg-[#160d0d]"
+      className={`relative overflow-hidden rounded-2xl border p-4 ${tone === "accent"
+          ? "border-red-500/20 bg-[#110b0b]"
           : "border-white/8 bg-[#111111]"
-      }`}
+        }`}
     >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/32">{title}</div>
-      <div className="mt-4">{children}</div>
+      {tone === "accent" && (
+        <span className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-red-500/60 via-red-500/20 to-transparent" />
+      )}
+      <p className="text-[0.58rem] font-bold uppercase tracking-[0.25em] text-white/30">{title}</p>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
@@ -349,114 +351,141 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
     return null;
   }
 
+  const statusDot =
+    profileState.subscriptionStatus === "active" || profileState.subscriptionStatus === "trial"
+      ? "bg-emerald-400"
+      : profileState.subscriptionStatus === "cancelled"
+        ? "bg-amber-400"
+        : profileState.subscriptionStatus === "billing_retry"
+          ? "bg-red-400"
+          : "bg-neutral-500";
+
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-6 lg:px-8">
       <button
         type="button"
         aria-label="Close profile modal"
-        className="absolute inset-0 bg-black/78"
+        className="absolute inset-0 bg-black/78 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <section className="relative z-10 w-full max-w-[min(94vw,74rem)] overflow-hidden rounded-[34px] border border-white/10 bg-[#080808] shadow-[0_45px_120px_rgba(0,0,0,0.8)]">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
+      <section className="relative z-10 w-full max-w-[min(94vw,72rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-[0_45px_120px_rgba(0,0,0,0.8)]">
+        {/* Top accent line */}
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
-        <div className="max-h-[88vh] overflow-y-auto p-5 sm:p-6 lg:p-7">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/35">Profile Access</p>
-              <h2 className="mt-2 text-[2rem] font-semibold tracking-[-0.05em] text-white sm:text-[2.6rem]">Your cockpit</h2>
+        <div className="max-h-[90vh] overflow-y-auto p-5 sm:p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-[1.3rem] font-bold tracking-tight text-red-500">Profile</span>
+              <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.2em] text-neutral-500">
+                Account
+              </span>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-[#111111] text-white/60 transition hover:border-red-500/40 hover:text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[0.7rem] text-neutral-400 transition hover:bg-white/10 hover:text-white"
             >
               ✕
             </button>
           </div>
 
-          <div className="mt-6 grid gap-4 xl:grid-cols-[1.28fr_0.72fr]">
-            <section className="rounded-[28px] border border-white/8 bg-[#101010] p-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-black text-2xl font-semibold text-white">
-                  {profilePhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={profilePhotoUrl}
-                      alt={user?.displayName || user?.email || "User"}
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    initials
-                  )}
+          {/* User card + Plan info — top row */}
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+            {/* User card */}
+            <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-[#111]">
+              {/* Accent stripe */}
+              <div className="h-16 bg-gradient-to-r from-red-500/20 via-red-500/8 to-transparent" />
+              <div className="-mt-8 px-5 pb-5">
+                <div className="flex items-end gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#111] bg-black text-lg font-bold text-white shadow-lg ring-2 ring-white/10">
+                    {profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={profilePhotoUrl}
+                        alt={user?.displayName || user?.email || "User"}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      initials
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 pb-0.5">
+                    <div className="truncate text-[1.1rem] font-bold tracking-tight text-white">
+                      {user?.displayName || "Octopilot User"}
+                    </div>
+                    <div className="truncate text-[0.78rem] text-neutral-500">{user?.email || "Not signed in"}</div>
+                  </div>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[2rem] font-semibold tracking-[-0.04em] text-white">
-                    {user?.displayName || "Octopilot User"}
-                  </div>
-                  <div className="mt-1 truncate text-base text-white/50">{user?.email || "Not signed in"}</div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <div className="rounded-full border border-red-500/30 bg-[#1a0d0d] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-100">
-                      {profileState.planName}
-                    </div>
-                    <div className="rounded-full border border-white/10 bg-[#161616] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">
-                      {user?.emailVerified ? "Verified" : "Unverified"}
-                    </div>
-                  </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.18em] text-red-300">
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
+                    {profileState.planName}
+                  </span>
+                  <span className={`rounded-full border px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.18em] ${user?.emailVerified
+                      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                      : "border-white/10 bg-white/5 text-neutral-500"
+                    }`}>
+                    {user?.emailVerified ? "✓ Verified" : "Unverified"}
+                  </span>
                 </div>
               </div>
-            </section>
+            </div>
 
-            <div className="grid gap-4">
+            {/* Plan info & expiry */}
+            <div className="grid gap-3">
               <Panel title="Plan Information">
-                <div className="text-3xl font-semibold tracking-[-0.04em] text-white">
-                  {isLoadingProfile ? "Loading..." : planStatusCopy.title}
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+                  <span className="text-[1.1rem] font-bold tracking-tight text-white">
+                    {isLoadingProfile ? "Loading..." : planStatusCopy.title}
+                  </span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-white/55">
+                <p className="mt-1.5 text-[0.74rem] leading-[1.6] text-neutral-500">
                   {planStatusCopy.detail}
                 </p>
               </Panel>
-              <Panel title="Plan Expiration Date">
-                <div className="text-2xl font-semibold tracking-[-0.04em] text-white">
+              <Panel title="Billing Period Ends">
+                <div className="text-[1.05rem] font-bold tracking-tight text-white">
                   {isLoadingProfile ? "Loading..." : formatExpiryDate(profileState.subscriptionEndDate)}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-white/55">
+                <p className="mt-1.5 text-[0.74rem] leading-[1.6] text-neutral-500">
                   {profileState.subscriptionStatus === "cancelled"
-                    ? "Renewal has been cancelled. You can keep using the paid plan until the date above, then the account will downgrade automatically."
+                    ? "Renewal has been cancelled. Access stays active until the date above."
                     : profileState.subscriptionStatus === "active" || profileState.subscriptionStatus === "trial"
-                      ? "This is the end of the current billing period. If renewal stays on, Stripe will extend it automatically."
+                      ? "If renewal stays on, Stripe will extend it automatically."
                       : "No active paid subscription expiry is currently stored."}
                 </p>
               </Panel>
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
-            <Panel title="Redeem Area">
-              <div className="flex flex-col gap-4">
+          {/* Redeem + Referral — bottom row */}
+          <div className="mt-4 grid gap-4 lg:grid-cols-[0.75fr_1.25fr]">
+            <Panel title="Redeem Code">
+              <div className="flex flex-col gap-3">
                 <CodeBoxes length={6} value={redeemCode} onChange={setRedeemCode} />
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    className="rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
+                    className="rounded-full bg-red-500 px-5 py-2 text-[0.72rem] font-bold text-black transition hover:bg-white hover:text-red-500"
                   >
                     Redeem
                   </button>
-                  <span className="text-sm text-white/40">Six-digit access code</span>
+                  <span className="text-[0.68rem] text-neutral-500">Six-digit access code</span>
                 </div>
               </div>
             </Panel>
 
-            <Panel title="Referral" tone="accent">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[1.05rem] leading-7 text-white/72">
+            <Panel title="Referral Program" tone="accent">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.82rem] leading-relaxed text-neutral-400">
                 <button
                   type="button"
                   onClick={() => setReferralMode("refer")}
-                  className={`font-medium underline underline-offset-4 transition ${referralMode === "refer" ? "text-red-500" : "text-white/82"}`}
+                  className={`font-semibold underline underline-offset-4 transition ${referralMode === "refer" ? "text-red-400" : "text-neutral-300 hover:text-white"}`}
                 >
                   Refer Octopilot AI
                 </button>
@@ -464,7 +493,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                 <button
                   type="button"
                   onClick={() => setReferralMode("redeem")}
-                  className={`font-medium underline underline-offset-4 transition ${referralMode === "redeem" ? "text-red-500" : "text-white/82"}`}
+                  className={`font-semibold underline underline-offset-4 transition ${referralMode === "redeem" ? "text-red-400" : "text-neutral-300 hover:text-white"}`}
                 >
                   redeem your referral
                 </button>
@@ -472,10 +501,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
               </div>
 
               {referralMode === "refer" ? (
-                <div className="mt-5 flex flex-wrap items-center gap-3 rounded-[22px] border border-red-500/18 bg-[#100b0b] px-4 py-4">
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-500/15 bg-red-500/5 px-4 py-3">
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/32">Your Referral Code</div>
-                    <div className="mt-2 inline-flex rounded-xl border border-white/10 bg-black px-4 py-3 text-xl font-semibold tracking-[0.22em] text-white">
+                    <p className="text-[0.54rem] font-bold uppercase tracking-[0.22em] text-neutral-500">Your Code</p>
+                    <div className="mt-1.5 inline-flex rounded-lg border border-white/10 bg-black px-3.5 py-2 text-base font-bold tracking-[0.2em] text-white">
                       {referralCode}
                     </div>
                   </div>
@@ -483,40 +512,44 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                     type="button"
                     onClick={async () => {
                       await navigator.clipboard.writeText(referralCode);
-                      setCopyLabel("Copied");
+                      setCopyLabel("Copied!");
                       window.setTimeout(() => setCopyLabel("Copy"), 1500);
                     }}
-                    className="rounded-full border border-white/10 bg-[#171717] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-white/80 transition hover:border-red-500/35 hover:text-white"
+                    className="rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-neutral-400 transition hover:border-red-500/30 hover:text-white"
                   >
                     {copyLabel}
                   </button>
-                  <p className="basis-full text-sm leading-6 text-white/52">Share this with your friends for rewards.</p>
+                  <p className="basis-full text-[0.72rem] leading-relaxed text-neutral-500">Share this code with friends to earn bonus credits.</p>
                 </div>
               ) : (
-                <div className="mt-5 flex flex-col gap-4">
+                <div className="mt-4 flex flex-col gap-3">
                   <CodeBoxes length={5} value={referralRedeemCode} onChange={setReferralRedeemCode} />
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      className="rounded-full border border-white/10 bg-[#171717] px-6 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:bg-white hover:text-red-500"
+                      className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-[0.72rem] font-bold text-white transition hover:border-red-500/30 hover:bg-white hover:text-red-500"
                     >
                       Redeem Referral
                     </button>
-                    <span className="text-sm text-white/40">Five-digit referral code</span>
+                    <span className="text-[0.68rem] text-neutral-500">Five-digit referral code</span>
                   </div>
                 </div>
               )}
             </Panel>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void openInvoices()}
-              className="rounded-full border border-white/10 bg-[#121212] px-6 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-400"
-            >
-              {isOpeningInvoices ? "Opening invoices..." : "Invoices"}
-            </button>
+          {/* Bottom action bar */}
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-white/6 bg-white/[0.02] px-5 py-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void openInvoices()}
+                disabled={isOpeningInvoices}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[0.72rem] font-semibold text-neutral-300 transition hover:border-white/20 hover:text-white"
+              >
+                {isOpeningInvoices ? "Opening..." : "Invoices & Billing"}
+              </button>
+            </div>
             <button
               type="button"
               onClick={async () => {
@@ -528,14 +561,14 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                   onClose();
                 }
               }}
-              className="rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500"
+              className="rounded-full bg-red-500 px-5 py-2 text-[0.72rem] font-bold text-black transition hover:bg-white hover:text-red-500"
             >
               {isSigningOut ? "Logging out..." : "Log Out"}
             </button>
           </div>
 
           {invoiceError ? (
-            <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-[0.74rem] text-red-300">
               {invoiceError}
             </div>
           ) : null}
