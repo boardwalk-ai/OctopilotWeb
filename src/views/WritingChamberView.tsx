@@ -777,7 +777,9 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 citationStyle: org.citationStyle,
             });
             if (!org.isTestMode) {
-                await CreditService.deductSourceCredits(5);
+                await CreditService.deductSourceCredits(5, {
+                    idempotencyKey: CreditService.createDeductionKey("manual:more-ideas"),
+                });
             }
             pushAssistantIdeas(sectionId, ideas);
         } catch (error) {
@@ -815,7 +817,9 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 citationStyle: org.citationStyle,
             });
             if (!org.isTestMode) {
-                await CreditService.deductSourceCredits(1);
+                await CreditService.deductSourceCredits(1, {
+                    idempotencyKey: CreditService.createDeductionKey("manual:ask"),
+                });
             }
             upsertAssistantAnswer(sectionId, answer);
             setAssistantQuestionBySection((prev) => ({ ...prev, [sectionId]: "" }));
@@ -1144,7 +1148,9 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 writtenEssay,
             });
             if (!org.isTestMode) {
-                await CreditService.deduct("word", requiredWordCredits);
+                await CreditService.deduct("word", requiredWordCredits, {
+                    idempotencyKey: CreditService.createDeductionKey(`manual:summary:${requiredWordCredits}`),
+                });
             }
             setSummaryInsights(summary);
             setIsInsightsOpen(true);

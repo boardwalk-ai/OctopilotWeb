@@ -122,7 +122,9 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                 }
 
                 if (!org.isTestMode) {
-                    await CreditService.deductWordCreditsForWords(targetWords);
+                    await CreditService.deductWordCreditsForWords(targetWords, {
+                        idempotencyKey: CreditService.createDeductionKey(`generation:${targetWords}`),
+                    });
                 }
                 Organizer.set({
                     generatedEssay: parsed.essay_content || "",

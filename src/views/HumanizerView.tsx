@@ -126,7 +126,9 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
 
             if (!org.isTestMode) {
                 const selectedWords = typeof org.wordCount === "number" ? org.wordCount : CreditService.countWords(textEditable);
-                await CreditService.deductHumanizerCreditsForWords(selectedWords);
+                await CreditService.deductHumanizerCreditsForWords(selectedWords, {
+                    idempotencyKey: CreditService.createDeductionKey(`humanizer:${selectedWords}`),
+                });
             }
 
             setTextEditable(resultText);

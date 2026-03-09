@@ -593,7 +593,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             const sourceCharge = Math.max(0, activeSourceCount - previouslyCharged);
 
             if (!org.isTestMode && sourceCharge > 0) {
-                await CreditService.deductSourceCredits(sourceCharge);
+                await CreditService.deductSourceCredits(sourceCharge, {
+                    idempotencyKey: CreditService.createDeductionKey(`configuration:${sourcesTab}:${activeSourceCount}`),
+                });
             }
 
             Organizer.set({
