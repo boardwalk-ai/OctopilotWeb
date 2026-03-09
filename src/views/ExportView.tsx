@@ -20,7 +20,7 @@ const DEFAULT_MARGIN_PX = 96;
 const CREW = [
     { role: "Founder & CEO", name: "Mr. Hein Htet", accent: "from-red-500/60 to-red-300/10" },
     { role: "Chief Product Officer", name: "Mrs. Su Pyae", accent: "from-amber-400/60 to-amber-300/10" },
-    { role: "Lead Engineer & CTO", name: "Lucas D. Marshall", subtitle: "Kaung Myat San", accent: "from-sky-400/60 to-sky-300/10" },
+    { role: "Lead Engineer & CTO", name: "Lucas D. Marshall", subtitle: "Kaung Myat San", accent: "from-sky-400/60 to-sky-300/10", image: "/CTO.JPG" },
     { role: "Chief Financial Officer", name: "Mr. Myat Hein Htet", accent: "from-emerald-400/60 to-emerald-300/10" },
     { role: "Graphics", name: "Mr. Hein Htet Aung", subtitle: "Spoonie Soy", accent: "from-fuchsia-400/60 to-fuchsia-300/10" },
     { role: "Graphics", name: "Michael", accent: "from-violet-400/60 to-violet-300/10" },
@@ -332,8 +332,18 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                         <div key={`crew-${member.name}-${index}`} className="flex shrink-0 items-center gap-10 sm:gap-16">
                                             <div className="flex w-[220px] flex-col items-center justify-center text-center">
                                                 <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
-                                                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-lg font-semibold text-white">
-                                                        {member.name.charAt(0)}
+                                                    <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#120f0f] text-lg font-semibold text-white">
+                                                        {member.image ? (
+                                                            <Image
+                                                                src={member.image}
+                                                                alt={member.name}
+                                                                fill
+                                                                sizes="64px"
+                                                                className="object-cover"
+                                                            />
+                                                        ) : (
+                                                            member.name.charAt(0)
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="mt-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
