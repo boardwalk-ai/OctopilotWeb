@@ -366,35 +366,6 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                         </section>
                     </div>
                 </div>
-
-                <style jsx global>{`
-                    .crew-track {
-                        width: max-content;
-                        will-change: transform;
-                    }
-                    .crew-track-a {
-                        animation: crew-drift-left 42s linear infinite;
-                    }
-                    .crew-track-b {
-                        animation: crew-drift-right 46s linear infinite;
-                    }
-                    @keyframes crew-drift-left {
-                        0% {
-                            transform: translateX(0);
-                        }
-                        100% {
-                            transform: translateX(-50%);
-                        }
-                    }
-                    @keyframes crew-drift-right {
-                        0% {
-                            transform: translateX(-50%);
-                        }
-                        100% {
-                            transform: translateX(0);
-                        }
-                    }
-                `}</style>
             </div>
         );
     }

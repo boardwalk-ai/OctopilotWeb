@@ -22,7 +22,8 @@ body {
   font-family: inherit;
 }
 
-html, body {
+html,
+body {
   min-height: 100%;
   height: 100%;
 }
@@ -106,10 +107,12 @@ body {
 }
 
 @keyframes authFloat {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   50% {
     transform: translate3d(0, -18px, 0) scale(1.04);
   }
@@ -120,8 +123,43 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Crew carousel animations */
+.crew-track {
+  width: max-content;
+  will-change: transform;
+}
+
+.crew-track-a {
+  animation: crew-drift-left 42s linear infinite;
+}
+
+.crew-track-b {
+  animation: crew-drift-right 46s linear infinite;
+}
+
+@keyframes crew-drift-left {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes crew-drift-right {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
   }
 }
