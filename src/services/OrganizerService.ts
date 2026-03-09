@@ -73,6 +73,32 @@ export interface CompactedSource {
     compactedContent: string;
 }
 
+export interface ExportPageSnapshot {
+    id: number;
+    title: string;
+    html: string;
+    plainText: string;
+    textAlign?: "left" | "center" | "right" | "justify";
+    centerVertically?: boolean;
+    showPageNumber?: boolean;
+    lineHeight?: number;
+}
+
+export interface ExportDocumentSnapshot {
+    title: string;
+    pages: ExportPageSnapshot[];
+    profile: {
+        defaultFont: string;
+        lineHeight: number;
+        marginInch: number;
+        headerText: string;
+        showPageNumber: boolean;
+        pageNumberStartPage: number;
+        pageNumberStartNumber: number;
+    };
+    generatedAt: string;
+}
+
 export interface OrganizerState {
     writingMode: "automation" | "manual";
     majorIndex: number | null;
@@ -131,6 +157,7 @@ export interface OrganizerState {
     // Lucas output
     generatedEssay: string;
     generatedBibliography: string;
+    exportDocument: ExportDocumentSnapshot | null;
 
     // Billing session state
     chargedSourceCounts: Record<string, number>;
@@ -176,6 +203,7 @@ const defaultState: OrganizerState = {
     essayDate: "",
     generatedEssay: "",
     generatedBibliography: "",
+    exportDocument: null,
     chargedSourceCounts: {},
     isTestMode: false,
 };

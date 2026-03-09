@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
-import { Organizer } from "@/services/OrganizerService";
+import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { FormatterService } from "@/services/FormatterService";
 import { FormatterPage } from "@/services/FormatterTypes";
 
@@ -1020,19 +1020,62 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         saveSelection();
     }, [cleanupEditorArtifacts, rebalancePaginationFrom, saveSelection]);
 
-    const handleExport = useCallback(() => {
+    const buildExportSnapshot = useCallback((): ExportDocumentSnapshot => {
         const parser = document.createElement("div");
-        const allPagesText = pages.map((page, idx) => {
+        const pagesSnapshot = pages.map((page, idx) => {
             const html = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
+            const pageMeta = pageFormatMap[page.id] || {};
             parser.innerHTML = html;
-            return `Page ${idx + 1}\n${parser.innerText.trim()}`;
-        }).join("\n\n");
+            const plainText = parser.innerText.replace(/\n{3,}/g, "\n\n").trim();
+            return {
+                id: page.id,
+                title: page.title || `Page ${idx + 1}`,
+                html,
+                plainText,
+                textAlign: pageMeta.textAlign,
+                centerVertically: pageMeta.centerVertically,
+                showPageNumber: pageMeta.showPageNumber ?? showPageNumber,
+                lineHeight: pageMeta.lineHeight || lineHeight,
+            };
+        });
+
+        return {
+            title: docTitle.trim() || "Untitled document",
+            pages: pagesSnapshot,
+            profile: {
+                defaultFont: fontFamily,
+                lineHeight,
+                marginInch: formattedDoc.profile.marginInch || 1,
+                headerText: headerText.trim(),
+                showPageNumber,
+                pageNumberStartPage,
+                pageNumberStartNumber,
+            },
+            generatedAt: new Date().toISOString(),
+        };
+    }, [
+        docTitle,
+        fontFamily,
+        formattedDoc.profile.marginInch,
+        headerText,
+        lineHeight,
+        pageFormatMap,
+        pageNumberStartNumber,
+        pageNumberStartPage,
+        pages,
+        showPageNumber,
+    ]);
+
+    const handleExport = useCallback(() => {
+        const snapshot = buildExportSnapshot();
+        const allPagesText = snapshot.pages.map((page, idx) => `Page ${idx + 1}\n${page.plainText}`).join("\n\n");
         Organizer.set({
             generatedEssay: allPagesText,
-            finalEssayTitle: docTitle.trim() || "Untitled document",
+            finalEssayTitle: snapshot.title,
+            exportDocument: snapshot,
         });
         onNext("export");
-    }, [docTitle, onNext, pages]);
+    }, [buildExportSnapshot, onNext]);
 
     useEffect(() => {
         updateStats();
@@ -1057,15 +1100,17 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                     parser.innerHTML = html;
                     return parser.innerText.trim();
                 }).join("\n\n");
+                const snapshot = buildExportSnapshot();
                 Organizer.set({
                     generatedEssay: allPagesText,
-                    finalEssayTitle: docTitle.trim() || "Untitled document",
+                    finalEssayTitle: snapshot.title,
+                    exportDocument: snapshot,
                 });
             }
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [docTitle, pages]);
+    }, [buildExportSnapshot, pages]);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {

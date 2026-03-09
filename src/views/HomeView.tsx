@@ -18,6 +18,7 @@ import GenerationView from "@/views/GenerationView";
 import PreviewView from "@/views/PreviewView";
 import HumanizerView from "@/views/HumanizerView";
 import EditorView from "@/views/EditorView";
+import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import StepperHeader, { automationSteps, AutomationStepId } from "@/components/StepperHeader";
@@ -337,6 +338,11 @@ export default function HomeView() {
               />
             ) : page === "humanizer" ? (
               <HumanizerView
+                onBack={goBack}
+                onNext={goNext}
+              />
+            ) : page === "export" ? (
+              <ExportView
                 onBack={goBack}
                 onNext={goNext}
               />
