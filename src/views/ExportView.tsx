@@ -314,15 +314,15 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                 </p>
                             </div>
 
-                            <div className="relative overflow-hidden">
+                            <div className="relative min-h-[560px] overflow-hidden">
                                 <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#101010] to-transparent" />
                                 <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#101010] to-transparent" />
 
-                                <div className="flex gap-5 crew-track crew-track-a">
+                                <div className="inline-flex min-w-max gap-5 crew-track crew-track-a">
                                     {[...CREW, ...CREW].map((member, index) => (
                                         <article
                                             key={`a-${member.name}-${index}`}
-                                            className="group relative w-[220px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 bg-black/25 px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.22)]"
+                                            className="group relative flex min-h-[252px] w-[220px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-black/25 px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.22)]"
                                         >
                                             <div className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px] shadow-[0_10px_45px_rgba(239,68,68,0.12)]`}>
                                                 <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-2xl font-semibold text-white">
@@ -340,11 +340,11 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                     ))}
                                 </div>
 
-                                <div className="mt-5 flex gap-5 crew-track crew-track-b">
+                                <div className="mt-5 inline-flex min-w-max gap-5 crew-track crew-track-b">
                                     {[...CREW.slice().reverse(), ...CREW.slice().reverse()].map((member, index) => (
                                         <article
                                             key={`b-${member.name}-${index}`}
-                                            className="group relative w-[220px] shrink-0 overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.035] px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.18)]"
+                                            className="group relative flex min-h-[220px] w-[220px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.035] px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.18)]"
                                         >
                                             <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
                                                 <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-xl font-semibold text-white">
@@ -370,6 +370,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                 <style jsx>{`
                     .crew-track {
                         width: max-content;
+                        will-change: transform;
                     }
                     .crew-track-a {
                         animation: crew-drift-left 42s linear infinite;
