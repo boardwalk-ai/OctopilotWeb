@@ -314,61 +314,41 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                 </p>
                             </div>
 
-                            <div className="relative min-h-[560px] overflow-hidden">
-                                <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#101010] to-transparent" />
-                                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#101010] to-transparent" />
-
+                            <div
+                                className="relative mt-8 flex min-h-[220px] w-full items-center overflow-hidden"
+                                style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)", WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}
+                            >
                                 {/* Inject keyframes directly into the DOM */}
                                 <div dangerouslySetInnerHTML={{
                                     __html: `<style>
-                                    @keyframes crewLeft { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-                                    @keyframes crewRight { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
+                                    @keyframes crewMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
                                 </style>` }} />
 
                                 <div
-                                    className="flex gap-5"
-                                    style={{ width: "max-content", animation: "crewLeft 42s linear infinite", willChange: "transform" }}
+                                    className="flex items-center gap-10 sm:gap-16"
+                                    style={{ width: "max-content", animation: "crewMarquee 120s linear infinite", willChange: "transform" }}
                                 >
-                                    {[...CREW, ...CREW].map((member, index) => (
-                                        <article
-                                            key={`a-${member.name}-${index}`}
-                                            className="group relative flex min-h-[252px] w-[220px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-black/25 px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.22)]"
-                                        >
-                                            <div className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px] shadow-[0_10px_45px_rgba(239,68,68,0.12)]`}>
-                                                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-2xl font-semibold text-white">
-                                                    {member.name.charAt(0)}
+                                    {[...CREW, ...CREW, ...CREW, ...CREW].map((member, index) => (
+                                        <div key={`crew-${member.name}-${index}`} className="flex shrink-0 items-center gap-10 sm:gap-16">
+                                            <div className="flex w-[220px] flex-col items-center justify-center text-center">
+                                                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
+                                                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-lg font-semibold text-white">
+                                                        {member.name.charAt(0)}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">
-                                                {member.role}
-                                            </div>
-                                            <div className="mt-3 text-lg font-semibold text-white">{member.name}</div>
-                                            {member.subtitle ? (
-                                                <div className="mt-1 text-sm text-white/48">{member.subtitle}</div>
-                                            ) : null}
-                                        </article>
-                                    ))}
-                                </div>
-
-                                <div
-                                    className="mt-5 flex gap-5"
-                                    style={{ width: "max-content", animation: "crewRight 46s linear infinite", willChange: "transform" }}
-                                >
-                                    {[...CREW.slice().reverse(), ...CREW.slice().reverse()].map((member, index) => (
-                                        <article
-                                            key={`b-${member.name}-${index}`}
-                                            className="group relative flex min-h-[220px] w-[220px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.035] px-5 py-6 text-center shadow-[0_16px_60px_rgba(0,0,0,0.18)]"
-                                        >
-                                            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
-                                                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#120f0f] text-xl font-semibold text-white">
-                                                    {member.name.charAt(0)}
+                                                <div className="mt-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
+                                                    {member.role}
                                                 </div>
+                                                <div className="mt-2 text-base font-medium text-white/90">
+                                                    {member.name}
+                                                </div>
+                                                {member.subtitle ? (
+                                                    <div className="mt-1 text-xs text-white/30">{member.subtitle}</div>
+                                                ) : null}
                                             </div>
-                                            <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/32">
-                                                {member.role}
-                                            </div>
-                                            <div className="mt-2 text-base font-semibold text-white">{member.name}</div>
-                                        </article>
+                                            {/* Vertical Divider Line */}
+                                            <div className="h-20 w-px shrink-0 bg-white-[0.08] bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+                                        </div>
                                     ))}
                                 </div>
                             </div>
