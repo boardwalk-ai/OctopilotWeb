@@ -199,9 +199,9 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                         spacing: { after: 220, line: Math.round((page.lineHeight || profile?.lineHeight || 1.5) * 240) },
                         alignment:
                             page.textAlign === "center" ? AlignmentType.CENTER :
-                            page.textAlign === "right" ? AlignmentType.RIGHT :
-                            page.textAlign === "justify" ? AlignmentType.JUSTIFIED :
-                            AlignmentType.LEFT,
+                                page.textAlign === "right" ? AlignmentType.RIGHT :
+                                    page.textAlign === "justify" ? AlignmentType.JUSTIFIED :
+                                        AlignmentType.LEFT,
                     }));
 
                 return {
@@ -367,7 +367,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                     </div>
                 </div>
 
-                <style jsx>{`
+                <style jsx global>{`
                     .crew-track {
                         width: max-content;
                         will-change: transform;
