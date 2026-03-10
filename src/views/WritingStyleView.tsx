@@ -1,5 +1,7 @@
 import { AutomationStepId } from "@/components/StepperHeader";
 import { Organizer } from "@/services/OrganizerService";
+import { FileReadService } from "@/services/FileReadService";
+import { ZulyService } from "@/services/ZulyService";
 import { useState } from "react";
 
 interface WritingStyleViewProps {
@@ -8,7 +10,74 @@ interface WritingStyleViewProps {
 }
 
 export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
-    const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [uploadedFileName, setUploadedFileName] = useState<string | null>(Organizer.get().writingStyleFileName);
+    const [isReading, setIsReading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleFileChange = (file: File | null) => {
+        setError(null);
+        if (!file) {
+            setUploadedFile(null);
+            setUploadedFileName(null);
+            Organizer.set({
+                writingStyleStatus: "not_started",
+                writingStyleFileName: null,
+                writingStyleExtractedText: "",
+                writingStyleProfile: null,
+            });
+            return;
+        }
+
+        const validationError = FileReadService.validateFile(file);
+        if (validationError) {
+            setUploadedFile(null);
+            setUploadedFileName(null);
+            setError(validationError);
+            return;
+        }
+
+        setUploadedFile(file);
+        setUploadedFileName(file.name);
+        Organizer.set({
+            writingStyleStatus: "uploaded",
+            writingStyleFileName: file.name,
+        });
+    };
+
+    const handleLearn = async () => {
+        if (!uploadedFile || isReading) {
+            return;
+        }
+
+        setError(null);
+        setIsReading(true);
+        Organizer.set({
+            writingStyleStatus: "reading",
+            writingStyleFileName: uploadedFile.name,
+        });
+
+        try {
+            const extractedText = await FileReadService.extractText(uploadedFile);
+            const profile = await ZulyService.analyzeWritingStyle(uploadedFile.name, extractedText);
+
+            Organizer.set({
+                writingStyleStatus: "analyzed",
+                writingStyleFileName: uploadedFile.name,
+                writingStyleExtractedText: extractedText,
+                writingStyleProfile: profile,
+            });
+            onNext("major-selection");
+        } catch (readError) {
+            Organizer.set({
+                writingStyleStatus: "uploaded",
+                writingStyleFileName: uploadedFile.name,
+            });
+            setError(readError instanceof Error ? readError.message : "Could not read the uploaded file.");
+        } finally {
+            setIsReading(false);
+        }
+    };
 
     return (
         <div className="flex w-full flex-1 flex-col items-center px-6 pt-36 lg:px-10 2xl:px-14">
@@ -19,14 +88,15 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                 </p>
 
                 {/* Upload Box */}
-                <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors hover:bg-white/[0.03]">
+                <label className={`flex w-full flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors ${isReading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-white/[0.03]"}`}>
                     <input
                         type="file"
-                        accept=".pdf"
+                        accept={FileReadService.getAcceptedTypes()}
                         className="hidden"
+                        disabled={isReading}
                         onChange={(event) => {
                             const file = event.target.files?.[0] || null;
-                            setUploadedFileName(file?.name || null);
+                            handleFileChange(file);
                         }}
                     />
                     <div className="mb-6 flex">
@@ -37,42 +107,56 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                         </svg>
                     </div>
 
-                    <h3 className="mb-2 text-[19px] font-bold text-white">Import your written essay in PDF format here</h3>
+                    <h3 className="mb-2 text-[19px] font-bold text-white">Import one writing sample here</h3>
                     <p className="text-[15px] font-medium text-white/50">
-                        {uploadedFileName ? uploadedFileName : "Browse or drag and drop your PDF file"}
+                        {uploadedFileName ? uploadedFileName : `Browse one ${FileReadService.getSupportedTypeLabel()} file`}
                     </p>
                 </label>
+                <p className="mt-4 text-[13px] font-medium text-white/38">Only one file is allowed. One image or one PDF.</p>
+                {error ? (
+                    <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-[13px] text-red-300">
+                        {error}
+                    </div>
+                ) : null}
 
                 {/* Let us learn — red pill button */}
                 <button
                     type="button"
-                    disabled={!uploadedFileName}
-                    onClick={() => {
-                        Organizer.set({
-                            writingStyleStatus: "uploaded",
-                            writingStyleFileName: uploadedFileName,
-                        });
-                        onNext("major-selection");
-                    }}
+                    disabled={!uploadedFile || isReading}
+                    onClick={() => void handleLearn()}
                     className="mt-8 flex w-full max-w-[1380px] items-center justify-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] transition-all duration-200 hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.4)] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-white/30 disabled:shadow-none"
                 >
-                    Let us learn
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-                        <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-                        <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-                    </svg>
+                    {isReading ? (
+                        <>
+                            <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                            Zuly is reading...
+                        </>
+                    ) : (
+                        <>
+                            Let us learn
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+                                <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+                                <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+                            </svg>
+                        </>
+                    )}
                 </button>
 
                 <button
+                    disabled={isReading}
                     onClick={() => {
                         Organizer.set({
                             writingStyleStatus: "skipped",
                             writingStyleFileName: null,
+                            writingStyleExtractedText: "",
+                            writingStyleProfile: null,
                         });
                         onNext("major-selection");
                     }}
-                    className="mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white"
+                    className="mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white disabled:cursor-not-allowed disabled:text-white/20"
                 >
                     Skip this step
                 </button>

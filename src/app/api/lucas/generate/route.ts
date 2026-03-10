@@ -39,6 +39,21 @@ Content(compacted): ${s.compactedContent || ""}`;
             return `Outline ${idx + 1} (${o.type}): ${o.title} - ${o.description}`;
         }).join("\n");
 
+        const writingStyleProfile = organizerState.imperfectModeEnabled ? organizerState.writingStyleProfile : null;
+        const writingStyleBlock = writingStyleProfile
+            ? `
+Imperfect Mode: ON
+Follow this Zuly writing profile while drafting. Mimic the user's natural style without making the writing unreadable.
+Writing Style: ${writingStyleProfile.writing_style || "Not available"}
+Grammar Usage Style: ${writingStyleProfile.grammar_usage_style || "Not available"}
+Vocabulary Usage Style and Level: ${writingStyleProfile.vocabulary_usage_style_and_level || "Not available"}
+Common Mistakes to imitate lightly: ${(writingStyleProfile.common_mistakes || []).join("; ") || "None listed"}
+`
+            : `
+Imperfect Mode: OFF
+Ignore any user-style imitation instructions and write in the normal Octopilot academic standard.
+`;
+
         // Construct user prompt matching the agent's expected inputs
         const userMessage = `
 Word Count: ${organizerState.wordCount}
@@ -47,6 +62,7 @@ Essay Type: ${organizerState.essayType}
 Writing Tone: ${organizerState.tone}
 Citation Format: ${organizerState.citationStyle}
 Keywords: ${organizerState.keywords || "None"}
+${writingStyleBlock}
 
 Outlines (${organizerState.selectedOutlines.length} paragraphs):
 ${outlinesString}

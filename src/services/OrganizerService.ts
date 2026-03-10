@@ -99,17 +99,28 @@ export interface ExportDocumentSnapshot {
     generatedAt: string;
 }
 
+export interface WritingStyleProfile {
+    writing_style: string;
+    grammar_usage_style: string;
+    vocabulary_usage_style_and_level: string;
+    common_mistakes: string[];
+}
+
 export interface OrganizerState {
     writingMode: "automation" | "manual";
     majorIndex: number | null;
     majorName: string;
     essayType: string;
     instructions: string;
+    instructionTextInput: string;
     uploadedFileName: string | null;
-    writingStyleStatus: "not_started" | "uploaded" | "skipped" | "guest_bypass";
+    writingStyleStatus: "not_started" | "uploaded" | "reading" | "analyzed" | "skipped" | "guest_bypass";
     writingStyleFileName: string | null;
+    writingStyleExtractedText: string;
+    writingStyleProfile: WritingStyleProfile | null;
     instructionSource: "text" | "document" | "text+document" | null;
     instructionFileName: string | null;
+    instructionFileExtractedText: string;
     imperfectModeEnabled: boolean;
 
     // Luna output (filled after analysis)
@@ -185,11 +196,15 @@ const defaultState: OrganizerState = {
     majorName: "",
     essayType: "",
     instructions: "",
+    instructionTextInput: "",
     uploadedFileName: null,
     writingStyleStatus: "not_started",
     writingStyleFileName: null,
+    writingStyleExtractedText: "",
+    writingStyleProfile: null,
     instructionSource: null,
     instructionFileName: null,
+    instructionFileExtractedText: "",
     imperfectModeEnabled: false,
     analysis: "",
     essayTopic: "",

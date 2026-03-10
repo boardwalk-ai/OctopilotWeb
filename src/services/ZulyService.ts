@@ -1,4 +1,4 @@
-import { Organizer, SourceData, CompactedSource } from "./OrganizerService";
+import { Organizer, SourceData, CompactedSource, WritingStyleProfile } from "./OrganizerService";
 import { TestService } from "./TestService";
 
 type CompactionInput = {
@@ -8,12 +8,53 @@ type CompactionInput = {
 };
 
 export class ZulyService {
+    static async analyzeWritingStyle(fileName: string, extractedText: string): Promise<WritingStyleProfile> {
+        if (TestService.isActive) {
+            return {
+                writing_style: "Reflective academic prose with moderate sentence variety and direct claim-first openings.",
+                grammar_usage_style: "Mostly standard grammar with a preference for compound sentences and frequent comma-linked clauses.",
+                vocabulary_usage_style_and_level: "Upper-intermediate academic vocabulary with occasional repetitive phrasing.",
+                common_mistakes: [
+                    "Overuses similar sentence openings",
+                    "Comma splices appear in longer sentences",
+                    "Transitions between ideas can feel abrupt",
+                ],
+            };
+        }
+
+        const res = await fetch("/api/zuly/compact", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task: "writing_style_analysis",
+                fileName,
+                extractedText,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Zuly writing style analysis failed: ${res.status}`);
+        }
+
+        const result = await res.json();
+        return {
+            writing_style: String(result.writing_style || "").trim(),
+            grammar_usage_style: String(result.grammar_usage_style || "").trim(),
+            vocabulary_usage_style_and_level: String(result.vocabulary_usage_style_and_level || "").trim(),
+            common_mistakes: Array.isArray(result.common_mistakes)
+                ? result.common_mistakes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+                : [],
+        };
+    }
+
     static async compactSource(source: SourceData, sourceIndex: number): Promise<CompactedSource> {
         const compactionInput = ZulyService.buildCompactionInput(source);
         const res = await fetch("/api/zuly/compact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+                task: "source_compaction",
                 fullContent: compactionInput.fullContent,
                 sourceTitle: compactionInput.sourceTitle,
                 sourceType: compactionInput.sourceType,

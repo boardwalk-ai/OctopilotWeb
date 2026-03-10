@@ -2,6 +2,8 @@
 
 import React, { useRef, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
+import { AccountStateService } from "@/services/AccountStateService";
+import { FileReadService } from "@/services/FileReadService";
 import { Organizer } from "@/services/OrganizerService";
 import { HeinService } from "@/services/HeinService";
 import { TestService } from "@/services/TestService";
@@ -12,12 +14,15 @@ interface InstructionsViewProps {
 }
 
 export default function InstructionsView({ onBack, onNext }: InstructionsViewProps) {
-    const [instructions, setInstructions] = useState("");
-    const [imperfectMode, setImperfectMode] = useState(false);
+    const [instructions, setInstructions] = useState(() => Organizer.get().instructionTextInput);
+    const [imperfectMode, setImperfectMode] = useState(() => Organizer.get().imperfectModeEnabled);
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const isSubscriber = !!accountPlan && /(pro|premium)/i.test(accountPlan) && !/guest/i.test(accountPlan);
 
     // Test Mode Autofill
     React.useEffect(() => {
@@ -26,7 +31,36 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         }
     }, []);
 
+    React.useEffect(() => {
+        return AccountStateService.subscribe((snapshot) => {
+            setAccountPlan(snapshot?.plan ?? null);
+        });
+    }, []);
+
+    React.useEffect(() => {
+        if (!isSubscriber && imperfectMode) {
+            setImperfectMode(false);
+        }
+    }, [imperfectMode, isSubscriber]);
+
     const canRead = instructions.trim().length > 0 || uploadedFile !== null;
+
+    const handleFileChange = (file: File | null) => {
+        setError(null);
+        if (!file) {
+            setUploadedFile(null);
+            return;
+        }
+
+        const validationError = FileReadService.validateFile(file);
+        if (validationError) {
+            setUploadedFile(null);
+            setError(validationError);
+            return;
+        }
+
+        setUploadedFile(file);
+    };
 
     const handleRead = async () => {
         if (!canRead || isAnalyzing) return;
@@ -34,18 +68,28 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         setError(null);
         setIsAnalyzing(true);
 
-        // Store instructions in Organizer
-        const hasText = instructions.trim().length > 0;
-        const hasDocument = uploadedFile !== null;
-        Organizer.set({
-            instructions: instructions.trim(),
-            uploadedFileName: uploadedFile?.name || null,
-            instructionFileName: uploadedFile?.name || null,
-            instructionSource: hasText && hasDocument ? "text+document" : hasDocument ? "document" : "text",
-            imperfectModeEnabled: imperfectMode,
-        });
-
         try {
+            const trimmedInstructions = instructions.trim();
+            const hasText = trimmedInstructions.length > 0;
+            const hasDocument = uploadedFile !== null;
+            const extractedFileText = uploadedFile ? await FileReadService.extractText(uploadedFile) : "";
+            const combinedInstructions = [
+                hasText ? trimmedInstructions : "",
+                extractedFileText
+                    ? `Uploaded File (${uploadedFile?.name || "document"}):\n${extractedFileText}`
+                    : "",
+            ].filter(Boolean).join("\n\n");
+
+            Organizer.set({
+                instructionTextInput: trimmedInstructions,
+                instructions: combinedInstructions,
+                uploadedFileName: uploadedFile?.name || null,
+                instructionFileName: uploadedFile?.name || null,
+                instructionFileExtractedText: extractedFileText,
+                instructionSource: hasText && hasDocument ? "text+document" : hasDocument ? "document" : "text",
+                imperfectModeEnabled: isSubscriber ? imperfectMode : false,
+            });
+
             await HeinService.analyze();
             onNext("outlines");
         } catch (err) {
@@ -70,14 +114,24 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
 
                 {/* Imperfect Mode Toggle */}
                 <button
-                    onClick={() => setImperfectMode(!imperfectMode)}
+                    onClick={() => {
+                        if (!isAnalyzing && isSubscriber) {
+                            setImperfectMode(!imperfectMode);
+                        }
+                    }}
+                    disabled={isAnalyzing || !isSubscriber}
                     className={`ml-6 mt-1 flex shrink-0 items-center gap-3 rounded-full border px-5 py-3 text-left transition-all duration-300 ${imperfectMode
                         ? "border-red-500/60 bg-red-500/[0.12]"
                         : "border-red-500/30 bg-red-500/[0.04] hover:border-red-500/50 hover:bg-red-500/[0.08]"
                         }`}
                 >
                     <div>
-                        <span className="block text-[14px] font-bold text-white">Imperfect Mode</span>
+                        <div className="flex items-center gap-2">
+                            <span className="block text-[14px] font-bold text-white">Imperfect Mode</span>
+                            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                                Only Subscribers
+                            </span>
+                        </div>
                         <span className="block text-[12px] text-white/40">Feed writing styles into AI</span>
                     </div>
                     {/* Toggle switch */}
@@ -92,9 +146,13 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                 {/* Textarea */}
                 <textarea
                     value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
+                    disabled={isAnalyzing}
+                    onChange={(e) => {
+                        setInstructions(e.target.value);
+                        Organizer.set({ instructionTextInput: e.target.value });
+                    }}
                     placeholder="Type your assignment instructions here..."
-                    className="min-h-[140px] flex-[2] w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-[15px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.04]"
+                    className="min-h-[140px] flex-[2] w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-[15px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
                 {/* "or" divider */}
@@ -104,20 +162,25 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
 
                 {/* Upload area */}
                 <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`flex flex-[2] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 transition-all duration-200 ${uploadedFile
+                    onClick={() => {
+                        if (!isAnalyzing) {
+                            fileInputRef.current?.click();
+                        }
+                    }}
+                    className={`flex flex-[2] flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 transition-all duration-200 ${uploadedFile
                         ? "border-red-500/30 bg-red-500/[0.04]"
                         : "border-white/[0.08] bg-white/[0.01] hover:border-white/15 hover:bg-white/[0.03]"
-                        }`}
+                        } ${isAnalyzing ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".pdf"
+                        accept={FileReadService.getAcceptedTypes()}
                         className="hidden"
+                        disabled={isAnalyzing}
                         onChange={(e) => {
                             const file = e.target.files?.[0] || null;
-                            setUploadedFile(file);
+                            handleFileChange(file);
                         }}
                     />
                     {/* Upload icon */}
@@ -152,7 +215,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                                 Upload your instruction document
                             </p>
                             <p className="mt-1 text-[13px] text-white/40">
-                                Drag and drop or click to browse
+                                One file only. {FileReadService.getSupportedTypeLabel()}
                             </p>
                         </>
                     )}
@@ -165,7 +228,8 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                 <div className="flex w-full items-center justify-between gap-4 py-5">
                     <button
                         onClick={onBack}
-                        className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                        disabled={isAnalyzing}
+                        className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -186,7 +250,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                                 <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                                 </svg>
-                                <span>Hein is analyzing...</span>
+                                <span>Reading instructions...</span>
                             </div>
                         ) : (
                             <>
