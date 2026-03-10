@@ -398,12 +398,11 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <button
                     onClick={handleAutoOutline}
                     disabled={isGenerating}
-                    className="group relative overflow-visible rounded-full p-[1px] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group relative overflow-hidden rounded-full p-[1px] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                    <span className="pointer-events-none absolute -inset-[5px] rounded-full bg-[radial-gradient(circle,rgba(250,204,21,0.32)_0%,rgba(250,204,21,0.14)_32%,rgba(250,204,21,0)_72%)] blur-[10px] opacity-95" />
-                    <span className="pointer-events-none absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgba(250,204,21,0)_0deg,rgba(250,204,21,0)_24deg,rgba(255,214,74,0.94)_52deg,rgba(255,243,192,1)_76deg,rgba(255,214,74,0.72)_96deg,rgba(250,204,21,0)_126deg,rgba(250,204,21,0)_360deg)] animate-[spin_4.8s_linear_infinite]" />
-                    <span className="pointer-events-none absolute inset-0 rounded-full opacity-100 [background:radial-gradient(circle_at_top,rgba(255,232,143,0.34),transparent_58%)]" />
-                    <span className="pointer-events-none absolute inset-0 rounded-full opacity-90 [box-shadow:0_0_0_1px_rgba(255,221,115,0.22),0_0_20px_rgba(250,204,21,0.22),0_0_42px_rgba(250,204,21,0.14)]" />
+                    <span className="pointer-events-none absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgba(250,204,21,0)_0deg,rgba(250,204,21,0)_40deg,rgba(255,214,74,0.95)_58deg,rgba(255,243,192,1)_78deg,rgba(255,214,74,0.65)_98deg,rgba(250,204,21,0)_122deg,rgba(250,204,21,0)_360deg)] animate-[spin_5.6s_linear_infinite]" />
+                    <span className="pointer-events-none absolute inset-[1px] rounded-full bg-[#121212]" />
+                    <span className="pointer-events-none absolute inset-0 rounded-full opacity-90 [box-shadow:0_0_0_1px_rgba(255,221,115,0.16),0_0_14px_rgba(250,204,21,0.16)]" />
                     <span className="relative flex items-center gap-2 rounded-full border border-[#3a2d0c] bg-[#121212] px-5 py-2.5 text-[13px] font-semibold text-[#f8e7a6] transition-all duration-300 group-hover:border-[#7b6218] group-hover:text-white group-hover:shadow-[0_0_22px_rgba(250,204,21,0.12)]">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
