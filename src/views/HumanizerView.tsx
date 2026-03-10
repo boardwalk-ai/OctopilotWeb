@@ -194,15 +194,43 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
 
             {/* Absolute Spinner Overlay */}
             {isHumanizing && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050505]/90 backdrop-blur-md">
-                    <div className="relative flex h-24 w-24 items-center justify-center mb-8">
-                        <div className="absolute inset-0 rounded-full border-4 border-[#3b82f6]/20" />
-                        <div className="absolute inset-0 animate-spin rounded-full border-t-4 border-[#3b82f6]" />
-                        <svg className="h-8 w-8 text-[#3b82f6] animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,4,6,0.82)] backdrop-blur-xl">
+                    <div className="relative w-full max-w-[520px] overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(20,20,24,0.96),rgba(8,8,10,0.98))] px-8 py-9 shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+                        <div className="pointer-events-none absolute -top-20 right-[-10%] h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
+                        <div className="pointer-events-none absolute -bottom-24 left-[-5%] h-44 w-44 rounded-full bg-red-500/10 blur-3xl" />
+
+                        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
+                            <div className="relative flex h-14 w-14 items-center justify-center">
+                                <div className="absolute inset-0 rounded-full border-2 border-white/10" />
+                                <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-white border-r-blue-400/80" />
+                                <div className="absolute inset-[8px] rounded-full bg-white/[0.03]" />
+                                <svg className="relative h-5 w-5 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3Z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div className="mt-7 text-center">
+                            <h2 className="text-[26px] font-bold tracking-tight text-white">
+                                {selectedAIEngine === "stealthgpt" ? "StealthGPT" : "Undetectable AI"} is refining your draft
+                            </h2>
+                            <p className="mx-auto mt-3 max-w-[360px] text-[14px] leading-6 text-white/58">
+                                Reworking sentence flow, smoothing phrasing, and pushing the essay toward a more natural human voice.
+                            </p>
+                        </div>
+
+                        <div className="mt-7 rounded-full border border-white/10 bg-white/[0.03] p-1">
+                            <div className="h-2 overflow-hidden rounded-full bg-white/[0.04]">
+                                <div className="h-full w-1/2 animate-[pulse_1.8s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-blue-400 via-white to-red-400" />
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
+                            Processing
+                        </div>
                     </div>
-                    <h2 className="animate-pulse text-2xl font-bold text-white tracking-widest uppercase">
-                        {selectedAIEngine === "stealthgpt" ? "StealthGPT" : "Undetectable AI"} is humanizing so hard for you!
-                    </h2>
                 </div>
             )}
 
