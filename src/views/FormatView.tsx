@@ -11,6 +11,91 @@ interface FormatViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
+function DateField({
+    label,
+    value,
+    placeholder,
+    options,
+    onChange,
+    inputMode,
+    maxLength,
+}: {
+    label: string;
+    value: string;
+    placeholder: string;
+    options: string[];
+    onChange: (value: string) => void;
+    inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+    maxLength?: number;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="relative flex flex-col gap-2">
+            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">{label}</span>
+            <div className={`rounded-2xl border transition ${isOpen ? "border-red-500/45 bg-white/[0.06]" : "border-white/[0.08] bg-black/30"}`}>
+                <div className="flex items-center gap-2 px-1.5 py-1.5">
+                    <input
+                        type="text"
+                        inputMode={inputMode}
+                        maxLength={maxLength}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        onFocus={() => setIsOpen(true)}
+                        placeholder={placeholder}
+                        className="h-10 flex-1 rounded-xl bg-transparent px-3 text-[14px] text-white outline-none placeholder:text-white/25"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen((prev) => !prev)}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] text-white/55 transition hover:bg-white/[0.08] hover:text-white"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={`transition ${isOpen ? "rotate-180" : ""}`}>
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </button>
+                </div>
+
+                {isOpen && (
+                    <>
+                        <button
+                            type="button"
+                            aria-label={`Close ${label} options`}
+                            onClick={() => setIsOpen(false)}
+                            className="fixed inset-0 z-10 cursor-default"
+                        />
+                        <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111111] shadow-[0_24px_70px_rgba(0,0,0,0.45)]">
+                            <div className="max-h-56 overflow-y-auto p-2">
+                                {options.map((option) => {
+                                    const selected = value.trim().toLowerCase() === option.toLowerCase();
+                                    return (
+                                        <button
+                                            key={option}
+                                            type="button"
+                                            onClick={() => {
+                                                onChange(option);
+                                                setIsOpen(false);
+                                            }}
+                                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[14px] transition ${selected ? "bg-red-500/15 text-red-300" : "text-white/75 hover:bg-white/[0.06] hover:text-white"}`}
+                                        >
+                                            <span>{option}</span>
+                                            {selected ? (
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M20 6 9 17l-5-5" />
+                                                </svg>
+                                            ) : null}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function parseEssayDate(source: string | undefined) {
     const now = new Date();
     const fallback = {
@@ -100,9 +185,6 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
 
     const labelClass = "mb-2 text-[14px] font-bold text-white/90";
     const requiredDot = <span className="text-red-500 ml-1">*</span>;
-
-    const dateInputClass =
-        "h-11 rounded-xl border border-white/[0.08] bg-black/30 px-4 text-[14px] text-white outline-none transition placeholder:text-white/25 hover:bg-white/[0.04] focus:border-red-500/50";
 
     return (
         <div className="flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14">
@@ -290,46 +372,33 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.9fr]">
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Month</span>
-                            <input
-                                type="text"
-                                list="essay-month-options"
-                                value={month}
-                                onChange={(e) => setMonth(e.target.value)}
-                                placeholder="March"
-                                className={`${dateInputClass} w-full`}
-                            />
-                            <datalist id="essay-month-options">
-                                {months.map((item) => <option key={item} value={item} />)}
-                            </datalist>
-                        </div>
+                        <DateField
+                            label="Month"
+                            value={month}
+                            placeholder="March"
+                            options={months}
+                            onChange={(value) => setMonth(value)}
+                        />
 
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Day</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={2}
-                                value={day}
-                                onChange={(e) => setDay(e.target.value.replace(/[^\d]/g, "").slice(0, 2))}
-                                placeholder="10"
-                                className={`${dateInputClass} w-full`}
-                            />
-                        </div>
+                        <DateField
+                            label="Day"
+                            value={day}
+                            placeholder="10"
+                            options={Array.from({ length: 31 }, (_, index) => String(index + 1))}
+                            inputMode="numeric"
+                            maxLength={2}
+                            onChange={(value) => setDay(value.replace(/[^\d]/g, "").slice(0, 2))}
+                        />
 
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Year</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={4}
-                                value={year}
-                                onChange={(e) => setYear(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
-                                placeholder="2026"
-                                className={`${dateInputClass} w-full`}
-                            />
-                        </div>
+                        <DateField
+                            label="Year"
+                            value={year}
+                            placeholder="2026"
+                            options={Array.from({ length: 12 }, (_, index) => String(new Date().getFullYear() - 4 + index))}
+                            inputMode="numeric"
+                            maxLength={4}
+                            onChange={(value) => setYear(value.replace(/[^\d]/g, "").slice(0, 4))}
+                        />
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-[13px] text-white/55">
