@@ -68,6 +68,16 @@ let startPromise: Promise<string | null> | null = null;
 let trackingFlagCache: { enabled: boolean; expiresAt: number } | null = null;
 let closingSessionId: string | null = null;
 
+class TrackerRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "TrackerRequestError";
+    this.status = status;
+  }
+}
+
 async function fetchTrackerApi<T>(input: string, init: RequestInit): Promise<T> {
   const authorization = await AuthService.getAuthorizationHeader();
   let response = await fetch(input, {
@@ -101,7 +111,7 @@ async function fetchTrackerApi<T>(input: string, init: RequestInit): Promise<T> 
     } catch {
       // ignore parse failure
     }
-    throw new Error(message);
+    throw new TrackerRequestError(message, response.status);
   }
 
   return response.json() as Promise<T>;
@@ -141,10 +151,11 @@ function writeStored(next: StoredSession | null): void {
 }
 
 function enqueue(task: () => Promise<void>): Promise<void> {
-  requestQueue = requestQueue.then(task).catch((error) => {
+  const run = requestQueue.then(task);
+  requestQueue = run.catch((error) => {
     console.error("[TrackerService] Request failed", error);
   });
-  return requestQueue;
+  return run;
 }
 
 async function isTrackingEnabled(): Promise<boolean> {
@@ -240,11 +251,20 @@ export class TrackerService {
 
     const existing = readStored();
     if (existing?.sessionId && !existing.payload.session_closed_at) {
-      await TrackerService.updateSession({
-        writing_mode: writingMode,
-        session_closed_at: null,
-      });
-      return existing.sessionId;
+      try {
+        await TrackerService.updateSession({
+          writing_mode: writingMode,
+          session_closed_at: null,
+        });
+        const activeSessionId = readStored()?.sessionId;
+        if (activeSessionId) {
+          return activeSessionId;
+        }
+      } catch (error) {
+        if (!(error instanceof TrackerRequestError) || error.status !== 404) {
+          throw error;
+        }
+      }
     }
 
     if (startPromise) {
@@ -304,10 +324,17 @@ export class TrackerService {
     writeStored(next);
 
     await enqueue(async () => {
-      await fetchTrackerApi(`/api/sessions/${next.sessionId}`, {
-        method: "PATCH",
-        body: JSON.stringify(diff),
-      });
+      try {
+        await fetchTrackerApi(`/api/sessions/${next.sessionId}`, {
+          method: "PATCH",
+          body: JSON.stringify(diff),
+        });
+      } catch (error) {
+        if (error instanceof TrackerRequestError && error.status === 404) {
+          TrackerService.clear();
+        }
+        throw error;
+      }
     });
   }
 
