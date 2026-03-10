@@ -5,7 +5,6 @@ import type { User } from "firebase/auth";
 import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { OctopilotAPIService } from "@/services/OctopilotAPIService";
-import { StreamService } from "@/services/StreamService";
 
 type ProfileModalProps = {
   open: boolean;
@@ -21,15 +20,6 @@ type MeResponse = {
   word_credits?: number | null;
   humanizer_credits?: number | null;
   source_credits?: number | null;
-};
-
-type StreamCreditsPayload = {
-  plan?: string | null;
-  subscriptionStatus?: string | null;
-  subscriptionEndDate?: string | null;
-  wordCredits?: number | null;
-  humanizerCredits?: number | null;
-  sourceCredits?: number | null;
 };
 
 type ReferralCodeResponse = {
@@ -230,6 +220,23 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   }, [user]);
 
   useEffect(() => {
+    const applySnapshot = (snapshot: ReturnType<typeof AccountStateService.read>) => {
+      if (!snapshot) {
+        return;
+      }
+
+      setProfileState((current) => ({
+        planName: getDisplayPlanName(snapshot.plan || current.planName || getFallbackPlanName(user)),
+        subscriptionStatus: snapshot.subscription_status ?? snapshot.subscriptionStatus ?? current.subscriptionStatus ?? "guest",
+        subscriptionEndDate: snapshot.subscription_end_date ?? snapshot.subscriptionEndDate ?? current.subscriptionEndDate ?? null,
+      }));
+    };
+
+    applySnapshot(AccountStateService.read());
+    return AccountStateService.subscribe(applySnapshot);
+  }, [user]);
+
+  useEffect(() => {
     const resetInvoiceState = () => {
       setIsOpeningInvoices(false);
       setInvoiceError(null);
@@ -306,82 +313,34 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
   }, [authReadyUser, open]);
 
   useEffect(() => {
-    let cancelled = false;
-    let stopStream: (() => void) | undefined;
-
     if (!open) {
       return;
     }
 
-    const applyPayload = (payload?: MeResponse | StreamCreditsPayload | null) => {
-      if (cancelled || !payload) {
-        return;
-      }
+    if (!authReadyUser) {
+      AccountStateService.clear();
+      setProfileState({
+        planName: getFallbackPlanName(authReadyUser),
+        subscriptionStatus: "guest",
+        subscriptionEndDate: null,
+      });
+      return;
+    }
 
-      AccountStateService.write(payload);
-      const mePayload = payload as MeResponse;
-      const streamPayload = payload as StreamCreditsPayload;
-      const nextPlan = mePayload.plan ?? streamPayload.plan;
-      const nextStatus = mePayload.subscription_status ?? streamPayload.subscriptionStatus;
-      const nextEndDate = mePayload.subscription_end_date ?? streamPayload.subscriptionEndDate;
-
-      setProfileState((current) => ({
-        planName: getDisplayPlanName(nextPlan || current.planName || getFallbackPlanName(user)),
-        subscriptionStatus: nextStatus || current.subscriptionStatus || "guest",
-        subscriptionEndDate: nextEndDate || current.subscriptionEndDate || null,
-      }));
-    };
-
-    const boot = async () => {
-      const currentUser = authReadyUser;
-
-      if (!currentUser) {
-        AccountStateService.clear();
-        setProfileState({
-          planName: getFallbackPlanName(currentUser),
-          subscriptionStatus: "guest",
-          subscriptionEndDate: null,
-        });
-        return;
-      }
-
-      setIsLoadingProfile(true);
-      try {
-        const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
-        applyPayload(me);
-      } catch {
-        // Fallback state is already set above.
-      } finally {
+    let cancelled = false;
+    setIsLoadingProfile(!AccountStateService.read());
+    void AccountStateService.bootstrap()
+      .catch(() => {
+        // Keep the current snapshot if bootstrap fails.
+      })
+      .finally(() => {
         if (!cancelled) {
           setIsLoadingProfile(false);
         }
-      }
-
-      try {
-        stopStream = await StreamService.connect({
-          onEvent: (event) => {
-            if (event.type !== "sync_credits" || !event.data) {
-              return;
-            }
-
-            try {
-              const parsed = JSON.parse(event.data) as StreamCreditsPayload;
-              applyPayload(parsed);
-            } catch {
-              // Ignore malformed realtime events.
-            }
-          },
-        });
-      } catch {
-        // Streaming is optional here.
-      }
-    };
-
-    void boot();
+      });
 
     return () => {
       cancelled = true;
-      stopStream?.();
     };
   }, [authReadyUser, open, user]);
 
@@ -415,6 +374,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
     try {
       await OctopilotAPIService.post("/api/v1/promo/redeem", { code: redeemCode });
+      await AccountStateService.refresh();
       setRedeemCode("");
       setPromoMessage("Promo code redeemed. Credits were added to the account.");
     } catch (error) {
@@ -437,6 +397,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
 
     try {
       await OctopilotAPIService.post("/api/v1/referral/submit", { code: referralRedeemCode });
+      await AccountStateService.refresh();
       setReferralRedeemCode("");
       setReferralMessage("Referral code redeemed. Rewards were added for both accounts.");
     } catch (error) {

@@ -1,5 +1,5 @@
-import { OctopilotAPIService } from "./OctopilotAPIService";
 import { AccountStateService } from "./AccountStateService";
+import { OctopilotAPIService } from "./OctopilotAPIService";
 
 export type CreditType = "word" | "humanizer" | "source";
 
@@ -53,11 +53,13 @@ export class CreditService {
     if (amount <= 0) return null;
 
     try {
-      return await OctopilotAPIService.post<DeductResponse>("/api/v1/me/credits/deduct", {
+      const response = await OctopilotAPIService.post<DeductResponse>("/api/v1/me/credits/deduct", {
         credit_type: creditType,
         amount,
         idempotency_key: options?.idempotencyKey,
       });
+      AccountStateService.write(response);
+      return response;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Credit deduction failed";
       throw new CreditDeductionError(message, creditType, amount);
@@ -91,11 +93,11 @@ export class CreditService {
       }
     }
 
-    const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
+    const me = await AccountStateService.bootstrap();
     return {
-      word: Number(me.word_credits ?? 0),
-      humanizer: Number(me.humanizer_credits ?? 0),
-      source: Number(me.source_credits ?? 0),
+      word: Number(me?.word_credits ?? 0),
+      humanizer: Number(me?.humanizer_credits ?? 0),
+      source: Number(me?.source_credits ?? 0),
     };
   }
 

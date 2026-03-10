@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { AccountStateService } from "@/services/AccountStateService";
+import { AccountSnapshot, AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
-import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 import { StreamService } from "@/services/StreamService";
 
 interface Credit {
@@ -22,13 +21,6 @@ const defaultCredits: Credit[] = [
   { label: "Humanizer", value: 50 },
   { label: "Source", value: 5 },
 ];
-
-type MeResponse = {
-  plan?: string | null;
-  word_credits?: number | null;
-  humanizer_credits?: number | null;
-  source_credits?: number | null;
-};
 
 type StreamCreditsPayload = {
   plan?: string | null;
@@ -86,10 +78,10 @@ function getDisplayPlanName(planName: string) {
   return normalized.replace(/\s+plan$/i, "");
 }
 
-function mapMeToCredits(payload?: MeResponse | StreamCreditsPayload | null): Credit[] {
+function mapMeToCredits(payload?: AccountSnapshot | StreamCreditsPayload | null): Credit[] {
   const resolvedPayload = payload as
-    | (MeResponse & Partial<StreamCreditsPayload>)
-    | (StreamCreditsPayload & Partial<MeResponse>)
+    | (AccountSnapshot & Partial<StreamCreditsPayload>)
+    | (StreamCreditsPayload & Partial<AccountSnapshot>)
     | null
     | undefined;
   const wordCredits = resolvedPayload?.word_credits ?? resolvedPayload?.wordCredits;
@@ -109,12 +101,18 @@ export default function PlanInfo({
   defaultExpanded = false,
 }: PlanInfoProps) {
   const [authReadyUser, setAuthReadyUser] = useState<ReturnType<typeof AuthService.getCurrentUser>>(null);
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
+  const [accountSnapshot, setAccountSnapshot] = useState<AccountSnapshot | null>(() => AccountStateService.read());
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [resolvedPlanName, setResolvedPlanName] = useState(getDisplayPlanName(planName));
-  const [resolvedCredits, setResolvedCredits] = useState<Credit[]>(credits);
   const rootRef = useRef<HTMLDivElement>(null);
+  const shouldHoldPlan = !isAuthResolved || (isAuthResolved && !!authReadyUser && !accountSnapshot && isBootstrapping);
+  const resolvedPlanName = shouldHoldPlan
+    ? "Loading"
+    : getDisplayPlanName(accountSnapshot?.plan ?? planName);
+  const resolvedCredits = accountSnapshot ? mapMeToCredits(accountSnapshot) : credits;
   const shellWidth = expanded ? 388 : 138;
-  const theme = getPlanTheme(resolvedPlanName);
+  const theme = getPlanTheme(shouldHoldPlan ? "Pro" : resolvedPlanName);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -128,50 +126,50 @@ export default function PlanInfo({
   }, []);
 
   useEffect(() => {
-    const snapshot = AccountStateService.read();
-    if (snapshot) {
-      if (snapshot.plan) {
-        setResolvedPlanName(getDisplayPlanName(snapshot.plan));
-      }
-      setResolvedCredits(mapMeToCredits(snapshot));
-    }
+    setAccountSnapshot(AccountStateService.read());
+    const unsubscribeAccount = AccountStateService.subscribe((snapshot) => {
+      setAccountSnapshot(snapshot);
+    });
+    const unsubscribeAuth = AuthService.subscribe((nextUser) => {
+      setAuthReadyUser(nextUser);
+      setIsAuthResolved(true);
+    });
 
     setAuthReadyUser(AuthService.getCurrentUser());
-    return AuthService.subscribe((nextUser) => {
-      setAuthReadyUser(nextUser);
-    });
+    setIsAuthResolved(true);
+
+    return () => {
+      unsubscribeAccount();
+      unsubscribeAuth();
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     let stopStream: (() => void) | undefined;
 
-    const applyPayload = (payload?: MeResponse | StreamCreditsPayload | null) => {
-      if (cancelled || !payload) {
+    const boot = async () => {
+      if (!isAuthResolved) {
         return;
       }
 
-      AccountStateService.write(payload);
-      if (payload.plan) {
-        setResolvedPlanName(getDisplayPlanName(payload.plan));
-      }
-      setResolvedCredits(mapMeToCredits(payload));
-    };
-
-    const boot = async () => {
       const currentUser = authReadyUser;
       if (!currentUser) {
         AccountStateService.clear();
-        setResolvedPlanName(getDisplayPlanName(planName));
-        setResolvedCredits(credits);
+        setIsBootstrapping(false);
         return;
       }
 
+      setIsBootstrapping(!AccountStateService.hasHydratedCurrentUser() && !AccountStateService.read());
+
       try {
-        const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
-        applyPayload(me);
+        await AccountStateService.bootstrap();
       } catch {
-        // keep fallback values
+        // Keep the previous cached state if bootstrap fails.
+      } finally {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
       }
 
       try {
@@ -183,7 +181,7 @@ export default function PlanInfo({
 
             try {
               const parsed = JSON.parse(event.data) as StreamCreditsPayload;
-              applyPayload(parsed);
+              AccountStateService.write(parsed);
             } catch {
               // ignore malformed events
             }
@@ -200,7 +198,7 @@ export default function PlanInfo({
       cancelled = true;
       stopStream?.();
     };
-  }, [authReadyUser, credits, planName]);
+  }, [authReadyUser, isAuthResolved]);
 
   return (
     <div ref={rootRef} className="relative">

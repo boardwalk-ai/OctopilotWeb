@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AccountStateService } from "@/services/AccountStateService";
-import { OctopilotAPIService } from "@/services/OctopilotAPIService";
+import { AuthService } from "@/services/AuthService";
 import { Organizer } from "@/services/OrganizerService";
 import { TrackerService } from "@/services/TrackerService";
 import { useOrganizer } from "@/hooks/useOrganizer";
@@ -39,7 +39,6 @@ import {
 } from "@/components/header";
 
 type Page = "home" | "methodology" | AutomationStepId;
-type MeResponse = { plan?: string | null };
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -74,24 +73,32 @@ export default function HomeView() {
     : 0;
 
   useEffect(() => {
-    const cachedPlan = AccountStateService.read()?.plan ?? null;
-    if (cachedPlan) {
-      setAccountPlan(cachedPlan);
+    const applySnapshot = (snapshot: ReturnType<typeof AccountStateService.read>) => {
+      setAccountPlan(snapshot?.plan ?? null);
+    };
+
+    applySnapshot(AccountStateService.read());
+    const unsubscribeAccount = AccountStateService.subscribe(applySnapshot);
+    const unsubscribeAuth = AuthService.subscribe((nextUser) => {
+      if (!nextUser) {
+        setAccountPlan(null);
+        return;
+      }
+
+      void AccountStateService.bootstrap().catch(() => {
+        // Keep current cached snapshot.
+      });
+    });
+
+    if (AuthService.getCurrentUser()) {
+      void AccountStateService.bootstrap().catch(() => {
+        // Keep current cached snapshot.
+      });
     }
 
-    let cancelled = false;
-    void OctopilotAPIService.get<MeResponse>("/api/v1/me")
-      .then((me) => {
-        if (!cancelled) {
-          setAccountPlan(me.plan ?? null);
-        }
-      })
-      .catch(() => {
-        // Keep cached snapshot.
-      });
-
     return () => {
-      cancelled = true;
+      unsubscribeAccount();
+      unsubscribeAuth();
     };
   }, []);
 
@@ -112,8 +119,8 @@ export default function HomeView() {
     }
 
     try {
-      const me = await OctopilotAPIService.get<MeResponse>("/api/v1/me");
-      const nextPlan = me.plan ?? null;
+      const me = await AccountStateService.bootstrap();
+      const nextPlan = me?.plan ?? null;
       setAccountPlan(nextPlan);
       return hasWritingStyleAccess(nextPlan);
     } catch {
