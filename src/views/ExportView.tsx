@@ -477,39 +477,44 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                                     className="relative mx-auto bg-white text-[#111827] shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
                                                     style={{
                                                         width: `${PAGE_WIDTH_PX}px`,
-                                                        minHeight: `${PAGE_HEIGHT_PX}px`,
-                                                        paddingTop: `${marginPx}px`,
-                                                        paddingRight: `${marginPx}px`,
-                                                        paddingBottom: `${marginPx}px`,
-                                                        paddingLeft: `${marginPx}px`,
+                                                        height: `${PAGE_HEIGHT_PX}px`,
                                                         fontFamily: profile?.defaultFont || "Arial",
                                                     }}
                                                 >
-                                                    {profile?.headerText ? (
-                                                        <div
-                                                            className={`absolute left-0 right-0 top-0 px-8 text-[11pt] text-[#111827] ${hasMlaRunningHead ? "flex justify-end gap-2 text-right" : "flex items-center justify-between"}`}
-                                                            style={{ height: `${Math.max(34, marginPx - 20)}px` }}
-                                                        >
-                                                            <span>{profile.headerText}</span>
-                                                            {pageNumberLabel ? <span>{pageNumberLabel}</span> : null}
-                                                        </div>
-                                                    ) : pageNumberLabel ? (
-                                                        <div
-                                                            className="absolute right-8 top-0 flex items-center text-[11pt] text-[#111827]"
-                                                            style={{ height: `${Math.max(34, marginPx - 20)}px` }}
-                                                        >
-                                                            <span>{pageNumberLabel}</span>
-                                                        </div>
-                                                    ) : null}
-
                                                     <div
-                                                        className={`${page.centerVertically ? "flex min-h-full flex-col justify-center" : ""} prose prose-neutral max-w-none`}
+                                                        className="flex h-full w-full flex-col"
                                                         style={{
-                                                            textAlign: page.textAlign || "left",
-                                                            lineHeight: String(page.lineHeight || profile?.lineHeight || 1.5),
+                                                            paddingTop: `${marginPx}px`,
+                                                            paddingRight: `${marginPx}px`,
+                                                            paddingBottom: `${marginPx}px`,
+                                                            paddingLeft: `${marginPx}px`,
                                                         }}
-                                                        dangerouslySetInnerHTML={{ __html: page.html }}
-                                                    />
+                                                    >
+                                                        {(profile?.headerText || pageNumberLabel) ? (
+                                                            <div className="relative mb-4 border-b-2 border-[#d7dde6]">
+                                                                {hasMlaRunningHead ? (
+                                                                    <div className="flex justify-end gap-2 py-1 text-right text-[11pt] text-[#111827]">
+                                                                        {profile?.headerText ? <span>{profile.headerText}</span> : null}
+                                                                        {pageNumberLabel ? <span>{pageNumberLabel}</span> : null}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-between gap-2 py-1 text-[11pt] text-[#111827]">
+                                                                        <span>{profile?.headerText || ""}</span>
+                                                                        {pageNumberLabel ? <span>{pageNumberLabel}</span> : null}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : null}
+
+                                                        <div
+                                                            className={`${page.centerVertically ? "flex flex-1 flex-col justify-center" : ""} prose prose-neutral max-w-none`}
+                                                            style={{
+                                                                textAlign: page.textAlign || "left",
+                                                                lineHeight: String(page.lineHeight || profile?.lineHeight || 1.5),
+                                                            }}
+                                                            dangerouslySetInnerHTML={{ __html: page.html }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
