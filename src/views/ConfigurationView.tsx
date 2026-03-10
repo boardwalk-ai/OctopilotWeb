@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer, SourceData } from "@/services/OrganizerService";
+import { AccountStateService } from "@/services/AccountStateService";
 import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { AlvinService } from "@/services/AlvinService";
 import { ScraperService } from "@/services/ScraperService";
@@ -25,8 +26,15 @@ type AlvinSourceMeta = {
     Publisher?: string;
 };
 
-const WORD_COUNTS = [500, 750, 1000, 1500, 2000, 2500, 3000, "Custom"] as const;
+const WORD_COUNTS = [500, 750, 1000, 1500, 2000, "Custom"] as const;
+const WORD_COUNT_MAX = 2000;
 
+type CreditPromptState = {
+    requestedWords: number;
+    requiredCredits: number;
+    availableCredits: number;
+    maxWords: number;
+};
 type CitationStyleDef = { name: string; desc: string; comingSoon?: boolean };
 const CITATION_STYLES: CitationStyleDef[] = [
     { name: "None", desc: "No Citation Format" },
@@ -300,24 +308,52 @@ const EMPTY_FIELDWORK_FORM: FieldworkFormState = {
 
 export default function ConfigurationView({ onBack, onNext }: ConfigurationViewProps) {
     const org = useOrganizer();
+    const initialWordCountValue = typeof org.wordCount === "number" ? org.wordCount : 1000;
+    const initialWordCountSelection = WORD_COUNTS.includes(initialWordCountValue as (typeof WORD_COUNTS)[number])
+        ? initialWordCountValue as number | "Custom"
+        : "Custom";
 
-    const [wordCount, setWordCount] = useState<number | "Custom">(org.wordCount);
+    const [wordCount, setWordCount] = useState<number | "Custom">(initialWordCountSelection);
+    const [customWordCountInput, setCustomWordCountInput] = useState(
+        initialWordCountSelection === "Custom" ? String(Math.min(initialWordCountValue, WORD_COUNT_MAX)) : ""
+    );
     const [citationStyle, setCitationStyle] = useState(org.citationStyle);
     const [tone, setTone] = useState(org.tone);
     const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
     const [sourcesTab, setSourcesTab] = useState(org.sourcesTab);
     const [aiSearchKeywords, setAiSearchKeywords] = useState(org.aiSearchKeywords);
+    const initialCachedWordCredits = AccountStateService.read()?.word_credits ?? AccountStateService.read()?.wordCredits ?? 0;
+    const [availableWordCredits, setAvailableWordCredits] = useState(Number(initialCachedWordCredits || 0));
+    const [creditPrompt, setCreditPrompt] = useState<CreditPromptState | null>(null);
 
     // Test Mode Autofill
     useEffect(() => {
         if (TestService.isActive) {
             const mockData = TestService.getConfiguration();
             setWordCount(mockData.wordCount as number | "Custom");
+            setCustomWordCountInput("");
             setCitationStyle(mockData.citationStyle);
             setTone(mockData.tone);
             setSourcesTab(mockData.sourcesTab);
             setAiSearchKeywords(mockData.aiSearchKeywords);
         }
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = AccountStateService.subscribe((snapshot) => {
+            const nextCredits = snapshot?.word_credits ?? snapshot?.wordCredits ?? 0;
+            setAvailableWordCredits(Number(nextCredits || 0));
+        });
+
+        void CreditService.getAvailableCredits()
+            .then((credits) => {
+                setAvailableWordCredits(Number(credits.word || 0));
+            })
+            .catch(() => {
+                // Keep cached credit snapshot if live fetch fails.
+            });
+
+        return unsubscribe;
     }, []);
 
     // Default 5 empty inputs
@@ -478,7 +514,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
         Organizer.set({
-            wordCount,
+            wordCount: wordCount === "Custom"
+                ? Math.min(WORD_COUNT_MAX, Math.max(0, Number(customWordCountInput || 0))) || "Custom"
+                : wordCount,
             citationStyle,
             tone,
             sourcesTab,
@@ -486,7 +524,77 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             manualSources,
             keywords: specifyKeywords ? keywordsText : "",
         });
-    }, [wordCount, citationStyle, tone, sourcesTab, aiSearchKeywords, manualSources, specifyKeywords, keywordsText]);
+    }, [wordCount, customWordCountInput, citationStyle, tone, sourcesTab, aiSearchKeywords, manualSources, specifyKeywords, keywordsText]);
+
+    const effectiveWordCount = useMemo(() => {
+        if (wordCount !== "Custom") {
+            return wordCount;
+        }
+
+        const parsed = Number(customWordCountInput || 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            return null;
+        }
+
+        return Math.min(WORD_COUNT_MAX, parsed);
+    }, [customWordCountInput, wordCount]);
+
+    const shouldEnforceWordCredits = org.writingMode === "automation" && !org.isTestMode;
+    const maxWordsByCredits = availableWordCredits * 10;
+    const hasPendingScrapes = useMemo(
+        () => manualSources.some((source) => source.status === "loading"),
+        [manualSources]
+    );
+
+    const buildCreditPrompt = useCallback((requestedWords: number): CreditPromptState | null => {
+        if (!shouldEnforceWordCredits || requestedWords <= 0) {
+            return null;
+        }
+
+        const requiredCredits = CreditService.creditsFromWords(requestedWords);
+        if (requiredCredits <= availableWordCredits) {
+            return null;
+        }
+
+        return {
+            requestedWords,
+            requiredCredits,
+            availableCredits: availableWordCredits,
+            maxWords: maxWordsByCredits,
+        };
+    }, [availableWordCredits, maxWordsByCredits, shouldEnforceWordCredits]);
+
+    const handleWordCountSelect = useCallback((nextWordCount: number | "Custom") => {
+        setContinueError("");
+        setWordCount(nextWordCount);
+
+        if (nextWordCount === "Custom") {
+            return;
+        }
+
+        setCustomWordCountInput("");
+
+        const nextPrompt = buildCreditPrompt(nextWordCount);
+        if (nextPrompt) {
+            setCreditPrompt(nextPrompt);
+        }
+    }, [buildCreditPrompt]);
+
+    const handleCustomWordCountChange = useCallback((value: string) => {
+        const digitsOnly = value.replace(/[^\d]/g, "");
+        if (!digitsOnly) {
+            setCustomWordCountInput("");
+            return;
+        }
+
+        const normalizedValue = Math.min(Number(digitsOnly), WORD_COUNT_MAX);
+        setCustomWordCountInput(String(normalizedValue));
+
+        const nextPrompt = buildCreditPrompt(normalizedValue);
+        if (nextPrompt) {
+            setCreditPrompt(nextPrompt);
+        }
+    }, [buildCreditPrompt]);
 
     const selectedPdfTexts = useMemo(() => {
         if (!pdfPages.length) return [];
@@ -586,6 +694,23 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         if (isContinuingRef.current) return;
 
         setContinueError("");
+
+        if (hasPendingScrapes) {
+            setContinueError("Source previews are still loading. Give Octopilot a moment to finish checking every source.");
+            return;
+        }
+
+        if (!effectiveWordCount) {
+            setContinueError("Choose a word count before continuing.");
+            return;
+        }
+
+        const nextCreditPrompt = buildCreditPrompt(effectiveWordCount);
+        if (nextCreditPrompt) {
+            setCreditPrompt(nextCreditPrompt);
+            return;
+        }
+
         isContinuingRef.current = true;
         setIsContinuing(true);
 
@@ -601,7 +726,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             }
 
             Organizer.set({
-                wordCount,
+                wordCount: effectiveWordCount,
                 citationStyle,
                 tone,
                 sourcesTab,
@@ -635,7 +760,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             isContinuingRef.current = false;
             setIsContinuing(false);
         }
-    }, [aiSearchKeywords, citationStyle, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone, wordCount]);
+    }, [aiSearchKeywords, buildCreditPrompt, citationStyle, effectiveWordCount, hasPendingScrapes, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone]);
 
     const activeFieldworkType = useMemo(
         () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],
@@ -1508,12 +1633,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             {/* Word Count */}
             <div className="mb-10">
                 <h2 className="mb-1 text-[18px] font-bold text-white">Word Count</h2>
-                <p className="mb-4 text-[13px] text-white/60">The number of words you want your essay to be</p>
+                <p className="mb-4 text-[13px] text-white/60">Choose the draft length you want Octopilot to deliver.</p>
                 <div className="grid grid-cols-4 gap-4">
                     {WORD_COUNTS.map((wc) => (
                         <button
                             key={wc}
-                            onClick={() => setWordCount(wc)}
+                            onClick={() => handleWordCountSelect(wc)}
                             className={`flex flex-col items-center justify-center rounded-2xl py-5 transition-all duration-200 ${wordCount === wc
                                 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                                 : "bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] hover:border-white/10"
@@ -1530,6 +1655,31 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         </button>
                     ))}
                 </div>
+                {wordCount === "Custom" && (
+                    <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                        <label className="block text-[13px] font-semibold text-white/75">Custom word count</label>
+                        <input
+                            type="number"
+                            min={1}
+                            max={WORD_COUNT_MAX}
+                            value={customWordCountInput}
+                            onChange={(event) => handleCustomWordCountChange(event.target.value)}
+                            placeholder={`Up to ${WORD_COUNT_MAX} words`}
+                            className="mt-3 w-full rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3 text-[14px] text-white outline-none placeholder-white/30 focus:border-red-500/40"
+                        />
+                        <p className="mt-3 text-[12px] leading-5 text-white/48">
+                            Octopilot keeps automation runs focused, stable, and fast with premium drafts up to {WORD_COUNT_MAX.toLocaleString()} words per pass.
+                        </p>
+                    </div>
+                )}
+                <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-[12px] leading-5 text-amber-100/80">
+                    Our automation engine is tuned for sharp, submission-ready drafts up to {WORD_COUNT_MAX.toLocaleString()} words, giving you faster turnaround and tighter quality control in every run.
+                </div>
+                {shouldEnforceWordCredits && (
+                    <p className="mt-3 text-[12px] text-white/42">
+                        Current word balance: {availableWordCredits.toLocaleString()} credits, which powers up to {maxWordsByCredits.toLocaleString()} automation words.
+                    </p>
+                )}
             </div>
 
             {/* Citation Style */}
@@ -2064,7 +2214,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 <div className="mx-auto flex w-full items-center justify-between py-5 gap-4">
                     <button
                         onClick={onBack}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.02] py-4 text-[15px] font-bold text-white/80 transition-all duration-200 hover:bg-white/[0.06]"
+                        disabled={isContinuing || hasPendingScrapes}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.02] py-4 text-[15px] font-bold text-white/80 transition-all duration-200 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -2074,10 +2225,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                     <button
                         onClick={() => { void handleContinue(); }}
-                        disabled={isContinuing}
-                        className="group flex flex-[2] items-center justify-center gap-2 overflow-hidden relative rounded-xl bg-red-500 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400"
+                        disabled={isContinuing || hasPendingScrapes}
+                        className="group flex flex-[2] items-center justify-center gap-2 overflow-hidden relative rounded-xl bg-red-500 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        {isContinuing ? "Charging credits..." : "Continue"}
+                        {isContinuing ? "Charging credits..." : hasPendingScrapes ? "Finishing source checks..." : "Continue"}
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
                             <path d="m9 18 6-6-6-6" />
                         </svg>
@@ -2089,9 +2240,72 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         {continueError}
                     </div>
                 )}
+                {!continueError && hasPendingScrapes && (
+                    <div className="pb-5 text-center text-[13px] font-medium text-white/55">
+                        Octopilot is still validating your source previews. Navigation unlocks as soon as scraping finishes.
+                    </div>
+                )}
             </div>
 
             {/* ---> MODALS <--- */}
+
+            {creditPrompt && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-[560px] rounded-3xl border border-amber-400/18 bg-[#111111] p-7 shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
+                        <div className="flex items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-400/10 text-amber-300">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2v4" />
+                                    <path d="m16.24 7.76 2.83-2.83" />
+                                    <path d="M18 12h4" />
+                                    <path d="m16.24 16.24 2.83 2.83" />
+                                    <path d="M12 18v4" />
+                                    <path d="m4.93 19.07 2.83-2.83" />
+                                    <path d="M2 12h4" />
+                                    <path d="m4.93 4.93 2.83 2.83" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="text-[24px] font-bold text-white">Shape the draft to fit your current balance</div>
+                                <p className="mt-2 text-[14px] leading-6 text-white/65">
+                                    This {creditPrompt.requestedWords.toLocaleString()}-word automation run needs {creditPrompt.requiredCredits.toLocaleString()} word credits. Your current balance supports up to {creditPrompt.maxWords.toLocaleString()} words in one smooth pass.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/35">Requested Draft</div>
+                                <div className="mt-2 text-[22px] font-bold text-white">{creditPrompt.requestedWords.toLocaleString()}</div>
+                                <div className="mt-1 text-[12px] text-white/45">words selected</div>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/35">Credits Needed</div>
+                                <div className="mt-2 text-[22px] font-bold text-amber-200">{creditPrompt.requiredCredits.toLocaleString()}</div>
+                                <div className="mt-1 text-[12px] text-white/45">for this run</div>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/35">Available Reach</div>
+                                <div className="mt-2 text-[22px] font-bold text-white">{creditPrompt.maxWords.toLocaleString()}</div>
+                                <div className="mt-1 text-[12px] text-white/45">words right now</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] px-4 py-4 text-[13px] leading-6 text-amber-50/85">
+                            1 word credit = 10 words. If you want to push this draft longer, top up in Store first. Otherwise, bring the word count into the range your current balance can finish cleanly.
+                        </div>
+
+                        <div className="mt-6 flex justify-end">
+                            <button
+                                onClick={() => setCreditPrompt(null)}
+                                className="rounded-full bg-red-500 px-6 py-2.5 text-[14px] font-bold text-white transition hover:bg-red-400"
+                            >
+                                Adjust word count
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Use My Source PDF Modal */}
             {showPdfModal && pdfData && renderModal(
