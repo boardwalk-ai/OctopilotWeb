@@ -33,13 +33,7 @@ export async function POST(request: NextRequest) {
         "x-real-ip": clientIp,
         "x-client-ip": clientIp,
       },
-      body: JSON.stringify({
-        ...payload,
-        ipAddress: payload.ipAddress ?? clientIp,
-        ip_address: payload.ip_address ?? clientIp,
-        clientIp: payload.clientIp ?? clientIp,
-        client_ip: payload.client_ip ?? clientIp,
-      }),
+      body: JSON.stringify(payload),
       cache: "no-store",
     });
 
