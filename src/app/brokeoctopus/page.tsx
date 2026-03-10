@@ -91,7 +91,8 @@ const menuItems: MenuItem[] = [
   { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon />, columns: ["No", "Email", "Sessions", "Last Activity", "Status", "Action"] },
   { id: "market-data", label: "Market Data", description: "Customer footprint snapshot", icon: <GlobeIcon />, columns: ["No", "Email", "IP Address", "Plan", "Customer Since"] },
   { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes", icon: <ReceiptIcon />, columns: ["No", "Email", "Current Plan", "Plan History"] },
-  { id: "promo-area", label: "Promo Area", description: "Implement later", icon: <TagIcon />, columns: ["Status"] },
+  { id: "promo-area", label: "Promo Area", description: "Codes, expiry, and claim control", icon: <TagIcon />, columns: ["Status"] },
+  { id: "referral-section", label: "Referral Section", description: "Referral rewards and claim visibility", icon: <KeyIcon />, columns: ["Status"] },
   { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon />, columns: ["No", "Provider", "Key", "Status"] },
   { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator action", icon: <ChartIcon />, columns: ["No", "Name", "Email", "Total Sessions", "Action"] },
   { id: "analytics", label: "Analytics", description: "Performance and growth trends", icon: <PulseIcon />, columns: ["Metric", "Value", "Change"] },
@@ -1391,7 +1392,9 @@ export default function BrokeOctopusPage() {
               </section>
 
               {activeSection.id === "promo-area" ? (
-                <PromoAreaPanel refreshKey={refreshKey} />
+                <PromoAreaPanel refreshKey={refreshKey} mode="promo" />
+              ) : activeSection.id === "referral-section" ? (
+                <PromoAreaPanel refreshKey={refreshKey} mode="referral" />
               ) : (
                 <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">

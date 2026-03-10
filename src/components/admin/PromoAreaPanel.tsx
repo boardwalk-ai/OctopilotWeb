@@ -43,6 +43,7 @@ type ReferralSettings = {
 
 type PromoAreaPanelProps = {
   refreshKey: number;
+  mode: "promo" | "referral";
 };
 
 const CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
@@ -56,14 +57,6 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString();
-}
-
-function toDateTimeLocalValue(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (num: number) => String(num).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -90,7 +83,15 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-function SectionFrame({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function SectionFrame({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-[26px] border border-white/8 bg-[#101010]">
       <div className="border-b border-white/8 px-5 py-4">
@@ -102,7 +103,7 @@ function SectionFrame({ title, description, children }: { title: string; descrip
   );
 }
 
-export default function PromoAreaPanel({ refreshKey }: PromoAreaPanelProps) {
+export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps) {
   const [promoCodeDraft, setPromoCodeDraft] = useState(() => generateCode(6));
   const [promoWordCredits, setPromoWordCredits] = useState(0);
   const [promoHumanizerCredits, setPromoHumanizerCredits] = useState(0);
@@ -127,14 +128,17 @@ export default function PromoAreaPanel({ refreshKey }: PromoAreaPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const promoRows = useMemo(
-    () => promoCodes.map((code, index) => ({ ...code, no: index + 1 })),
-    [promoCodes]
-  );
-  const referralRows = useMemo(
-    () => referralCodes.map((code, index) => ({ ...code, no: index + 1 })),
-    [referralCodes]
-  );
+  const promoRows = useMemo(() => promoCodes.map((code, index) => ({ ...code, no: index + 1 })), [promoCodes]);
+  const referralRows = useMemo(() => referralCodes.map((code, index) => ({ ...code, no: index + 1 })), [referralCodes]);
+
+  const referralSettingRows = [
+    { key: "referrer_word_credits", label: "Owner Word" },
+    { key: "referrer_humanizer_credits", label: "Owner Humanizer" },
+    { key: "referrer_source_credits", label: "Owner Source" },
+    { key: "referred_word_credits", label: "Claimant Word" },
+    { key: "referred_humanizer_credits", label: "Claimant Humanizer" },
+    { key: "referred_source_credits", label: "Claimant Source" },
+  ] as const;
 
   const load = async () => {
     setIsBusy(true);
@@ -242,214 +246,207 @@ export default function PromoAreaPanel({ refreshKey }: PromoAreaPanelProps) {
     }
   };
 
-  const referralSettingRows = [
-    { key: "referrer_word_credits", label: "Owner Word" },
-    { key: "referrer_humanizer_credits", label: "Owner Humanizer" },
-    { key: "referrer_source_credits", label: "Owner Source" },
-    { key: "referred_word_credits", label: "Claimant Word" },
-    { key: "referred_humanizer_credits", label: "Claimant Humanizer" },
-    { key: "referred_source_credits", label: "Claimant Source" },
-  ] as const;
-
   return (
     <div className="space-y-4">
       {error ? <div className="rounded-[22px] border border-red-500/25 bg-[#140b0b] px-5 py-4 text-sm text-red-100">{error}</div> : null}
       {success ? <div className="rounded-[22px] border border-emerald-500/25 bg-[#0d1510] px-5 py-4 text-sm text-emerald-100">{success}</div> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-        <SectionFrame
-          title="Promo Generator"
-          description="Generate single-use promo codes with a custom 6-character code, explicit credit bundles, and an exact expiry timestamp."
-        >
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">Promo Code</label>
-                <div className="flex gap-3">
-                  <input
-                    value={promoCodeDraft}
-                    onChange={(event) => setPromoCodeDraft(event.target.value.toUpperCase().replace(/[^A-Z1-9]/g, "").slice(0, 6))}
-                    className="flex-1 rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-base font-semibold tracking-[0.26em] text-white outline-none transition focus:border-red-500/35"
-                  />
-                  <button
-                    onClick={() => setPromoCodeDraft(generateCode(6))}
-                    className="rounded-full border border-white/10 bg-[#141414] px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
-                  >
-                    Generate
-                  </button>
+      {mode === "promo" ? (
+        <>
+          <SectionFrame
+            title="Promo Generator"
+            description="Generate single-use promo codes with a custom 6-character code, explicit credit bundles, and an exact expiry timestamp."
+          >
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">Promo Code</label>
+                  <div className="flex gap-3">
+                    <input
+                      value={promoCodeDraft}
+                      onChange={(event) => setPromoCodeDraft(event.target.value.toUpperCase().replace(/[^A-Z1-9]/g, "").slice(0, 6))}
+                      className="flex-1 rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-base font-semibold tracking-[0.26em] text-white outline-none transition focus:border-red-500/35"
+                    />
+                    <button
+                      onClick={() => setPromoCodeDraft(generateCode(6))}
+                      className="rounded-full border border-white/10 bg-[#141414] px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                    >
+                      Generate
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  {[
+                    { label: "Word Credits", value: promoWordCredits, setValue: setPromoWordCredits },
+                    { label: "Humanizer Credits", value: promoHumanizerCredits, setValue: setPromoHumanizerCredits },
+                    { label: "Source Credits", value: promoSourceCredits, setValue: setPromoSourceCredits },
+                  ].map((field) => (
+                    <div key={field.label}>
+                      <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={field.value}
+                        onChange={(event) => field.setValue(Math.max(0, Number(event.target.value || 0)))}
+                        className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                {[
-                  { label: "Word Credits", value: promoWordCredits, setValue: setPromoWordCredits },
-                  { label: "Humanizer Credits", value: promoHumanizerCredits, setValue: setPromoHumanizerCredits },
-                  { label: "Source Credits", value: promoSourceCredits, setValue: setPromoSourceCredits },
-                ].map((field) => (
-                  <div key={field.label}>
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={field.value}
-                      onChange={(event) => field.setValue(Math.max(0, Number(event.target.value || 0)))}
-                      className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
-                    />
-                  </div>
-                ))}
+              <div className="rounded-[22px] border border-white/8 bg-[#121212] p-4">
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">Expiry</label>
+                <input
+                  type="datetime-local"
+                  value={promoExpiry}
+                  onChange={(event) => setPromoExpiry(event.target.value)}
+                  className="w-full rounded-[18px] border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
+                />
+                <p className="mt-3 text-xs leading-6 text-white/42">
+                  Delete removes the server code. If a user already claimed it, their granted credits stay untouched.
+                </p>
+                <button
+                  onClick={() => void handleCreatePromoCode()}
+                  disabled={isSavingPromo}
+                  className="mt-5 w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingPromo ? "Creating..." : "Create Promo Code"}
+                </button>
               </div>
             </div>
+          </SectionFrame>
 
-            <div className="rounded-[22px] border border-white/8 bg-[#121212] p-4">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">Expiry</label>
-              <input
-                type="datetime-local"
-                value={promoExpiry}
-                onChange={(event) => setPromoExpiry(event.target.value)}
-                className="w-full rounded-[18px] border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
-              />
-              <p className="mt-3 text-xs leading-6 text-white/42">
-                Delete removes the server code. If a user already claimed it, their granted credits stay untouched.
-              </p>
+          <SectionFrame title="Promo Codes" description="Single-use reward codes with explicit expiry and claim visibility.">
+            <div className="overflow-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-white/8">
+                    {["No.", "Promo Code", "Expiry Date/Time", "Claimed By", "Actions"].map((label) => (
+                      <th key={label} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-white/38">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoRows.length > 0 ? (
+                    promoRows.map((row) => (
+                      <tr key={row.id} className="border-b border-white/6 last:border-b-0">
+                        <td className="px-3 py-4 text-sm text-white/76">{row.no}</td>
+                        <td className="px-3 py-4">
+                          <div className="text-sm font-semibold tracking-[0.22em] text-white">{row.code}</div>
+                          <div className="mt-1 text-xs text-white/42">
+                            {row.word_credits}W / {row.humanizer_credits}H / {row.source_credits}S
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-white/76">{formatDateTime(row.code_valid_until)}</td>
+                        <td className="px-3 py-4 text-sm text-white/76">{row.claimed_by || "-"}</td>
+                        <td className="px-3 py-4">
+                          <button
+                            onClick={() => void handleDeletePromo(row.id)}
+                            disabled={deletingPromoId === row.id}
+                            className="rounded-full border border-red-500/18 bg-[#160b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200 transition hover:border-red-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingPromoId === row.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-10 text-center text-sm text-white/42">
+                        {isBusy ? "Loading promo codes..." : "No promo codes created yet."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionFrame>
+        </>
+      ) : (
+        <>
+          <SectionFrame
+            title="Referral Rewards"
+            description="Every user gets one 5-character referral code. Owners cannot claim their own code, and each code can be claimed by up to 5 users."
+          >
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {referralSettingRows.map((field) => (
+                <div key={field.key}>
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={referralSettings[field.key]}
+                    onChange={(event) =>
+                      setReferralSettings((current) => ({
+                        ...current,
+                        [field.key]: Math.max(0, Number(event.target.value || 0)),
+                      }))
+                    }
+                    className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex justify-end">
               <button
-                onClick={() => void handleCreatePromoCode()}
-                disabled={isSavingPromo}
-                className="mt-5 w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void handleSaveReferralSettings()}
+                disabled={isSavingReferralSettings}
+                className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSavingPromo ? "Creating..." : "Create Promo Code"}
+                {isSavingReferralSettings ? "Saving..." : "Save Referral Rewards"}
               </button>
             </div>
-          </div>
-        </SectionFrame>
+          </SectionFrame>
 
-        <SectionFrame
-          title="Referral Rewards"
-          description="Every user gets one 5-character referral code. Owners cannot claim their own code, and each code can be claimed by up to 5 users."
-        >
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {referralSettingRows.map((field) => (
-              <div key={field.key}>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={referralSettings[field.key]}
-                  onChange={(event) =>
-                    setReferralSettings((current) => ({
-                      ...current,
-                      [field.key]: Math.max(0, Number(event.target.value || 0)),
-                    }))
-                  }
-                  className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 flex justify-end">
-            <button
-              onClick={() => void handleSaveReferralSettings()}
-              disabled={isSavingReferralSettings}
-              className="rounded-full border border-white/10 bg-[#141414] px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingReferralSettings ? "Saving..." : "Save Referral Rewards"}
-            </button>
-          </div>
-        </SectionFrame>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
-        <SectionFrame title="Promo Codes" description="Single-use reward codes with explicit expiry and claim visibility.">
-          <div className="overflow-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-white/8">
-                  {["No.", "Promo Code", "Expiry Date/Time", "Claimed By", "Actions"].map((label) => (
-                    <th key={label} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-white/38">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {promoRows.length > 0 ? (
-                  promoRows.map((row) => (
-                    <tr key={row.id} className="border-b border-white/6 last:border-b-0">
-                      <td className="px-3 py-4 text-sm text-white/76">{row.no}</td>
-                      <td className="px-3 py-4">
-                        <div className="text-sm font-semibold tracking-[0.22em] text-white">{row.code}</div>
-                        <div className="mt-1 text-xs text-white/42">
-                          {row.word_credits}W / {row.humanizer_credits}H / {row.source_credits}S
-                        </div>
-                      </td>
-                      <td className="px-3 py-4 text-sm text-white/76">{formatDateTime(row.code_valid_until)}</td>
-                      <td className="px-3 py-4 text-sm text-white/76">{row.claimed_by || "-"}</td>
-                      <td className="px-3 py-4">
-                        <button
-                          onClick={() => void handleDeletePromo(row.id)}
-                          disabled={deletingPromoId === row.id}
-                          className="rounded-full border border-red-500/18 bg-[#160b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200 transition hover:border-red-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {deletingPromoId === row.id ? "Deleting..." : "Delete"}
-                        </button>
+          <SectionFrame title="Referral Codes" description="Unique 5-character user-owned codes with claim count visibility and claim reveal modal.">
+            <div className="overflow-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-white/8">
+                    {["No.", "Code", "Owned By", "Claimed Count", "Actions"].map((label) => (
+                      <th key={label} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-white/38">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {referralRows.length > 0 ? (
+                    referralRows.map((row) => (
+                      <tr key={row.id} className="border-b border-white/6 last:border-b-0">
+                        <td className="px-3 py-4 text-sm text-white/76">{row.no}</td>
+                        <td className="px-3 py-4 text-sm font-semibold tracking-[0.22em] text-white">{row.code}</td>
+                        <td className="px-3 py-4 text-sm text-white/76">{row.email}</td>
+                        <td className="px-3 py-4 text-sm text-white/76">{row.redeemed_count}/{row.max_uses}</td>
+                        <td className="px-3 py-4">
+                          <button
+                            onClick={() => void handleRevealReferralClaims(row)}
+                            disabled={revealingReferralId === row.id}
+                            className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {revealingReferralId === row.id ? "Loading..." : "Reveal"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-10 text-center text-sm text-white/42">
+                        {isBusy ? "Loading referral codes..." : "No referral codes generated yet."}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-white/42">
-                      {isBusy ? "Loading promo codes..." : "No promo codes created yet."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </SectionFrame>
-
-        <SectionFrame title="Referral Codes" description="Unique 5-character user-owned codes with claim count visibility and claim reveal modal.">
-          <div className="overflow-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-white/8">
-                  {["No.", "Code", "Owned By", "Claimed Count", "Actions"].map((label) => (
-                    <th key={label} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-white/38">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {referralRows.length > 0 ? (
-                  referralRows.map((row) => (
-                    <tr key={row.id} className="border-b border-white/6 last:border-b-0">
-                      <td className="px-3 py-4 text-sm text-white/76">{row.no}</td>
-                      <td className="px-3 py-4 text-sm font-semibold tracking-[0.22em] text-white">{row.code}</td>
-                      <td className="px-3 py-4 text-sm text-white/76">{row.email}</td>
-                      <td className="px-3 py-4 text-sm text-white/76">{row.redeemed_count}/{row.max_uses}</td>
-                      <td className="px-3 py-4">
-                        <button
-                          onClick={() => void handleRevealReferralClaims(row)}
-                          disabled={revealingReferralId === row.id}
-                          className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {revealingReferralId === row.id ? "Loading..." : "Reveal"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-white/42">
-                      {isBusy ? "Loading referral codes..." : "No referral codes generated yet."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </SectionFrame>
-      </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionFrame>
+        </>
+      )}
 
       {claimsModal ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/76 px-4 py-6">
