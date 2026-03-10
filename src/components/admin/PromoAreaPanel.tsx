@@ -164,6 +164,29 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
     void load();
   }, [refreshKey]);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        void load();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) {
+        void load();
+      }
+    }, 15000);
+
+    window.addEventListener("focus", handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleVisibility);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   const handleCreatePromoCode = async () => {
     setIsSavingPromo(true);
     setError(null);
