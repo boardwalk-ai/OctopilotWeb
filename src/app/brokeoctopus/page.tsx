@@ -244,9 +244,26 @@ function SettingsIcon() {
   );
 }
 
+function toSnakeCase(value: string) {
+  return value.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
+}
+
+function readRowValue(row: DataRow, key: string) {
+  const direct = row[key];
+  if (direct !== undefined && direct !== null && direct !== "") return direct;
+
+  const snake = row[toSnakeCase(key)];
+  if (snake !== undefined && snake !== null && snake !== "") return snake;
+
+  const compact = row[key.toLowerCase()];
+  if (compact !== undefined && compact !== null && compact !== "") return compact;
+
+  return "-";
+}
+
 function getOrderedRowValues(sectionId: string, row: DataRow) {
   const keyOrder = keyOrderBySection[sectionId] || Object.keys(row);
-  return keyOrder.map((key) => row[key] ?? "-");
+  return keyOrder.map((key) => readRowValue(row, key));
 }
 
 function PencilIcon() {

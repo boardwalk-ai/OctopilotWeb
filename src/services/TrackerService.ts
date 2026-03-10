@@ -2,7 +2,6 @@
 
 import { AuthService } from "@/services/AuthService";
 import { OrganizerState } from "@/services/OrganizerService";
-import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 
 type WritingMode = "automation" | "manual";
 
@@ -68,6 +67,45 @@ let requestQueue: Promise<void> = Promise.resolve();
 let startPromise: Promise<string | null> | null = null;
 let trackingFlagCache: { enabled: boolean; expiresAt: number } | null = null;
 let closingSessionId: string | null = null;
+
+async function fetchTrackerApi<T>(input: string, init: RequestInit): Promise<T> {
+  const authorization = await AuthService.getAuthorizationHeader();
+  let response = await fetch(input, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+  });
+
+  if (response.status === 401) {
+    const refreshedAuthorization = await AuthService.getAuthorizationHeader(true);
+    if (refreshedAuthorization) {
+      response = await fetch(input, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(init.headers || {}),
+          Authorization: refreshedAuthorization,
+        },
+      });
+    }
+  }
+
+  if (!response.ok) {
+    let message = `API error: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { detail?: string; error?: string; message?: string };
+      message = payload.detail || payload.error || payload.message || message;
+    } catch {
+      // ignore parse failure
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
@@ -215,9 +253,12 @@ export class TrackerService {
 
     startPromise = (async () => {
       const loginEmail = AuthService.getCurrentUser()?.email || "";
-      const response = await OctopilotAPIService.post<SessionCreateResponse>("/api/v1/sessions", {
+      const response = await fetchTrackerApi<SessionCreateResponse>("/api/sessions", {
+        method: "POST",
+        body: JSON.stringify({
         login_email: loginEmail,
         writing_mode: writingMode,
+        }),
       });
 
       writeStored({
@@ -263,7 +304,10 @@ export class TrackerService {
     writeStored(next);
 
     await enqueue(async () => {
-      await OctopilotAPIService.patch(`/api/v1/sessions/${next.sessionId}`, diff);
+      await fetchTrackerApi(`/api/sessions/${next.sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify(diff),
+      });
     });
   }
 
