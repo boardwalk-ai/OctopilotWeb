@@ -147,6 +147,10 @@ function isReferenceSectionStart(root: HTMLElement | null): boolean {
     return getLeadingElement(root)?.dataset.referenceHeading === "1";
 }
 
+function getReferenceHeading(root: HTMLElement | null): HTMLElement | null {
+    return root?.querySelector("[data-reference-heading='1']") ?? null;
+}
+
 function buildPageOutlineItems(text: string): PageOutlineItem[] {
     const normalized = text
         .replace(/\r/g, "")
@@ -657,6 +661,29 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         return true;
     }, []);
 
+    const moveReferenceSectionToNextPage = useCallback((source: HTMLElement, target: HTMLElement) => {
+        const heading = getReferenceHeading(source);
+        if (!(heading instanceof HTMLElement)) return false;
+        if (getLeadingElement(source) === heading) return false;
+
+        if (target.childNodes.length === 1 && target.firstChild?.nodeName === "BR") {
+            target.innerHTML = "";
+        }
+
+        const nodesToMove: ChildNode[] = [];
+        let current: ChildNode | null = heading;
+        while (current) {
+            nodesToMove.push(current);
+            current = current.nextSibling;
+        }
+
+        for (let idx = nodesToMove.length - 1; idx >= 0; idx -= 1) {
+            target.insertBefore(nodesToMove[idx], target.firstChild);
+        }
+
+        return nodesToMove.length > 0;
+    }, []);
+
     const rebalancePaginationFrom = useCallback((startPageId: number) => {
         const startIndex = pagesRef.current.findIndex((p) => p.id === startPageId);
         if (startIndex < 0) return;
@@ -667,6 +694,44 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             if (!currentEditor) continue;
 
             cleanupEditorArtifacts(currentEditor);
+
+            const referenceHeading = getReferenceHeading(currentEditor);
+            if (referenceHeading instanceof HTMLElement && getLeadingElement(currentEditor) !== referenceHeading) {
+                const nextPage = pagesRef.current[i + 1];
+                if (!nextPage) {
+                    const newId = nextPageIdRef.current++;
+                    const currentMeta = pageFormatMap[currentPage.id] || {};
+                    pageContentRef.current[newId] = "<br/>";
+                    setPageFormatMap((prev) => ({
+                        ...prev,
+                        [newId]: {
+                            textAlign: currentMeta.textAlign || "left",
+                            centerVertically: false,
+                            showPageNumber: currentMeta.showPageNumber ?? showPageNumber,
+                            lineHeight: currentMeta.lineHeight || lineHeight,
+                        },
+                    }));
+                    setPages((prev) => {
+                        const next = [...prev, { id: newId, title: "Page" }]
+                            .map((p, idx) => ({ ...p, title: `Page ${idx + 1}` }));
+                        pagesRef.current = next;
+                        return next;
+                    });
+                    requestAnimationFrame(() => rebalancePaginationFromRef.current(startPageId));
+                    return;
+                }
+
+                const nextEditor = editorRefs.current[nextPage.id];
+                if (!nextEditor) {
+                    requestAnimationFrame(() => rebalancePaginationFromRef.current(startPageId));
+                    return;
+                }
+
+                cleanupEditorArtifacts(nextEditor);
+                moveReferenceSectionToNextPage(currentEditor, nextEditor);
+                cleanupEditorArtifacts(currentEditor);
+                cleanupEditorArtifacts(nextEditor);
+            }
 
             while (currentEditor.scrollHeight > currentEditor.clientHeight + 1) {
                 const nextPage = pagesRef.current[i + 1];
@@ -796,7 +861,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             if (editor) pageContentRef.current[page.id] = editor.innerHTML || "<br/>";
         }
         updateStats();
-    }, [activePageId, cleanupEditorArtifacts, isEditorEffectivelyEmpty, lineHeight, moveOverflowNode, moveUnderflowNode, pageFormatMap, showPageNumber, updateStats]);
+    }, [activePageId, cleanupEditorArtifacts, isEditorEffectivelyEmpty, lineHeight, moveOverflowNode, moveReferenceSectionToNextPage, moveUnderflowNode, pageFormatMap, showPageNumber, updateStats]);
 
     useEffect(() => {
         rebalancePaginationFromRef.current = rebalancePaginationFrom;

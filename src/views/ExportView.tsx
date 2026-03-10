@@ -491,7 +491,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                                         }}
                                                     >
                                                         {(profile?.headerText || pageNumberLabel) ? (
-                                                            <div className="relative mb-4 border-b-2 border-[#d7dde6]">
+                                                            <div className="relative mb-4">
                                                                 {hasMlaRunningHead ? (
                                                                     <div className="flex justify-end gap-2 py-1 text-right text-[11pt] text-[#111827]">
                                                                         {profile?.headerText ? <span>{profile.headerText}</span> : null}
