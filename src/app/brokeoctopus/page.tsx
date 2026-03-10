@@ -5,6 +5,7 @@ import type { JSX, ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
 import { StreamService } from "@/services/StreamService";
+import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
 
 type MenuItem = {
   id: string;
@@ -867,6 +868,7 @@ export default function BrokeOctopusPage() {
   const [sessionInspectorError, setSessionInspectorError] = useState<string | null>(null);
   const [isLoadingSessionInspector, setIsLoadingSessionInspector] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
   const rows = data?.sections[activeSectionId] || [];
@@ -1006,6 +1008,7 @@ export default function BrokeOctopusPage() {
 
     try {
       await loadDashboard();
+      setRefreshKey((current) => current + 1);
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : "Failed to refresh admin data.");
     } finally {
@@ -1387,85 +1390,89 @@ export default function BrokeOctopusPage() {
                 </div>
               </section>
 
-              <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
-                    <div className="mt-2 text-lg font-semibold text-white">{activeSection.label}</div>
+              {activeSection.id === "promo-area" ? (
+                <PromoAreaPanel refreshKey={refreshKey} />
+              ) : (
+                <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
+                      <div className="mt-2 text-lg font-semibold text-white">{activeSection.label}</div>
+                    </div>
+                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">{rows.length > 0 ? `${rows.length} rows` : "No data"}</div>
                   </div>
-                  <div className="text-xs uppercase tracking-[0.24em] text-white/32">{rows.length > 0 ? `${rows.length} rows` : "No data"}</div>
-                </div>
 
-                <div className="max-h-[calc(100vh-18rem)] overflow-auto">
-                  <table className="min-w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/8 bg-[#0c0c0c]">
-                        {activeSection.columns.map((column) => (
-                          <th key={column} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.24em] text-white/38">
-                            {column}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.length > 0 ? (
-                        rows.map((row, rowIndex) => (
-                          <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
-                            {keyOrderBySection[activeSection.id]?.map((key, cellIndex) => (
-                              <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
-                                {activeSection.id === "subscription-management" && key === "actions" && row.userId ? (
-                                  <button
-                                    onClick={() => {
-                                      setCreditModalError(null);
-                                      setEditingRow(row as EditableSubscriptionRow);
-                                    }}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
-                                    title="Edit credits"
-                                  >
-                                    <PencilIcon />
-                                  </button>
-                                ) : activeSection.id === "reports" && key === "action" ? (
-                                  <button
-                                    onClick={() => {
-                                      setReportModalError(null);
-                                      setInspectingReport(row as ReportRow);
-                                    }}
-                                    className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
-                                  >
-                                    Inspect
-                                  </button>
-                                ) : activeSection.id === "metadata" && key === "action" ? (
-                                  <button
-                                    onClick={() => {
-                                      setSessionInspectorError(null);
-                                      void handleInspectMetadata(row as MetadataRow);
-                                    }}
-                                    className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
-                                  >
-                                    Inspect
-                                  </button>
-                                ) : (
-                                  String(row[key] ?? "-")
-                                )}
-                              </td>
-                            )) || getOrderedRowValues(activeSection.id, row).map((cell, cellIndex) => (
-                              <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
-                                {String(cell ?? "-")}
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={activeSection.columns.length} className="px-4 py-10 text-center text-sm text-white/42">
-                            {isBusy ? "Loading real data..." : "No data available for this section yet."}
-                          </td>
+                  <div className="max-h-[calc(100vh-18rem)] overflow-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/8 bg-[#0c0c0c]">
+                          {activeSection.columns.map((column) => (
+                            <th key={column} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.24em] text-white/38">
+                              {column}
+                            </th>
+                          ))}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      </thead>
+                      <tbody>
+                        {rows.length > 0 ? (
+                          rows.map((row, rowIndex) => (
+                            <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
+                              {keyOrderBySection[activeSection.id]?.map((key, cellIndex) => (
+                                <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
+                                  {activeSection.id === "subscription-management" && key === "actions" && row.userId ? (
+                                    <button
+                                      onClick={() => {
+                                        setCreditModalError(null);
+                                        setEditingRow(row as EditableSubscriptionRow);
+                                      }}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/72 transition hover:border-red-500/35 hover:text-red-300"
+                                      title="Edit credits"
+                                    >
+                                      <PencilIcon />
+                                    </button>
+                                  ) : activeSection.id === "reports" && key === "action" ? (
+                                    <button
+                                      onClick={() => {
+                                        setReportModalError(null);
+                                        setInspectingReport(row as ReportRow);
+                                      }}
+                                      className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                                    >
+                                      Inspect
+                                    </button>
+                                  ) : activeSection.id === "metadata" && key === "action" ? (
+                                    <button
+                                      onClick={() => {
+                                        setSessionInspectorError(null);
+                                        void handleInspectMetadata(row as MetadataRow);
+                                      }}
+                                      className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                                    >
+                                      Inspect
+                                    </button>
+                                  ) : (
+                                    String(row[key] ?? "-")
+                                  )}
+                                </td>
+                              )) || getOrderedRowValues(activeSection.id, row).map((cell, cellIndex) => (
+                                <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
+                                  {String(cell ?? "-")}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={activeSection.columns.length} className="px-4 py-10 text-center text-sm text-white/42">
+                              {isBusy ? "Loading real data..." : "No data available for this section yet."}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
         </section>

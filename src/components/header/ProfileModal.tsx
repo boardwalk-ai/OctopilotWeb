@@ -32,6 +32,12 @@ type StreamCreditsPayload = {
   sourceCredits?: number | null;
 };
 
+type ReferralCodeResponse = {
+  code: string;
+  current_uses?: number;
+  max_uses?: number;
+};
+
 type ProfileState = {
   planName: string;
   subscriptionStatus: string;
@@ -99,13 +105,6 @@ function getPlanStatusCopy(profile: ProfileState): { title: string; detail: stri
   };
 }
 
-function buildReferralCode(user: User | null): string {
-  const seed = (user?.displayName || user?.email || "OCTOPILOT").replace(/[^a-z0-9]/gi, "").toUpperCase();
-  const head = (seed.slice(0, 4) || "OCTO").padEnd(4, "X");
-  const tail = (seed.slice(-2) || "AI").padEnd(2, "0");
-  return `${head}${tail}`;
-}
-
 function getProfilePhotoUrl(user: User | null): string | null {
   if (!user) return null;
   return user.photoURL || user.providerData.find((provider) => provider.photoURL)?.photoURL || null;
@@ -127,11 +126,11 @@ function CodeBoxes({
       {chars.map((char, index) => (
         <input
           key={`${length}-${index}`}
-          inputMode="numeric"
+          inputMode="text"
           maxLength={1}
           value={char}
           onChange={(event) => {
-            const digit = event.target.value.replace(/\D/g, "").slice(-1);
+            const digit = event.target.value.toUpperCase().replace(/[^A-Z1-9]/g, "").slice(-1);
             const next = value.split("");
             next[index] = digit;
             onChange(next.join("").slice(0, length));
@@ -192,9 +191,18 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
     subscriptionEndDate: null,
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [referralCode, setReferralCode] = useState("-----");
+  const [referralCurrentUses, setReferralCurrentUses] = useState(0);
+  const [referralMaxUses, setReferralMaxUses] = useState(5);
+  const [isLoadingReferralCode, setIsLoadingReferralCode] = useState(false);
+  const [isRedeemingPromo, setIsRedeemingPromo] = useState(false);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isRedeemingReferral, setIsRedeemingReferral] = useState(false);
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+  const [referralError, setReferralError] = useState<string | null>(null);
 
   const profilePhotoUrl = useMemo(() => getProfilePhotoUrl(user), [user]);
-  const referralCode = useMemo(() => buildReferralCode(user), [user]);
   const planStatusCopy = useMemo(() => getPlanStatusCopy(profileState), [profileState]);
   const initials = useMemo(() => {
     const label = user?.displayName || user?.email || "U";
@@ -249,6 +257,53 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setPromoMessage(null);
+      setPromoError(null);
+      setReferralMessage(null);
+      setReferralError(null);
+      return;
+    }
+
+    if (!authReadyUser) {
+      setReferralCode("-----");
+      setReferralCurrentUses(0);
+      setReferralMaxUses(5);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReferralCode = async () => {
+      setIsLoadingReferralCode(true);
+      setReferralError(null);
+      try {
+        const response = await OctopilotAPIService.post<ReferralCodeResponse>("/api/v1/referral/generate");
+        if (cancelled) {
+          return;
+        }
+        setReferralCode(response.code || "-----");
+        setReferralCurrentUses(response.current_uses ?? 0);
+        setReferralMaxUses(response.max_uses ?? 5);
+      } catch (error) {
+        if (!cancelled) {
+          setReferralError(error instanceof Error ? error.message : "Could not load your referral code.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingReferralCode(false);
+        }
+      }
+    };
+
+    void loadReferralCode();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReadyUser, open]);
 
   useEffect(() => {
     let cancelled = false;
@@ -344,6 +399,50 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
     } catch (error) {
       setInvoiceError(error instanceof Error ? error.message : "Could not open invoices.");
       setIsOpeningInvoices(false);
+    }
+  }
+
+  async function redeemPromoCode() {
+    if (redeemCode.length !== 6) {
+      setPromoError("Enter the full 6-character promo code first.");
+      setPromoMessage(null);
+      return;
+    }
+
+    setIsRedeemingPromo(true);
+    setPromoError(null);
+    setPromoMessage(null);
+
+    try {
+      await OctopilotAPIService.post("/api/v1/promo/redeem", { code: redeemCode });
+      setRedeemCode("");
+      setPromoMessage("Promo code redeemed. Credits were added to the account.");
+    } catch (error) {
+      setPromoError(error instanceof Error ? error.message : "Could not redeem this promo code.");
+    } finally {
+      setIsRedeemingPromo(false);
+    }
+  }
+
+  async function redeemReferralCode() {
+    if (referralRedeemCode.length !== 5) {
+      setReferralError("Enter the full 5-character referral code first.");
+      setReferralMessage(null);
+      return;
+    }
+
+    setIsRedeemingReferral(true);
+    setReferralError(null);
+    setReferralMessage(null);
+
+    try {
+      await OctopilotAPIService.post("/api/v1/referral/submit", { code: referralRedeemCode });
+      setReferralRedeemCode("");
+      setReferralMessage("Referral code redeemed. Rewards were added for both accounts.");
+    } catch (error) {
+      setReferralError(error instanceof Error ? error.message : "Could not redeem this referral code.");
+    } finally {
+      setIsRedeemingReferral(false);
     }
   }
 
@@ -471,12 +570,16 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
+                    onClick={() => void redeemPromoCode()}
+                    disabled={isRedeemingPromo}
                     className="rounded-full bg-red-500 px-5 py-2 text-[0.72rem] font-bold text-black transition hover:bg-white hover:text-red-500"
                   >
-                    Redeem
+                    {isRedeemingPromo ? "Redeeming..." : "Redeem"}
                   </button>
                   <span className="text-[0.68rem] text-neutral-500">Six-digit access code</span>
                 </div>
+                {promoMessage ? <div className="text-[0.7rem] leading-6 text-emerald-300">{promoMessage}</div> : null}
+                {promoError ? <div className="text-[0.7rem] leading-6 text-red-300">{promoError}</div> : null}
               </div>
             </Panel>
 
@@ -505,7 +608,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                   <div>
                     <p className="text-[0.54rem] font-bold uppercase tracking-[0.22em] text-neutral-500">Your Code</p>
                     <div className="mt-1.5 inline-flex rounded-lg border border-white/10 bg-black px-3.5 py-2 text-base font-bold tracking-[0.2em] text-white">
-                      {referralCode}
+                      {isLoadingReferralCode ? "....." : referralCode}
                     </div>
                   </div>
                   <button
@@ -519,7 +622,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                   >
                     {copyLabel}
                   </button>
-                  <p className="basis-full text-[0.72rem] leading-relaxed text-neutral-500">Share this code with friends to earn bonus credits.</p>
+                  <p className="basis-full text-[0.72rem] leading-relaxed text-neutral-500">
+                    Share this code with friends to earn bonus credits. Claimed: {referralCurrentUses}/{referralMaxUses}
+                  </p>
+                  {referralError ? <div className="basis-full text-[0.7rem] leading-6 text-red-300">{referralError}</div> : null}
                 </div>
               ) : (
                 <div className="mt-4 flex flex-col gap-3">
@@ -527,12 +633,16 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      onClick={() => void redeemReferralCode()}
+                      disabled={isRedeemingReferral}
                       className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-[0.72rem] font-bold text-white transition hover:border-red-500/30 hover:bg-white hover:text-red-500"
                     >
-                      Redeem Referral
+                      {isRedeemingReferral ? "Redeeming..." : "Redeem Referral"}
                     </button>
                     <span className="text-[0.68rem] text-neutral-500">Five-digit referral code</span>
                   </div>
+                  {referralMessage ? <div className="text-[0.7rem] leading-6 text-emerald-300">{referralMessage}</div> : null}
+                  {referralError ? <div className="text-[0.7rem] leading-6 text-red-300">{referralError}</div> : null}
                 </div>
               )}
             </Panel>
