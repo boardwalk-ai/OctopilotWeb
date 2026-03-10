@@ -134,8 +134,18 @@ const ColorPicker = ({ colors, activeColor, onSelect, onClose }: { colors: strin
 
 const TEXT_COLORS = ["#1f1f1f", "#ea4335", "#fbbc04", "#34a853", "#4285f4", "#9334e6", "#e91e63", "#ff6d00", "#795548", "#607d8b"];
 const HIGHLIGHT_COLORS = ["transparent", "#fce4ec", "#fff9c4", "#e8f5e9", "#e3f2fd", "#f3e5f5", "#fff3e0", "#fbe9e7", "#f5f5f5", "#cfd8dc"];
-const FONT_SIZE_TEMPLATES = [4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 60, 120, 126, 200, 246, 254];
-const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36];
+const FONT_SIZE_TEMPLATES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 48, 56, 64, 72];
+const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
+
+function getLeadingElement(root: HTMLElement | null): HTMLElement | null {
+    if (!root) return null;
+    const children = Array.from(root.children) as HTMLElement[];
+    return children.find((child) => (child.textContent || "").trim().length > 0 || child.querySelector("img,video,audio,iframe,table,hr")) || null;
+}
+
+function isReferenceSectionStart(root: HTMLElement | null): boolean {
+    return getLeadingElement(root)?.dataset.referenceHeading === "1";
+}
 
 function buildPageOutlineItems(text: string): PageOutlineItem[] {
     const normalized = text
@@ -722,6 +732,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             cleanupEditorArtifacts(nextEditor);
 
             while (!isEditorEffectivelyEmpty(nextEditor) && currentEditor.scrollHeight < currentEditor.clientHeight - 2) {
+                if (isReferenceSectionStart(nextEditor)) break;
                 const moved = moveUnderflowNode(nextEditor, currentEditor);
                 cleanupEditorArtifacts(currentEditor);
                 cleanupEditorArtifacts(nextEditor);
@@ -1249,7 +1260,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                 </button>
             </div>
 
-            <div className="mx-3 mt-1 flex h-[40px] flex-shrink-0 items-center gap-0.5 rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
+            <div className="mx-3 mt-1 flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                 <TbSep />
@@ -1359,7 +1370,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                         setShowTextColorPicker((prev) => !prev);
                     }}>
                         <div className="flex flex-col items-center">
-                            <span className="text-[16px] font-medium" style={{ color: activeTextColor }}>A</span>
+                            <span className="text-[16px] font-semibold text-[#f3f4f6]">A</span>
                             <div className="mt-[-4px] h-[3px] w-[14px] rounded-full" style={{ backgroundColor: activeTextColor }} />
                         </div>
                     </TbIcon>
@@ -1576,6 +1587,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                         {pages.map((page) => {
                             const pageMeta = pageFormatMap[page.id] || {};
                             const pageNumberText = getPageNumberLabel(page.id);
+                            const hasMlaRunningHead = org.citationStyle.trim().toUpperCase() === "MLA";
                             const headerEditing = isHeaderEditing && headerEditingPageId === page.id;
                             const pageShowNumber = pageMeta.showPageNumber ?? showPageNumber;
                             const pageTextAlign = pageMeta.textAlign || "left";
@@ -1603,30 +1615,57 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                         <div className={`relative mb-4 border-b-2 border-solid transition ${headerEditing ? "border-[#c5ccd6]" : "border-[#d7dde6]"}`} onDoubleClick={() => activateHeaderEditing(page.id)}>
                                         {!headerEditing && (
                                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => activateHeaderEditing(page.id)} className="w-full py-1 text-left">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span
-                                                        className={`min-h-[24px] flex-1 text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
-                                                        style={{ fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
-                                                    >
-                                                        {headerText.trim() || "Double-click to edit header"}
-                                                    </span>
-                                                    {pageShowNumber && pageNumberText && (
-                                                        <input
-                                                            value={pageNumberText}
-                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value;
-                                                                setPageNumberOverrides((prev) => {
-                                                                    const next = { ...prev };
-                                                                    if (!val.trim()) delete next[page.id];
-                                                                    else next[page.id] = val;
-                                                                    return next;
-                                                                });
-                                                            }}
-                                                            className="w-[34px] border-none bg-transparent text-right text-[12px] font-medium text-[#374151] outline-none"
-                                                        />
-                                                    )}
-                                                </div>
+                                                {hasMlaRunningHead ? (
+                                                    <div className="flex justify-end gap-2 text-right">
+                                                        <span
+                                                            className={`min-h-[24px] text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                        >
+                                                            {headerText.trim() || "Double-click to edit header"}
+                                                        </span>
+                                                        {pageShowNumber && pageNumberText && (
+                                                            <input
+                                                                value={pageNumberText}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setPageNumberOverrides((prev) => {
+                                                                        const next = { ...prev };
+                                                                        if (!val.trim()) delete next[page.id];
+                                                                        else next[page.id] = val;
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-[34px] border-none bg-transparent text-right text-[12px] font-medium text-[#111827] outline-none"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span
+                                                            className={`min-h-[24px] flex-1 text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                        >
+                                                            {headerText.trim() || "Double-click to edit header"}
+                                                        </span>
+                                                        {pageShowNumber && pageNumberText && (
+                                                            <input
+                                                                value={pageNumberText}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setPageNumberOverrides((prev) => {
+                                                                        const next = { ...prev };
+                                                                        if (!val.trim()) delete next[page.id];
+                                                                        else next[page.id] = val;
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-[34px] border-none bg-transparent text-right text-[12px] font-medium text-[#374151] outline-none"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                )}
                                             </button>
                                         )}
 
@@ -1665,7 +1704,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center justify-between gap-2">
+                                                <div className={`flex gap-2 ${hasMlaRunningHead ? "justify-end" : "items-center justify-between"}`}>
                                                     <div
                                                         ref={(el) => { headerRefs.current[page.id] = el; }}
                                                         contentEditable
@@ -1674,7 +1713,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                                         onFocus={() => saveSelection()}
                                                         onMouseUp={() => saveSelection()}
                                                         onKeyUp={() => saveSelection()}
-                                                        className="min-h-[24px] flex-1 text-[#111827] outline-none"
+                                                        className={`min-h-[24px] text-[#111827] outline-none ${hasMlaRunningHead ? "min-w-[120px] text-right" : "flex-1"}`}
                                                         style={{ fontSize: `${11 * (zoom / 100)}pt`, lineHeight: "1.3", fontFamily, color: "#111827" }}
                                                     />
                                                     {pageShowNumber && pageNumberText && (

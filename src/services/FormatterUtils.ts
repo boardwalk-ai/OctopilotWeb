@@ -136,7 +136,7 @@ export function referencesHtml(
 
     if (!entries.length) return "";
 
-    const heading = `<p data-keep-with-next="1" style="margin:0 0 1.8em 0;text-align:center;${opts?.headingBold ? "font-weight:700;" : ""}">${escapeHtml(title)}</p>`;
+    const heading = `<p data-keep-with-next="1" data-reference-heading="1" style="margin:0 0 1.8em 0;text-align:center;${opts?.headingBold ? "font-weight:700;" : ""}">${escapeHtml(title)}</p>`;
 
     const body = entries
         .map((entry, index) => {

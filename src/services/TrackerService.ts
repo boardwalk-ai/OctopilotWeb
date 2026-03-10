@@ -56,7 +56,7 @@ type StoredSession = {
 };
 
 type DownloadEvent = {
-  type: "pdf" | "txt" | "docx";
+  type: "pdf" | "txt";
   fileName: string;
   pageCount: number;
   downloadedAt: string;
@@ -274,7 +274,7 @@ export class TrackerService {
     await TrackerService.updateSession(buildPayloadFromOrganizer(org));
   }
 
-  static async trackDownload(download: { type: "pdf" | "txt" | "docx"; fileName: string; pageCount: number }): Promise<void> {
+  static async trackDownload(download: { type: "pdf" | "txt"; fileName: string; pageCount: number }): Promise<void> {
     if (!(await isTrackingEnabled())) {
       return;
     }

@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { TrackerService } from "@/services/TrackerService";
@@ -54,7 +53,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
     const finaleScrollRef = useRef<HTMLDivElement | null>(null);
     const finaleAnimationRef = useRef<number | null>(null);
-    const [activeDownload, setActiveDownload] = useState<"pdf" | "txt" | "docx" | null>(null);
+    const [activeDownload, setActiveDownload] = useState<"pdf" | "txt" | null>(null);
     const [error, setError] = useState("");
     const [showFinale, setShowFinale] = useState(false);
     const [isFinaleAutoScrollEnabled, setIsFinaleAutoScrollEnabled] = useState(true);
@@ -62,6 +61,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     const title = exportDocument?.title || org.finalEssayTitle || "Untitled document";
     const pages = exportDocument?.pages || [];
     const profile = exportDocument?.profile;
+    const hasMlaRunningHead = org.citationStyle.trim().toUpperCase() === "MLA";
     const fileCount = pages.length;
     const totalWords = pages.reduce((sum, page) => {
         const words = page.plainText.trim().split(/\s+/).filter(Boolean).length;
@@ -184,57 +184,6 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
             void TrackerService.trackDownload({ type: "txt", fileName, pageCount: pages.length });
         } catch (downloadError) {
             setError(downloadError instanceof Error ? downloadError.message : "TXT export failed.");
-        } finally {
-            setActiveDownload(null);
-        }
-    };
-
-    const handleDownloadDocx = async () => {
-        if (!exportDocument || pages.length === 0) return;
-        setError("");
-        setActiveDownload("docx");
-        const fileName = makeFileName(title, "docx");
-        try {
-            const sections = pages.map((page, index) => {
-                const paragraphs = page.plainText
-                    .split(/\n{2,}/)
-                    .map((chunk) => chunk.replace(/\n/g, " ").trim())
-                    .filter(Boolean)
-                    .map((chunk) => new Paragraph({
-                        children: [new TextRun(chunk)],
-                        spacing: { after: 220, line: Math.round((page.lineHeight || profile?.lineHeight || 1.5) * 240) },
-                        alignment:
-                            page.textAlign === "center" ? AlignmentType.CENTER :
-                                page.textAlign === "right" ? AlignmentType.RIGHT :
-                                    page.textAlign === "justify" ? AlignmentType.JUSTIFIED :
-                                        AlignmentType.LEFT,
-                    }));
-
-                return {
-                    properties: {},
-                    children: [
-                        ...(index === 0 ? [new Paragraph({
-                            text: title,
-                            heading: HeadingLevel.TITLE,
-                            spacing: { after: 320 },
-                            alignment: AlignmentType.CENTER,
-                        })] : []),
-                        ...paragraphs,
-                    ],
-                };
-            });
-
-            const doc = new Document({
-                creator: "Octopilot AI",
-                title,
-                description: "Exported final essay from Octopilot Editor",
-                sections,
-            });
-            const blob = await Packer.toBlob(doc);
-            downloadBlob(blob, fileName);
-            await TrackerService.trackDownload({ type: "docx", fileName, pageCount: pages.length });
-        } catch (downloadError) {
-            setError(downloadError instanceof Error ? downloadError.message : "DOCX export failed.");
         } finally {
             setActiveDownload(null);
         }
@@ -392,12 +341,12 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                             Publish the version you actually want to send.
                         </h1>
                         <p className="mt-3 text-[0.84rem] leading-relaxed text-neutral-400">
-                            Export the last editor draft as a polished file. PDF keeps the visual rhythm intact. TXT and DOCX
-                            stay here when you need utility copies, but PDF is the handoff this page was built for.
+                            Export the last editor draft as a polished file. PDF keeps the visual rhythm intact, while TXT
+                            stays here for plain-text fallback use cases.
                         </p>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[660px]">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[440px]">
                         <button
                             type="button"
                             onClick={handleDownloadPdf}
@@ -424,18 +373,6 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                             </div>
                         </button>
 
-                        <button
-                            type="button"
-                            onClick={handleDownloadDocx}
-                            disabled={!exportDocument || activeDownload !== null}
-                            className="rounded-2xl border border-[#f5c15f]/20 bg-[linear-gradient(180deg,rgba(245,193,95,0.08),rgba(255,255,255,0.02))] p-5 text-left text-white transition hover:border-[#f5c15f]/40 hover:bg-[linear-gradient(180deg,rgba(245,193,95,0.13),rgba(255,255,255,0.04))] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <div className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-[#f5c15f]/70">Optional</div>
-                            <div className="mt-2 text-xl font-bold">{activeDownload === "docx" ? "Exporting..." : "Download DOCX"}</div>
-                            <div className="mt-2 text-[0.72rem] leading-relaxed text-neutral-500">
-                                Editable handoff for Word-based revision passes and institutional workflows.
-                            </div>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -550,7 +487,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                                                 >
                                                     {profile?.headerText ? (
                                                         <div
-                                                            className="absolute left-0 right-0 top-0 flex items-center justify-between px-8 text-[11pt] text-[#111827]"
+                                                            className={`absolute left-0 right-0 top-0 px-8 text-[11pt] text-[#111827] ${hasMlaRunningHead ? "flex justify-end gap-2 text-right" : "flex items-center justify-between"}`}
                                                             style={{ height: `${Math.max(34, marginPx - 20)}px` }}
                                                         >
                                                             <span>{profile.headerText}</span>

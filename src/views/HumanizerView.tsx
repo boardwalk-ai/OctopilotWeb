@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { CreditService } from "@/services/CreditService";
@@ -72,13 +72,15 @@ const CustomSelect = ({
 
 export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
     const org = useOrganizer();
+    const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
     // Core States
-    const [selectedAIEngine, setSelectedAIEngine] = useState<HumanizerOption>("stealthgpt");
+    const [selectedAIEngine, setSelectedAIEngine] = useState<HumanizerOption>("undetectable");
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
     const [textEditable, setTextEditable] = useState(org.generatedEssay || "");
     const [isHumanizing, setIsHumanizing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [clipboardNotice, setClipboardNotice] = useState<string | null>(null);
     const isHumanizingRef = useRef(false);
 
     // StealthGPT States
@@ -156,6 +158,36 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
         Organizer.set({ generatedEssay: textEditable });
         onNext("editor");
     };
+
+    const handleSelectAll = () => {
+        const area = textAreaRef.current;
+        if (!area) return;
+        area.focus();
+        area.select();
+        setClipboardNotice("All text selected.");
+    };
+
+    const handleCopy = async () => {
+        if (!textEditable.trim()) return;
+
+        try {
+            await navigator.clipboard.writeText(textEditable);
+            setClipboardNotice("Essay copied to clipboard.");
+        } catch {
+            const area = textAreaRef.current;
+            if (!area) return;
+            area.focus();
+            area.select();
+            document.execCommand("copy");
+            setClipboardNotice("Essay copied to clipboard.");
+        }
+    };
+
+    useEffect(() => {
+        if (!clipboardNotice) return undefined;
+        const timer = window.setTimeout(() => setClipboardNotice(null), 2200);
+        return () => window.clearTimeout(timer);
+    }, [clipboardNotice]);
 
     return (
         <div className="flex w-full flex-col px-6 pt-32 pb-8 min-h-full relative lg:px-10 2xl:px-14">
@@ -248,6 +280,51 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
+                    {/* Undetectable AI Card */}
+                    <div
+                        onClick={() => setSelectedAIEngine("undetectable")}
+                        className={`cursor-pointer rounded-[20px] border-2 p-6 transition-all ${selectedAIEngine === "undetectable" ? "border-blue-500 bg-white/[0.02]" : "border-white/[0.04] bg-transparent opacity-50 hover:opacity-80"}`}
+                    >
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="h-3 w-3 rounded-full bg-[#3b82f6]" />
+                            <h3 className="text-[18px] font-bold text-white">Undetectable AI</h3>
+                            <span className="rounded-full bg-orange-500/20 px-3 py-1 text-[11px] font-bold text-orange-400">Recommended</span>
+                        </div>
+
+                        <div className="flex flex-col gap-5">
+                            <div>
+                                <label className="mb-2 block text-[13px] font-bold text-white/80">Readability</label>
+                                <CustomSelect
+                                    engine="undetectable"
+                                    disabled={selectedAIEngine !== "undetectable"}
+                                    value={undetectableParams.readability}
+                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, readability: val })}
+                                    options={["High School", "University", "Doctorate"]}
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-[13px] font-bold text-white/80">Purpose</label>
+                                <CustomSelect
+                                    engine="undetectable"
+                                    disabled={selectedAIEngine !== "undetectable"}
+                                    value={undetectableParams.purpose}
+                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, purpose: val })}
+                                    options={["Essay", "Article", "Marketing"]}
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-[13px] font-bold text-white/80">Strength</label>
+                                <CustomSelect
+                                    engine="undetectable"
+                                    disabled={selectedAIEngine !== "undetectable"}
+                                    value={undetectableParams.strength}
+                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, strength: val })}
+                                    options={["Quality", "Balance", "More Human"]}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     {/* StealthGPT Card */}
                     <div
                         onClick={() => setSelectedAIEngine("stealthgpt")}
@@ -256,7 +333,6 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
                         <div className="flex items-center gap-3 mb-6">
                             <div className="h-3 w-3 rounded-full bg-[#a855f7]" />
                             <h3 className="text-[18px] font-bold text-white">StealthGPT</h3>
-                            <span className="rounded-full bg-orange-500/20 px-3 py-1 text-[11px] font-bold text-orange-400">Recommended</span>
                         </div>
 
                         <div className="flex flex-col gap-5">
@@ -303,50 +379,6 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
                         </div>
                     </div>
 
-                    {/* Undetectable AI Card */}
-                    <div
-                        onClick={() => setSelectedAIEngine("undetectable")}
-                        className={`cursor-pointer rounded-[20px] border-2 p-6 transition-all ${selectedAIEngine === "undetectable" ? "border-blue-500 bg-white/[0.02]" : "border-white/[0.04] bg-transparent opacity-50 hover:opacity-80"}`}
-                    >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="h-3 w-3 rounded-full bg-[#3b82f6]" />
-                            <h3 className="text-[18px] font-bold text-white">Undetectable AI</h3>
-                        </div>
-
-                        <div className="flex flex-col gap-5">
-                            <div>
-                                <label className="mb-2 block text-[13px] font-bold text-white/80">Readability</label>
-                                <CustomSelect
-                                    engine="undetectable"
-                                    disabled={selectedAIEngine !== "undetectable"}
-                                    value={undetectableParams.readability}
-                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, readability: val })}
-                                    options={["High School", "University", "Doctorate"]}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-[13px] font-bold text-white/80">Purpose</label>
-                                <CustomSelect
-                                    engine="undetectable"
-                                    disabled={selectedAIEngine !== "undetectable"}
-                                    value={undetectableParams.purpose}
-                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, purpose: val })}
-                                    options={["Essay", "Article", "Marketing"]}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-[13px] font-bold text-white/80">Strength</label>
-                                <CustomSelect
-                                    engine="undetectable"
-                                    disabled={selectedAIEngine !== "undetectable"}
-                                    value={undetectableParams.strength}
-                                    onChange={(val) => setUndetectableParams({ ...undetectableParams, strength: val })}
-                                    options={["Quality", "Balance", "More Human"]}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
             </div>
 
@@ -387,13 +419,32 @@ export default function HumanizerView({ onBack, onNext }: HumanizerViewProps) {
                         Humanize Essay
                     </button>
                     <div className="flex items-center gap-3">
-                        <button className="rounded-full border border-white/20 bg-transparent px-6 py-2 text-[13px] font-bold text-white/70 hover:bg-white/5 hover:text-white">Select All</button>
-                        <button className="rounded-full border border-white/20 bg-transparent px-6 py-2 text-[13px] font-bold text-white/70 hover:bg-white/5 hover:text-white">Copy</button>
+                        <button
+                            type="button"
+                            onClick={handleSelectAll}
+                            className="rounded-full border border-white/20 bg-transparent px-6 py-2 text-[13px] font-bold text-white/70 hover:bg-white/5 hover:text-white"
+                        >
+                            Select All
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void handleCopy()}
+                            className="rounded-full border border-white/20 bg-transparent px-6 py-2 text-[13px] font-bold text-white/70 hover:bg-white/5 hover:text-white"
+                        >
+                            Copy
+                        </button>
                     </div>
                 </div>
 
+                {clipboardNotice && (
+                    <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[13px] font-semibold text-emerald-300">
+                        {clipboardNotice}
+                    </div>
+                )}
+
                 <div className={`w-full rounded-[24px] border border-white/10 p-6 bg-black transition-all duration-500 ${selectedAIEngine === "stealthgpt" ? 'shadow-[inset_0_0_30px_rgba(168,85,247,0.15)] focus-within:border-purple-500/50' : 'shadow-[inset_0_0_30px_rgba(59,130,246,0.15)] focus-within:border-blue-500/50'}`}>
                     <textarea
+                        ref={textAreaRef}
                         value={textEditable}
                         onChange={(e) => setTextEditable(e.target.value)}
                         className="w-full min-h-[400px] bg-transparent text-[16px] leading-[1.8] text-white/90 outline-none resize-none"

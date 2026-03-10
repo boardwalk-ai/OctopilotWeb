@@ -11,6 +11,37 @@ interface FormatViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
+function parseEssayDate(source: string | undefined) {
+    const now = new Date();
+    const fallback = {
+        month: now.toLocaleString("en-US", { month: "long" }),
+        day: String(now.getDate()),
+        year: String(now.getFullYear()),
+    };
+    const value = source?.trim();
+    if (!value) return fallback;
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+        return {
+            month: parsed.toLocaleString("en-US", { month: "long" }),
+            day: String(parsed.getDate()),
+            year: String(parsed.getFullYear()),
+        };
+    }
+
+    const tokens = value.replace(/,/g, " ").split(/\s+/).filter(Boolean);
+    if (tokens.length >= 3) {
+        return {
+            month: tokens[0],
+            day: tokens[1].replace(/[^\d]/g, "") || fallback.day,
+            year: tokens[2].replace(/[^\d]/g, "") || fallback.year,
+        };
+    }
+
+    return fallback;
+}
+
 export default function FormatView({ onBack, onNext }: FormatViewProps) {
     const org = useOrganizer();
 
@@ -21,12 +52,11 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
     const [courseInfo, setCourseInfo] = useState(org.courseInfo);
     const [subjectCode, setSubjectCode] = useState(org.subjectCode);
 
-    // Date state — default to current date
-    const now = new Date();
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const [month, setMonth] = useState(org.essayDate ? org.essayDate.split(" ")[0] : months[now.getMonth()]);
-    const [day, setDay] = useState(org.essayDate ? parseInt(org.essayDate.split(" ")[1]) : now.getDate());
-    const [year, setYear] = useState(org.essayDate ? parseInt(org.essayDate.split(" ")[2]) : now.getFullYear());
+    const today = parseEssayDate(org.essayDate);
+    const [month, setMonth] = useState(today.month);
+    const [day, setDay] = useState(today.day);
+    const [year, setYear] = useState(today.year);
 
     // Test Mode Autofill
     React.useEffect(() => {
@@ -38,9 +68,10 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
             setInstitutionName(mockFormat.institutionName);
             setCourseInfo(mockFormat.courseInfo);
             setSubjectCode(mockFormat.subjectCode);
-            setMonth(mockFormat.essayDate.split(" ")[0]);
-            setDay(parseInt(mockFormat.essayDate.split(" ")[1]));
-            setYear(parseInt(mockFormat.essayDate.split(" ")[2]));
+            const mockDate = parseEssayDate(mockFormat.essayDate);
+            setMonth(mockDate.month);
+            setDay(mockDate.day);
+            setYear(mockDate.year);
         }
     }, []);
 
@@ -49,6 +80,9 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
     const isMLA = citationStyle === "MLA";
 
     const handleContinue = () => {
+        const normalizedMonth = month.trim() || today.month;
+        const normalizedDay = day.replace(/[^\d]/g, "") || today.day;
+        const normalizedYear = year.replace(/[^\d]/g, "") || today.year;
         Organizer.set({
             finalEssayTitle,
             studentName,
@@ -56,7 +90,7 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
             institutionName,
             courseInfo,
             subjectCode,
-            essayDate: `${month} ${day} ${year}`,
+            essayDate: `${normalizedMonth} ${normalizedDay} ${normalizedYear}`,
         });
         onNext("generation");
     };
@@ -67,9 +101,8 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
     const labelClass = "mb-2 text-[14px] font-bold text-white/90";
     const requiredDot = <span className="text-red-500 ml-1">*</span>;
 
-    // Custom select styling
-    const selectClass =
-        "appearance-none rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none transition hover:bg-white/[0.05] focus:border-red-500/50 cursor-pointer";
+    const dateInputClass =
+        "h-11 rounded-xl border border-white/[0.08] bg-black/30 px-4 text-[14px] text-white outline-none transition placeholder:text-white/25 hover:bg-white/[0.04] focus:border-red-500/50";
 
     return (
         <div className="flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14">
@@ -229,28 +262,79 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
             {/* Date */}
             <div className="mb-6">
                 <label className={labelClass}>Date</label>
-                <div className="relative flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] py-4 px-5">
-                    <div className="text-white/30">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
-                        </svg>
+                <div className="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-black/30 text-white/40">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="text-[15px] font-bold text-white">Submission Date</div>
+                                <p className="text-[13px] text-white/45">Type your own month, day, and year.</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const current = parseEssayDate(new Date().toISOString());
+                                setMonth(current.month);
+                                setDay(current.day);
+                                setYear(current.year);
+                            }}
+                            className="rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[12px] font-bold text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+                        >
+                            Use Today
+                        </button>
                     </div>
-                    {/* Month */}
-                    <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectClass}>
-                        {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    {/* Day */}
-                    <select value={day} onChange={(e) => setDay(Number(e.target.value))} className={selectClass}>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                            <option key={d} value={d}>{d}</option>
-                        ))}
-                    </select>
-                    {/* Year */}
-                    <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectClass}>
-                        {Array.from({ length: 10 }, (_, i) => now.getFullYear() - 2 + i).map(y => (
-                            <option key={y} value={y}>{y}</option>
-                        ))}
-                    </select>
+
+                    <div className="grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.9fr]">
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Month</span>
+                            <input
+                                type="text"
+                                list="essay-month-options"
+                                value={month}
+                                onChange={(e) => setMonth(e.target.value)}
+                                placeholder="March"
+                                className={`${dateInputClass} w-full`}
+                            />
+                            <datalist id="essay-month-options">
+                                {months.map((item) => <option key={item} value={item} />)}
+                            </datalist>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Day</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={2}
+                                value={day}
+                                onChange={(e) => setDay(e.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+                                placeholder="10"
+                                className={`${dateInputClass} w-full`}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/35">Year</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={4}
+                                value={year}
+                                onChange={(e) => setYear(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+                                placeholder="2026"
+                                className={`${dateInputClass} w-full`}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-[13px] text-white/55">
+                        Preview: <span className="font-semibold text-white/80">{`${month || "Month"} ${day || "DD"} ${year || "YYYY"}`}</span>
+                    </div>
                 </div>
             </div>
 
