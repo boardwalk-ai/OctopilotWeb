@@ -416,19 +416,6 @@ export default function HomeView() {
               <span className="relative z-10">Start Writing</span>
               <div className="absolute inset-0 -translate-x-full bg-white/10 transition-transform duration-300 group-hover:translate-x-0" />
             </button>
-            <button
-              onClick={() => {
-                if (org.isTestMode) {
-                  Organizer.reset();
-                } else {
-                  Organizer.setTestData();
-                  setPage(skipWritingStyle ? "major-selection" : "writing-style");
-                }
-              }}
-              className={`group relative mb-4 overflow-hidden rounded-full border border-white/10 px-10 py-3 text-sm font-semibold transition ${org.isTestMode ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}
-            >
-              <span className="relative z-10">{org.isTestMode ? "Disable Test Mode" : "Test Mode (Bypass AI)"}</span>
-            </button>
           </div>
 
           <a
