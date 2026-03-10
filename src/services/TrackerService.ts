@@ -332,6 +332,7 @@ export class TrackerService {
       } catch (error) {
         if (error instanceof TrackerRequestError && error.status === 404) {
           TrackerService.clear();
+          return;
         }
         throw error;
       }
@@ -341,6 +342,9 @@ export class TrackerService {
   static async syncOrganizer(org: OrganizerState): Promise<void> {
     if (!(await isTrackingEnabled())) {
       return;
+    }
+    if (!TrackerService.getSessionId() && org.writingMode) {
+      await TrackerService.startSession(org.writingMode);
     }
     await TrackerService.updateSession(buildPayloadFromOrganizer(org));
   }
