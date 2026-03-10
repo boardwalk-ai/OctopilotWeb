@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import {
   AppHeader,
-  BackToHome,
   LogoNav,
   NotificationBell,
   PlanInfo,
@@ -16,7 +15,6 @@ import {
 } from "@/components/header";
 
 interface MethodologyViewProps {
-  onBack: () => void;
   onSelect: (method: "automation" | "manual") => void;
 }
 
@@ -106,19 +104,14 @@ const manualFeatures = [
   },
 ];
 
-export default function MethodologyView({ onBack, onSelect }: MethodologyViewProps) {
+export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
   const [selected, setSelected] = useState<"automation" | "manual">(org.writingMode || "automation");
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
       <AppHeader
-        left={
-          <>
-            <BackToHome onClick={onBack} />
-            <LogoNav />
-          </>
-        }
+        left={<LogoNav />}
         right={
           <>
             <NotificationBell />

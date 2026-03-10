@@ -28,7 +28,6 @@ import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/co
 import OctoAssistant from "@/components/OctoAssistant";
 import {
   AppHeader,
-  BackToHome,
   LogoNav,
   NotificationBell,
   PlanInfo,
@@ -132,7 +131,6 @@ export default function HomeView() {
     return (
       <>
         <MethodologyView
-          onBack={() => setPage("home")}
           onSelect={async (method) => {
             Organizer.set({ writingMode: method });
             await TrackerService.startSession(method);
@@ -246,12 +244,7 @@ export default function HomeView() {
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
             className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
-            left={
-              <>
-                <BackToHome onClick={goBack} />
-                <LogoNav />
-              </>
-            }
+            left={<LogoNav />}
             right={
               <>
                 <NotificationBell />
@@ -322,12 +315,7 @@ export default function HomeView() {
       <>
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
-            left={
-              <>
-                <BackToHome onClick={goBack} />
-                <LogoNav />
-              </>
-            }
+            left={<LogoNav />}
             right={
               <>
                 <NotificationBell />
