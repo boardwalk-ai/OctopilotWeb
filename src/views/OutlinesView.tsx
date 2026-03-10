@@ -213,8 +213,23 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
         return () => document.removeEventListener("click", close);
     }, [showParagraphDropdown]);
 
+    useEffect(() => {
+        if (!isGenerating) {
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isGenerating]);
+
     return (
-        <div className="flex w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14">
+        <div className="relative flex w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14">
+            {isGenerating && (
+                <div className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]" />
+            )}
             {/* ─── Assignment Analysis ─── */}
             <div className="mb-10">
                 {/* Centered title & subtitle */}
@@ -264,11 +279,12 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 {(["All", "Introduction", "Body Paragraph", "Conclusion"] as FilterTab[]).map((tab) => (
                     <button
                         key={tab}
+                        disabled={isGenerating}
                         onClick={() => setFilter(tab)}
                         className={`rounded-full px-4 py-1.5 text-[12px] font-semibold transition-all duration-200 ${filter === tab
                             ? "bg-red-500 text-white"
                             : "text-white/40 hover:bg-white/[0.04] hover:text-white/60"
-                            }`}
+                            } disabled:cursor-not-allowed disabled:opacity-40`}
                     >
                         {tab} ({counts[tab]})
                     </button>
@@ -279,8 +295,9 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
             {hiddenOutlines.length > 0 && (
                 <div className="mb-6">
                     <button
+                        disabled={isGenerating}
                         onClick={() => setShowHidden(!showHidden)}
-                        className="flex items-center gap-2 text-[14px] font-semibold text-white/70 transition hover:text-white"
+                        className="flex items-center gap-2 text-[14px] font-semibold text-white/70 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <svg
                             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -368,7 +385,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <button
                     onClick={() => setShowBuildModal(true)}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-200 hover:bg-red-400"
+                    className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-200 hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
@@ -381,12 +398,16 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <button
                     onClick={handleAutoOutline}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-5 py-2.5 text-[13px] font-semibold text-white/70 transition-all duration-200 hover:border-white/15 hover:text-white"
+                    className="group relative overflow-hidden rounded-full p-[1px] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                    </svg>
-                    Auto Outline
+                    <span className="pointer-events-none absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgba(250,204,21,0)_0deg,rgba(250,204,21,0.92)_42deg,rgba(255,241,181,1)_70deg,rgba(250,204,21,0)_110deg,rgba(250,204,21,0)_360deg)] animate-[spin_2.4s_linear_infinite]" />
+                    <span className="pointer-events-none absolute inset-0 rounded-full opacity-85 [background:radial-gradient(circle_at_top,rgba(250,204,21,0.28),transparent_55%)]" />
+                    <span className="relative flex items-center gap-2 rounded-full border border-[#2d2410] bg-[#121212] px-5 py-2.5 text-[13px] font-semibold text-[#f8e7a6] transition-all duration-200 group-hover:border-[#5c4710] group-hover:text-white">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                        </svg>
+                        Auto Outline
+                    </span>
                 </button>
 
                 {/* One Paragraph Only */}
@@ -394,7 +415,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowParagraphDropdown(!showParagraphDropdown); }}
                         disabled={isGenerating}
-                        className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/[0.04] px-5 py-2.5 text-[13px] font-semibold text-red-400 transition-all duration-200 hover:border-red-500/50"
+                        className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/[0.04] px-5 py-2.5 text-[13px] font-semibold text-red-400 transition-all duration-200 hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                             <circle cx="12" cy="12" r="5" />
@@ -411,7 +432,8 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                 <button
                                     key={t}
                                     onClick={(e) => { e.stopPropagation(); handleSingleParagraph(t); }}
-                                    className="flex w-full px-4 py-2.5 text-left text-[13px] text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+                                    disabled={isGenerating}
+                                    className="flex w-full px-4 py-2.5 text-left text-[13px] text-white/70 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     {t}
                                 </button>
@@ -474,23 +496,27 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                             return (
                                 <div
                                     key={card.id}
-                                    draggable
+                                    draggable={!isGenerating}
                                     onDragStart={() => {
+                                        if (isGenerating) return;
                                         setDraggedOutlineId(card.id);
                                         setDragTargetOutlineId(null);
                                     }}
                                     onDragOver={(event) => {
+                                        if (isGenerating) return;
                                         if (draggedOutlineId && canSwapOutlineCards(draggedOutlineId, card.id)) {
                                             event.preventDefault();
                                             setDragTargetOutlineId(card.id);
                                         }
                                     }}
                                     onDragLeave={() => {
+                                        if (isGenerating) return;
                                         if (dragTargetOutlineId === card.id) {
                                             setDragTargetOutlineId(null);
                                         }
                                     }}
                                     onDrop={(event) => {
+                                        if (isGenerating) return;
                                         event.preventDefault();
                                         if (draggedOutlineId && canSwapOutlineCards(draggedOutlineId, card.id)) {
                                             swapOutlineCards(draggedOutlineId, card.id);
@@ -513,8 +539,9 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                 >
                                     {/* Checkbox */}
                                     <button
+                                        disabled={isGenerating}
                                         onClick={() => toggleSelect(card.id)}
-                                        className="absolute left-4 top-5 flex h-5 w-5 items-center justify-center rounded border border-white/20 transition hover:border-white/40"
+                                        className="absolute left-4 top-5 flex h-5 w-5 items-center justify-center rounded border border-white/20 transition hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         {card.selected && (
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -545,19 +572,19 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
 
                                         <div className="ml-auto flex items-center gap-1">
                                             {/* Edit */}
-                                            <button onClick={() => openEdit(card)} className="rounded-lg p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/60">
+                                            <button disabled={isGenerating} onClick={() => openEdit(card)} className="rounded-lg p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-40">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                                                 </svg>
                                             </button>
                                             {/* Hide */}
-                                            <button onClick={() => toggleHide(card.id)} className="rounded-lg p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/60">
+                                            <button disabled={isGenerating} onClick={() => toggleHide(card.id)} className="rounded-lg p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-40">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>
                                                 </svg>
                                             </button>
                                             {/* Delete */}
-                                            <button onClick={() => deleteOutline(card.id)} className="rounded-lg p-1.5 text-red-400/40 transition hover:bg-red-500/[0.06] hover:text-red-400">
+                                            <button disabled={isGenerating} onClick={() => deleteOutline(card.id)} className="rounded-lg p-1.5 text-red-400/40 transition hover:bg-red-500/[0.06] hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                                                 </svg>
@@ -584,7 +611,8 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <div className="flex w-full items-center justify-between gap-4 py-5">
                     <button
                         onClick={onBack}
-                        className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                        disabled={isGenerating}
+                        className="flex min-w-[132px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-[14px] font-semibold text-white/60 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -594,7 +622,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
 
                     <button
                         onClick={() => setShowConfirmModal(true)}
-                        disabled={!outlines.some((c) => c.selected && !c.hidden)}
+                        disabled={isGenerating || !outlines.some((c) => c.selected && !c.hidden)}
                         className={`group relative flex min-w-[240px] max-w-[420px] items-center justify-center gap-2 overflow-hidden rounded-full px-8 py-3 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
                             ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-red-400"
                             : "border border-white/[0.1] bg-white/[0.04] text-white/30 cursor-not-allowed"
@@ -624,8 +652,9 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                     <p className="mt-1 text-[13px] text-white/40">{selected.length} sections selected</p>
                                 </div>
                                 <button
+                                    disabled={isGenerating}
                                     onClick={() => setShowConfirmModal(false)}
-                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -660,18 +689,20 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                             {/* Actions */}
                             <div className="flex gap-3 p-8 pt-4">
                                 <button
+                                    disabled={isGenerating}
                                     onClick={() => setShowConfirmModal(false)}
-                                    className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-6 py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06]"
+                                    className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-6 py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     Cancel
                                 </button>
                                 <button
+                                    disabled={isGenerating}
                                     onClick={() => {
                                         Organizer.set({ selectedOutlines: selected });
                                         setShowConfirmModal(false);
                                         onNext("configuration");
                                     }}
-                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-3 text-[14px] font-semibold text-white transition hover:bg-red-400"
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-3 text-[14px] font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     Proceed to Writing
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -697,8 +728,9 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                         <div className="relative w-full max-w-[520px] rounded-3xl border border-white/[0.08] bg-[#141414] p-8 shadow-2xl">
                             {/* Close */}
                             <button
+                                disabled={isGenerating}
                                 onClick={() => setEditingCard(null)}
-                                className="absolute right-4 top-4 rounded-full p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white/60"
+                                className="absolute right-4 top-4 rounded-full p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -715,30 +747,33 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                             <input
                                 type="text"
                                 value={editTitle}
+                                disabled={isGenerating}
                                 onChange={(e) => setEditTitle(e.target.value)}
-                                className="mb-4 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15"
+                                className="mb-4 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15 disabled:cursor-not-allowed disabled:opacity-40"
                             />
 
                             {/* Content */}
                             <label className="mb-2 block text-[13px] font-semibold text-white/70">Content</label>
                             <textarea
                                 value={editDescription}
+                                disabled={isGenerating}
                                 onChange={(e) => setEditDescription(e.target.value)}
                                 rows={5}
-                                className="mb-6 w-full resize-none rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15"
+                                className="mb-6 w-full resize-none rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 disabled:cursor-not-allowed disabled:opacity-40"
                             />
 
                             {/* Actions */}
                             <div className="flex gap-3">
                                 <button
+                                    disabled={isGenerating}
                                     onClick={() => setEditingCard(null)}
-                                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06]"
+                                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={saveEdit}
-                                    disabled={!editTitle.trim()}
+                                    disabled={isGenerating || !editTitle.trim()}
                                     className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[14px] font-semibold transition ${editTitle.trim()
                                         ? "bg-red-500 text-white hover:bg-red-400"
                                         : "bg-white/[0.04] text-white/30 cursor-not-allowed"
@@ -758,8 +793,9 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <div className="relative w-full max-w-[520px] rounded-3xl border border-white/[0.08] bg-[#141414] p-8 shadow-2xl">
                         {/* Close */}
                         <button
+                            disabled={isGenerating}
                             onClick={() => setShowBuildModal(false)}
-                            className="absolute right-4 top-4 rounded-full p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white/60"
+                            className="absolute right-4 top-4 rounded-full p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -785,9 +821,10 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                         <input
                             type="text"
                             value={buildTitle}
+                            disabled={isGenerating}
                             onChange={(e) => setBuildTitle(e.target.value)}
                             placeholder="Enter your outline title..."
-                            className="mb-5 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15"
+                            className="mb-5 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15 disabled:cursor-not-allowed disabled:opacity-40"
                         />
 
                         {/* Type selector */}
@@ -800,11 +837,12 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                             ]).map(({ type, desc, icon }) => (
                                 <button
                                     key={type}
+                                    disabled={isGenerating}
                                     onClick={() => setBuildType(type)}
                                     className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${buildType === type
                                         ? "border-red-500/40 bg-red-500/[0.06]"
                                         : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
-                                        }`}
+                                        } disabled:cursor-not-allowed disabled:opacity-40`}
                                 >
                                     <div className={`flex h-9 w-9 items-center justify-center rounded-lg text-[16px] ${buildType === type ? "bg-red-500/20" : "bg-white/[0.06]"
                                         }`}>
@@ -829,14 +867,15 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                         {/* Actions */}
                         <div className="flex gap-3">
                             <button
+                                disabled={isGenerating}
                                 onClick={() => setShowBuildModal(false)}
-                                className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06]"
+                                className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-[14px] font-semibold text-white/50 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleBuildMyWay}
-                                disabled={!buildTitle.trim()}
+                                disabled={isGenerating || !buildTitle.trim()}
                                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[14px] font-semibold transition ${buildTitle.trim()
                                     ? "bg-red-500 text-white hover:bg-red-400"
                                     : "bg-white/[0.04] text-white/30 cursor-not-allowed"
