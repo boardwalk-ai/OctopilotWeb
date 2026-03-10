@@ -315,7 +315,9 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     const [wordCount, setWordCount] = useState<number | "Custom">(initialWordCountSelection);
     const [customWordCountInput, setCustomWordCountInput] = useState(
-        initialWordCountSelection === "Custom" ? String(Math.min(initialWordCountValue, WORD_COUNT_MAX)) : ""
+        initialWordCountSelection === "Custom"
+            ? String(org.writingMode === "manual" ? initialWordCountValue : Math.min(initialWordCountValue, WORD_COUNT_MAX))
+            : ""
     );
     const [citationStyle, setCitationStyle] = useState(org.citationStyle);
     const [tone, setTone] = useState(org.tone);
@@ -325,19 +327,20 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     const initialCachedWordCredits = AccountStateService.read()?.word_credits ?? AccountStateService.read()?.wordCredits ?? 0;
     const [availableWordCredits, setAvailableWordCredits] = useState(Number(initialCachedWordCredits || 0));
     const [creditPrompt, setCreditPrompt] = useState<CreditPromptState | null>(null);
+    const [showNoSourcesConfirm, setShowNoSourcesConfirm] = useState(false);
 
     // Test Mode Autofill
     useEffect(() => {
         if (TestService.isActive) {
             const mockData = TestService.getConfiguration();
             setWordCount(mockData.wordCount as number | "Custom");
-            setCustomWordCountInput("");
+            setCustomWordCountInput(org.writingMode === "manual" ? String(mockData.wordCount) : "");
             setCitationStyle(mockData.citationStyle);
             setTone(mockData.tone);
             setSourcesTab(mockData.sourcesTab);
             setAiSearchKeywords(mockData.aiSearchKeywords);
         }
-    }, []);
+    }, [org.writingMode]);
 
     useEffect(() => {
         const unsubscribe = AccountStateService.subscribe((snapshot) => {
@@ -515,7 +518,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         if (isInitialMount.current) { isInitialMount.current = false; return; }
         Organizer.set({
             wordCount: wordCount === "Custom"
-                ? Math.min(WORD_COUNT_MAX, Math.max(0, Number(customWordCountInput || 0))) || "Custom"
+                ? (
+                    org.writingMode === "manual"
+                        ? Math.max(0, Number(customWordCountInput || 0)) || "Custom"
+                        : Math.min(WORD_COUNT_MAX, Math.max(0, Number(customWordCountInput || 0))) || "Custom"
+                )
                 : wordCount,
             citationStyle,
             tone,
@@ -536,8 +543,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             return null;
         }
 
-        return Math.min(WORD_COUNT_MAX, parsed);
-    }, [customWordCountInput, wordCount]);
+        return org.writingMode === "manual" ? parsed : Math.min(WORD_COUNT_MAX, parsed);
+    }, [customWordCountInput, org.writingMode, wordCount]);
 
     const shouldEnforceWordCredits = org.writingMode === "automation" && !org.isTestMode;
     const maxWordsByCredits = availableWordCredits * 10;
@@ -587,14 +594,16 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             return;
         }
 
-        const normalizedValue = Math.min(Number(digitsOnly), WORD_COUNT_MAX);
+        const normalizedValue = org.writingMode === "manual"
+            ? Number(digitsOnly)
+            : Math.min(Number(digitsOnly), WORD_COUNT_MAX);
         setCustomWordCountInput(String(normalizedValue));
 
         const nextPrompt = buildCreditPrompt(normalizedValue);
         if (nextPrompt) {
             setCreditPrompt(nextPrompt);
         }
-    }, [buildCreditPrompt]);
+    }, [buildCreditPrompt, org.writingMode]);
 
     const selectedPdfTexts = useMemo(() => {
         if (!pdfPages.length) return [];
@@ -690,6 +699,42 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
         "Fieldwork Mode": fieldworkSourceThreads.length,
     }), [fieldworkSourceThreads.length, imageSourceThreads.length, searchSourceEntries, uploadedPdfSources.length]);
 
+    const persistAndContinue = useCallback(async (activeSourceCount: number, resolvedWordCount: number) => {
+        const previouslyCharged = org.chargedSourceCounts[sourcesTab] ?? 0;
+        const sourceCharge = Math.max(0, activeSourceCount - previouslyCharged);
+
+        if (!org.isTestMode && sourceCharge > 0) {
+            await CreditService.deductSourceCredits(sourceCharge, {
+                idempotencyKey: CreditService.createDeductionKey(`configuration:${sourcesTab}:${activeSourceCount}`),
+            });
+        }
+
+        Organizer.set({
+            wordCount: resolvedWordCount,
+            citationStyle,
+            tone,
+            sourcesTab,
+            selectedSourceCount: activeSourceCount,
+            aiSearchKeywords,
+            manualSources,
+            keywords: specifyKeywords ? keywordsText : "",
+            chargedSourceCounts: {
+                ...org.chargedSourceCounts,
+                [sourcesTab]: Math.max(previouslyCharged, activeSourceCount),
+            },
+        });
+
+        void ZulyService.compactAllSources().catch(err =>
+            console.error("[Zuly] Background compaction error:", err)
+        );
+
+        if (citationStyle === "None") {
+            onNext("generation");
+        } else {
+            onNext("format");
+        }
+    }, [aiSearchKeywords, citationStyle, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourcesTab, specifyKeywords, tone]);
+
     const handleContinue = useCallback(async () => {
         if (isContinuingRef.current) return;
 
@@ -716,39 +761,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
         try {
             const activeSourceCount = sourceCountByTab[sourcesTab as keyof typeof sourceCountByTab] ?? 0;
-            const previouslyCharged = org.chargedSourceCounts[sourcesTab] ?? 0;
-            const sourceCharge = Math.max(0, activeSourceCount - previouslyCharged);
-
-            if (!org.isTestMode && sourceCharge > 0) {
-                await CreditService.deductSourceCredits(sourceCharge, {
-                    idempotencyKey: CreditService.createDeductionKey(`configuration:${sourcesTab}:${activeSourceCount}`),
-                });
+            if (activeSourceCount === 0) {
+                setShowNoSourcesConfirm(true);
+                return;
             }
 
-            Organizer.set({
-                wordCount: effectiveWordCount,
-                citationStyle,
-                tone,
-                sourcesTab,
-                selectedSourceCount: activeSourceCount,
-                aiSearchKeywords,
-                manualSources,
-                keywords: specifyKeywords ? keywordsText : "",
-                chargedSourceCounts: {
-                    ...org.chargedSourceCounts,
-                    [sourcesTab]: Math.max(previouslyCharged, activeSourceCount),
-                },
-            });
-
-            void ZulyService.compactAllSources().catch(err =>
-                console.error("[Zuly] Background compaction error:", err)
-            );
-
-            if (citationStyle === "None") {
-                onNext("generation");
-            } else {
-                onNext("format");
-            }
+            await persistAndContinue(activeSourceCount, effectiveWordCount);
         } catch (error) {
             const message = error instanceof CreditDeductionError
                 ? error.message
@@ -760,7 +778,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             isContinuingRef.current = false;
             setIsContinuing(false);
         }
-    }, [aiSearchKeywords, buildCreditPrompt, citationStyle, effectiveWordCount, hasPendingScrapes, keywordsText, manualSources, onNext, org.chargedSourceCounts, org.isTestMode, sourceCountByTab, sourcesTab, specifyKeywords, tone]);
+    }, [buildCreditPrompt, hasPendingScrapes, persistAndContinue, sourceCountByTab, sourcesTab, effectiveWordCount]);
 
     const activeFieldworkType = useMemo(
         () => FIELDWORK_TYPE_OPTIONS.find((option) => option.id === fieldworkForm.researchType) || FIELDWORK_TYPE_OPTIONS[0],
@@ -1661,20 +1679,28 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         <input
                             type="number"
                             min={1}
-                            max={WORD_COUNT_MAX}
+                            max={org.writingMode === "manual" ? undefined : WORD_COUNT_MAX}
                             value={customWordCountInput}
                             onChange={(event) => handleCustomWordCountChange(event.target.value)}
-                            placeholder={`Up to ${WORD_COUNT_MAX} words`}
+                            placeholder={org.writingMode === "manual" ? "Set your target word count" : `Up to ${WORD_COUNT_MAX} words`}
                             className="mt-3 w-full rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3 text-[14px] text-white outline-none placeholder-white/30 focus:border-red-500/40"
                         />
-                        <p className="mt-3 text-[12px] leading-5 text-white/48">
-                            Octopilot keeps automation runs focused, stable, and fast with premium drafts up to {WORD_COUNT_MAX.toLocaleString()} words per pass.
-                        </p>
+                        {org.writingMode === "manual" ? (
+                            <p className="mt-3 text-[12px] leading-5 text-white/48">
+                                Manual mode stays flexible, so you can target a longer draft and expand it section by section at your own pace.
+                            </p>
+                        ) : (
+                            <p className="mt-3 text-[12px] leading-5 text-white/48">
+                                Octopilot keeps automation runs focused, stable, and fast with premium drafts up to {WORD_COUNT_MAX.toLocaleString()} words per pass.
+                            </p>
+                        )}
                     </div>
                 )}
-                <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-[12px] leading-5 text-amber-100/80">
-                    Our automation engine is tuned for sharp, submission-ready drafts up to {WORD_COUNT_MAX.toLocaleString()} words, giving you faster turnaround and tighter quality control in every run.
-                </div>
+                {org.writingMode !== "manual" && (
+                    <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-[12px] leading-5 text-amber-100/80">
+                        Our automation engine is tuned for sharp, submission-ready drafts up to {WORD_COUNT_MAX.toLocaleString()} words, giving you faster turnaround and tighter quality control in every run.
+                    </div>
+                )}
                 {shouldEnforceWordCredits && (
                     <p className="mt-3 text-[12px] text-white/42">
                         Current word balance: {availableWordCredits.toLocaleString()} credits, which powers up to {maxWordsByCredits.toLocaleString()} automation words.
@@ -2301,6 +2327,57 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 className="rounded-full bg-red-500 px-6 py-2.5 text-[14px] font-bold text-white transition hover:bg-red-400"
                             >
                                 Adjust word count
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showNoSourcesConfirm && renderModal(
+                <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-[520px] rounded-3xl border border-white/[0.1] bg-[#111111] p-7 shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
+                        <div className="text-[24px] font-bold text-white">Are you sure you want to proceed without sources?</div>
+                        <p className="mt-3 text-[14px] leading-6 text-white/65">
+                            Octopilot can still draft your paper, but adding sources gives the essay better evidence, stronger citations, and a more credible final result.
+                        </p>
+
+                        <div className="mt-7 flex flex-wrap justify-end gap-3">
+                            <button
+                                onClick={() => setShowNoSourcesConfirm(false)}
+                                className="rounded-full border border-white/[0.14] bg-white/[0.04] px-5 py-2.5 text-[14px] font-semibold text-white/75 transition hover:bg-white/[0.08] hover:text-white"
+                            >
+                                No, I will add sources
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const activeSourceCount = sourceCountByTab[sourcesTab as keyof typeof sourceCountByTab] ?? 0;
+                                    const resolvedWordCount = effectiveWordCount;
+                                    setShowNoSourcesConfirm(false);
+                                    if (!resolvedWordCount) {
+                                        setContinueError("Choose a word count before continuing.");
+                                        return;
+                                    }
+                                    void (async () => {
+                                        isContinuingRef.current = true;
+                                        setIsContinuing(true);
+                                        try {
+                                            await persistAndContinue(activeSourceCount, resolvedWordCount);
+                                        } catch (error) {
+                                            const message = error instanceof CreditDeductionError
+                                                ? error.message
+                                                : error instanceof Error
+                                                    ? error.message
+                                                    : "Could not continue right now.";
+                                            setContinueError(message);
+                                        } finally {
+                                            isContinuingRef.current = false;
+                                            setIsContinuing(false);
+                                        }
+                                    })();
+                                }}
+                                className="rounded-full bg-red-500 px-5 py-2.5 text-[14px] font-bold text-white transition hover:bg-red-400"
+                            >
+                                Yes, proceed
                             </button>
                         </div>
                     </div>
