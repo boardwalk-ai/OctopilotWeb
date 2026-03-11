@@ -58,8 +58,17 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
         });
 
         try {
-            const extractedText = await FileReadService.extractText(uploadedFile);
-            const profile = await ZulyService.analyzeWritingStyle(uploadedFile.name, extractedText);
+            const isPdf = FileReadService.isPdfFile(uploadedFile);
+            const extractedText = isPdf ? "[PDF pages sent directly to Zuly]" : await FileReadService.extractText(uploadedFile);
+            const profile = isPdf
+                ? await ZulyService.analyzeWritingStyle({
+                    fileName: uploadedFile.name,
+                    pageImages: await FileReadService.extractPdfPagesAsImages(uploadedFile),
+                })
+                : await ZulyService.analyzeWritingStyle({
+                    fileName: uploadedFile.name,
+                    extractedText,
+                });
 
             Organizer.set({
                 writingStyleStatus: "analyzed",

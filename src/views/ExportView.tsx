@@ -17,16 +17,6 @@ const PAGE_WIDTH_PX = 816;
 const PAGE_HEIGHT_PX = 1056;
 const DEFAULT_MARGIN_PX = 96;
 
-const CREW = [
-    { role: "Founder & CEO", name: "Mr. Hein Htet", accent: "from-red-500/60 to-red-300/10" },
-    { role: "Chief Product Officer", name: "Mrs. Su Pyae", accent: "from-amber-400/60 to-amber-300/10" },
-    { role: "Lead Engineer & CTO", name: "Lucas D. Marshall", subtitle: "Kaung Myat San", accent: "from-sky-400/60 to-sky-300/10", image: "/CTO.JPG" },
-    { role: "Chief Financial Officer", name: "Mr. Myat Hein Htet", accent: "from-emerald-400/60 to-emerald-300/10" },
-    { role: "Graphics", name: "Mr. Hein Htet Aung", subtitle: "Spoonie Soy", accent: "from-fuchsia-400/60 to-fuchsia-300/10" },
-    { role: "Graphics", name: "Michael", accent: "from-violet-400/60 to-violet-300/10" },
-    { role: "Manager", name: "Lily", accent: "from-orange-400/60 to-orange-300/10" },
-];
-
 function makeFileName(title: string, ext: string) {
     const safe = title
         .trim()
@@ -80,7 +70,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     const emotionalCopy = useMemo(() => {
         const lineOne = "Thanks for using Octopilot AI.";
         const lineTwo = "This page is where your final draft stops being a file and starts becoming a memory.";
-        const lineThree = "Every paragraph here was carried by long nights, stubborn ideas, and a crew that kept building until the work felt worthy of your name.";
+        const lineThree = "Every paragraph here was carried by long nights, stubborn ideas, and a workflow built to carry the weight.";
         return [lineOne, lineTwo, lineThree];
     }, []);
 
@@ -258,71 +248,9 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
                             </div>
                         </section>
 
-                        <section className="relative mb-4 mt-10 w-full shrink-0 max-w-[1420px] overflow-hidden rounded-[42px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-5 py-8 backdrop-blur-xl sm:px-8 xl:px-12">
-                            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-red-400/55 to-transparent" />
-                            <div className="mb-8 flex flex-col items-center text-center">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.5em] text-white/34">
-                                    Meet Our Crew
-                                </p>
-                                <p className="mt-4 max-w-3xl text-base leading-8 text-white/52">
-                                    The people below poured patience, obsession, design instinct, and impossible hours into
-                                    the machine that just helped you finish something that matters.
-                                </p>
-                            </div>
-
-                            <div
-                                className="relative mt-8 flex min-h-[220px] w-full items-center overflow-hidden"
-                                style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)", WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}
-                            >
-                                {/* Inject keyframes directly into the DOM */}
-                                <div dangerouslySetInnerHTML={{
-                                    __html: `<style>
-                                    @keyframes crewMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-                                </style>` }} />
-
-                                <div
-                                    className="flex items-center gap-10 sm:gap-16"
-                                    style={{ width: "max-content", animation: "crewMarquee 120s linear infinite", willChange: "transform" }}
-                                >
-                                    {[...CREW, ...CREW, ...CREW, ...CREW].map((member, index) => (
-                                        <div key={`crew-${member.name}-${index}`} className="flex shrink-0 items-center gap-10 sm:gap-16">
-                                            <div className="flex w-[220px] flex-col items-center justify-center text-center">
-                                                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br ${member.accent} p-[1px]`}>
-                                                    <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#120f0f] text-lg font-semibold text-white">
-                                                        {member.image ? (
-                                                            <Image
-                                                                src={member.image}
-                                                                alt={member.name}
-                                                                fill
-                                                                sizes="64px"
-                                                                className="object-cover"
-                                                            />
-                                                        ) : (
-                                                            member.name.charAt(0)
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="mt-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
-                                                    {member.role}
-                                                </div>
-                                                <div className="mt-2 text-base font-medium text-white/90">
-                                                    {member.name}
-                                                </div>
-                                                {member.subtitle ? (
-                                                    <div className="mt-1 text-xs text-white/30">{member.subtitle}</div>
-                                                ) : null}
-                                            </div>
-                                            {/* Vertical Divider Line */}
-                                            <div className="h-20 w-px shrink-0 bg-white-[0.08] bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="mt-8 text-center text-sm leading-8 text-white/44">
-                                Copyright 2026 Boardwalk Labs LLC. Octopilot AI was built to help hard work feel seen.
-                            </div>
-                        </section>
+                        <div className="mb-4 mt-10 text-center text-sm leading-8 text-white/44">
+                            Copyright 2026 Boardwalk Labs LLC. Octopilot AI was built to help hard work feel seen.
+                        </div>
                     </div>
                 </div>
             </div>

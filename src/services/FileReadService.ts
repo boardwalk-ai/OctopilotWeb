@@ -2,6 +2,8 @@ import { SpoonieService } from "./SpoonieService";
 
 const SUPPORTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 const SUPPORTED_IMAGE_MIME_PREFIXES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const PDF_WORKER_VERSION = "5.5.207";
+const PDF_RENDER_SCALE = 1.5;
 
 function hasSupportedExtension(fileName: string, extensions: string[]): boolean {
     const normalized = fileName.toLowerCase();
@@ -68,6 +70,62 @@ export class FileReadService {
 
         const imageDataUrl = await FileReadService.toDataUrl(file);
         return SpoonieService.extractImageText({ imageDataUrl });
+    }
+
+    static async extractPdfPagesAsImages(file: File): Promise<string[]> {
+        const validationError = FileReadService.validateFile(file);
+        if (validationError) {
+            throw new Error(validationError);
+        }
+
+        if (!FileReadService.isPdfFile(file)) {
+            throw new Error("Only PDF files can be sent as document pages.");
+        }
+
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+            pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${PDF_WORKER_VERSION}/legacy/build/pdf.worker.min.mjs`;
+        }
+
+        const buffer = await file.arrayBuffer();
+        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+        const pdf = await loadingTask.promise;
+        const pageImages: string[] = [];
+
+        try {
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+                const page = await pdf.getPage(pageNumber);
+                const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+
+                if (!context) {
+                    throw new Error("Could not prepare PDF page rendering.");
+                }
+
+                canvas.width = Math.ceil(viewport.width);
+                canvas.height = Math.ceil(viewport.height);
+
+                await page.render({
+                    canvas,
+                    canvasContext: context,
+                    viewport,
+                }).promise;
+
+                pageImages.push(canvas.toDataURL("image/png", 0.92));
+                canvas.width = 0;
+                canvas.height = 0;
+                page.cleanup();
+            }
+        } finally {
+            await loadingTask.destroy();
+        }
+
+        if (pageImages.length === 0) {
+            throw new Error("Could not prepare the PDF for Zuly.");
+        }
+
+        return pageImages;
     }
 
     static async toDataUrl(file: File): Promise<string> {

@@ -5,10 +5,20 @@ import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+type OpenRouterMessage =
+    | { role: "system" | "user"; content: string }
+    | {
+        role: "user";
+        content: Array<
+            | { type: "text"; text: string }
+            | { type: "image_url"; image_url: { url: string } }
+        >;
+    };
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { task, fullContent, sourceTitle, sourceType, fileName, extractedText } = body;
+        const { task, fullContent, sourceTitle, sourceType, fileName, extractedText, pageImages } = body;
 
         const activeTask = task === "writing_style_analysis" ? "writing_style_analysis" : "source_compaction";
 
@@ -19,9 +29,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (activeTask === "writing_style_analysis" && !extractedText) {
+        const hasPdfPages = Array.isArray(pageImages) && pageImages.some((item) => typeof item === "string" && item.trim().length > 0);
+
+        if (activeTask === "writing_style_analysis" && !extractedText && !hasPdfPages) {
             return NextResponse.json(
-                { error: "Missing required field: extractedText" },
+                { error: "Missing required field: extractedText or pageImages" },
                 { status: 400 }
             );
         }
@@ -52,18 +64,52 @@ Return strict JSON with exactly these keys:
 
 No markdown. No commentary. No extra keys.`;
 
-        const userMessage = activeTask === "writing_style_analysis"
-            ? `Task: WRITING_STYLE_ANALYSIS
+        const messages: OpenRouterMessage[] = activeTask === "writing_style_analysis"
+            ? hasPdfPages
+                ? [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: `Task: WRITING_STYLE_ANALYSIS
+Uploaded File: ${fileName || "Unknown"}
+
+Analyze the attached PDF pages directly and return only the required JSON.`,
+                            },
+                            ...(pageImages as string[])
+                                .filter((item) => typeof item === "string" && item.trim().length > 0)
+                                .map((imageUrl) => ({
+                                    type: "image_url" as const,
+                                    image_url: { url: imageUrl },
+                                })),
+                        ],
+                    },
+                ]
+                : [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    {
+                        role: "user",
+                        content: `Task: WRITING_STYLE_ANALYSIS
 Uploaded File: ${fileName || "Unknown"}
 
 Extracted Writing Sample:
-${extractedText}`
-            : `Task: SOURCE_COMPACTION
+${extractedText}`,
+                    },
+                ]
+            : [
+                { role: "system", content: SYSTEM_PROMPT },
+                {
+                    role: "user",
+                    content: `Task: SOURCE_COMPACTION
 Source Type: ${sourceType || "unknown"}
 Source Title: ${sourceTitle || "Unknown"}
 
 Full Content:
-${fullContent}`;
+${fullContent}`,
+                },
+            ];
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: "POST",
@@ -75,10 +121,7 @@ ${fullContent}`;
             },
             body: JSON.stringify({
                 model,
-                messages: [
-                    { role: "system", content: SYSTEM_PROMPT },
-                    { role: "user", content: userMessage },
-                ],
+                messages,
                 temperature: 0.2,
                 response_format: { type: "json_object" },
             }),

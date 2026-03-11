@@ -8,7 +8,7 @@ type CompactionInput = {
 };
 
 export class ZulyService {
-    static async analyzeWritingStyle(fileName: string, extractedText: string): Promise<WritingStyleProfile> {
+    static async analyzeWritingStyle(input: { fileName: string; extractedText?: string; pageImages?: string[] }): Promise<WritingStyleProfile> {
         if (TestService.isActive) {
             return {
                 writing_style: "Reflective academic prose with moderate sentence variety and direct claim-first openings.",
@@ -27,8 +27,9 @@ export class ZulyService {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 task: "writing_style_analysis",
-                fileName,
-                extractedText,
+                fileName: input.fileName,
+                extractedText: input.extractedText,
+                pageImages: input.pageImages,
             }),
         });
 

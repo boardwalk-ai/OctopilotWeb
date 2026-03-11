@@ -111,30 +111,6 @@ const ToolbarDropdown = ({
     );
 };
 
-/* ─── Color Picker Popover ─── */
-const ColorPicker = ({ colors, activeColor, onSelect, onClose }: { colors: string[]; activeColor: string; onSelect: (c: string) => void; onClose: () => void }) => (
-    <>
-        <div className="fixed inset-0 z-30" onClick={onClose} />
-        <div className="absolute top-full left-1/2 z-40 mt-2 w-[196px] -translate-x-1/2 rounded-xl border border-[#3b4048] bg-[#171a1f] p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.45)]">
-            <div className="grid grid-cols-5 gap-2">
-                {colors.map(c => (
-                    <button
-                        key={c}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { onSelect(c); onClose(); }}
-                        className={`h-7 w-7 rounded-full border-2 transition hover:scale-110 ${activeColor === c ? "border-[#ea4335] ring-2 ring-[#ea4335]/30" : "border-[#4b5563]"}`}
-                        style={{ background: c === "transparent" ? "conic-gradient(from 45deg, #edf2fa 0 25%, #ffffff 0 50%, #edf2fa 0 75%, #ffffff 0)" : c }}
-                    />
-                ))}
-            </div>
-        </div>
-    </>
-);
-
-const TEXT_COLORS = ["#1f1f1f", "#ea4335", "#fbbc04", "#34a853", "#4285f4", "#9334e6", "#e91e63", "#ff6d00", "#795548", "#607d8b"];
-const HIGHLIGHT_COLORS = ["transparent", "#fce4ec", "#fff9c4", "#e8f5e9", "#e3f2fd", "#f3e5f5", "#fff3e0", "#fbe9e7", "#f5f5f5", "#cfd8dc"];
-const FONT_SIZE_TEMPLATES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 48, 56, 64, 72];
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
 
 function getLeadingElement(root: HTMLElement | null): HTMLElement | null {
@@ -228,9 +204,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
 
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
     const [textStyle, setTextStyle] = useState("p");
-    const [fontSize, setFontSize] = useState(12);
-    const [fontSizeInput, setFontSizeInput] = useState("12");
-    const [isFontSizeMixed, setIsFontSizeMixed] = useState(false);
     const [fontFamily, setFontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
     const [lineHeight] = useState(formattedDoc.profile.lineHeight || 1.5);
     const [zoom, setZoom] = useState(100);
@@ -260,11 +233,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
     const [isBold, setIsBold] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
     const [isUnderline, setIsUnderline] = useState(false);
-
-    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-    const [showHighlightPicker, setShowHighlightPicker] = useState(false);
-    const [activeTextColor, setActiveTextColor] = useState("#1f1f1f");
-    const [activeHighlight, setActiveHighlight] = useState("transparent");
 
     const [leftIndent, setLeftIndent] = useState(sideMarginPct);
     const [rightIndent, setRightIndent] = useState(100 - sideMarginPct);
@@ -335,55 +303,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             setIsUnderline(false);
         }
     }, []);
-
-    const readFontSizePt = useCallback((el: Element | null) => {
-        if (!el) return null;
-        const px = parseFloat(window.getComputedStyle(el).fontSize || "16");
-        if (!Number.isFinite(px)) return null;
-        const zoomScale = zoom / 100 || 1;
-        return Math.max(1, Math.round(((px / zoomScale) * 72) / 96));
-    }, [zoom]);
-
-    const updateFontSizeFromSelection = useCallback(() => {
-        const sel = window.getSelection();
-        const root = pageEditableRef.current;
-        if (!sel || sel.rangeCount === 0 || !root) return;
-        const range = sel.getRangeAt(0);
-        if (!root.contains(range.commonAncestorContainer)) return;
-
-        const sizes = new Set<number>();
-        const addSizeFromNode = (node: Node | null) => {
-            if (!node) return;
-            const el = node instanceof Element ? node : node.parentElement;
-            const size = readFontSizePt(el);
-            if (size) sizes.add(size);
-        };
-
-        if (range.collapsed) {
-            addSizeFromNode(sel.anchorNode);
-        } else {
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-            let node = walker.nextNode();
-            while (node) {
-                if (range.intersectsNode(node) && node.textContent?.trim()) addSizeFromNode(node);
-                node = walker.nextNode();
-            }
-            if (sizes.size === 0) addSizeFromNode(sel.anchorNode);
-        }
-
-        if (sizes.size > 1) {
-            setIsFontSizeMixed(true);
-            setFontSizeInput("--");
-            return;
-        }
-
-        const only = sizes.values().next().value as number | undefined;
-        if (only && Number.isFinite(only)) {
-            setIsFontSizeMixed(false);
-            setFontSize(only);
-            setFontSizeInput(String(only));
-        }
-    }, [readFontSizePt]);
 
     const saveSelection = useCallback(() => {
         const sel = window.getSelection();
@@ -876,10 +795,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         return () => window.cancelAnimationFrame(raf);
     }, [zoom, leftIndent, rightIndent, pages.length]);
 
-    const captureSelectionBeforeToolbarAction = useCallback(() => {
-        saveSelection();
-    }, [saveSelection]);
-
     const execCommand = useCallback((cmd: string, value?: string) => {
         restoreSelection();
         const sel = window.getSelection();
@@ -887,20 +802,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             editorRefs.current[activePageId]?.focus();
         }
         document.execCommand(cmd, false, value);
-        saveSelection();
-        queryFormattingState();
-    }, [activePageId, queryFormattingState, restoreSelection, saveSelection]);
-
-    const applyColor = useCallback((command: "foreColor" | "hiliteColor", color: string) => {
-        restoreSelection();
-        editorRefs.current[activePageId]?.focus();
-        document.execCommand("styleWithCSS", false, "true");
-        if (command === "hiliteColor") {
-            const ok = document.execCommand("hiliteColor", false, color);
-            if (!ok) document.execCommand("backColor", false, color);
-        } else {
-            document.execCommand("foreColor", false, color);
-        }
         saveSelection();
         queryFormattingState();
     }, [activePageId, queryFormattingState, restoreSelection, saveSelection]);
@@ -949,12 +850,8 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         pageContentRef.current[activePageId] = html;
         updateStats();
         saveSelection();
-        setFontSize(safe);
-        setFontSizeInput(String(safe));
-        setIsFontSizeMixed(false);
         queryFormattingState();
-        updateFontSizeFromSelection();
-    }, [activePageId, cleanupEditorArtifacts, queryFormattingState, restoreSelection, saveSelection, updateFontSizeFromSelection, updateStats]);
+    }, [activePageId, cleanupEditorArtifacts, queryFormattingState, restoreSelection, saveSelection, updateStats]);
 
     const applyTextPreset = useCallback((presetKey: keyof typeof TEXT_STYLE_PRESETS) => {
         const preset = TEXT_STYLE_PRESETS[presetKey];
@@ -1200,11 +1097,10 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
         const onSelectionChange = () => {
             saveSelection();
             queryFormattingState();
-            updateFontSizeFromSelection();
         };
         document.addEventListener("selectionchange", onSelectionChange);
         return () => document.removeEventListener("selectionchange", onSelectionChange);
-    }, [queryFormattingState, saveSelection, updateFontSizeFromSelection]);
+    }, [queryFormattingState, saveSelection]);
 
     useEffect(() => {
         if (!draggingMarker) return;
@@ -1359,115 +1255,9 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                         execCommand("fontName", font);
                     }}
                 />
-                <TbSep />
-
-                <div className="flex items-center gap-0.5">
-                    <button
-                        onMouseDown={(e) => { e.preventDefault(); captureSelectionBeforeToolbarAction(); }}
-                        onClick={() => {
-                        const current = Number(fontSizeInput);
-                        const base = Number.isFinite(current) ? current : fontSize;
-                        applyFontSizeToSelection(Math.max(1, base - 1));
-                    }}
-                        className="flex h-[28px] w-[22px] items-center justify-center rounded-[4px] text-white/85 hover:bg-[#2b313a]"
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    </button>
-                    <input
-                        value={fontSizeInput}
-                        onMouseDown={() => captureSelectionBeforeToolbarAction()}
-                        list="font-size-templates"
-                        onChange={(e) => {
-                            const next = e.target.value.replace(/[^\d]/g, "");
-                            setFontSizeInput(next || (isFontSizeMixed ? "--" : ""));
-                            if (next) setIsFontSizeMixed(false);
-                        }}
-                        onFocus={() => {
-                            captureSelectionBeforeToolbarAction();
-                            if (isFontSizeMixed) setFontSizeInput("");
-                        }}
-                        onBlur={() => {
-                            const n = Number(fontSizeInput);
-                            if (Number.isFinite(n) && n > 0) {
-                                applyFontSizeToSelection(n);
-                            } else if (isFontSizeMixed) {
-                                setFontSizeInput("--");
-                            } else {
-                                setFontSizeInput(String(fontSize));
-                            }
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                captureSelectionBeforeToolbarAction();
-                                const n = Number(fontSizeInput);
-                                if (Number.isFinite(n) && n > 0) applyFontSizeToSelection(n);
-                            }
-                        }}
-                        className="h-[28px] w-[44px] rounded-[4px] border border-[#3b4048] bg-[#11151b] text-center text-[13px] text-[#f3f4f6] outline-none focus:border-[#ea4335]"
-                    />
-                    <datalist id="font-size-templates">
-                        {FONT_SIZE_TEMPLATES.map((size) => (
-                            <option key={size} value={size} />
-                        ))}
-                    </datalist>
-                    <button
-                        onMouseDown={(e) => { e.preventDefault(); captureSelectionBeforeToolbarAction(); }}
-                        onClick={() => {
-                        const current = Number(fontSizeInput);
-                        const base = Number.isFinite(current) ? current : fontSize;
-                        applyFontSizeToSelection(base + 1);
-                    }}
-                        className="flex h-[28px] w-[22px] items-center justify-center rounded-[4px] text-white/85 hover:bg-[#2b313a]"
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    </button>
-                </div>
-                <TbSep />
-
                 <TbIcon active={isBold} onClick={() => execCommand("bold")} title="Bold (⌘B)"><span className="text-[16px] font-bold">B</span></TbIcon>
                 <TbIcon active={isItalic} onClick={() => execCommand("italic")} title="Italic (⌘I)"><span className="text-[16px] italic">I</span></TbIcon>
                 <TbIcon active={isUnderline} onClick={() => execCommand("underline")} title="Underline (⌘U)"><span className="text-[16px] underline">U</span></TbIcon>
-
-                <div className="relative">
-                    <TbIcon title="Text color" onClick={() => {
-                        setShowHighlightPicker(false);
-                        setShowTextColorPicker((prev) => !prev);
-                    }}>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[16px] font-semibold text-[#f3f4f6]">A</span>
-                            <div className="mt-[-4px] h-[3px] w-[14px] rounded-full" style={{ backgroundColor: activeTextColor }} />
-                        </div>
-                    </TbIcon>
-                    {showTextColorPicker && (
-                        <ColorPicker
-                            colors={TEXT_COLORS}
-                            activeColor={activeTextColor}
-                            onSelect={(c) => { setActiveTextColor(c); applyColor("foreColor", c); }}
-                            onClose={() => setShowTextColorPicker(false)}
-                        />
-                    )}
-                </div>
-
-                <div className="relative">
-                    <TbIcon title="Highlight color" onClick={() => {
-                        setShowTextColorPicker(false);
-                        setShowHighlightPicker((prev) => !prev);
-                    }}>
-                        <div className="flex flex-col items-center">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                            <div className="mt-[-2px] h-[3px] w-[14px] rounded-full" style={{ backgroundColor: activeHighlight === "transparent" ? "#fbbc04" : activeHighlight }} />
-                        </div>
-                    </TbIcon>
-                    {showHighlightPicker && (
-                        <ColorPicker
-                            colors={HIGHLIGHT_COLORS}
-                            activeColor={activeHighlight}
-                            onSelect={(c) => { setActiveHighlight(c); applyColor("hiliteColor", c); }}
-                            onClose={() => setShowHighlightPicker(false)}
-                        />
-                    )}
-                </div>
                 <TbSep />
 
                 <TbIcon title="Align left" onClick={() => execCommand("justifyLeft")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="17" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="17" y1="18" x2="3" y2="18" /></svg></TbIcon>
@@ -1829,7 +1619,6 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                                                 setIsHeaderEditing(false);
                                                 setHeaderEditingPageId(null);
                                                 setActivePageId(page.id);
-                                                updateFontSizeFromSelection();
                                                 saveSelection();
                                             }}
                                             className="min-h-0 w-full flex-1 overflow-hidden outline-none"
