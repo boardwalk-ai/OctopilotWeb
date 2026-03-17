@@ -168,11 +168,11 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
       <div className={`relative mx-auto flex h-screen w-full max-w-[1600px] items-center px-6 py-6 lg:px-10 ${styles.authFrame}`}>
         <div className={`grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr] ${styles.authGrid}`}>
           <section className={`flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-9 lg:py-8 ${styles.authHero}`}>
-            <div className="space-y-5">
-              <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-black backdrop-blur-xl">
-                <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
-                <span>Octopilot Web</span>
-              </div>
+              <div className={`space-y-5 ${styles.authHeroTop}`}>
+                <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-black backdrop-blur-xl">
+                  <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
+                  <span>Octopilot Web</span>
+                </div>
 
               <div className="max-w-4xl space-y-4">
                 <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-[4.75rem] lg:text-[5.7rem]">
@@ -262,7 +262,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   type="button"
                   onClick={handleGoogle}
                   disabled={isBusy}
-                  className="group mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-3.5 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                  className={`group mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/15 bg-white px-5 py-3.5 text-sm font-semibold text-black transition duration-300 hover:border-red-500/40 hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${styles.googleButton}`}
                 >
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -360,7 +360,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   <button
                     type="submit"
                     disabled={isBusy}
-                    className="w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-70"
+                    className={`w-full rounded-[22px] bg-red-500 px-5 py-3.5 text-[15px] font-semibold text-black shadow-[0_18px_50px_rgba(239,68,68,0.2)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-red-500 hover:shadow-[0_22px_60px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-70 ${styles.primaryButton}`}
                   >
                     {isLinkCompleting
                       ? "Finishing sign-in..."
@@ -378,7 +378,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                       type="button"
                       onClick={handleSendEmailLink}
                       disabled={isBusy || !email.trim() || (!isLogin && !fullName.trim())}
-                      className="w-full rounded-[20px] border border-white/12 bg-white/[0.03] px-5 py-3 text-[14px] font-medium text-white/70 transition hover:border-red-500/40 hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className={`w-full rounded-[20px] border border-white/12 bg-white/[0.03] px-5 py-3 text-[14px] font-medium text-white/70 transition hover:border-red-500/40 hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 ${styles.secondaryButton}`}
                     >
                       {isEmailLinkLoading
                         ? "Sending backup link..."
