@@ -4,9 +4,11 @@
 
 .homeHeaderActions {}
 
-.homeHeaderPrimary {}
+.homePlan {}
 
-.homeHeaderSecondary {}
+.homeIconBtn {}
+
+.homeAvatar {}
 
 .homeHero {}
 
@@ -34,94 +36,140 @@
 
   .homeHeader {
     min-height: auto;
-    padding: 0.8rem 0.7rem 0;
+    padding: 0.5rem 0.5rem 0.5rem;
     background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.2) 72%, transparent);
   }
 
+  /* ── Single-row flex layout ── */
   .homeHeaderActions {
     width: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  .homeHeaderPrimary {
-    display: grid;
-    grid-template-columns: 2rem minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(0, 0.82fr);
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.3rem;
   }
 
-  .homeHeaderPrimary > :global(*) {
-    min-width: 0;
+  /* ── Notification bell ── */
+  .homeHeaderActions > :global(:first-child) {
+    flex-shrink: 0;
   }
 
-  .homeHeaderPrimary > :global(div:nth-child(2) button) {
-    width: 100% !important;
-    max-width: none;
-    height: 2.65rem !important;
-    min-width: 0 !important;
-    font-size: 0.82rem;
+  .homeHeaderActions > :global(:first-child button) {
+    width: 1.7rem;
+    height: 1.7rem;
   }
 
-  .homeHeaderPrimary > :global(button),
-  .homeHeaderPrimary > :global(div > button) {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .homeHeaderPrimary > :global(div:first-child button) {
-    width: 2rem;
-    height: 2rem;
-  }
-
-  .homeHeaderPrimary > :global(button:nth-child(3)),
-  .homeHeaderPrimary > :global(button:nth-child(4)),
-  .homeHeaderPrimary > :global(div:nth-child(3) button),
-  .homeHeaderPrimary > :global(div:nth-child(4) button) {
-    min-height: 2.65rem;
-    border-radius: 0.95rem;
-    padding: 0 0.75rem;
-    font-size: 0.82rem;
-    gap: 0.35rem;
-  }
-
-  .homeHeaderPrimary > :global(button svg),
-  .homeHeaderPrimary > :global(div > button svg) {
+  .homeHeaderActions > :global(:first-child button svg) {
     width: 14px;
     height: 14px;
   }
 
-  .homeHeaderSecondary {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.55rem;
+  /* ── PlanInfo (compact pill) ── */
+  .homePlan {
+    flex: 1 1 0%;
+    min-width: 0;
+    position: relative;
+    z-index: 10;
   }
 
-  .homeHeaderSecondary > :global(button:first-child),
-  .homeHeaderSecondary > :global(div:first-child button) {
-    flex-direction: row;
-    gap: 0.25rem;
-    padding: 0.15rem 0.1rem;
-    font-size: 0.66rem;
-    color: rgba(255, 255, 255, 0.34);
+  .homePlan :global(button) {
+    height: 1.7rem !important;
+    border-radius: 0.55rem;
+    border-width: 1px !important;
   }
 
-  .homeHeaderSecondary > :global(button:first-child span),
-  .homeHeaderSecondary > :global(div:first-child button span) {
-    font-size: 0.66rem;
+  /* Plan name area (3rd span child inside button) */
+  .homePlan :global(button > span:nth-child(3)) {
+    min-width: 0 !important;
+    padding: 0 0.35rem !important;
+    gap: 0.15rem !important;
   }
 
-  .homeHeaderSecondary > :global(button:last-child),
-  .homeHeaderSecondary > :global(div:last-child button) {
-    width: 2rem;
-    height: 2rem;
+  .homePlan :global(button > span:nth-child(3) svg:first-child) {
+    width: 9px !important;
+    height: 9px !important;
   }
 
+  .homePlan :global(button > span:nth-child(3) > span) {
+    font-size: 0.65rem !important;
+  }
+
+  .homePlan :global(button > span:nth-child(3) svg:last-child) {
+    width: 7px !important;
+    height: 7px !important;
+  }
+
+  /* Credits panel (4th span — visible when expanded) */
+  .homePlan :global(button > span:nth-child(4)) {
+    height: 1.3rem !important;
+  }
+
+  .homePlan :global(button > span:nth-child(4) > span) {
+    min-width: 2.8rem !important;
+    padding: 0 0.1rem !important;
+  }
+
+  .homePlan :global(button > span:nth-child(4) > span > span:first-child) {
+    font-size: 0.62rem !important;
+  }
+
+  .homePlan :global(button > span:nth-child(4) > span > span:last-child) {
+    font-size: 0.35rem !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  /* ── Icon-only buttons (Store, Save, Report) ── */
+  .homeIconBtn {
+    flex-shrink: 0;
+  }
+
+  .homeIconBtn > :global(button) {
+    font-size: 0 !important;
+    line-height: 0 !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    width: 1.7rem !important;
+    height: 1.7rem !important;
+    min-height: 0 !important;
+    border-radius: 0.45rem !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .homeIconBtn > :global(button) > :global(span) {
+    display: none !important;
+  }
+
+  .homeIconBtn > :global(button) > :global(svg) {
+    width: 13px !important;
+    height: 13px !important;
+    flex-shrink: 0;
+  }
+
+  /* ── User avatar ── */
+  .homeAvatar {
+    flex-shrink: 0;
+  }
+
+  .homeAvatar > :global(button) {
+    width: 1.7rem !important;
+    height: 1.7rem !important;
+  }
+
+  .homeAvatar > :global(button) > :global(span) {
+    font-size: 7px !important;
+  }
+
+  .homeAvatar > :global(button) > :global(svg) {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  /* ── Hero ── */
   .homeHero {
     justify-content: flex-start;
-    padding: 8.75rem 1.1rem 2rem;
+    padding: 5.5rem 1.1rem 2rem;
   }
 
   .homeMascotWrap {

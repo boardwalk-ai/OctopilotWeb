@@ -374,16 +374,12 @@ export default function HomeView() {
           className={styles.homeHeader}
           right={
             <div className={styles.homeHeaderActions}>
-              <div className={styles.homeHeaderPrimary}>
-                <NotificationBell />
-                <PlanInfo />
-                <StoreButton />
-                <SaveButton />
-              </div>
-              <div className={styles.homeHeaderSecondary}>
-                <ReportButton />
-                <UserAvatar />
-              </div>
+              <NotificationBell />
+              <div className={styles.homePlan}><PlanInfo /></div>
+              <div className={styles.homeIconBtn}><StoreButton /></div>
+              <div className={styles.homeIconBtn}><SaveButton /></div>
+              <div className={styles.homeIconBtn}><ReportButton /></div>
+              <div className={styles.homeAvatar}><UserAvatar /></div>
             </div>
           }
         />
