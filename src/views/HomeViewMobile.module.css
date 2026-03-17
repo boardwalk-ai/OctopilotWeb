@@ -47,7 +47,7 @@
 
   .homeHeader > :global(div:last-child) {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 0;
   }
 
@@ -56,8 +56,9 @@
     width: 100%;
     display: flex;
     align-items: flex-start;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 0.35rem;
+    margin-left: auto;
   }
 
   /* ── Notification bell ── */
@@ -80,12 +81,12 @@
 
   /* ── PlanInfo (compact pill) ── */
   .homePlan {
-    --plan-collapsed-width: 5.4rem;
-    --plan-expanded-width: 15.8rem;
-    --plan-height: 2.25rem;
-    --plan-credit-width: 3.45rem;
-    --plan-credits-max-width: 10.35rem;
-    --plan-horizontal-padding: 0.58rem;
+    --plan-collapsed-width: 5.2rem;
+    --plan-expanded-width: 13.9rem;
+    --plan-height: 2.18rem;
+    --plan-credit-width: 2.85rem;
+    --plan-credits-max-width: 8.55rem;
+    --plan-horizontal-padding: 0.5rem;
     flex: 0 0 auto;
     min-width: 0;
     position: relative;
@@ -101,8 +102,8 @@
   /* Plan name area (3rd span child inside button) */
   .homePlan :global(button > span:nth-child(3)) {
     min-width: 0 !important;
-    padding: 0 0.35rem !important;
-    gap: 0.2rem !important;
+    padding: 0 0.28rem !important;
+    gap: 0.16rem !important;
   }
 
   .homePlan :global(button > span:nth-child(3) svg:first-child) {
@@ -111,7 +112,7 @@
   }
 
   .homePlan :global(button > span:nth-child(3) > span) {
-    font-size: 0.68rem !important;
+    font-size: 0.64rem !important;
   }
 
   .homePlan :global(button > span:nth-child(3) svg:last-child) {
@@ -121,21 +122,21 @@
 
   /* Credits panel (4th span — visible when expanded) */
   .homePlan :global(button > span:nth-child(4)) {
-    height: 1.35rem !important;
+    height: 1.22rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span) {
-    min-width: 2.95rem !important;
-    padding: 0 0.1rem !important;
+    min-width: 2.72rem !important;
+    padding: 0 0.04rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span > span:first-child) {
-    font-size: 0.61rem !important;
+    font-size: 0.56rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span > span:last-child) {
-    font-size: 0.34rem !important;
-    letter-spacing: 0.06em !important;
+    font-size: 0.3rem !important;
+    letter-spacing: 0.04em !important;
   }
 
   /* ── Icon-only buttons (Store, Save, Report) ── */
