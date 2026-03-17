@@ -40,11 +40,23 @@
     background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.2) 72%, transparent);
   }
 
+  .homeHeader > :global(div:nth-child(1)),
+  .homeHeader > :global(div:nth-child(2)) {
+    display: none;
+  }
+
+  .homeHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
   /* ── Single-row flex layout ── */
   .homeHeaderActions {
     width: 100%;
     display: flex;
     align-items: flex-start;
+    justify-content: flex-start;
     gap: 0.35rem;
   }
 
@@ -68,12 +80,13 @@
 
   /* ── PlanInfo (compact pill) ── */
   .homePlan {
-    --plan-collapsed-width: 5.85rem;
-    --plan-expanded-width: 18.25rem;
-    --plan-height: 2.35rem;
-    --plan-credit-width: 4rem;
-    --plan-horizontal-padding: 0.7rem;
-    flex: 1 1 auto;
+    --plan-collapsed-width: 5.4rem;
+    --plan-expanded-width: 15.8rem;
+    --plan-height: 2.25rem;
+    --plan-credit-width: 3.45rem;
+    --plan-credits-max-width: 10.35rem;
+    --plan-horizontal-padding: 0.58rem;
+    flex: 0 0 auto;
     min-width: 0;
     position: relative;
     z-index: 10;
@@ -88,7 +101,7 @@
   /* Plan name area (3rd span child inside button) */
   .homePlan :global(button > span:nth-child(3)) {
     min-width: 0 !important;
-    padding: 0 0.45rem !important;
+    padding: 0 0.35rem !important;
     gap: 0.2rem !important;
   }
 
@@ -98,7 +111,7 @@
   }
 
   .homePlan :global(button > span:nth-child(3) > span) {
-    font-size: 0.72rem !important;
+    font-size: 0.68rem !important;
   }
 
   .homePlan :global(button > span:nth-child(3) svg:last-child) {
@@ -108,21 +121,21 @@
 
   /* Credits panel (4th span — visible when expanded) */
   .homePlan :global(button > span:nth-child(4)) {
-    height: 1.5rem !important;
+    height: 1.35rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span) {
-    min-width: 3rem !important;
-    padding: 0 0.15rem !important;
+    min-width: 2.95rem !important;
+    padding: 0 0.1rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span > span:first-child) {
-    font-size: 0.65rem !important;
+    font-size: 0.61rem !important;
   }
 
   .homePlan :global(button > span:nth-child(4) > span > span:last-child) {
-    font-size: 0.38rem !important;
-    letter-spacing: 0.08em !important;
+    font-size: 0.34rem !important;
+    letter-spacing: 0.06em !important;
   }
 
   /* ── Icon-only buttons (Store, Save, Report) ── */

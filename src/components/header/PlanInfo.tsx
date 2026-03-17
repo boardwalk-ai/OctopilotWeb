@@ -114,6 +114,7 @@ export default function PlanInfo({
   const shellWidth = expanded ? "var(--plan-expanded-width, 388px)" : "var(--plan-collapsed-width, 138px)";
   const shellHeight = "var(--plan-height, 46px)";
   const creditWidth = "var(--plan-credit-width, 82px)";
+  const creditsMaxWidth = expanded ? "var(--plan-credits-max-width, 250px)" : "0px";
   const theme = getPlanTheme(shouldHoldPlan ? "Pro" : resolvedPlanName);
 
   useEffect(() => {
@@ -206,7 +207,7 @@ export default function PlanInfo({
     <div ref={rootRef} className="relative shrink-0">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group relative flex items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="group relative flex items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: shellWidth, height: shellHeight, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
       >
         {/* Glow overlay */}
@@ -238,7 +239,7 @@ export default function PlanInfo({
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`shrink-0 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+            className={`shrink-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${expanded ? "rotate-180" : ""}`}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -246,8 +247,8 @@ export default function PlanInfo({
 
         {/* Credits panel */}
         <span
-          className={`relative flex h-[30px] items-stretch overflow-hidden transition-[max-width,opacity] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${expanded ? "max-w-[250px] opacity-100" : "max-w-0 opacity-0"
-            }`}
+          className={`relative flex h-[30px] items-stretch overflow-hidden transition-[max-width,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${expanded ? "opacity-100" : "opacity-0"}`}
+          style={{ maxWidth: creditsMaxWidth }}
         >
           {resolvedCredits.map((credit, index) => (
             <span
