@@ -2,6 +2,7 @@
 
 import { FormEvent, MouseEvent, useEffect, useState } from "react";
 import { AuthService } from "@/services/AuthService";
+import styles from "./AuthViewMobile.module.css";
 
 type AuthViewProps = {
   initialError?: string | null;
@@ -147,7 +148,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
 
   return (
     <main
-      className="auth-shell relative h-screen overflow-hidden bg-black text-white"
+      className={`auth-shell relative h-screen overflow-hidden bg-black text-white ${styles.authMobileShell}`}
       onMouseMove={handlePointerMove}
       style={
         {
@@ -164,9 +165,9 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
         <div className="auth-noise" />
       </div>
 
-      <div className="relative mx-auto flex h-screen w-full max-w-[1600px] items-center px-6 py-6 lg:px-10">
-        <div className="grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr]">
-          <section className="flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-9 lg:py-8">
+      <div className={`relative mx-auto flex h-screen w-full max-w-[1600px] items-center px-6 py-6 lg:px-10 ${styles.authFrame}`}>
+        <div className={`grid h-full min-h-0 w-full items-stretch gap-6 lg:grid-cols-[1.12fr_0.88fr] ${styles.authGrid}`}>
+          <section className={`flex min-h-0 flex-col rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-7 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:px-9 lg:py-8 ${styles.authHero}`}>
             <div className="space-y-5">
               <div className="inline-flex items-center gap-3 self-start rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-black backdrop-blur-xl">
                 <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.95)]" />
@@ -214,11 +215,11 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
             </div>
           </section>
 
-          <section className="relative flex min-h-0 items-center justify-center lg:justify-end">
-            <div className="auth-card relative w-full max-w-[34rem] rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,18,0.96),rgba(3,3,3,0.98))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.55)] sm:p-4.5">
+          <section className={`relative flex min-h-0 items-center justify-center lg:justify-end ${styles.authPanel}`}>
+            <div className={`auth-card relative w-full max-w-[34rem] rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,18,0.96),rgba(3,3,3,0.98))] p-4 shadow-[0_45px_120px_rgba(0,0,0,0.55)] sm:p-4.5 ${styles.authCard}`}>
               <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.14),transparent_36%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.06),transparent_45%)]" />
-              <div className="relative rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-5 sm:p-6">
-                <div className="flex items-start justify-between gap-4">
+              <div className={`relative rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-5 sm:p-6 ${styles.authCardInner}`}>
+                <div className={`flex items-start justify-between gap-4 ${styles.authCardHeader}`}>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">Portal Access</p>
                     <h2 className="mt-2.5 text-[2.15rem] font-semibold tracking-[-0.04em] text-white">
@@ -293,7 +294,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   <span className="h-px flex-1 bg-white/10" />
                 </div>
 
-                <form className="space-y-3" onSubmit={handleSubmit}>
+                <form className={`space-y-3 ${styles.authForm}`} onSubmit={handleSubmit}>
                   {!isLogin && (
                     <label className="block space-y-2">
                       <span className="text-[15px] font-medium text-white/88">Full name</span>

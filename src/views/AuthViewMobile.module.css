@@ -1,0 +1,111 @@
+.authMobileShell {}
+
+.authFrame {}
+
+.authGrid {}
+
+.authHero {}
+
+.authPanel {}
+
+.authCard {}
+
+.authCardInner {}
+
+.authCardHeader {}
+
+.authForm {}
+
+@media (max-width: 1023px) {
+  .authMobileShell {
+    min-height: 100dvh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .authFrame {
+    min-height: 100dvh;
+    height: auto;
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .authGrid {
+    height: auto;
+    min-height: 100%;
+    gap: 1rem;
+    align-content: start;
+  }
+
+  .authHero {
+    min-height: auto;
+    border-radius: 1.75rem;
+    padding: 1.25rem;
+  }
+
+  .authPanel {
+    min-height: auto;
+    align-items: stretch;
+  }
+
+  .authCard {
+    max-width: none;
+    border-radius: 1.75rem;
+    padding: 0.75rem;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  }
+
+  .authCardInner {
+    border-radius: 1.35rem;
+    padding: 1rem;
+  }
+
+  .authCardHeader {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .authFrame {
+    padding: 0.75rem;
+  }
+
+  .authGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .authHero {
+    order: 2;
+    gap: 1.25rem;
+    padding: 1rem;
+  }
+
+  .authPanel {
+    order: 1;
+  }
+
+  .authCard {
+    border-radius: 1.5rem;
+    padding: 0.65rem;
+  }
+
+  .authCardInner {
+    border-radius: 1.2rem;
+    padding: 1rem 0.9rem;
+  }
+
+  .authCardHeader {
+    gap: 0.75rem;
+  }
+
+  .authCardHeader h2 {
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+
+  .authForm :global(input),
+  .authForm :global(button) {
+    min-height: 3.25rem;
+  }
+}
