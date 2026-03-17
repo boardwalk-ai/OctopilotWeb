@@ -198,13 +198,25 @@
     margin-top: 1.15rem;
     padding: 0.35rem;
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025));
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .authCard :global(.mt-6.grid button) {
     border-radius: 999px;
     min-height: 3.1rem;
     font-size: 1rem;
+  }
+
+  .authCard :global(.mt-6.grid button:not(.bg-white)) {
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .authCard :global(.mt-6.grid button.bg-white) {
+    box-shadow:
+      0 10px 24px rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
   }
 
   .googleButton {
