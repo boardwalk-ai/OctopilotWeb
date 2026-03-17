@@ -44,7 +44,7 @@
   .homeHeaderActions {
     width: 100%;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.35rem;
   }
 
@@ -56,6 +56,9 @@
   .homeHeaderActions > :global(:first-child button) {
     width: 2.15rem;
     height: 2.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .homeHeaderActions > :global(:first-child button svg) {
@@ -65,17 +68,20 @@
 
   /* ── PlanInfo (compact pill) ── */
   .homePlan {
-    flex: 1 1 0%;
+    --plan-collapsed-width: 5.85rem;
+    --plan-expanded-width: 18.25rem;
+    --plan-height: 2.35rem;
+    --plan-credit-width: 4rem;
+    --plan-horizontal-padding: 0.7rem;
+    flex: 1 1 auto;
     min-width: 0;
     position: relative;
     z-index: 10;
   }
 
   .homePlan :global(button) {
-    width: auto !important;
     max-width: 100% !important;
-    height: 2.15rem !important;
-    border-radius: 0.6rem;
+    border-radius: 999px !important;
     border-width: 1px !important;
   }
 
@@ -132,7 +138,7 @@
     width: 2.15rem !important;
     height: 2.15rem !important;
     min-height: 0 !important;
-    border-radius: 0.55rem !important;
+    border-radius: 999px !important;
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
@@ -157,6 +163,7 @@
   .homeAvatar > :global(button) {
     width: 2.15rem !important;
     height: 2.15rem !important;
+    border-radius: 999px !important;
   }
 
   .homeAvatar > :global(button) > :global(span) {

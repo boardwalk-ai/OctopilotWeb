@@ -111,7 +111,9 @@ export default function PlanInfo({
     ? "Loading"
     : getDisplayPlanName(accountSnapshot?.plan ?? planName);
   const resolvedCredits = accountSnapshot ? mapMeToCredits(accountSnapshot) : credits;
-  const shellWidth = expanded ? 388 : 138;
+  const shellWidth = expanded ? "var(--plan-expanded-width, 388px)" : "var(--plan-collapsed-width, 138px)";
+  const shellHeight = "var(--plan-height, 46px)";
+  const creditWidth = "var(--plan-credit-width, 82px)";
   const theme = getPlanTheme(shouldHoldPlan ? "Pro" : resolvedPlanName);
 
   useEffect(() => {
@@ -201,11 +203,11 @@ export default function PlanInfo({
   }, [authReadyUser, isAuthResolved]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group relative flex h-[46px] items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ width: `${shellWidth}px`, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
+        className="group relative flex items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ width: shellWidth, height: shellHeight, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
       >
         {/* Glow overlay */}
         <span className="pointer-events-none absolute inset-0 opacity-90" style={{ background: theme.overlay }} />
@@ -213,7 +215,10 @@ export default function PlanInfo({
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-30" style={{ background: `linear-gradient(90deg, transparent, ${theme.text}, transparent)` }} />
 
         {/* Plan name area — centered */}
-        <span className="relative flex h-full min-w-[138px] items-center justify-center gap-2.5 px-4" style={{ color: theme.text }}>
+        <span
+          className="relative flex h-full items-center justify-center gap-2.5"
+          style={{ minWidth: "var(--plan-collapsed-width, 138px)", paddingInline: "var(--plan-horizontal-padding, 1rem)", color: theme.text }}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[14px] w-[14px] shrink-0">
             <path d="m4 18 2-9 6 4 6-4 2 9H4Z" />
             <path d="M7 9 4.5 5.5" />
@@ -249,7 +254,7 @@ export default function PlanInfo({
               key={credit.label}
               className={`flex min-w-[82px] flex-col items-center justify-center px-2 text-center ${index === 0 ? "border-l" : index !== credits.length ? "border-l" : ""
                 }`}
-              style={{ borderColor: `${theme.text}22` }}
+              style={{ minWidth: creditWidth, borderColor: `${theme.text}22` }}
             >
               <span className="text-[0.84rem] font-bold tabular-nums tracking-[-0.02em] text-white">
                 {credit.value.toLocaleString()}
