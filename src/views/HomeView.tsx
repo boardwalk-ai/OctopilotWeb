@@ -26,6 +26,7 @@ import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
+import styles from "./HomeViewMobile.module.css";
 import {
   AppHeader,
   LogoNav,
@@ -368,30 +369,35 @@ export default function HomeView() {
 
   return (
     <>
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
+      <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.homeShell}`}>
         <AppHeader
+          className={styles.homeHeader}
           right={
-            <>
-              <NotificationBell />
-              <PlanInfo />
-              <StoreButton />
-              <SaveButton />
-              <ReportButton />
-              <UserAvatar />
-            </>
+            <div className={styles.homeHeaderActions}>
+              <div className={styles.homeHeaderPrimary}>
+                <NotificationBell />
+                <PlanInfo />
+                <StoreButton />
+                <SaveButton />
+              </div>
+              <div className={styles.homeHeaderSecondary}>
+                <ReportButton />
+                <UserAvatar />
+              </div>
+            </div>
           }
         />
 
         <AnimatedBackground />
 
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-          <div className="mb-6">
+        <div className={`relative z-10 flex flex-1 flex-col items-center justify-center ${styles.homeHero}`}>
+          <div className={`mb-6 ${styles.homeMascotWrap}`}>
             <Image
               src="/OCTOPILOT.png"
               alt="Octopilot mascot"
               width={120}
               height={120}
-              className="drop-shadow-[0_0_40px_rgba(239,68,68,0.15)]"
+              className={`drop-shadow-[0_0_40px_rgba(239,68,68,0.15)] ${styles.homeMascot}`}
             />
           </div>
 
@@ -400,18 +406,18 @@ export default function HomeView() {
             alt="OctoPilot AI"
             width={400}
             height={80}
-            className="mb-5 w-[280px] sm:w-[360px]"
+            className={`mb-5 w-[280px] sm:w-[360px] ${styles.homeLogo}`}
             style={{ width: undefined, height: "auto" }}
           />
 
-          <p className="mb-10 max-w-md text-center text-lg leading-relaxed text-white/40">
+          <p className={`mb-10 max-w-md text-center text-lg leading-relaxed text-white/40 ${styles.homeSubtitle}`}>
             Elevate your academic writing with AI-powered precision
           </p>
 
-          <div className="flex flex-col gap-3">
+          <div className={`flex flex-col gap-3 ${styles.homeActions}`}>
             <button
               onClick={() => setPage("methodology")}
-              className="group relative overflow-hidden rounded-full bg-red-600 px-10 py-4 text-base font-semibold text-white shadow-[0_0_40px_rgba(239,68,68,0.25)] transition hover:bg-red-500 hover:shadow-[0_0_60px_rgba(239,68,68,0.35)]"
+              className={`group relative overflow-hidden rounded-full bg-red-600 px-10 py-4 text-base font-semibold text-white shadow-[0_0_40px_rgba(239,68,68,0.25)] transition hover:bg-red-500 hover:shadow-[0_0_60px_rgba(239,68,68,0.35)] ${styles.homePrimaryCta}`}
             >
               <span className="relative z-10">Start Writing</span>
               <div className="absolute inset-0 -translate-x-full bg-white/10 transition-transform duration-300 group-hover:translate-x-0" />
@@ -422,7 +428,7 @@ export default function HomeView() {
             href="https://www.octopilotai.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-white/30 transition hover:text-white/60"
+            className={`text-sm text-white/30 transition hover:text-white/60 ${styles.homeLearnMore}`}
           >
             Learn more
           </a>

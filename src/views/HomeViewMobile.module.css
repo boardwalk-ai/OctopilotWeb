@@ -1,0 +1,137 @@
+.homeShell {}
+
+.homeHeader {}
+
+.homeHeaderActions {}
+
+.homeHeaderPrimary {}
+
+.homeHeaderSecondary {}
+
+.homeHero {}
+
+.homeMascotWrap {}
+
+.homeMascot {}
+
+.homeLogo {}
+
+.homeSubtitle {}
+
+.homeActions {}
+
+.homePrimaryCta {}
+
+.homeLearnMore {}
+
+@media (max-width: 767px) {
+  .homeShell {
+    overflow-y: auto;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.18), transparent 28%),
+      linear-gradient(180deg, #090909 0%, #050505 100%);
+  }
+
+  .homeHeader {
+    min-height: auto;
+    padding: 1rem 0.9rem 0;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.2) 72%, transparent);
+  }
+
+  .homeHeaderActions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .homeHeaderPrimary {
+    display: grid;
+    grid-template-columns: 2.2rem 1fr 1fr;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .homeHeaderPrimary > :global(*) {
+    min-width: 0;
+  }
+
+  .homeHeaderPrimary > :global(div:nth-child(2) button) {
+    width: 100% !important;
+    max-width: none;
+  }
+
+  .homeHeaderPrimary > :global(button),
+  .homeHeaderPrimary > :global(div > button) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .homeHeaderPrimary > :global(button:first-child) {
+    width: 2.2rem;
+  }
+
+  .homeHeaderPrimary > :global(button:nth-child(3)),
+  .homeHeaderPrimary > :global(button:nth-child(4)) {
+    min-height: 2.9rem;
+    border-radius: 1rem;
+  }
+
+  .homeHeaderSecondary {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.8rem;
+  }
+
+  .homeHeaderSecondary > :global(button:first-child) {
+    flex-direction: row;
+    gap: 0.35rem;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  .homeHero {
+    justify-content: flex-start;
+    padding: 11rem 1.1rem 2rem;
+  }
+
+  .homeMascotWrap {
+    margin-bottom: 1rem;
+  }
+
+  .homeMascot {
+    width: 5.8rem;
+    height: auto;
+  }
+
+  .homeLogo {
+    margin-bottom: 0.9rem;
+    width: 13rem !important;
+  }
+
+  .homeSubtitle {
+    max-width: 14rem;
+    margin-bottom: 1.4rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .homeActions {
+    width: 100%;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .homePrimaryCta {
+    width: min(100%, 16rem);
+    min-height: 3.5rem;
+    padding: 0 1.4rem;
+    font-size: 1rem;
+  }
+
+  .homeLearnMore {
+    font-size: 0.92rem;
+  }
+}
