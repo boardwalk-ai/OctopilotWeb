@@ -2,13 +2,25 @@
 
 .homeHeader {}
 
-.homeHeaderActions {}
+.homeHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
 
-.homePlan {}
+.homePlan {
+  flex-shrink: 0;
+}
 
-.homeIconBtn {}
+.homeIconBtn {
+  flex-shrink: 0;
+}
 
-.homeAvatar {}
+.homeAvatar {
+  flex-shrink: 0;
+}
 
 .homeHero {}
 
