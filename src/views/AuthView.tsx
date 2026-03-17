@@ -175,13 +175,19 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                 </div>
 
               <div className="max-w-4xl space-y-4">
-                <h1 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-[4.75rem] lg:text-[5.7rem]">
+                <h1 className={`max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-[4.75rem] lg:text-[5.7rem] ${styles.desktopHeroTitle}`}>
                   Enter the
                   <span className="mt-1 block text-red-500">writing engine.</span>
                 </h1>
-                <p className="max-w-2xl text-[15px] leading-7 text-white/66 sm:text-[17px]">
+                <h1 className={`max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.065em] text-white sm:text-[4.75rem] lg:text-[5.7rem] ${styles.mobileHeroTitle}`}>
+                  Writing engine.
+                </h1>
+                <p className={`max-w-2xl text-[15px] leading-7 text-white/66 sm:text-[17px] ${styles.desktopHeroBody}`}>
                   Build stronger essays with research, outlining, drafting, and humanizing inside one sharp academic
                   workspace designed for speed.
+                </p>
+                <p className={`max-w-2xl text-[15px] leading-7 text-white/66 sm:text-[17px] ${styles.mobileHeroBody}`}>
+                  Research, draft, and humanize faster.
                 </p>
               </div>
             </div>

@@ -24,6 +24,18 @@
 
 .secondaryButton {}
 
+.desktopHeroTitle {}
+
+.mobileHeroTitle {
+  display: none;
+}
+
+.desktopHeroBody {}
+
+.mobileHeroBody {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   .authMobileShell {
     min-height: 100dvh;
@@ -75,6 +87,16 @@
 }
 
 @media (max-width: 767px) {
+  .desktopHeroTitle,
+  .desktopHeroBody {
+    display: none;
+  }
+
+  .mobileHeroTitle,
+  .mobileHeroBody {
+    display: block;
+  }
+
   .authMobileShell {
     background:
       radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.18), transparent 34%),
@@ -123,11 +145,11 @@
   }
 
   .authHero :global(h1) {
-    max-width: 15rem;
+    max-width: 12.5rem;
     margin-left: auto;
     margin-right: auto;
-    font-size: 3.1rem;
-    line-height: 0.86;
+    font-size: 2.1rem;
+    line-height: 0.98;
     letter-spacing: -0.09em;
   }
 
@@ -136,11 +158,11 @@
   }
 
   .authHero :global(p) {
-    max-width: 18rem;
+    max-width: 14rem;
     margin-left: auto;
     margin-right: auto;
-    font-size: 0.92rem;
-    line-height: 1.52;
+    font-size: 0.74rem;
+    line-height: 1.25;
     color: rgba(255, 255, 255, 0.68);
   }
 
