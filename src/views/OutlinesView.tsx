@@ -414,7 +414,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 </button>
 
                 {/* One Paragraph Only */}
-                <div className="relative">
+                <div className={`relative ${styles.outlinesDropdownWrap}`}>
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowParagraphDropdown(!showParagraphDropdown); }}
                         disabled={isGenerating}
