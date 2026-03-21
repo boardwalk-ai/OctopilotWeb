@@ -1,0 +1,475 @@
+.humanizerHeader {}
+
+.humanizerStepper {}
+
+.humanizerShell {}
+
+.humanizerScrollViewport {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.humanizerTopBar {}
+
+.humanizerTopAction {}
+
+.humanizerEditorLink {
+  text-align: center;
+}
+
+.humanizerEditorIcon {}
+
+.humanizerHero {
+  text-align: center;
+}
+
+.humanizerUmbrella {}
+
+.humanizerTitle {
+  text-align: center;
+}
+
+.humanizerSubtitle {
+  text-align: center;
+}
+
+.humanizerCurrent {
+  text-align: center;
+}
+
+.humanizerCurrentLabel {
+  text-align: center;
+}
+
+.humanizerCurrentPill {}
+
+.humanizerDisclaimer {}
+
+.humanizerDisclaimerHead {}
+
+.humanizerDisclaimerIcon {}
+
+.humanizerDisclaimerTitle {}
+
+.humanizerDisclaimerCopy {}
+
+.humanizerDisclaimerToggleRow {}
+
+.humanizerDisclaimerToggleLabel {}
+
+.humanizerDisclaimerToggle {}
+
+.humanizerEngineSection {}
+
+.humanizerEngineHead {}
+
+.humanizerEngineTitle {}
+
+.humanizerEngineCopy {}
+
+.humanizerEngineGrid {}
+
+.humanizerEngineCard {}
+
+.humanizerCardHead {}
+
+.humanizerCardDot {}
+
+.humanizerCardTitle {
+  min-width: 0;
+}
+
+.humanizerCardBadge {}
+
+.humanizerCardFields {}
+
+.humanizerFieldLabel {}
+
+.humanizerSelectWrap {
+  position: relative;
+}
+
+.humanizerSelectButton {}
+
+.humanizerSelectMenu {}
+
+.humanizerSelectOption {}
+
+.humanizerRephraseRow {}
+
+.humanizerRephraseToggle {}
+
+.humanizerError {}
+
+.humanizerEditorSection {}
+
+.humanizerEditorHead {}
+
+.humanizerEditorTitle {}
+
+.humanizerEditorCopy {}
+
+.humanizerWordCount {}
+
+.humanizerWordCountValue {}
+
+.humanizerWordCountLabel {}
+
+.humanizerWarning {}
+
+.humanizerWarningCopy {}
+
+.humanizerEditorActions {}
+
+.humanizerPrimaryButton {}
+
+.humanizerUtilityActions {}
+
+.humanizerUtilityButton {}
+
+.humanizerClipboardNotice {}
+
+.humanizerTextareaFrame {}
+
+.humanizerTextarea {}
+
+.humanizerFooterNote {
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .humanizerHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.48rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .humanizerHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .humanizerHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .humanizerStepper {
+    top: 3.15rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .humanizerStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .humanizerStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .humanizerStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .humanizerShell {
+    height: 100%;
+    min-height: 100%;
+    padding: 6.9rem 0.95rem 1rem;
+    overflow: hidden;
+  }
+
+  .humanizerScrollViewport {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 1rem;
+  }
+
+  .humanizerTopBar {
+    margin-bottom: 0.45rem;
+  }
+
+  .humanizerTopAction {
+    width: 100%;
+    align-items: flex-end;
+  }
+
+  .humanizerEditorLink {
+    gap: 0.42rem !important;
+    font-size: 0.76rem !important;
+    text-align: right;
+  }
+
+  .humanizerEditorIcon {
+    height: 2.45rem;
+    width: 2.45rem;
+  }
+
+  .humanizerHero {
+    margin-bottom: 0.95rem;
+    text-align: center;
+  }
+
+  .humanizerUmbrella {
+    height: 2.25rem;
+    width: 2.25rem;
+    margin-bottom: 0.58rem;
+  }
+
+  .humanizerTitle {
+    max-width: 15.5rem;
+    margin-bottom: 0.38rem;
+    text-align: center;
+    font-size: 1.9rem;
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+  }
+
+  .humanizerSubtitle {
+    max-width: 17rem;
+    margin-bottom: 0.68rem;
+    text-align: center;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .humanizerCurrent {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.74rem;
+    text-align: center;
+  }
+
+  .humanizerCurrentLabel {
+    text-align: center;
+  }
+
+  .humanizerCurrentPill {
+    padding: 0.52rem 0.82rem;
+    font-size: 0.78rem;
+  }
+
+  .humanizerDisclaimer {
+    margin-bottom: 0.95rem;
+    padding: 0.92rem;
+    border-radius: 1.2rem;
+  }
+
+  .humanizerDisclaimerTitle {
+    font-size: 1rem;
+  }
+
+  .humanizerDisclaimerCopy {
+    margin-bottom: 0.82rem;
+    font-size: 0.76rem;
+    line-height: 1.46;
+  }
+
+  .humanizerDisclaimerToggleRow {
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .humanizerDisclaimerToggleLabel {
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .humanizerEngineSection {
+    margin-bottom: 0.95rem;
+    padding: 0.92rem;
+    border-radius: 1.2rem;
+  }
+
+  .humanizerEngineTitle {
+    font-size: 0.98rem;
+  }
+
+  .humanizerEngineCopy {
+    margin-bottom: 0.9rem;
+    font-size: 0.76rem;
+    line-height: 1.38;
+  }
+
+  .humanizerEngineGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: start;
+    gap: 0.62rem;
+  }
+
+  .humanizerEngineCard {
+    min-width: 0;
+    border-radius: 1.05rem;
+    padding: 0.72rem;
+  }
+
+  .humanizerCardHead {
+    align-items: flex-start;
+    gap: 0.34rem;
+    margin-bottom: 0.68rem;
+    flex-wrap: wrap;
+  }
+
+  .humanizerCardDot {
+    height: 0.68rem;
+    width: 0.68rem;
+    margin-top: 0.28rem;
+  }
+
+  .humanizerCardTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.74rem;
+    line-height: 1.24;
+  }
+
+  .humanizerCardBadge {
+    max-width: 100%;
+    padding: 0.28rem 0.42rem;
+    font-size: 0.5rem;
+    line-height: 1.1;
+  }
+
+  .humanizerCardFields {
+    gap: 0.68rem;
+  }
+
+  .humanizerFieldLabel {
+    margin-bottom: 0.35rem !important;
+    font-size: 0.64rem !important;
+    line-height: 1.22;
+  }
+
+  .humanizerSelectButton {
+    min-height: 2.55rem;
+    padding: 0.55rem 0.58rem;
+    font-size: 0.68rem !important;
+    line-height: 1.2;
+    border-radius: 0.62rem;
+  }
+
+  .humanizerSelectMenu {
+    border-radius: 0.62rem;
+  }
+
+  .humanizerSelectOption {
+    padding: 0.48rem 0.56rem;
+    font-size: 0.66rem !important;
+    line-height: 1.2;
+  }
+
+  .humanizerRephraseRow {
+    margin-top: 0.1rem !important;
+    gap: 0.45rem;
+  }
+
+  .humanizerRephraseToggle {
+    height: 1.3rem;
+    width: 2.3rem;
+  }
+
+  .humanizerError {
+    font-size: 0.78rem;
+  }
+
+  .humanizerEditorSection {
+    margin-bottom: 1rem;
+    padding: 0.95rem;
+    border-radius: 1.2rem;
+  }
+
+  .humanizerEditorHead {
+    margin-bottom: 0.75rem;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+
+  .humanizerEditorTitle {
+    font-size: 0.94rem;
+  }
+
+  .humanizerEditorCopy {
+    font-size: 0.72rem;
+    line-height: 1.36;
+  }
+
+  .humanizerWordCountValue {
+    font-size: 1rem;
+  }
+
+  .humanizerWordCountLabel {
+    font-size: 0.6rem;
+  }
+
+  .humanizerWarning {
+    margin-bottom: 0.8rem;
+    padding: 0.75rem;
+    gap: 0.55rem;
+  }
+
+  .humanizerWarningCopy {
+    font-size: 0.68rem;
+    line-height: 1.45;
+  }
+
+  .humanizerEditorActions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .humanizerPrimaryButton {
+    justify-content: center;
+    padding: 0.78rem 0.95rem;
+    font-size: 0.76rem;
+  }
+
+  .humanizerUtilityActions {
+    width: 100%;
+    justify-content: stretch;
+    gap: 0.55rem;
+  }
+
+  .humanizerUtilityButton {
+    flex: 1 1 0;
+    padding: 0.66rem 0.65rem;
+    font-size: 0.68rem;
+  }
+
+  .humanizerClipboardNotice {
+    font-size: 0.74rem;
+  }
+
+  .humanizerTextareaFrame {
+    padding: 0.82rem;
+    border-radius: 1.05rem;
+  }
+
+  .humanizerTextarea {
+    min-height: 16rem;
+    font-size: 0.8rem !important;
+    line-height: 1.6 !important;
+  }
+
+  .humanizerFooterNote {
+    padding-top: 0.4rem;
+    text-align: center;
+    font-size: 0.66rem;
+    line-height: 1.4;
+  }
+}
