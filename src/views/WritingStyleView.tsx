@@ -3,6 +3,7 @@ import { Organizer } from "@/services/OrganizerService";
 import { FileReadService } from "@/services/FileReadService";
 import { ZulyService } from "@/services/ZulyService";
 import { useState } from "react";
+import styles from "./WritingStyleViewMobile.module.css";
 
 interface WritingStyleViewProps {
     onBack: () => void;
@@ -89,15 +90,15 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
     };
 
     return (
-        <div className="flex w-full flex-1 flex-col items-center px-6 pt-36 lg:px-10 2xl:px-14">
-            <div className="flex w-full max-w-[1240px] flex-col items-center">
-                <h1 className="mb-3 text-center text-[40px] font-bold text-white">Let us know your writing style</h1>
-                <p className="mb-14 text-center text-[17px] font-medium text-white/80">
+        <div className={`flex w-full flex-1 flex-col items-center px-6 pt-36 lg:px-10 2xl:px-14 ${styles.writingStyleShell}`}>
+            <div className={`flex w-full max-w-[1240px] flex-col items-center ${styles.writingStyleInner}`}>
+                <h1 className={`mb-3 text-center text-[40px] font-bold text-white ${styles.writingStyleTitle}`}>Let us know your writing style</h1>
+                <p className={`mb-14 text-center text-[17px] font-medium text-white/80 ${styles.writingStyleSubtitle}`}>
                     Upload a sample of your writing so we can understand your unique style
                 </p>
 
                 {/* Upload Box */}
-                <label className={`flex w-full flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors ${isReading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-white/[0.03]"}`}>
+                <label className={`flex w-full flex-col items-center justify-center rounded-[24px] border border-white/[0.04] bg-white/[0.02] py-20 transition-colors ${styles.writingStyleUploadBox} ${isReading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-white/[0.03]"}`}>
                     <input
                         type="file"
                         accept={FileReadService.getAcceptedTypes()}
@@ -108,7 +109,7 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                             handleFileChange(file);
                         }}
                     />
-                    <div className="mb-6 flex">
+                    <div className={`mb-6 flex ${styles.writingStyleUploadIcon}`}>
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" />
@@ -116,14 +117,14 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                         </svg>
                     </div>
 
-                    <h3 className="mb-2 text-[19px] font-bold text-white">Import one writing sample here</h3>
-                    <p className="text-[15px] font-medium text-white/50">
+                    <h3 className={`mb-2 text-[19px] font-bold text-white ${styles.writingStyleUploadTitle}`}>Import one writing sample here</h3>
+                    <p className={`text-[15px] font-medium text-white/50 ${styles.writingStyleUploadHint}`}>
                         {uploadedFileName ? uploadedFileName : `Browse one ${FileReadService.getSupportedTypeLabel()} file`}
                     </p>
                 </label>
-                <p className="mt-4 text-[13px] font-medium text-white/38">Only one file is allowed. One image or one PDF.</p>
+                <p className={`mt-4 text-[13px] font-medium text-white/38 ${styles.writingStyleMeta}`}>Only one file is allowed. One image or one PDF.</p>
                 {error ? (
-                    <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-[13px] text-red-300">
+                    <div className={`mt-4 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-[13px] text-red-300 ${styles.writingStyleError}`}>
                         {error}
                     </div>
                 ) : null}
@@ -133,7 +134,7 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                     type="button"
                     disabled={!uploadedFile || isReading}
                     onClick={() => void handleLearn()}
-                    className="mt-8 flex w-full max-w-[1380px] items-center justify-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] transition-all duration-200 hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.4)] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-white/30 disabled:shadow-none"
+                    className={`mt-8 flex w-full max-w-[1380px] items-center justify-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] transition-all duration-200 hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.4)] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-white/30 disabled:shadow-none ${styles.writingStyleLearnButton}`}
                 >
                     {isReading ? (
                         <>
@@ -165,7 +166,7 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                         });
                         onNext("major-selection");
                     }}
-                    className="mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white disabled:cursor-not-allowed disabled:text-white/20"
+                    className={`mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white disabled:cursor-not-allowed disabled:text-white/20 ${styles.writingStyleSkipButton}`}
                 >
                     Skip this step
                 </button>
