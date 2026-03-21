@@ -61,15 +61,17 @@
 
   .writingStyleShell {
     min-height: calc(100dvh - 4.2rem);
-    padding-top: 6.25rem;
+    justify-content: center;
+    padding-top: 6.95rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 1.35rem;
+    padding-bottom: 2rem;
   }
 
   .writingStyleInner {
     max-width: 100%;
-    min-height: calc(100dvh - 7.6rem);
+    min-height: 0;
+    gap: 1rem;
   }
 
   .writingStyleIntro {
@@ -94,7 +96,7 @@
 
   .writingStyleUploadSection {
     width: 100%;
-    margin-top: 1.35rem;
+    margin-top: 0;
   }
 
   .writingStyleUploadBox {
@@ -139,8 +141,8 @@
 
   .writingStyleActionSection {
     width: 100%;
-    margin-top: auto;
-    padding-top: 1.25rem;
+    margin-top: 0;
+    padding-top: 0.2rem;
   }
 
   .writingStyleLearnButton {
