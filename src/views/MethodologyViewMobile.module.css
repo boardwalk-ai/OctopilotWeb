@@ -1,0 +1,228 @@
+.methodologyShell {}
+
+.methodologyHeader {}
+
+.methodologyContent {}
+
+.methodologyMascot {}
+
+.methodologyTitle {}
+
+.methodologySubtitle {}
+
+.methodologySelection {}
+
+.methodologyGrid {}
+
+.methodologyCard {}
+
+.methodologyCardTop {}
+
+.methodologyIconBox {}
+
+.methodologyCopy {}
+
+.methodologyCardTitle {}
+
+.methodologyLead {}
+
+.methodologyBody {}
+
+.methodologyRadio {}
+
+.methodologyFeatures {}
+
+.methodologyFeature {}
+
+.methodologyFeatureIcon {}
+
+.methodologyBadgeWrap {}
+
+.methodologyBadge {}
+
+.methodologyFooter {}
+
+.methodologyCta {}
+
+@media (max-width: 767px) {
+  .methodologyShell {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.16), transparent 32%),
+      linear-gradient(180deg, #090909 0%, #040404 100%);
+  }
+
+  .methodologyHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.5rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .methodologyHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .methodologyHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .methodologyContent {
+    align-items: stretch;
+    overflow-y: auto;
+    padding: 4.65rem 1rem 1.15rem;
+  }
+
+  .methodologyMascot {
+    width: 3.4rem;
+    height: auto;
+    margin: 0 auto 0.7rem;
+  }
+
+  .methodologyTitle {
+    margin-bottom: 0.45rem;
+    text-align: center;
+    font-size: 2.15rem;
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
+
+  .methodologySubtitle {
+    margin: 0 auto 0.9rem;
+    max-width: 16rem;
+    text-align: center;
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .methodologySelection {
+    margin-top: 0.15rem;
+    width: 100%;
+  }
+
+  .methodologyGrid {
+    grid-template-columns: 1fr;
+    gap: 0.95rem;
+  }
+
+  .methodologyCard {
+    min-height: auto;
+    padding: 1.12rem 1rem 1rem;
+    border-radius: 1.35rem;
+    backdrop-filter: blur(10px);
+  }
+
+  .methodologyCardTop {
+    margin-bottom: 1rem;
+    gap: 0.85rem;
+  }
+
+  .methodologyIconBox {
+    width: 2.8rem;
+    height: 2.8rem;
+    border-radius: 0.9rem;
+  }
+
+  .methodologyIconBox :global(svg) {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .methodologyCopy {
+    padding-right: 1.7rem;
+  }
+
+  .methodologyCardTitle {
+    margin-bottom: 0.3rem;
+    font-size: 1.65rem;
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
+
+  .methodologyLead {
+    margin-bottom: 0.55rem;
+    font-size: 0.97rem;
+    line-height: 1.35;
+  }
+
+  .methodologyBody {
+    padding-right: 0;
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.58);
+    max-width: 18rem;
+  }
+
+  .methodologyRadio {
+    top: 0.15rem;
+    right: 0.05rem;
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  .methodologyRadio > :global(div) {
+    width: 0.62rem;
+    height: 0.62rem;
+  }
+
+  .methodologyFeatures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    gap: 0.78rem 0.65rem;
+    margin-top: 0;
+    padding-top: 0.95rem;
+    padding-bottom: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .methodologyFeature {
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .methodologyFeatureIcon {
+    margin-top: 0.06rem;
+    flex-shrink: 0;
+  }
+
+  .methodologyFeatureIcon :global(svg) {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  .methodologyBadgeWrap {
+    position: static !important;
+    margin-top: 0.95rem;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .methodologyBadge {
+    padding: 0.62rem 0.95rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .methodologyFooter {
+    position: sticky;
+    bottom: -1px;
+    margin-top: 0.85rem;
+    padding: 1rem 0 calc(0.4rem + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(5, 5, 5, 0), rgba(5, 5, 5, 0.88) 24%, #050505 100%);
+  }
+
+  .methodologyCta {
+    width: 100%;
+    justify-content: center;
+    min-height: 3.45rem;
+    gap: 0.72rem;
+    border-radius: 999px;
+    font-size: 1rem;
+  }
+}

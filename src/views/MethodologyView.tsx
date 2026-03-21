@@ -8,6 +8,7 @@ import {
   LogoNav,
   MainHeaderActions,
 } from "@/components/header";
+import styles from "./MethodologyViewMobile.module.css";
 
 interface MethodologyViewProps {
   onSelect: (method: "automation" | "manual") => void;
@@ -104,71 +105,72 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const [selected, setSelected] = useState<"automation" | "manual">(org.writingMode || "automation");
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
+    <div className={`fixed inset-0 flex flex-col overflow-hidden bg-black ${styles.methodologyShell}`}>
       <AppHeader
+        className={styles.methodologyHeader}
         left={<LogoNav />}
         right={<MainHeaderActions />}
       />
 
       {/* Content */}
-      <div className="flex flex-1 flex-col items-center px-6 pt-20">
+      <div className={`flex flex-1 flex-col items-center px-6 pt-20 ${styles.methodologyContent}`}>
         {/* Logo */}
         <Image
           src="/OCTOPILOT.png"
           alt="Octopilot"
           width={56}
           height={56}
-          className="mb-3"
+          className={`mb-3 ${styles.methodologyMascot}`}
         />
 
         {/* Title */}
-        <h1 className="mb-1.5 text-2xl font-bold text-white">Methodology</h1>
-        <p className="mb-8 text-sm text-white/40">
+        <h1 className={`mb-1.5 text-2xl font-bold text-white ${styles.methodologyTitle}`}>Methodology</h1>
+        <p className={`mb-8 text-sm text-white/40 ${styles.methodologySubtitle}`}>
           Choose your preferred Writing Experience
         </p>
 
         {/* Two Column Cards Container */}
-        <div className="w-full flex-1 mt-4">
-          <div className="grid w-full grid-cols-2 gap-6">
+        <div className={`w-full flex-1 mt-4 ${styles.methodologySelection}`}>
+          <div className={`grid w-full grid-cols-2 gap-6 ${styles.methodologyGrid}`}>
             {/* Automation Card */}
             <button
               onClick={() => setSelected("automation")}
-              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${selected === "automation"
+              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "automation"
                 ? "border-red-500/40 bg-red-500/[0.04]"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
                 }`}
             >
-              <div className="mb-6 flex items-start gap-4 w-full relative">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+              <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                   </svg>
                 </div>
-                <div className="flex-1 pr-6">
-                  <h2 className="text-xl font-bold text-white mb-0.5">Automation Mode</h2>
-                  <p className="text-[13px] font-medium text-red-500 mb-2">AI writes. You review.</p>
-                  <p className="text-[14px] text-white/60 leading-relaxed pr-2">
+                <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Automation Mode</h2>
+                  <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>AI writes. You review.</p>
+                  <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
                     Let AI generate a complete essay based on your outline and sources. Perfect for quick drafts.
                   </p>
                 </div>
                 {/* Radio indicator */}
-                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected === "automation" ? "border-red-500" : "border-white/20"
+                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "automation" ? "border-red-500" : "border-white/20"
                   }`}>
                   {selected === "automation" && <div className="h-3 w-3 rounded-full bg-red-500" />}
                 </div>
               </div>
 
-              <ul className="w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6">
+              <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
                 {automationFeatures.map((f) => (
-                  <li key={f.label} className="flex items-center gap-3 text-[13.5px] font-medium text-white/80">
-                    <span className="text-red-500 opacity-80">{f.icon}</span>
-                    {f.label}
+                  <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                    <span className={`text-red-500 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                    <span>{f.label}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="absolute bottom-7 right-7">
-                <span className="rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500">
+              <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                <span className={`rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500 ${styles.methodologyBadge}`}>
                   Best for Speed
                 </span>
               </div>
@@ -177,42 +179,42 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
             {/* Manual Writing Card */}
             <button
               onClick={() => setSelected("manual")}
-              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${selected === "manual"
+              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "manual"
                 ? "border-red-500/40 bg-red-500/[0.04]"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
                 }`}
             >
-              <div className="mb-6 flex items-start gap-4 w-full relative">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+              <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
                   </svg>
                 </div>
-                <div className="flex-1 pr-6">
-                  <h2 className="text-xl font-bold text-white mb-0.5">Manual Writing Mode</h2>
-                  <p className="text-[13px] font-medium text-red-500 mb-2">We give you the recipe, you do the cooking</p>
-                  <p className="text-[14px] text-white/60 leading-relaxed pr-2">
+                <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Manual Writing Mode</h2>
+                  <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>We give you the recipe, you do the cooking</p>
+                  <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
                     Write section by section with AI assistance. Great for learning and skill development.
                   </p>
                 </div>
                 {/* Radio indicator */}
-                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected === "manual" ? "border-red-500" : "border-white/20"
+                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "manual" ? "border-red-500" : "border-white/20"
                   }`}>
                   {selected === "manual" && <div className="h-3 w-3 rounded-full bg-red-500" />}
                 </div>
               </div>
 
-              <ul className="w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6">
+              <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
                 {manualFeatures.map((f) => (
-                  <li key={f.label} className="flex items-center gap-3 text-[13.5px] font-medium text-white/80">
-                    <span className="text-red-500 opacity-80">{f.icon}</span>
-                    {f.label}
+                  <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                    <span className={`text-red-500 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                    <span>{f.label}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="absolute bottom-7 right-7">
-                <span className="rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500">
+              <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                <span className={`rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500 ${styles.methodologyBadge}`}>
                   Best for Learning
                 </span>
               </div>
@@ -221,10 +223,10 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
         </div>
 
         {/* Get Started */}
-        <div className="pb-6">
+        <div className={`pb-6 ${styles.methodologyFooter}`}>
           <button
             onClick={() => onSelect(selected)}
-            className="flex items-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[15px] font-bold tracking-wide text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition hover:bg-red-400"
+            className={`flex items-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[15px] font-bold tracking-wide text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition hover:bg-red-400 ${styles.methodologyCta}`}
           >
             Get Started
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
