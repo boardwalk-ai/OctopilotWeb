@@ -29,13 +29,8 @@ import OctoAssistant from "@/components/OctoAssistant";
 import styles from "./HomeViewMobile.module.css";
 import {
   AppHeader,
+  MainHeaderActions,
   LogoNav,
-  NotificationBell,
-  PlanInfo,
-  StoreButton,
-  SaveButton,
-  ReportButton,
-  UserAvatar,
 } from "@/components/header";
 
 type Page = "home" | "methodology" | AutomationStepId;
@@ -165,16 +160,7 @@ export default function HomeView() {
           <AppHeader
             className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
             left={<LogoNav />}
-            right={
-              <>
-                <NotificationBell />
-                <PlanInfo />
-                <StoreButton />
-                <SaveButton />
-                <ReportButton />
-                <UserAvatar />
-              </>
-            }
+            right={<MainHeaderActions />}
           />
 
           {isWorkspaceTopBarCollapsed ? (
@@ -246,16 +232,7 @@ export default function HomeView() {
           <AppHeader
             className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
             left={<LogoNav />}
-            right={
-              <>
-                <NotificationBell />
-                <PlanInfo />
-                <StoreButton />
-                <SaveButton />
-                <ReportButton />
-                <UserAvatar />
-              </>
-            }
+            right={<MainHeaderActions />}
           />
 
           {isWorkspaceTopBarCollapsed ? (
@@ -317,16 +294,7 @@ export default function HomeView() {
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
             left={<LogoNav />}
-            right={
-              <>
-                <NotificationBell />
-                <PlanInfo />
-                <StoreButton />
-                <SaveButton />
-                <ReportButton />
-                <UserAvatar />
-              </>
-            }
+            right={<MainHeaderActions />}
           />
 
           <StepperHeader
@@ -372,16 +340,7 @@ export default function HomeView() {
       <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.homeShell}`}>
         <AppHeader
           className={styles.homeHeader}
-          right={
-            <div className={styles.homeHeaderActions}>
-              <NotificationBell />
-              <div className={styles.homePlan}><PlanInfo /></div>
-              <div className={styles.homeIconBtn}><StoreButton /></div>
-              <div className={styles.homeIconBtn}><SaveButton /></div>
-              <div className={styles.homeIconBtn}><ReportButton /></div>
-              <div className={styles.homeAvatar}><UserAvatar /></div>
-            </div>
-          }
+          right={<MainHeaderActions />}
         />
 
         <AnimatedBackground />

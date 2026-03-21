@@ -7,3 +7,4 @@ export { default as ReportButton } from "./ReportButton";
 export { default as UserAvatar } from "./UserAvatar";
 export { default as BackToHome } from "./BackToHome";
 export { default as LogoNav } from "./LogoNav";
+export { default as MainHeaderActions } from "./MainHeaderActions";

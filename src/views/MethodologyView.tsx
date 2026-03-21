@@ -6,12 +6,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import {
   AppHeader,
   LogoNav,
-  NotificationBell,
-  PlanInfo,
-  StoreButton,
-  SaveButton,
-  ReportButton,
-  UserAvatar,
+  MainHeaderActions,
 } from "@/components/header";
 
 interface MethodologyViewProps {
@@ -112,16 +107,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
       <AppHeader
         left={<LogoNav />}
-        right={
-          <>
-            <NotificationBell />
-            <PlanInfo />
-            <StoreButton />
-            <SaveButton />
-            <ReportButton />
-            <UserAvatar />
-          </>
-        }
+        right={<MainHeaderActions />}
       />
 
       {/* Content */}
