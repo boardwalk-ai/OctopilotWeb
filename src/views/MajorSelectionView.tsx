@@ -23,7 +23,7 @@ export default function MajorSelectionView({ onBack, onNext, onSelectMajor }: Ma
     );
 
     return (
-        <div className={`flex w-full flex-1 flex-col px-6 pt-32 pb-0 lg:px-10 2xl:px-14 ${styles.majorShell}`}>
+        <div className={`flex w-full flex-1 min-h-0 flex-col px-6 pt-32 pb-0 lg:px-10 2xl:px-14 ${styles.majorShell}`}>
             {/* Title */}
             <h1 className={`mb-2 text-[36px] font-bold text-white ${styles.majorTitle}`}>Select Your Major</h1>
             <p className={`mb-6 text-[16px] text-white/50 ${styles.majorSubtitle}`}>
@@ -56,7 +56,7 @@ export default function MajorSelectionView({ onBack, onNext, onSelectMajor }: Ma
             </div>
 
             {/* Scrollable Cards Grid */}
-            <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-2 -mx-4 ${styles.majorListViewport}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-4 pb-4 pt-2 -mx-4 ${styles.majorListViewport}`}>
                 <div className={`grid grid-cols-4 gap-4 ${styles.majorGrid}`}>
                     {filtered.map((major) => {
                         const originalIndex = majors.indexOf(major);
