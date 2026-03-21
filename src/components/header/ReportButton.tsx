@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AuthService } from "@/services/AuthService";
 import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 
@@ -12,6 +13,7 @@ type MeResponse = {
 };
 
 export default function ReportButton() {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [viewState, setViewState] = useState<ViewState>("form");
   const [title, setTitle] = useState("");
@@ -21,6 +23,10 @@ export default function ReportButton() {
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => title.trim().length > 0 && content.trim().length > 0, [title, content]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!file) {
@@ -120,8 +126,8 @@ export default function ReportButton() {
         <span className="text-[10px] leading-tight">Report a problem</span>
       </button>
 
-      {isOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/72 px-4 py-6">
+      {isOpen && mounted ? createPortal(
+        <div className="fixed inset-0 z-[2147483640] flex items-center justify-center bg-black/72 px-4 py-6">
           <div className="w-full max-w-[640px] rounded-[30px] border border-white/10 bg-[#090909] p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
             {viewState === "form" ? (
               <>
@@ -231,7 +237,8 @@ export default function ReportButton() {
               </div>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
