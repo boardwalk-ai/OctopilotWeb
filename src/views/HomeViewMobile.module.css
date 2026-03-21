@@ -50,14 +50,11 @@
     min-height: auto;
     padding: 0.55rem 0.55rem 0.55rem;
     background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.2) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
   }
 
-  .homeHeader > :global(div:nth-child(1)),
-  .homeHeader > :global(div:nth-child(2)) {
-    display: none;
-  }
-
-  .homeHeader > :global(div:last-child) {
+  .homeHeader > :global(div) {
     width: 100%;
     justify-content: flex-end;
     gap: 0;
