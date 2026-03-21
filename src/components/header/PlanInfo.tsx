@@ -111,9 +111,6 @@ export default function PlanInfo({
     ? "Loading"
     : getDisplayPlanName(accountSnapshot?.plan ?? planName);
   const resolvedCredits = accountSnapshot ? mapMeToCredits(accountSnapshot) : credits;
-  const shellWidth = expanded
-    ? "calc(var(--plan-collapsed-width, 138px) + var(--plan-credits-max-width, 250px))"
-    : "var(--plan-collapsed-width, 138px)";
   const shellHeight = "var(--plan-height, 46px)";
   const creditWidth = "var(--plan-credit-width, 82px)";
   const creditsMaxWidth = expanded ? "var(--plan-credits-max-width, 250px)" : "0px";
@@ -209,8 +206,8 @@ export default function PlanInfo({
     <div ref={rootRef} className="relative shrink-0">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group relative flex items-center overflow-hidden rounded-full border-[1.5px] transition-[width,box-shadow,border-color] duration-900 ease-[cubic-bezier(0.2,1,0.22,1)]"
-        style={{ width: shellWidth, height: shellHeight, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
+        className="group relative inline-flex items-center overflow-hidden rounded-full border-[1.5px] transition-[box-shadow,border-color] duration-900 ease-[cubic-bezier(0.2,1,0.22,1)]"
+        style={{ height: shellHeight, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
       >
         {/* Glow overlay */}
         <span className="pointer-events-none absolute inset-0 opacity-90" style={{ background: theme.overlay }} />
