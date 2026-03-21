@@ -1,0 +1,263 @@
+.previewHeader {}
+
+.previewStepper {}
+
+.previewShell {}
+
+.previewScrollViewport {}
+
+.previewTopBar {}
+
+.previewIntro {}
+
+.previewTitle {}
+
+.previewSubtitle {}
+
+.previewContinueButton {}
+
+.previewDetailsGrid {}
+
+.previewStatCard {}
+
+.previewStatLabel {}
+
+.previewStatValue {}
+
+.previewEssaySection {}
+
+.previewEssayHeader {}
+
+.previewEssayTitle {}
+
+.previewEditButton {}
+
+.previewEssayCard {}
+
+.previewEssayText {}
+
+.previewTextarea {}
+
+.previewReferencesSection {}
+
+.previewReferencesTitle {}
+
+.previewBibliographyCard {}
+
+.previewBibliographyLabel {}
+
+.previewBibliographyText {}
+
+.previewReferenceCard {}
+
+.previewReferenceIndex {}
+
+.previewReferenceTitle {}
+
+.previewReferenceLink {}
+
+.previewReferenceMeta {}
+
+.previewEmptyState {}
+
+@media (max-width: 767px) {
+  .previewHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.48rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .previewHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .previewHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .previewStepper {
+    top: 3.15rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .previewStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .previewStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .previewStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .previewShell {
+    height: 100%;
+    min-height: 100%;
+    padding: 6.9rem 1rem 1rem;
+    overflow: hidden;
+  }
+
+  .previewScrollViewport {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 1rem;
+  }
+
+  .previewTopBar {
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+
+  .previewIntro {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .previewTitle {
+    font-size: 2.02rem;
+    line-height: 1.04;
+    letter-spacing: -0.05em;
+  }
+
+  .previewSubtitle {
+    max-width: 10.8rem;
+    font-size: 0.8rem;
+    line-height: 1.38;
+  }
+
+  .previewContinueButton {
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 0.95rem 1.3rem;
+    font-size: 0.86rem;
+    border-radius: 1.05rem;
+  }
+
+  .previewDetailsGrid {
+    margin-bottom: 1.3rem;
+    gap: 0.75rem;
+  }
+
+  .previewStatCard {
+    border-radius: 1.2rem;
+    padding: 0.95rem 1rem;
+  }
+
+  .previewStatLabel {
+    font-size: 0.66rem;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+  }
+
+  .previewStatValue {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
+    word-break: break-word;
+  }
+
+  .previewEssaySection {
+    margin-bottom: 1.2rem;
+  }
+
+  .previewEssayHeader {
+    margin-bottom: 0.75rem;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .previewEssayTitle {
+    font-size: 1.68rem;
+    line-height: 1.08;
+  }
+
+  .previewEditButton {
+    padding: 0.8rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .previewEssayCard {
+    border-radius: 1.4rem;
+    padding: 1.2rem 1.15rem;
+  }
+
+  .previewEssayText,
+  .previewTextarea {
+    font-size: 0.88rem !important;
+    line-height: 1.7 !important;
+  }
+
+  .previewTextarea {
+    min-height: 20rem;
+  }
+
+  .previewReferencesTitle {
+    margin-bottom: 0.9rem;
+    font-size: 1.05rem;
+  }
+
+  .previewBibliographyCard {
+    padding: 1rem;
+    border-radius: 1.2rem;
+  }
+
+  .previewBibliographyLabel {
+    margin-bottom: 0.7rem;
+    font-size: 0.68rem;
+  }
+
+  .previewBibliographyText {
+    padding-left: 0.85rem;
+    font-size: 0.78rem;
+    line-height: 1.55;
+  }
+
+  .previewReferenceCard {
+    padding: 1rem;
+    border-radius: 1.2rem;
+  }
+
+  .previewReferenceIndex {
+    font-size: 0.86rem;
+  }
+
+  .previewReferenceTitle {
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .previewReferenceLink {
+    display: block;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .previewReferenceMeta {
+    font-size: 0.68rem;
+  }
+
+  .previewEmptyState {
+    font-size: 0.8rem;
+  }
+}

@@ -31,6 +31,7 @@ import generationMobileStyles from "./GenerationViewMobile.module.css";
 import instructionsMobileStyles from "./InstructionsViewMobile.module.css";
 import majorSelectionMobileStyles from "./MajorSelectionViewMobile.module.css";
 import outlinesMobileStyles from "./OutlinesViewMobile.module.css";
+import previewMobileStyles from "./PreviewViewMobile.module.css";
 import writingStyleMobileStyles from "./WritingStyleViewMobile.module.css";
 import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
@@ -317,6 +318,8 @@ export default function HomeView() {
                           ? formatMobileStyles.formatHeader
                           : page === "generation"
                             ? generationMobileStyles.generationHeader
+                            : page === "preview"
+                              ? previewMobileStyles.previewHeader
                 : ""}
             left={<LogoNav />}
             right={<MainHeaderActions />}
@@ -343,12 +346,14 @@ export default function HomeView() {
                           ? formatMobileStyles.formatStepper
                           : page === "generation"
                             ? generationMobileStyles.generationStepper
+                            : page === "preview"
+                              ? previewMobileStyles.previewStepper
                 : ""}
           />
 
           <div
             ref={stepScrollRef}
-            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" ? "overflow-hidden" : "overflow-y-auto"}`}
+            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" || page === "preview" ? "overflow-hidden" : "overflow-y-auto"}`}
           >
             {page === "writing-style" ? (
               <WritingStyleView onBack={goBack} onNext={goNext} />
