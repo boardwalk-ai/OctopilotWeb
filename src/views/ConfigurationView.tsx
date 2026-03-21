@@ -13,6 +13,7 @@ import { ZulyService } from "@/services/ZulyService";
 import { SpoonieAuthorInput, SpoonieFieldworkCitationInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
 import { CreditDeductionError, CreditService } from "@/services/CreditService";
+import styles from "./ConfigurationViewMobile.module.css";
 
 interface ConfigurationViewProps {
     onBack: () => void;
@@ -1626,13 +1627,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     return (
-        <div className="flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14">
+        <div className={`flex w-full flex-col px-6 pt-32 pb-[140px] lg:px-10 2xl:px-14 ${styles.configShell}`}>
+            <div className={styles.configScrollViewport}>
             {/* Header */}
-            <div className="mb-10">
-                <h1 className="mb-2 text-[42px] font-bold tracking-tight text-white">Customize Your Essay</h1>
-                <p className="mb-6 text-[20px] font-medium text-red-500">Fine-tune the parameters for your Custom</p>
+            <div className={`mb-10 ${styles.configHero}`}>
+                <h1 className={`mb-2 text-[42px] font-bold tracking-tight text-white ${styles.configTitle}`}>Customize Your Essay</h1>
+                <p className={`mb-6 text-[20px] font-medium text-red-500 ${styles.configLead}`}>Fine-tune the parameters for your Custom</p>
 
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 ${styles.configMeta}`}>
                     <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
                             <circle cx="12" cy="12" r="10" />
@@ -1640,33 +1642,33 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <path d="M12 17h.01" />
                         </svg>
                     </div>
-                    <span className="text-[18px] font-bold text-red-500">
+                    <span className={`text-[18px] font-bold text-red-500 ${styles.configMetaMajor}`}>
                         {org.majorName || "Undeclared / General Studies"}
                     </span>
-                    <span className="text-[18px] font-bold text-white/50">•</span>
-                    <span className="text-[18px] font-bold text-white">{org.essayType || "Custom"}</span>
+                    <span className={`text-[18px] font-bold text-white/50 ${styles.configMetaDot}`}>•</span>
+                    <span className={`text-[18px] font-bold text-white ${styles.configMetaType}`}>{org.essayType || "Custom"}</span>
                 </div>
             </div>
 
             {/* Word Count */}
-            <div className="mb-10">
-                <h2 className="mb-1 text-[18px] font-bold text-white">Word Count</h2>
-                <p className="mb-4 text-[13px] text-white/60">Choose the draft length you want Octopilot to deliver.</p>
-                <div className="grid grid-cols-4 gap-4">
+            <div className={`mb-10 ${styles.configSection}`}>
+                <h2 className={`mb-1 text-[18px] font-bold text-white ${styles.configSectionTitle}`}>Word Count</h2>
+                <p className={`mb-4 text-[13px] text-white/60 ${styles.configSectionCopy}`}>Choose the draft length you want Octopilot to deliver.</p>
+                <div className={`grid grid-cols-4 gap-4 ${styles.configWordGrid}`}>
                     {WORD_COUNTS.map((wc) => (
                         <button
                             key={wc}
                             onClick={() => handleWordCountSelect(wc)}
-                            className={`flex flex-col items-center justify-center rounded-2xl py-5 transition-all duration-200 ${wordCount === wc
+                            className={`flex flex-col items-center justify-center rounded-2xl py-5 transition-all duration-200 ${styles.configChoiceCard} ${wordCount === wc
                                 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                                 : "bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] hover:border-white/10"
                                 }`}
                         >
-                            <span className={`text-[24px] font-bold ${wordCount === wc ? "text-white" : "text-white"}`}>
+                            <span className={`text-[24px] font-bold ${styles.configChoiceValue} ${wordCount === wc ? "text-white" : "text-white"}`}>
                                 {wc}
                             </span>
                             {wc !== "Custom" && (
-                                <span className={`text-[12px] opacity-80 ${wordCount === wc ? "text-white" : "text-white/50"}`}>
+                                <span className={`text-[12px] opacity-80 ${styles.configChoiceHint} ${wordCount === wc ? "text-white" : "text-white/50"}`}>
                                     words
                                 </span>
                             )}
@@ -1674,7 +1676,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     ))}
                 </div>
                 {wordCount === "Custom" && (
-                    <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                    <div className={`mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 ${styles.configCustomBlock}`}>
                         <label className="block text-[13px] font-semibold text-white/75">Custom word count</label>
                         <input
                             type="number"
@@ -1683,42 +1685,42 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             value={customWordCountInput}
                             onChange={(event) => handleCustomWordCountChange(event.target.value)}
                             placeholder={org.writingMode === "manual" ? "Set your target word count" : `Up to ${WORD_COUNT_MAX} words`}
-                            className="mt-3 w-full rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3 text-[14px] text-white outline-none placeholder-white/30 focus:border-red-500/40"
+                            className={`mt-3 w-full rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3 text-[14px] text-white outline-none placeholder-white/30 focus:border-red-500/40 ${styles.configCustomInput}`}
                         />
                         {org.writingMode === "manual" ? (
-                            <p className="mt-3 text-[12px] leading-5 text-white/48">
+                            <p className={`mt-3 text-[12px] leading-5 text-white/48 ${styles.configFinePrint}`}>
                                 Manual mode stays flexible, so you can target a longer draft and expand it section by section at your own pace.
                             </p>
                         ) : (
-                            <p className="mt-3 text-[12px] leading-5 text-white/48">
+                            <p className={`mt-3 text-[12px] leading-5 text-white/48 ${styles.configFinePrint}`}>
                                 Octopilot keeps automation runs focused, stable, and fast with premium drafts up to {WORD_COUNT_MAX.toLocaleString()} words per pass.
                             </p>
                         )}
                     </div>
                 )}
                 {org.writingMode !== "manual" && (
-                    <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-[12px] leading-5 text-amber-100/80">
+                    <div className={`mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-[12px] leading-5 text-amber-100/80 ${styles.configNotice}`}>
                         Our automation engine is tuned for sharp, submission-ready drafts up to {WORD_COUNT_MAX.toLocaleString()} words, giving you faster turnaround and tighter quality control in every run.
                     </div>
                 )}
                 {shouldEnforceWordCredits && (
-                    <p className="mt-3 text-[12px] text-white/42">
+                    <p className={`mt-3 text-[12px] text-white/42 ${styles.configBalance}`}>
                         Current word balance: {availableWordCredits.toLocaleString()} credits, which powers up to {maxWordsByCredits.toLocaleString()} automation words.
                     </p>
                 )}
             </div>
 
             {/* Citation Style */}
-            <div className="mb-10">
-                <h2 className="mb-1 text-[18px] font-bold text-white">Citation Style</h2>
-                <p className="mb-4 text-[13px] text-white/60">The citation style you want to use for your essay</p>
-                <div className="grid grid-cols-3 gap-4">
+            <div className={`mb-10 ${styles.configSection}`}>
+                <h2 className={`mb-1 text-[18px] font-bold text-white ${styles.configSectionTitle}`}>Citation Style</h2>
+                <p className={`mb-4 text-[13px] text-white/60 ${styles.configSectionCopy}`}>The citation style you want to use for your essay</p>
+                <div className={`grid grid-cols-3 gap-4 ${styles.configCitationGrid}`}>
                     {CITATION_STYLES.map((style) => (
                         <button
                             key={style.name}
                             disabled={style.comingSoon}
                             onClick={() => !style.comingSoon && setCitationStyle(style.name)}
-                            className={`relative flex flex-col items-center justify-center rounded-2xl py-5 transition-all duration-200 ${citationStyle === style.name
+                            className={`relative flex flex-col items-center justify-center rounded-2xl py-5 transition-all duration-200 ${styles.configCitationCard} ${citationStyle === style.name
                                 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                                 : style.comingSoon
                                     ? "bg-white/[0.01] border border-white/[0.02] cursor-not-allowed opacity-40"
@@ -1730,10 +1732,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     Coming Soon
                                 </div>
                             )}
-                            <span className={`text-[18px] font-bold ${citationStyle === style.name ? "text-white" : style.comingSoon ? "text-white/50" : "text-white"}`}>
+                            <span className={`text-[18px] font-bold ${styles.configCitationName} ${citationStyle === style.name ? "text-white" : style.comingSoon ? "text-white/50" : "text-white"}`}>
                                 {style.name}
                             </span>
-                            <span className={`text-[11px] mt-1 ${citationStyle === style.name ? "text-white/90" : "text-white/40"}`}>
+                            <span className={`text-[11px] mt-1 ${styles.configCitationDesc} ${citationStyle === style.name ? "text-white/90" : "text-white/40"}`}>
                                 {style.desc}
                             </span>
                         </button>
@@ -1743,13 +1745,13 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
             {/* Tone */}
             {!shouldHideManualWritingExtras && (
-            <div className="mb-10">
-                <h2 className="mb-1 text-[18px] font-bold text-white">Tone</h2>
-                <p className="mb-4 text-[13px] text-white/60">The tone you want to use for your essay</p>
-                <div className="relative" ref={toneDropdownRef}>
+            <div className={`mb-10 ${styles.configSection}`}>
+                <h2 className={`mb-1 text-[18px] font-bold text-white ${styles.configSectionTitle}`}>Tone</h2>
+                <p className={`mb-4 text-[13px] text-white/60 ${styles.configSectionCopy}`}>The tone you want to use for your essay</p>
+                <div className={`relative ${styles.configToneWrap}`} ref={toneDropdownRef}>
                     <button
                         onClick={() => setIsToneDropdownOpen(!isToneDropdownOpen)}
-                        className={`flex w-full items-center justify-between rounded-2xl border bg-white/[0.02] px-5 py-4 text-[15px] font-medium text-white outline-none transition-colors hover:border-white/15 ${isToneDropdownOpen ? "border-red-500/50" : "border-white/[0.08]"
+                        className={`flex w-full items-center justify-between rounded-2xl border bg-white/[0.02] px-5 py-4 text-[15px] font-medium text-white outline-none transition-colors hover:border-white/15 ${styles.configToneButton} ${isToneDropdownOpen ? "border-red-500/50" : "border-white/[0.08]"
                             }`}
                     >
                         {tone}
@@ -1763,7 +1765,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                     {/* Custom Dropdown Menu */}
                     {isToneDropdownOpen && (
-                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141414] shadow-2xl">
+                        <div className={`absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141414] shadow-2xl ${styles.configToneMenu}`}>
                             <div className="flex max-h-[300px] flex-col overflow-y-auto py-2">
                                 {TONE_OPTIONS.map((t) => (
                                     <button
@@ -1772,7 +1774,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                             setTone(t);
                                             setIsToneDropdownOpen(false);
                                         }}
-                                        className={`flex items-center justify-between px-5 py-3 text-left text-[14px] transition-colors ${tone === t
+                                        className={`flex items-center justify-between px-5 py-3 text-left text-[14px] transition-colors ${styles.configToneOption} ${tone === t
                                             ? "bg-blue-600/90 font-medium text-white"
                                             : "text-white hover:bg-white/[0.04]"
                                             }`}
@@ -1795,19 +1797,19 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             )}
 
             {/* Sources */}
-            <div className="mb-10">
-                <h2 className="mb-1 text-[18px] font-bold text-white">Sources</h2>
-                <p className="mb-4 text-[13px] text-white/60">
+            <div className={`mb-10 ${styles.configSection}`}>
+                <h2 className={`mb-1 text-[18px] font-bold text-white ${styles.configSectionTitle}`}>Sources</h2>
+                <p className={`mb-4 text-[13px] text-white/60 ${styles.configSectionCopy}`}>
                     You can either bring your own URL or let our AI find sources for you. Make sure all URLs(even the URLs I found) can be previewed before proceeding to next step.
                 </p>
 
                 {/* Tabs */}
-                <div className="flex w-full mb-6">
+                <div className={`flex w-full mb-6 ${styles.configSourceTabs}`}>
                     {SOURCE_TABS.map((tab, i) => (
                         <button
                             key={tab}
                             onClick={() => setSourcesTab(tab)}
-                            className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl transition-all duration-200 ${sourcesTab === tab
+                            className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl transition-all duration-200 ${styles.configSourceTab} ${sourcesTab === tab
                                 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                                 : "hover:bg-white/[0.04] text-white/60 hover:text-white"
                                 }`}
@@ -1841,15 +1843,15 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                 {/* Octopilot Search content */}
                 {sourcesTab === "Octopilot Search" && (
-                    <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-3 self-end mb-2">
-                            <div className="relative">
+                    <div className={`flex flex-col gap-4 ${styles.configSearchPane}`}>
+                        <div className={`flex items-center gap-3 self-end mb-2 ${styles.configSearchControls}`}>
+                            <div className={`relative ${styles.configSearchInputWrap}`}>
                                 <input
                                     type="text"
                                     placeholder="Enter keywords to search..."
                                     value={aiSearchKeywords}
                                     onChange={(e) => setAiSearchKeywords(e.target.value)}
-                                    className="w-[300px] rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 pl-4 pr-10 text-[13px] text-white outline-none placeholder-white/30 focus:border-white/20"
+                                    className={`w-[300px] rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 pl-4 pr-10 text-[13px] text-white outline-none placeholder-white/30 focus:border-white/20 ${styles.configSearchInput}`}
                                 />
                                 <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-white/10 p-1 text-white hover:bg-white/20">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1857,7 +1859,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </svg>
                                 </button>
                             </div>
-                            <button onClick={handleJasmineSearch} className="flex flex-col items-center justify-center rounded-xl bg-red-400 px-6 py-2 text-white shadow-[0_0_15px_rgba(248,113,113,0.3)] transition hover:bg-red-300 disabled:opacity-50">
+                            <button onClick={handleJasmineSearch} className={`flex flex-col items-center justify-center rounded-xl bg-red-400 px-6 py-2 text-white shadow-[0_0_15px_rgba(248,113,113,0.3)] transition hover:bg-red-300 disabled:opacity-50 ${styles.configAiButton}`}>
                                 <span className="flex items-center gap-1 text-[13px] font-bold">
                                     ✨ Let AI find sources
                                 </span>
@@ -1867,7 +1869,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                         {/* Dynamic Inputs */}
                         {searchSourceEntries.map(({ source, sourceIndex }) => (
-                            <div key={sourceIndex} className="relative w-full">
+                            <div key={sourceIndex} className={`relative w-full ${styles.configSourceInputWrap}`}>
                                 <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                                     {source.status === "loading" ? (
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-red-500" />
@@ -1891,7 +1893,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     placeholder="Enter source URL or reference..."
                                     value={source.url}
                                     onChange={(e) => updateSourceUrl(sourceIndex, e.target.value)}
-                                    className={`w-full rounded-2xl border bg-white/[0.02] py-4 pl-11 pr-14 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-white/20 ${source.status === 'failed' ? 'border-red-500/50' : 'border-white/[0.08]'}`}
+                                    className={`w-full rounded-2xl border bg-white/[0.02] py-4 pl-11 pr-14 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-white/20 ${styles.configSourceInput} ${source.status === 'failed' ? 'border-red-500/50' : 'border-white/[0.08]'}`}
                                 />
 
                                 {source.status === "scraped" && (
@@ -1908,7 +1910,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             </div>
                         ))}
 
-                        <button onClick={handleAddSource} className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.01] py-4 text-[14px] font-semibold text-white/60 transition hover:border-white/20 hover:bg-white/[0.03] hover:text-white">
+                        <button onClick={handleAddSource} className={`mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.01] py-4 text-[14px] font-semibold text-white/60 transition hover:border-white/20 hover:bg-white/[0.03] hover:text-white ${styles.configAddSourceButton}`}>
                             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20 text-red-500">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M12 5v14" /><path d="M5 12h14" />
@@ -1921,19 +1923,19 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                 {/* Use My Source content */}
                 {sourcesTab === "Use My Source" && (
-                    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
-                        <h3 className="text-[22px] font-bold text-white">Use My Source</h3>
-                        <p className="mt-2 max-w-3xl text-[14px] text-white/70">
+                    <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 ${styles.configManualPanel}`}>
+                        <h3 className={`text-[22px] font-bold text-white ${styles.configManualTitle}`}>Use My Source</h3>
+                        <p className={`mt-2 max-w-3xl text-[14px] text-white/70 ${styles.configManualCopy}`}>
                             Upload primary research artifacts and reuse them as supporting material.
                         </p>
 
-                        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                        <div className={`mt-8 flex flex-wrap items-center justify-center gap-4 ${styles.configUploadActions}`}>
                             <button
                                 onClick={() => requestManualSourceConfirmation("pdf")}
                                 disabled={isPdfUploading}
                                 onMouseEnter={() => setSourceUploadHoverHint("pdf")}
                                 onMouseLeave={() => setSourceUploadHoverHint("")}
-                                className="flex items-center gap-2 rounded-full bg-red-500 px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.28)] transition hover:bg-red-400 disabled:opacity-60"
+                                className={`flex items-center gap-2 rounded-full bg-red-500 px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.28)] transition hover:bg-red-400 disabled:opacity-60 ${styles.configUploadPrimary}`}
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1944,14 +1946,14 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             <div onMouseEnter={() => setSourceUploadHoverHint("images")} onMouseLeave={() => setSourceUploadHoverHint("")}>
                                 <button
                                     onClick={() => requestManualSourceConfirmation("image")}
-                                    className="rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/80 transition hover:bg-white/[0.08]"
+                                    className={`rounded-full border border-white/20 bg-white/[0.04] px-6 py-3.5 text-[16px] font-bold text-white/80 transition hover:bg-white/[0.08] ${styles.configUploadSecondary}`}
                                 >
                                     Upload Images
                                 </button>
                             </div>
                         </div>
                         {sourceUploadHoverHint !== "" && (
-                            <p className="mt-4 text-center text-[13px] text-white/45">
+                            <p className={`mt-4 text-center text-[13px] text-white/45 ${styles.configHoverHint}`}>
                                 {sourceUploadHoverHint === "pdf"
                                     ? "We only support single PDF upload for now"
                                     : "We support multiple image uploads"}
@@ -1975,11 +1977,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         />
 
                         {uploadedPdfSources.length > 0 && (
-                            <div className="mt-8 space-y-3">
-                                <h4 className="text-[16px] font-bold text-white/90">Added manual sources</h4>
+                            <div className={`mt-8 space-y-3 ${styles.configManualList}`}>
+                                <h4 className={`text-[16px] font-bold text-white/90 ${styles.configManualListTitle}`}>Added manual sources</h4>
                                 {uploadedPdfSources.map((pdf) => (
-                                    <div key={pdf.id} className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
-                                        <div className="flex min-w-0 items-start gap-3">
+                                    <div key={pdf.id} className={`flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 ${styles.configManualCard}`}>
+                                        <div className={`flex min-w-0 items-start gap-3 ${styles.configManualCardCopy}`}>
                                             <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/35 bg-red-500/15 text-red-300">
                                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1992,7 +1994,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <div className="mt-2 line-clamp-2 text-[12px] text-white/80">{pdf.citation}</div>
                                             </div>
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className={`flex shrink-0 items-center gap-2 ${styles.configManualCardActions}`}>
                                             <button
                                                 onClick={() => openExistingPdfSource(pdf.source, pdf.sourceIndex, "view")}
                                                 className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
@@ -2033,10 +2035,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                         )}
 
                         {imageSourceThreads.length > 0 && (
-                            <div className="mt-4 space-y-3">
+                            <div className={`mt-4 space-y-3 ${styles.configManualList}`}>
                                 {imageSourceThreads.map((img) => (
-                                    <div key={img.id} className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
-                                        <div className="flex min-w-0 items-start gap-3">
+                                    <div key={img.id} className={`flex items-start justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 ${styles.configManualCard}`}>
+                                        <div className={`flex min-w-0 items-start gap-3 ${styles.configManualCardCopy}`}>
                                             <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-400/35 bg-blue-500/15 text-blue-300">
                                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -2050,7 +2052,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 <div className="mt-2 line-clamp-2 text-[12px] text-white/80">{img.citation}</div>
                                             </div>
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className={`flex shrink-0 items-center gap-2 ${styles.configManualCardActions}`}>
                                             <button
                                                 onClick={() => openExistingImageSource(img.source, img.sourceIndex, "view")}
                                                 className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
@@ -2093,47 +2095,47 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 )}
 
                 {sourcesTab === "Fieldwork Mode" && (
-                    <div className="space-y-5">
-                        <div>
-                            <h3 className="text-[18px] font-bold text-white">Fieldwork Node</h3>
-                            <p className="mt-2 text-[14px] text-white/70">
+                    <div className={`space-y-5 ${styles.configFieldworkSection}`}>
+                        <div className={styles.configFieldworkIntro}>
+                            <h3 className={`text-[18px] font-bold text-white ${styles.configFieldworkTitle}`}>Fieldwork Node</h3>
+                            <p className={`mt-2 text-[14px] text-white/70 ${styles.configFieldworkCopy}`}>
                                 Log primary research like interviews, lab experiments, and surveys to use them as valid sources.
                             </p>
                         </div>
 
                         {fieldworkSourceThreads.length === 0 ? (
-                            <div className="rounded-3xl border border-dashed border-red-500/40 bg-white/[0.02] px-8 py-14 text-center">
+                            <div className={`rounded-3xl border border-dashed border-red-500/40 bg-white/[0.02] px-8 py-14 text-center ${styles.configFieldworkEmpty}`}>
                                 <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/35 bg-red-500/10 text-red-400">
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M3 12h18" />
                                         <path d="M12 3v18" />
                                     </svg>
                                 </div>
-                                <div className="text-[22px] font-bold text-white">No fieldwork logged yet</div>
-                                <div className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-white/55">
+                                <div className={`text-[22px] font-bold text-white ${styles.configFieldworkEmptyTitle}`}>No fieldwork logged yet</div>
+                                <div className={`mx-auto mt-3 max-w-xl text-[14px] leading-6 text-white/55 ${styles.configFieldworkEmptyCopy}`}>
                                     Add your first entry to turn real-world research into a usable source.
                                 </div>
                                 <button
                                     onClick={() => requestManualSourceConfirmation("fieldwork")}
-                                    className="mt-7 inline-flex items-center gap-3 rounded-full bg-red-500 px-6 py-3 text-[15px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.24)] transition hover:bg-red-400"
+                                    className={`mt-7 inline-flex items-center gap-3 rounded-full bg-red-500 px-6 py-3 text-[15px] font-bold text-white shadow-[0_0_18px_rgba(239,68,68,0.24)] transition hover:bg-red-400 ${styles.configFieldworkAddButton}`}
                                 >
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[18px]">+</span>
                                     Add New Entry
                                 </button>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                <div className="flex justify-end">
+                            <div className={`space-y-4 ${styles.configFieldworkList}`}>
+                                <div className={`flex justify-end ${styles.configFieldworkToolbar}`}>
                                     <button
                                         onClick={() => requestManualSourceConfirmation("fieldwork")}
-                                        className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[14px] font-bold text-white hover:bg-red-400"
+                                        className={`inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[14px] font-bold text-white hover:bg-red-400 ${styles.configFieldworkAddButton}`}
                                     >
                                         <span className="text-[18px] leading-none">+</span>
                                         Add New Entry
                                     </button>
                                 </div>
                                 {fieldworkSourceThreads.map((entry) => (
-                                    <div key={entry.id} className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
+                                    <div key={entry.id} className={`flex items-start justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4 ${styles.configFieldworkCard}`}>
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-3">
                                                 <span className="rounded-full border border-red-500/35 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-red-200">
@@ -2141,10 +2143,10 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                                 </span>
                                                 <span className="text-[12px] text-white/45">{entry.dateConducted || "No date"}</span>
                                             </div>
-                                            <div className="mt-3 text-[18px] font-bold text-white">{entry.title}</div>
+                                            <div className={`mt-3 text-[18px] font-bold text-white ${styles.configFieldworkCardTitle}`}>{entry.title}</div>
                                             <div className="mt-2 line-clamp-2 text-[13px] leading-6 text-white/70">{entry.citation}</div>
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className={`flex shrink-0 items-center gap-2 ${styles.configFieldworkCardActions}`}>
                                             <button
                                                 onClick={() => openExistingFieldworkSource(entry.source, entry.sourceIndex, "view")}
                                                 className="rounded-lg border border-white/[0.1] bg-white/[0.03] p-2 text-white/80 hover:bg-white/[0.08]"
@@ -2191,11 +2193,11 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
             {!shouldHideManualWritingExtras && (
                 <>
                     <div className="mb-6 flex flex-col pt-4">
-                        <h2 className="mb-4 text-[16px] font-bold text-white">Do you want to specify keywords to be included in your essay?</h2>
-                        <div className="flex gap-4">
+                        <h2 className={`mb-4 text-[16px] font-bold text-white ${styles.configKeywordsQuestion}`}>Do you want to specify keywords to be included in your essay?</h2>
+                        <div className={`flex gap-4 ${styles.configKeywordsOptions}`}>
                             <button
                                 onClick={() => setSpecifyKeywords(true)}
-                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${specifyKeywords
+                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${styles.configKeywordButton} ${specifyKeywords
                                     ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                                     : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
                                     }`}
@@ -2207,7 +2209,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                             </button>
                             <button
                                 onClick={() => setSpecifyKeywords(false)}
-                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${!specifyKeywords
+                                className={`flex flex-1 items-center justify-center gap-3 rounded-2xl py-4 font-bold transition-all duration-200 ${styles.configKeywordButton} ${!specifyKeywords
                                     ? "bg-[#332222] border border-red-500/30 text-white"
                                     : "bg-white/[0.03] border border-white/[0.06] text-white/60 hover:bg-white/[0.05]"
                                     }`}
@@ -2228,20 +2230,21 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 placeholder="Enter keywords separated by commas (e.g. AI, machine learning, neural networks)"
                                 value={keywordsText}
                                 onChange={(e) => setKeywordsText(e.target.value)}
-                                className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.02] py-4 px-5 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-red-500/50"
+                                className={`w-full rounded-2xl border border-white/[0.08] bg-white/[0.02] py-4 px-5 text-[14px] text-white outline-none placeholder-white/30 transition hover:bg-white/[0.03] focus:border-red-500/50 ${styles.configKeywordInput}`}
                             />
                         </div>
                     )}
                 </>
             )}
+            </div>
 
             {/* Fixed Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10 backdrop-blur-md">
-                <div className="mx-auto flex w-full items-center justify-between py-5 gap-4">
+            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10 backdrop-blur-md ${styles.configFooter}`}>
+                <div className={`mx-auto flex w-full items-center justify-between py-5 gap-4 ${styles.configFooterInner}`}>
                     <button
                         onClick={onBack}
                         disabled={isContinuing || hasPendingScrapes}
-                        className="ml-20 flex min-w-[154px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-4 text-[15px] font-bold text-white/80 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40 md:ml-24"
+                        className={`ml-20 flex min-w-[154px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-4 text-[15px] font-bold text-white/80 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-40 md:ml-24 ${styles.configBackButton}`}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -2252,7 +2255,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     <button
                         onClick={() => { void handleContinue(); }}
                         disabled={isContinuing || hasPendingScrapes}
-                        className="group relative flex min-w-[250px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40 md:flex-[2]"
+                        className={`group relative flex min-w-[250px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40 md:flex-[2] ${styles.configContinueButton}`}
                     >
                         {isContinuing ? "Charging credits..." : hasPendingScrapes ? "Finishing source checks..." : "Continue"}
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
@@ -2262,12 +2265,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     </button>
                 </div>
                 {continueError && (
-                    <div className="pb-5 text-center text-[13px] font-medium text-[#ff8e8e]">
+                    <div className={`pb-5 text-center text-[13px] font-medium text-[#ff8e8e] ${styles.configFooterMessage}`}>
                         {continueError}
                     </div>
                 )}
                 {!continueError && hasPendingScrapes && (
-                    <div className="pb-5 text-center text-[13px] font-medium text-white/55">
+                    <div className={`pb-5 text-center text-[13px] font-medium text-white/55 ${styles.configFooterMessage}`}>
                         Octopilot is still validating your source previews. Navigation unlocks as soon as scraping finishes.
                     </div>
                 )}

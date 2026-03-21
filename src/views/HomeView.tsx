@@ -24,6 +24,7 @@ import EditorView from "@/views/EditorView";
 import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
+import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import essayTypeMobileStyles from "./EssayTypeViewMobile.module.css";
 import instructionsMobileStyles from "./InstructionsViewMobile.module.css";
 import majorSelectionMobileStyles from "./MajorSelectionViewMobile.module.css";
@@ -308,6 +309,8 @@ export default function HomeView() {
                     ? instructionsMobileStyles.instructionsHeader
                     : page === "outlines"
                       ? outlinesMobileStyles.outlinesHeader
+                      : page === "configuration"
+                        ? configMobileStyles.configHeader
                 : ""}
             left={<LogoNav />}
             right={<MainHeaderActions />}
@@ -328,12 +331,14 @@ export default function HomeView() {
                     ? instructionsMobileStyles.instructionsStepper
                     : page === "outlines"
                       ? outlinesMobileStyles.outlinesStepper
+                      : page === "configuration"
+                        ? configMobileStyles.configStepper
                 : ""}
           />
 
           <div
             ref={stepScrollRef}
-            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" ? "overflow-hidden" : "overflow-y-auto"}`}
+            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" ? "overflow-hidden" : "overflow-y-auto"}`}
           >
             {page === "writing-style" ? (
               <WritingStyleView onBack={goBack} onNext={goNext} />
