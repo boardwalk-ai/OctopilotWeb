@@ -1,0 +1,256 @@
+.formatHeader {}
+
+.formatStepper {}
+
+.formatShell {}
+
+.formatScrollViewport {}
+
+.formatHero {}
+
+.formatTitle {}
+
+.formatLead {}
+
+.formatMeta {}
+
+.formatMetaMajor {}
+
+.formatMetaDot {}
+
+.formatMetaType {}
+
+.formatSection {}
+
+.formatSectionTitle {}
+
+.formatSectionCopy {}
+
+.formatFieldGroup {}
+
+.formatLabel {}
+
+.formatInput {}
+
+.formatDatePanel {}
+
+.formatDateHeader {}
+
+.formatDateIcon {}
+
+.formatDateTitle {}
+
+.formatDateCopy {}
+
+.formatDateButton {}
+
+.formatDateGrid {}
+
+.formatDatePreview {}
+
+.formatFooter {}
+
+.formatFooterInner {}
+
+.formatBackButton {}
+
+.formatContinueButton {}
+
+@media (max-width: 767px) {
+  .formatHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.48rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .formatHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .formatHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .formatStepper {
+    top: 3.15rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .formatStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .formatStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .formatStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .formatShell {
+    height: 100%;
+    min-height: 100%;
+    padding: 6.9rem 1rem 0;
+    overflow: hidden;
+  }
+
+  .formatScrollViewport {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 7.8rem;
+  }
+
+  .formatHero {
+    margin-bottom: 1.1rem;
+    text-align: left;
+  }
+
+  .formatTitle {
+    max-width: 12.8rem;
+    margin-bottom: 0.55rem;
+    font-size: 1.95rem;
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+  }
+
+  .formatLead {
+    max-width: 15rem;
+    margin-bottom: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.42;
+  }
+
+  .formatMeta {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+  }
+
+  .formatMetaMajor,
+  .formatMetaType {
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .formatMetaDot {
+    display: none;
+  }
+
+  .formatSection {
+    margin-bottom: 0.95rem;
+    text-align: left;
+  }
+
+  .formatSectionTitle {
+    margin-bottom: 0.28rem;
+    font-size: 1rem;
+    line-height: 1.28;
+  }
+
+  .formatSectionCopy {
+    max-width: 15rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .formatFieldGroup {
+    margin-bottom: 0.9rem !important;
+    text-align: left;
+  }
+
+  .formatLabel {
+    margin-bottom: 0.42rem;
+    font-size: 0.83rem !important;
+    line-height: 1.3;
+  }
+
+  .formatInput {
+    min-height: 3.45rem;
+    padding-top: 0.88rem;
+    padding-bottom: 0.88rem;
+    font-size: 0.92rem !important;
+  }
+
+  .formatDatePanel {
+    border-radius: 1.35rem;
+    padding: 0.9rem;
+  }
+
+  .formatDateHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .formatDateIcon {
+    height: 2.4rem;
+    width: 2.4rem;
+    border-radius: 0.95rem;
+  }
+
+  .formatDateTitle {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  .formatDateCopy {
+    font-size: 0.74rem;
+    line-height: 1.45;
+  }
+
+  .formatDateButton {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .formatDateGrid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+
+  .formatDatePreview {
+    margin-top: 0.75rem;
+    font-size: 0.74rem;
+    line-height: 1.45;
+  }
+
+  .formatFooter {
+    padding: 0.65rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+  }
+
+  .formatFooterInner {
+    gap: 0.7rem;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .formatBackButton {
+    min-width: 0;
+    width: 41%;
+    margin-left: 0;
+    padding: 0.95rem 1rem;
+    font-size: 0.78rem;
+  }
+
+  .formatContinueButton {
+    min-width: 0;
+    flex: 1 1 59%;
+    padding: 0.95rem 1rem;
+    font-size: 0.8rem;
+  }
+}
