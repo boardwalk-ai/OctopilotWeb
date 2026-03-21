@@ -1,6 +1,12 @@
 .homeShell {}
 
-.homeHeader {}
+.homeHeader {
+  justify-content: flex-end;
+}
+
+.homeHeader > :global(div) {
+  margin-left: auto;
+}
 
 .homeHeaderActions {
   display: flex;
