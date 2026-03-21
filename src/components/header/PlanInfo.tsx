@@ -111,7 +111,9 @@ export default function PlanInfo({
     ? "Loading"
     : getDisplayPlanName(accountSnapshot?.plan ?? planName);
   const resolvedCredits = accountSnapshot ? mapMeToCredits(accountSnapshot) : credits;
-  const shellWidth = expanded ? "var(--plan-expanded-width, 388px)" : "var(--plan-collapsed-width, 138px)";
+  const shellWidth = expanded
+    ? "calc(var(--plan-collapsed-width, 138px) + var(--plan-credits-max-width, 250px))"
+    : "var(--plan-collapsed-width, 138px)";
   const shellHeight = "var(--plan-height, 46px)";
   const creditWidth = "var(--plan-credit-width, 82px)";
   const creditsMaxWidth = expanded ? "var(--plan-credits-max-width, 250px)" : "0px";

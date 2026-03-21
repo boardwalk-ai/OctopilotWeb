@@ -21,9 +21,14 @@
 @media (max-width: 767px) {
   .actions {
     display: flex;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    align-items: center;
     justify-content: flex-end;
-    gap: 0.35rem;
+    gap: 0.22rem;
+    width: auto;
+    max-width: 100%;
+    position: relative;
+    padding-right: 2.04rem;
   }
 
   .actions > :global(:first-child) {
@@ -31,25 +36,24 @@
   }
 
   .actions > :global(:first-child button) {
-    width: 2.15rem;
-    height: 2.15rem;
+    width: 1.82rem;
+    height: 1.82rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
   }
 
   .actions > :global(:first-child button svg) {
-    width: 17px;
-    height: 17px;
+    width: 14px;
+    height: 14px;
   }
 
   .plan {
-    --plan-collapsed-width: 5.2rem;
-    --plan-expanded-width: 13.9rem;
-    --plan-height: 2.18rem;
-    --plan-credit-width: 2.85rem;
-    --plan-credits-max-width: 8.55rem;
-    --plan-horizontal-padding: 0.5rem;
+    --plan-collapsed-width: 4.35rem;
+    --plan-height: 1.82rem;
+    --plan-credit-width: 1.9rem;
+    --plan-credits-max-width: 5.7rem;
+    --plan-horizontal-padding: 0.3rem;
     flex: 0 0 auto;
     min-width: 0;
     position: relative;
@@ -64,40 +68,40 @@
 
   .plan :global(button > span:nth-child(3)) {
     min-width: 0 !important;
-    padding: 0 0.28rem !important;
-    gap: 0.16rem !important;
+    padding: 0 0.16rem !important;
+    gap: 0.1rem !important;
   }
 
   .plan :global(button > span:nth-child(3) svg:first-child) {
-    width: 11px !important;
-    height: 11px !important;
+    width: 9px !important;
+    height: 9px !important;
   }
 
   .plan :global(button > span:nth-child(3) > span) {
-    font-size: 0.64rem !important;
+    font-size: 0.54rem !important;
   }
 
   .plan :global(button > span:nth-child(3) svg:last-child) {
-    width: 8px !important;
-    height: 8px !important;
+    width: 6px !important;
+    height: 6px !important;
   }
 
   .plan :global(button > span:nth-child(4)) {
-    height: 1.22rem !important;
+    height: 1rem !important;
   }
 
   .plan :global(button > span:nth-child(4) > span) {
-    min-width: 2.72rem !important;
-    padding: 0 0.04rem !important;
+    min-width: 1.86rem !important;
+    padding: 0 0.02rem !important;
   }
 
   .plan :global(button > span:nth-child(4) > span > span:first-child) {
-    font-size: 0.56rem !important;
+    font-size: 0.44rem !important;
   }
 
   .plan :global(button > span:nth-child(4) > span > span:last-child) {
-    font-size: 0.3rem !important;
-    letter-spacing: 0.04em !important;
+    font-size: 0.22rem !important;
+    letter-spacing: 0.03em !important;
   }
 
   .iconBtn {
@@ -109,8 +113,8 @@
     line-height: 0 !important;
     gap: 0 !important;
     padding: 0 !important;
-    width: 2.15rem !important;
-    height: 2.15rem !important;
+    width: 1.82rem !important;
+    height: 1.82rem !important;
     min-height: 0 !important;
     border-radius: 999px !important;
     display: flex !important;
@@ -124,27 +128,30 @@
   }
 
   .iconBtn > :global(button) > :global(svg) {
-    width: 15px !important;
-    height: 15px !important;
+    width: 13px !important;
+    height: 13px !important;
     flex-shrink: 0;
   }
 
   .avatar {
     flex-shrink: 0;
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 
   .avatar > :global(button) {
-    width: 2.15rem !important;
-    height: 2.15rem !important;
+    width: 1.82rem !important;
+    height: 1.82rem !important;
     border-radius: 999px !important;
   }
 
   .avatar > :global(button) > :global(span) {
-    font-size: 9px !important;
+    font-size: 7px !important;
   }
 
   .avatar > :global(button) > :global(svg) {
-    width: 15px !important;
-    height: 15px !important;
+    width: 13px !important;
+    height: 13px !important;
   }
 }
