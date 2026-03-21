@@ -7,6 +7,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { CreditService } from "@/services/CreditService";
 import { Organizer } from "@/services/OrganizerService";
 import { LucasService } from "@/services/LucasService";
+import styles from "./GenerationViewMobile.module.css";
 
 interface GenerationViewProps {
     onBack: () => void;
@@ -138,7 +139,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
         };
 
         startGeneration();
-    }, [onNext, org.isTestMode, org.generatedEssay]);
+    }, [onNext, org.isTestMode, org.generatedEssay, targetWords]);
 
     useEffect(() => {
         if (isGenerating || error || hasNavigated.current) {
@@ -154,59 +155,60 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     }, [error, isGenerating, onNext]);
 
     return (
-        <div className="flex h-full w-full flex-col items-center overflow-hidden px-6 pb-8 pt-20 lg:px-10 2xl:px-14">
+        <div className={`flex h-full w-full flex-col items-center overflow-hidden px-6 pb-8 pt-20 lg:px-10 2xl:px-14 ${styles.generationShell}`}>
 
-            {/* Pulsing Logo */}
-            <div className="relative mb-8 flex h-24 w-24 items-center justify-center">
-                <div className={`absolute inset-0 rounded-full bg-red-500/20 blur-[50px] transition-all duration-1000 ${isGenerating ? 'animate-pulse scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
-                <Image
-                    src="/OCTOPILOT.png"
-                    alt="Octopilot Logo"
-                    width={68}
-                    height={68}
-                    className={`relative z-10 rounded-full drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-transform duration-[3000ms] ${isGenerating ? 'scale-110' : 'scale-100'}`}
-                />
-            </div>
-
-            {/* Title */}
-            <h1 className="mb-2 text-center text-[32px] font-bold tracking-tight text-white">
-                {error ? "Generation Failed" : isGenerating ? "Crafting Your Essay" : "Generation Complete"}
-            </h1>
-            <p className="mb-7 text-center text-[16px] text-white/50">
-                {error
-                    ? "We encountered an issue while writing your essay."
-                    : isGenerating
-                        ? `Lucas is analyzing your ${org.manualSources.filter(s => s.status === "scraped").length} sources and writing...`
-                        : "Preparing your preview..."}
-            </p>
-
-            {/* Progress Bar */}
-            <div className="mb-7 w-full max-w-xl">
-                <div className="flex justify-between text-[13px] font-bold text-white/60 mb-3">
-                    <span>{progressPercent}% Complete</span>
-                    <span>{currentWords} / {targetWords} words</span>
+            <div className={`w-full ${styles.generationIntro}`}>
+                {/* Pulsing Logo */}
+                <div className={`relative mb-8 flex h-24 w-24 items-center justify-center ${styles.generationLogoWrap}`}>
+                    <div className={`absolute inset-0 rounded-full bg-red-500/20 blur-[50px] transition-all duration-1000 ${isGenerating ? 'animate-pulse scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
+                    <Image
+                        src="/OCTOPILOT.png"
+                        alt="Octopilot Logo"
+                        width={68}
+                        height={68}
+                        className={`relative z-10 rounded-full drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-transform duration-[3000ms] ${isGenerating ? 'scale-110' : 'scale-100'} ${styles.generationLogo}`}
+                    />
                 </div>
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
-                    <div
-                        className="absolute h-full rounded-full bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_15px_rgba(239,68,68,0.8)]"
-                        style={{
-                            width: `${progressPercent}%`,
-                            transition: 'width 0.4s ease-out'
-                        }}
-                    >
-                        {isGenerating && (
-                            <div className="absolute top-0 right-0 bottom-0 w-[100px] animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-                        )}
+
+                {/* Title */}
+                <h1 className={`mb-2 text-center text-[32px] font-bold tracking-tight text-white ${styles.generationTitle}`}>
+                    {error ? "Generation Failed" : isGenerating ? "Crafting Your Essay" : "Generation Complete"}
+                </h1>
+                <p className={`mb-7 text-center text-[16px] text-white/50 ${styles.generationSubtitle}`}>
+                    {error
+                        ? "We encountered an issue while writing your essay."
+                        : isGenerating
+                            ? `Lucas is analyzing your ${org.manualSources.filter(s => s.status === "scraped").length} sources and writing...`
+                            : "Preparing your preview..."}
+                </p>
+
+                {/* Progress Bar */}
+                <div className={`mb-7 w-full max-w-xl ${styles.generationProgress}`}>
+                    <div className={`mb-3 flex justify-between text-[13px] font-bold text-white/60 ${styles.generationProgressMeta}`}>
+                        <span>{progressPercent}% Complete</span>
+                        <span>{currentWords} / {targetWords} words</span>
+                    </div>
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                        <div
+                            className="absolute h-full rounded-full bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_15px_rgba(239,68,68,0.8)]"
+                            style={{
+                                width: `${progressPercent}%`,
+                                transition: 'width 0.4s ease-out'
+                            }}
+                        >
+                            {isGenerating && (
+                                <div className="absolute top-0 right-0 bottom-0 w-[100px] animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Streaming UI Box (No border, no bg, just text) */}
-            <div className="relative mb-4 -mt-2 w-full max-w-[1000px] flex-1 overflow-hidden">
-                {/* Read Only Stream with 3D Perspective */}
+            {/* Streaming UI Box */}
+            <div className={`relative mb-4 w-full flex-1 overflow-hidden ${styles.generationStreamWrap}`}>
                 <div
                     ref={scrollRef}
-                    className="relative z-10 mx-auto h-full min-h-[300px] w-full overflow-y-auto px-10 text-[17px] leading-[1.95] text-white/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] origin-bottom"
+                    className={`relative z-10 mx-auto w-full text-white/80 origin-bottom ${styles.generationStream}`}
                     style={{
                         whiteSpace: 'pre-wrap',
                         userSelect: 'none',
@@ -216,8 +218,8 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                     }}
                 >
                     {error ? (
-                        <div className="text-red-400 text-center py-10">
-                            <p className="font-bold mb-2">Error Details:</p>
+                        <div className="py-10 text-center text-red-400">
+                            <p className="mb-2 font-bold">Error Details:</p>
                             <p className="font-mono text-sm">{error}</p>
                             <button
                                 onClick={onBack}
@@ -227,7 +229,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                             </button>
                         </div>
                     ) : !isGenerating ? (
-                        <div className="text-center py-10">
+                        <div className="py-10 text-center">
                             <p className="mb-3 text-white/60">Preparing your preview...</p>
                             <button
                                 onClick={() => onNext("preview")}
