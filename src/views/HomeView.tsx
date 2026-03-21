@@ -24,6 +24,7 @@ import EditorView from "@/views/EditorView";
 import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import { PlaceholderView } from "@/views/AutomationViews";
+import majorSelectionMobileStyles from "./MajorSelectionViewMobile.module.css";
 import writingStyleMobileStyles from "./WritingStyleViewMobile.module.css";
 import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
@@ -294,7 +295,11 @@ export default function HomeView() {
       <>
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
-            className={page === "writing-style" ? writingStyleMobileStyles.writingStyleHeader : ""}
+            className={page === "writing-style"
+              ? writingStyleMobileStyles.writingStyleHeader
+              : page === "major-selection"
+                ? majorSelectionMobileStyles.majorHeader
+                : ""}
             left={<LogoNav />}
             right={<MainHeaderActions />}
           />
@@ -304,7 +309,11 @@ export default function HomeView() {
             skipFormat={skipFormat}
             skipWritingStyle={skipWritingStyle}
             writingMode={org.writingMode}
-            className={page === "writing-style" ? writingStyleMobileStyles.writingStyleStepper : ""}
+            className={page === "writing-style"
+              ? writingStyleMobileStyles.writingStyleStepper
+              : page === "major-selection"
+                ? majorSelectionMobileStyles.majorStepper
+                : ""}
           />
 
           <div ref={stepScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto">
