@@ -6,6 +6,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { FormatterService } from "@/services/FormatterService";
 import { FormatterPage } from "@/services/FormatterTypes";
+import mobileStyles from "./EditorViewMobile.module.css";
 
 interface EditorViewProps {
     onBack: () => void;
@@ -151,12 +152,53 @@ function buildPageOutlineItems(text: string): PageOutlineItem[] {
 
 export default function EditorView({ onBack, onNext }: EditorViewProps) {
     const org = useOrganizer();
-
-    const pageWidth = 816;
-    const pageHeight = 1056;
-    const pagePadding = 96;
+    const [isMobileLayout, setIsMobileLayout] = useState(false);
+    const [mobileViewportWidth, setMobileViewportWidth] = useState(816);
+    const [keyboardInset, setKeyboardInset] = useState(0);
+    const [pagesTabOpen, setPagesTabOpen] = useState(false);
 
     const formattedDoc = FormatterService.formatFromOrganizer(org);
+
+    useEffect(() => {
+        const syncLayout = () => {
+            const nextIsMobile = window.innerWidth < 768;
+            const nextWidth = nextIsMobile
+                ? Math.max(320, Math.floor(window.visualViewport?.width || window.innerWidth))
+                : 816;
+            setIsMobileLayout(nextIsMobile);
+            setMobileViewportWidth(nextWidth);
+        };
+
+        syncLayout();
+        window.addEventListener("resize", syncLayout);
+        window.visualViewport?.addEventListener("resize", syncLayout);
+        return () => {
+            window.removeEventListener("resize", syncLayout);
+            window.visualViewport?.removeEventListener("resize", syncLayout);
+        };
+    }, []);
+
+    useEffect(() => {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+
+        const syncKeyboardInset = () => {
+            const inset = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+            setKeyboardInset(inset);
+        };
+
+        syncKeyboardInset();
+        viewport.addEventListener("resize", syncKeyboardInset);
+        viewport.addEventListener("scroll", syncKeyboardInset);
+        return () => {
+            viewport.removeEventListener("resize", syncKeyboardInset);
+            viewport.removeEventListener("scroll", syncKeyboardInset);
+        };
+    }, []);
+
+    const pageWidth = isMobileLayout ? mobileViewportWidth : 816;
+    const pageHeight = isMobileLayout ? 1056 : 1056;
+    const pagePadding = isMobileLayout ? 28 : 96;
 
     const sideMarginPct = Math.max(0, Math.min(45, ((formattedDoc.profile.marginInch * 96) / pageWidth) * 100));
 
@@ -793,7 +835,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             rebalancePaginationFromRef.current(firstId);
         });
         return () => window.cancelAnimationFrame(raf);
-    }, [zoom, leftIndent, rightIndent, pages.length]);
+    }, [pageWidth, zoom, leftIndent, rightIndent, pages.length]);
 
     const execCommand = useCallback((cmd: string, value?: string) => {
         restoreSelection();
@@ -1195,6 +1237,369 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             if (raf) window.cancelAnimationFrame(raf);
         };
     }, [activePageId, pageOutlineMap, pages]);
+
+    const renderMobilePage = (page: DocPage) => {
+        const pageMeta = pageFormatMap[page.id] || {};
+        const pageNumberText = getPageNumberLabel(page.id);
+        const hasMlaRunningHead = org.citationStyle.trim().toUpperCase() === "MLA";
+        const headerEditing = isHeaderEditing && headerEditingPageId === page.id;
+        const pageShowNumber = pageMeta.showPageNumber ?? showPageNumber;
+        const pageTextAlign = pageMeta.textAlign || "left";
+        const pageLineHeight = pageMeta.lineHeight || lineHeight;
+        const pageCentered = Boolean(pageMeta.centerVertically);
+        const editorFontSize = 11 * (zoom / 100);
+        const headerFontSize = 10 * (zoom / 100);
+
+        return (
+            <div
+                key={page.id}
+                ref={(el) => { pageShellRefs.current[page.id] = el; }}
+                className={mobileStyles.editorMobilePageShell}
+                style={{
+                    width: `${pageWidth * (zoom / 100)}px`,
+                    height: `${pageHeight * (zoom / 100)}px`,
+                }}
+            >
+                <div
+                    className={mobileStyles.editorMobilePageInner}
+                    style={{
+                        paddingTop: `${pagePadding * (zoom / 100)}px`,
+                        paddingBottom: `${pagePadding * (zoom / 100)}px`,
+                        paddingLeft: `${(leftIndent / 100) * pageWidth * (zoom / 100)}px`,
+                        paddingRight: `${((100 - rightIndent) / 100) * pageWidth * (zoom / 100)}px`,
+                    }}
+                >
+                    <div
+                        className={`${mobileStyles.editorMobileHeaderBlock} ${headerEditing ? mobileStyles.editorMobileHeaderEditing : ""}`}
+                        onDoubleClick={() => activateHeaderEditing(page.id)}
+                    >
+                        {!headerEditing && (
+                            <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => activateHeaderEditing(page.id)}
+                                className={mobileStyles.editorMobileHeaderButton}
+                            >
+                                {hasMlaRunningHead ? (
+                                    <div className={mobileStyles.editorMobileHeaderRowRight}>
+                                        <span
+                                            className={mobileStyles.editorMobileHeaderText}
+                                            style={{
+                                                fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif",
+                                                fontSize: `${headerFontSize}pt`,
+                                            }}
+                                        >
+                                            {headerText.trim() || "Double-click to edit header"}
+                                        </span>
+                                        {pageShowNumber && pageNumberText && (
+                                            <input
+                                                value={pageNumberText}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setPageNumberOverrides((prev) => {
+                                                        const next = { ...prev };
+                                                        if (!val.trim()) delete next[page.id];
+                                                        else next[page.id] = val;
+                                                        return next;
+                                                    });
+                                                }}
+                                                className={mobileStyles.editorMobileHeaderNumber}
+                                            />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className={mobileStyles.editorMobileHeaderRow}>
+                                        <span
+                                            className={mobileStyles.editorMobileHeaderText}
+                                            style={{
+                                                fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif",
+                                                fontSize: `${headerFontSize}pt`,
+                                            }}
+                                        >
+                                            {headerText.trim() || "Double-click to edit header"}
+                                        </span>
+                                        {pageShowNumber && pageNumberText && (
+                                            <input
+                                                value={pageNumberText}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setPageNumberOverrides((prev) => {
+                                                        const next = { ...prev };
+                                                        if (!val.trim()) delete next[page.id];
+                                                        else next[page.id] = val;
+                                                        return next;
+                                                    });
+                                                }}
+                                                className={mobileStyles.editorMobileHeaderNumber}
+                                            />
+                                        )}
+                                    </div>
+                                )}
+                            </button>
+                        )}
+
+                        {headerEditing && (
+                            <div className={mobileStyles.editorMobileHeaderEdit}>
+                                <div className={mobileStyles.editorMobileHeaderEditTop}>
+                                    <span className={mobileStyles.editorMobileHeaderLabel}>Header</span>
+                                    <div className={mobileStyles.editorMobileHeaderEditActions}>
+                                        <button
+                                            type="button"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                setPageFormatMap((prev) => {
+                                                    const current = prev[page.id] || {};
+                                                    const base = current.showPageNumber ?? showPageNumber;
+                                                    return {
+                                                        ...prev,
+                                                        [page.id]: {
+                                                            ...current,
+                                                            showPageNumber: !base,
+                                                        },
+                                                    };
+                                                });
+                                            }}
+                                            className={`${mobileStyles.editorMobileHeaderAction} ${pageShowNumber ? mobileStyles.editorMobileHeaderActionActive : ""}`}
+                                        >
+                                            {pageShowNumber ? "Page # on" : "Add page #"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => { setIsHeaderEditing(false); setHeaderEditingPageId(null); }}
+                                            className={mobileStyles.editorMobileHeaderAction}
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className={`${mobileStyles.editorMobileHeaderEditRow} ${hasMlaRunningHead ? mobileStyles.editorMobileHeaderEditRowRight : ""}`}>
+                                    <div
+                                        ref={(el) => { headerRefs.current[page.id] = el; }}
+                                        contentEditable
+                                        suppressContentEditableWarning
+                                        onInput={() => setHeaderText(headerRefs.current[page.id]?.innerText || "")}
+                                        onFocus={() => saveSelection()}
+                                        onMouseUp={() => saveSelection()}
+                                        onKeyUp={() => saveSelection()}
+                                        className={`${mobileStyles.editorMobileHeaderEditInput} ${hasMlaRunningHead ? mobileStyles.editorMobileHeaderEditInputRight : ""}`}
+                                        style={{
+                                            fontSize: `${headerFontSize}pt`,
+                                            lineHeight: "1.3",
+                                            fontFamily,
+                                            color: "#111827",
+                                        }}
+                                    />
+                                    {pageShowNumber && pageNumberText && (
+                                        <input
+                                            value={pageNumberText}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setPageNumberOverrides((prev) => {
+                                                    const next = { ...prev };
+                                                    if (!val.trim()) delete next[page.id];
+                                                    else next[page.id] = val;
+                                                    return next;
+                                                });
+                                            }}
+                                            className={mobileStyles.editorMobileHeaderNumber}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div
+                        ref={(el) => {
+                            editorRefs.current[page.id] = el;
+                            if (el && el.dataset.hydrated !== "1") {
+                                el.innerHTML = pageContentRef.current[page.id] || "<br/>";
+                                el.dataset.hydrated = "1";
+                            }
+                        }}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onInput={() => handlePageInput(page.id)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Tab") {
+                                e.preventDefault();
+                                document.execCommand(
+                                    "insertHTML",
+                                    false,
+                                    '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>'
+                                );
+                                handlePageInput(page.id);
+                            }
+                        }}
+                        onKeyUp={() => { queryFormattingState(); saveSelection(); }}
+                        onMouseUp={() => { queryFormattingState(); saveSelection(); }}
+                        onFocus={() => {
+                            setIsHeaderEditing(false);
+                            setHeaderEditingPageId(null);
+                            setActivePageId(page.id);
+                            saveSelection();
+                        }}
+                        className={mobileStyles.editorMobilePageBody}
+                        style={{
+                            fontFamily,
+                            fontSize: `${editorFontSize}pt`,
+                            lineHeight: String(pageLineHeight),
+                            color: "#1f1f1f",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                            textAlign: pageTextAlign,
+                            display: pageCentered ? "flex" : "block",
+                            flexDirection: pageCentered ? "column" : undefined,
+                            justifyContent: pageCentered ? "center" : undefined,
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    if (isMobileLayout) {
+        return (
+            <div
+                className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0f1115] ${mobileStyles.editorMobileRoot}`}
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+                <div
+                    ref={pagesViewportRef}
+                    className={mobileStyles.editorMobileScrollViewport}
+                    style={{
+                        paddingBottom: `calc(${keyboardInset + 196}px + env(safe-area-inset-bottom))`,
+                    }}
+                >
+                    <div className={mobileStyles.editorMobileStickyChrome}>
+                        <div className={mobileStyles.editorMobileTopBar}>
+                            <div className={mobileStyles.editorMobileTopBarPrimary}>
+                                <div className={mobileStyles.editorMobileDocIcon} title="Document">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" fill="#ea4335" />
+                                        <path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                                    </svg>
+                                </div>
+
+                                <input
+                                    value={docTitle}
+                                    onChange={(e) => setDocTitle(e.target.value)}
+                                    className={mobileStyles.editorMobileTitleInput}
+                                    spellCheck={false}
+                                />
+
+                                <button
+                                    onClick={handleExport}
+                                    className={mobileStyles.editorMobileExportButton}
+                                >
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    Export
+                                </button>
+                            </div>
+
+                            <div className={mobileStyles.editorMobileTopBarSecondary}>
+                                <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
+                                <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
+                                <ToolbarDropdown
+                                    value={fontFamily}
+                                    widthClass={mobileStyles.editorMobileFontSelect}
+                                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                                    onSelect={(value) => {
+                                        const font = String(value);
+                                        setFontFamily(font);
+                                        execCommand("fontName", font);
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={mobileStyles.editorMobileRulerBar}>
+                            <div
+                                ref={rulerRef}
+                                className={mobileStyles.editorMobileRuler}
+                                style={{ width: `${pageWidth * (zoom / 100)}px` }}
+                            >
+                                <div className={mobileStyles.editorMobileRulerScale}>
+                                    {Array.from({ length: 17 }, (_, i) => (
+                                        <div key={i} className={mobileStyles.editorMobileRulerTick} style={{ left: `${(i / 16) * 100}%` }}>
+                                            <div className={mobileStyles.editorMobileRulerTickLine} />
+                                            {i % 2 === 0 && <span className={mobileStyles.editorMobileRulerTickLabel}>{i / 2}</span>}
+                                        </div>
+                                    ))}
+                                    <div
+                                        className={mobileStyles.editorMobileRulerMarker}
+                                        style={{ left: `${leftIndent}%` }}
+                                        onMouseDown={(e) => { e.preventDefault(); setDraggingMarker("left"); }}
+                                    >
+                                        <div className={mobileStyles.editorMobileRulerTriangle} />
+                                    </div>
+                                    <div
+                                        className={mobileStyles.editorMobileRulerMarker}
+                                        style={{ left: `${rightIndent}%` }}
+                                        onMouseDown={(e) => { e.preventDefault(); setDraggingMarker("right"); }}
+                                    >
+                                        <div className={mobileStyles.editorMobileRulerTriangle} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div ref={pageEditableRef} className={mobileStyles.editorMobilePageStack}>
+                        {pages.map(renderMobilePage)}
+                    </div>
+                </div>
+
+                <div className={mobileStyles.editorMobileDock} style={{ bottom: `${keyboardInset}px` }}>
+                    <div className={mobileStyles.editorMobileToolbar}>
+                        <TbIcon active={isBold} onClick={() => execCommand("bold")} title="Bold"><span className={mobileStyles.editorMobileToolbarText}>B</span></TbIcon>
+                        <TbIcon active={isItalic} onClick={() => execCommand("italic")} title="Italic"><span className={`${mobileStyles.editorMobileToolbarText} italic`}>I</span></TbIcon>
+                        <TbIcon active={isUnderline} onClick={() => execCommand("underline")} title="Underline"><span className={`${mobileStyles.editorMobileToolbarText} underline`}>U</span></TbIcon>
+                        <TbIcon title="Align left" onClick={() => execCommand("justifyLeft")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="17" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="17" y1="18" x2="3" y2="18" /></svg></TbIcon>
+                        <TbIcon title="Align center" onClick={() => execCommand("justifyCenter")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="10" x2="6" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="18" y1="18" x2="6" y2="18" /></svg></TbIcon>
+                        <TbIcon title="Align right" onClick={() => execCommand("justifyRight")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="21" y1="10" x2="7" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="21" y1="18" x2="7" y2="18" /></svg></TbIcon>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setPagesTabOpen((prev) => !prev)}
+                        className={mobileStyles.editorMobilePagesToggle}
+                    >
+                        Pages
+                        <span className={mobileStyles.editorMobilePagesToggleCount}>{pages.length}</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <polyline points={pagesTabOpen ? "6 15 12 9 18 15" : "6 9 12 15 18 9"} />
+                        </svg>
+                    </button>
+
+                    <div className={`${mobileStyles.editorMobilePagesPanel} ${pagesTabOpen ? mobileStyles.editorMobilePagesPanelOpen : ""}`}>
+                        <div className={mobileStyles.editorMobilePagesChips}>
+                            {pages.map((page) => {
+                                const isActive = page.id === activePageId;
+                                return (
+                                    <button
+                                        key={page.id}
+                                        type="button"
+                                        onClick={() => scrollToPage(page.id)}
+                                        className={`${mobileStyles.editorMobilePageChip} ${isActive ? mobileStyles.editorMobilePageChipActive : ""}`}
+                                    >
+                                        {page.title}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[#0f1115]" style={{ fontFamily: "'Poppins', sans-serif" }}>
