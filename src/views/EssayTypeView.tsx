@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { MajorIcon, majorTypes } from "@/lib/majorConstants";
 import { Organizer } from "@/services/OrganizerService";
+import styles from "./EssayTypeViewMobile.module.css";
 
 // ─── Essay type descriptions (short summaries for each) ───
 const essayDescriptions: Record<string, string> = {
@@ -159,18 +160,18 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
     );
 
     return (
-        <div className="flex w-full flex-1 flex-col px-6 pt-32 pb-0 lg:px-10 2xl:px-14">
+        <div className={`flex h-full min-h-full w-full flex-1 flex-col px-6 pt-32 pb-0 lg:px-10 2xl:px-14 ${styles.essayShell}`}>
             {/* Title */}
-            <h1 className="mb-2 text-[36px] font-bold text-white">Select Essay Type</h1>
-            <div className="mb-6 flex items-center gap-2.5 text-[15px]">
-                <div className="flex h-5 w-5 items-center justify-center">
+            <h1 className={`mb-2 text-[36px] font-bold text-white ${styles.essayTitle}`}>Select Essay Type</h1>
+            <div className={`mb-6 flex items-center gap-2.5 text-[15px] ${styles.essayMeta}`}>
+                <div className={`flex h-5 w-5 items-center justify-center ${styles.essayMetaIcon}`}>
                     <MajorIcon type={majorInfo.iconType} />
                 </div>
-                <span className="font-bold text-white tracking-wide">{majorInfo.name}</span>
-                <span className="text-white/30 px-1">·</span>
-                <span className="text-white/60">{majorData.citation} Citation</span>
+                <span className={`font-bold text-white tracking-wide ${styles.essayMetaMajor}`}>{majorInfo.name}</span>
+                <span className={`text-white/30 px-1 ${styles.essayMetaDot}`}>·</span>
+                <span className={`text-white/60 ${styles.essayMetaCitation}`}>{majorData.citation} Citation</span>
                 <span
-                    className="ml-1 rounded-full bg-red-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-red-400"
+                    className={`ml-1 rounded-full bg-red-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-red-400 ${styles.essayRecommended}`}
                     style={{
                         animation: "recommendedGlow 2s ease-in-out infinite",
                     }}
@@ -195,9 +196,9 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
             ` }} />
 
             {/* Search bar */}
-            <div className="relative mb-5 w-full">
+            <div className={`relative mb-5 w-full ${styles.essaySearchWrap}`}>
                 <svg
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 text-white/30 ${styles.essaySearchIcon}`}
                     width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 >
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
@@ -207,13 +208,13 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
                     placeholder="Search essay types..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.03] py-3 pl-12 pr-4 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.05]"
+                    className={`w-full rounded-2xl border border-white/[0.06] bg-white/[0.03] py-3 pl-12 pr-4 text-[14px] text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.05] ${styles.essaySearchInput}`}
                 />
             </div>
 
             {/* Scrollable Essay Type List */}
-            <div className="flex-1 overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 380px)" }}>
-                <div className="flex flex-col gap-3">
+            <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${styles.essayListViewport}`}>
+                <div className={`flex flex-col gap-3 ${styles.essayList}`}>
                     {filtered.map((essayType) => {
                         const originalIndex = majorData.types.indexOf(essayType);
                         const isSelected = selected === originalIndex;
@@ -223,17 +224,17 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
                             <button
                                 key={essayType}
                                 onClick={() => setSelected(originalIndex)}
-                                className={`flex w-full items-center justify-between rounded-2xl border px-6 py-5 text-left transition-all duration-200 ${isSelected
+                                className={`flex w-full items-center justify-between rounded-2xl border px-6 py-5 text-left transition-all duration-200 ${styles.essayRow} ${isSelected
                                     ? "border-red-500/40 bg-red-500/[0.06]"
                                     : "border-white/[0.06] bg-white/[0.02] hover:border-white/12 hover:bg-white/[0.04]"
                                     }`}
                             >
-                                <div className="flex-1">
-                                    <h3 className="text-[16px] font-bold text-white">{essayType}</h3>
-                                    <p className="mt-1 text-[13px] text-white/40">{desc}</p>
+                                <div className={`flex-1 ${styles.essayRowCopy}`}>
+                                    <h3 className={`text-[16px] font-bold text-white ${styles.essayRowTitle}`}>{essayType}</h3>
+                                    <p className={`mt-1 text-[13px] text-white/40 ${styles.essayRowDesc}`}>{desc}</p>
                                 </div>
                                 <svg
-                                    className={`ml-4 shrink-0 transition-transform duration-300 ${isSelected ? "rotate-180 text-red-500" : "text-white/20"}`}
+                                    className={`ml-4 shrink-0 transition-transform duration-300 ${styles.essayRowChevron} ${isSelected ? "rotate-180 text-red-500" : "text-white/20"}`}
                                     width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                                 >
                                     <path d="m6 9 6 6 6-6" />
@@ -245,10 +246,10 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
             </div>
 
             {/* Bottom Action Bar */}
-            <div className="flex items-center justify-between gap-4 py-5">
+            <div className={`flex items-center justify-between gap-4 py-5 ${styles.essayFooter}`}>
                 <button
                     onClick={onBack}
-                    className="ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white md:ml-24"
+                    className={`ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white md:ml-24 ${styles.essayBackButton}`}
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m15 18-6-6 6-6" />
@@ -263,7 +264,7 @@ export default function EssayTypeView({ selectedMajor, onBack, onNext }: EssayTy
                             onNext("instructions");
                         }
                     }}
-                    className={`flex min-w-[250px] max-w-[460px] items-center justify-center gap-2 rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-200 ${selected !== null
+                    className={`flex min-w-[250px] max-w-[460px] items-center justify-center gap-2 rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-200 ${styles.essayContinueButton} ${selected !== null
                         ? "bg-red-500 text-white shadow-[0_0_24px_rgba(239,68,68,0.3)] hover:bg-red-400"
                         : "bg-white/[0.04] text-white/30 cursor-not-allowed"
                         }`}
