@@ -27,6 +27,7 @@ import { PlaceholderView } from "@/views/AutomationViews";
 import essayTypeMobileStyles from "./EssayTypeViewMobile.module.css";
 import instructionsMobileStyles from "./InstructionsViewMobile.module.css";
 import majorSelectionMobileStyles from "./MajorSelectionViewMobile.module.css";
+import outlinesMobileStyles from "./OutlinesViewMobile.module.css";
 import writingStyleMobileStyles from "./WritingStyleViewMobile.module.css";
 import StepperHeader, { getVisibleAutomationSteps, AutomationStepId } from "@/components/StepperHeader";
 import OctoAssistant from "@/components/OctoAssistant";
@@ -305,6 +306,8 @@ export default function HomeView() {
                   ? essayTypeMobileStyles.essayHeader
                   : page === "instructions"
                     ? instructionsMobileStyles.instructionsHeader
+                    : page === "outlines"
+                      ? outlinesMobileStyles.outlinesHeader
                 : ""}
             left={<LogoNav />}
             right={<MainHeaderActions />}
@@ -323,12 +326,14 @@ export default function HomeView() {
                   ? essayTypeMobileStyles.essayStepper
                   : page === "instructions"
                     ? instructionsMobileStyles.instructionsStepper
+                    : page === "outlines"
+                      ? outlinesMobileStyles.outlinesStepper
                 : ""}
           />
 
           <div
             ref={stepScrollRef}
-            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" ? "overflow-hidden" : "overflow-y-auto"}`}
+            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" ? "overflow-hidden" : "overflow-y-auto"}`}
           >
             {page === "writing-style" ? (
               <WritingStyleView onBack={goBack} onNext={goNext} />

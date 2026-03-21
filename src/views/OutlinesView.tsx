@@ -5,6 +5,7 @@ import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer } from "@/services/OrganizerService";
 import { LilyService, OutlineItem } from "@/services/LilyService";
+import styles from "./OutlinesViewMobile.module.css";
 
 interface OutlinesViewProps {
     onBack: () => void;
@@ -226,62 +227,63 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
     }, [isGenerating]);
 
     return (
-        <div className="relative flex w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14">
+        <div className={`relative flex w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14 ${styles.outlinesShell}`}>
             {isGenerating && (
                 <div className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]" />
             )}
+            <div className={styles.outlinesScrollViewport}>
             {/* ─── Assignment Analysis ─── */}
-            <div className="mb-10">
+            <div className={`mb-10 ${styles.outlinesAnalysis}`}>
                 {/* Centered title & subtitle */}
-                <h1 className="text-center text-[32px] font-bold text-white">Your Assignment Analysis</h1>
-                <p className="mt-2 text-center text-[15px] text-white/40">
+                <h1 className={`text-center text-[32px] font-bold text-white ${styles.outlinesTitle}`}>Your Assignment Analysis</h1>
+                <p className={`mt-2 text-center text-[15px] text-white/40 ${styles.outlinesSubtitle}`}>
                     We&apos;ve analyzed your instructions and created custom outlines
                 </p>
 
                 {/* "According to your instructions" */}
-                <p className="mt-8 text-[15px] font-bold text-white">
+                <p className={`mt-8 text-[15px] font-bold text-white ${styles.outlinesLead}`}>
                     According to your instructions, here&apos;s what we know:
                 </p>
 
                 {/* Analysis quote box */}
-                <div className="mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-6 py-5">
-                    <p className="text-[14px] leading-relaxed text-white/60">
+                <div className={`mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-6 py-5 ${styles.outlinesQuote}`}>
+                    <p className={`text-[14px] leading-relaxed text-white/60 ${styles.outlinesQuoteText}`}>
                         {org.analysis || <span className="italic text-white/25">Analysis pending...</span>}
                     </p>
                 </div>
 
                 {/* Field rows */}
-                <div className="mt-6 space-y-4">
-                    <div className="flex items-baseline gap-4">
-                        <span className="w-[110px] shrink-0 text-[14px] font-bold text-red-500">Essay Topic:</span>
-                        <span className="text-[14px] text-white/80">{org.essayTopic || "—"}</span>
+                <div className={`mt-6 space-y-4 ${styles.outlinesFacts}`}>
+                    <div className={`flex items-baseline gap-4 ${styles.outlinesFactRow}`}>
+                        <span className={`w-[110px] shrink-0 text-[14px] font-bold text-red-500 ${styles.outlinesFactLabel}`}>Essay Topic:</span>
+                        <span className={`text-[14px] text-white/80 ${styles.outlinesFactValue}`}>{org.essayTopic || "—"}</span>
                     </div>
-                    <div className="flex items-baseline gap-4">
-                        <span className="w-[110px] shrink-0 text-[14px] font-bold text-red-500">Essay Type:</span>
-                        <span className="text-[14px] text-white/80">{org.analyzedEssayType || "—"}</span>
+                    <div className={`flex items-baseline gap-4 ${styles.outlinesFactRow}`}>
+                        <span className={`w-[110px] shrink-0 text-[14px] font-bold text-red-500 ${styles.outlinesFactLabel}`}>Essay Type:</span>
+                        <span className={`text-[14px] text-white/80 ${styles.outlinesFactValue}`}>{org.analyzedEssayType || "—"}</span>
                     </div>
-                    <div className="flex items-baseline gap-4">
-                        <span className="w-[110px] shrink-0 text-[14px] font-bold text-red-500">Scope:</span>
-                        <span className="text-[14px] text-white/80">{org.scope || "—"}</span>
+                    <div className={`flex items-baseline gap-4 ${styles.outlinesFactRow}`}>
+                        <span className={`w-[110px] shrink-0 text-[14px] font-bold text-red-500 ${styles.outlinesFactLabel}`}>Scope:</span>
+                        <span className={`text-[14px] text-white/80 ${styles.outlinesFactValue}`}>{org.scope || "—"}</span>
                     </div>
-                    <div className="flex items-baseline gap-4">
-                        <span className="w-[110px] shrink-0 text-[14px] font-bold text-red-500">Structure:</span>
-                        <span className="text-[14px] text-white/80">{org.structure || "—"}</span>
+                    <div className={`flex items-baseline gap-4 ${styles.outlinesFactRow}`}>
+                        <span className={`w-[110px] shrink-0 text-[14px] font-bold text-red-500 ${styles.outlinesFactLabel}`}>Structure:</span>
+                        <span className={`text-[14px] text-white/80 ${styles.outlinesFactValue}`}>{org.structure || "—"}</span>
                     </div>
                 </div>
             </div>
 
             {/* Filter by Section label */}
-            <h3 className="mb-3 text-[16px] font-bold text-white">Filter by Section</h3>
+            <h3 className={`mb-3 text-[16px] font-bold text-white ${styles.outlinesFilterLabel}`}>Filter by Section</h3>
 
             {/* Filter tabs */}
-            <div className="mb-4 flex items-center gap-1">
+            <div className={`mb-4 flex items-center gap-1 ${styles.outlinesFilterTabs}`}>
                 {(["All", "Introduction", "Body Paragraph", "Conclusion"] as FilterTab[]).map((tab) => (
                     <button
                         key={tab}
                         disabled={isGenerating}
                         onClick={() => setFilter(tab)}
-                        className={`rounded-full px-4 py-1.5 text-[12px] font-semibold transition-all duration-200 ${filter === tab
+                        className={`rounded-full px-4 py-1.5 text-[12px] font-semibold transition-all duration-200 ${styles.outlinesFilterTab} ${filter === tab
                             ? "bg-red-500 text-white"
                             : "text-white/40 hover:bg-white/[0.04] hover:text-white/60"
                             } disabled:cursor-not-allowed disabled:opacity-40`}
@@ -376,8 +378,8 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
             )}
 
             {/* Header row + action buttons */}
-            <div className="mb-1 flex flex-wrap items-center gap-3">
-                <h2 className="mr-auto text-[24px] font-bold text-white">
+            <div className={`mb-1 flex flex-wrap items-center gap-3 ${styles.outlinesActionHeader}`}>
+                <h2 className={`mr-auto text-[24px] font-bold text-white ${styles.outlinesSectionTitle}`}>
                     We generated outlines for you
                 </h2>
 
@@ -385,7 +387,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <button
                     onClick={() => setShowBuildModal(true)}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-200 hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className={`flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-200 hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40 ${styles.outlinesPrimaryAction}`}
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
@@ -398,12 +400,12 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                 <button
                     onClick={handleAutoOutline}
                     disabled={isGenerating}
-                    className="group relative overflow-hidden rounded-full p-[1px] disabled:cursor-not-allowed disabled:opacity-40"
+                    className={`group relative overflow-hidden rounded-full p-[1px] disabled:cursor-not-allowed disabled:opacity-40 ${styles.outlinesSecondaryActionWrap}`}
                 >
                     <span className="pointer-events-none absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgba(250,204,21,0)_0deg,rgba(250,204,21,0)_40deg,rgba(255,214,74,0.95)_58deg,rgba(255,243,192,1)_78deg,rgba(255,214,74,0.65)_98deg,rgba(250,204,21,0)_122deg,rgba(250,204,21,0)_360deg)] animate-[spin_5.6s_linear_infinite]" />
                     <span className="pointer-events-none absolute inset-[1px] rounded-full bg-[#121212]" />
                     <span className="pointer-events-none absolute inset-0 rounded-full opacity-90 [box-shadow:0_0_0_1px_rgba(255,221,115,0.16),0_0_14px_rgba(250,204,21,0.16)]" />
-                    <span className="relative flex items-center gap-2 rounded-full border border-[#3a2d0c] bg-[#121212] px-5 py-2.5 text-[13px] font-semibold text-[#f8e7a6] transition-all duration-300 group-hover:border-[#7b6218] group-hover:text-white group-hover:shadow-[0_0_22px_rgba(250,204,21,0.12)]">
+                    <span className={`relative flex items-center gap-2 rounded-full border border-[#3a2d0c] bg-[#121212] px-5 py-2.5 text-[13px] font-semibold text-[#f8e7a6] transition-all duration-300 group-hover:border-[#7b6218] group-hover:text-white group-hover:shadow-[0_0_22px_rgba(250,204,21,0.12)] ${styles.outlinesSecondaryAction}`}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
                         </svg>
@@ -416,7 +418,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowParagraphDropdown(!showParagraphDropdown); }}
                         disabled={isGenerating}
-                        className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/[0.04] px-5 py-2.5 text-[13px] font-semibold text-red-400 transition-all duration-200 hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/[0.04] px-5 py-2.5 text-[13px] font-semibold text-red-400 transition-all duration-200 hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-40 ${styles.outlinesDropdownAction}`}
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                             <circle cx="12" cy="12" r="5" />
@@ -445,10 +447,10 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
             </div>
 
             {/* Subheading */}
-            <div className="mb-4 flex items-center justify-between">
-                <p className="text-[13px] text-white/40">Select and reorder the outlines you want to use:</p>
+            <div className={`mb-4 flex items-center justify-between ${styles.outlinesSubheading}`}>
+                <p className={`text-[13px] text-white/40 ${styles.outlinesSubheadingText}`}>Select and reorder the outlines you want to use:</p>
                 {outlines.length > 0 && (
-                    <span className="rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[12px] font-medium text-white/50">
+                    <span className={`rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[12px] font-medium text-white/50 ${styles.outlinesCountBadge}`}>
                         {outlines.length} outlines available
                     </span>
                 )}
@@ -472,7 +474,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
             )}
 
             {/* Outline cards */}
-            <div className="pb-2 select-none">
+            <div className={`pb-2 select-none ${styles.outlinesCards}`}>
                 {visibleOutlines.length === 0 && !isGenerating ? (
                     <div className="flex flex-col items-center justify-center py-16">
                         <svg className="mb-4 text-white/15" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -484,7 +486,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                         <p className="mt-1 text-[13px] text-white/25">Generate some outlines to get started</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${styles.outlinesCardList}`}>
                         {visibleOutlines.map((card) => {
                             const orderIdx = outlines.indexOf(card) + 1;
                             const badgeColor =
@@ -529,7 +531,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                         setDraggedOutlineId(null);
                                         setDragTargetOutlineId(null);
                                     }}
-                                    className={`relative rounded-2xl border p-5 pl-14 transition-all duration-200 ${card.hidden ? "opacity-40" : ""
+                                    className={`relative rounded-2xl border p-5 pl-14 transition-all duration-200 ${styles.outlinesCard} ${card.hidden ? "opacity-40" : ""
                                         } ${card.selected
                                             ? "border-red-500/30 bg-red-500/[0.04]"
                                             : "border-white/[0.06] bg-white/[0.015] hover:border-white/10"
@@ -571,7 +573,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                             </span>
                                         )}
 
-                                        <div className="ml-auto flex items-center gap-1">
+                                        <div className={`ml-auto flex items-center gap-1 ${styles.outlinesCardActions}`}>
                                             {/* Edit */}
                                             <button disabled={isGenerating} onClick={() => openEdit(card)} className="rounded-lg p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-40">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -591,29 +593,30 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                                                 </svg>
                                             </button>
                                             {/* Order */}
-                                            <span className="ml-1 text-[12px] text-white/25">Order: {orderIdx}</span>
+                                            <span className={`ml-1 text-[12px] text-white/25 ${styles.outlinesCardOrder}`}>Order: {orderIdx}</span>
                                         </div>
                                     </div>
 
                                     {/* Title */}
-                                    <h3 className="mb-1.5 text-[15px] font-bold text-white">{card.title}</h3>
+                                    <h3 className={`mb-1.5 text-[15px] font-bold text-white ${styles.outlinesCardTitle}`}>{card.title}</h3>
 
                                     {/* Description */}
-                                    <p className="text-[13px] leading-relaxed text-white/50">{card.description}</p>
+                                    <p className={`text-[13px] leading-relaxed text-white/50 ${styles.outlinesCardDescription}`}>{card.description}</p>
                                 </div>
                             );
                         })}
                     </div>
                 )}
             </div>
+            </div>
 
             {/* Fixed Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md">
-                <div className="flex w-full items-center justify-between gap-4 py-5">
+            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md ${styles.outlinesFooter}`}>
+                <div className={`flex w-full items-center justify-between gap-4 py-5 ${styles.outlinesFooterInner}`}>
                     <button
                         onClick={onBack}
                         disabled={isGenerating}
-                        className="ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:ml-24"
+                        className={`ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:ml-24 ${styles.outlinesBackButton}`}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -624,7 +627,7 @@ export default function OutlinesView({ onBack, onNext }: OutlinesViewProps) {
                     <button
                         onClick={() => setShowConfirmModal(true)}
                         disabled={isGenerating || !outlines.some((c) => c.selected && !c.hidden)}
-                        className={`group relative flex min-w-[250px] max-w-[440px] items-center justify-center gap-2 overflow-hidden rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-300 ${outlines.some((c) => c.selected && !c.hidden)
+                        className={`group relative flex min-w-[250px] max-w-[440px] items-center justify-center gap-2 overflow-hidden rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-300 ${styles.outlinesContinueButton} ${outlines.some((c) => c.selected && !c.hidden)
                             ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-red-400"
                             : "border border-white/[0.1] bg-white/[0.04] text-white/30 cursor-not-allowed"
                             }`}
