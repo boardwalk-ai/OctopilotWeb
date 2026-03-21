@@ -1,3 +1,50 @@
+.editorHeader {}
+
+.editorStepper {
+  top: 4rem;
+}
+
+.editorCollapseButton {
+  position: fixed;
+  right: 1rem;
+  z-index: 50;
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(18, 24, 33, 0.95);
+  padding: 0 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: top 0.3s ease, background 0.2s ease;
+}
+
+.editorCollapseButton:hover {
+  background: #1a2230;
+}
+
+.editorCollapseButtonExpanded {
+  top: 5.375rem;
+}
+
+.editorCollapseButtonCollapsed {
+  top: 0.75rem;
+}
+
+.editorViewportExpanded {
+  padding-top: 124px;
+}
+
+.editorViewportCollapsed {
+  padding-top: 0.5rem;
+}
+
 .editorMobileRoot {}
 
 .editorMobileScrollViewport {
@@ -389,4 +436,72 @@
   background: rgba(234, 67, 53, 0.92);
   color: white;
   box-shadow: 0 0 24px rgba(234, 67, 53, 0.15);
+}
+
+@media (max-width: 767px) {
+  .editorHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.48rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .editorHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .editorHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .editorStepper {
+    top: 3.15rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .editorStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .editorStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .editorStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .editorCollapseButton {
+    right: 0.75rem;
+    height: 1.9rem;
+    padding-inline: 0.7rem;
+    font-size: 0.63rem;
+    letter-spacing: 0.08em;
+  }
+
+  .editorCollapseButtonExpanded {
+    top: 4.85rem;
+  }
+
+  .editorCollapseButtonCollapsed {
+    top: 0.65rem;
+  }
+
+  .editorViewportExpanded {
+    padding-top: 6.75rem;
+  }
+
+  .editorViewportCollapsed {
+    padding-top: 0.35rem;
+  }
 }
