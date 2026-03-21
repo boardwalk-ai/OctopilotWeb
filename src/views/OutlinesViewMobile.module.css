@@ -220,9 +220,10 @@
   .outlinesSectionTitle {
     width: 100%;
     margin-right: 0;
-    font-size: 1.95rem;
-    line-height: 1.04;
-    letter-spacing: -0.05em;
+    font-size: 1.52rem;
+    line-height: 1.08;
+    letter-spacing: -0.045em;
+    white-space: nowrap;
   }
 
   .outlinesPrimaryAction,
@@ -232,8 +233,9 @@
     gap: 0.42rem !important;
     padding-top: 0.74rem !important;
     padding-bottom: 0.74rem !important;
-    font-size: 0.78rem !important;
+    font-size: 0.7rem !important;
     line-height: 1.15;
+    letter-spacing: -0.02em;
   }
 
   .outlinesPrimaryAction {
