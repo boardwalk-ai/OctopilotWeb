@@ -1,0 +1,288 @@
+.instructionsHeader {}
+
+.instructionsStepper {}
+
+.instructionsShell {}
+
+.instructionsTitleRow {}
+
+.instructionsIntro {}
+
+.instructionsTitle {}
+
+.instructionsSubtitle {}
+
+.instructionsToggle {}
+
+.instructionsToggleCopy {}
+
+.instructionsToggleHead {}
+
+.instructionsToggleLabel {}
+
+.instructionsToggleBadge {}
+
+.instructionsToggleHint {}
+
+.instructionsToggleSwitch {}
+
+.instructionsToggleThumb {}
+
+.instructionsContent {}
+
+.instructionsTextarea {}
+
+.instructionsDivider {}
+
+.instructionsDividerText {}
+
+.instructionsUpload {}
+
+.instructionsUploadIcon {}
+
+.instructionsUploadTitle {}
+
+.instructionsUploadHint {}
+
+.instructionsFooter {}
+
+.instructionsFooterInner {}
+
+.instructionsBackButton {}
+
+.instructionsReadButton {}
+
+.instructionsError {}
+
+@media (max-width: 767px) {
+  .instructionsHeader {
+    min-height: auto;
+    padding: 0.55rem 0.55rem 0.48rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), rgba(10, 10, 10, 0.18) 72%, transparent);
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  .instructionsHeader > :global(div:first-child) {
+    display: none;
+  }
+
+  .instructionsHeader > :global(div:last-child) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .instructionsStepper {
+    top: 3.15rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .instructionsStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .instructionsStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .instructionsStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .instructionsShell {
+    height: 100%;
+    min-height: 100%;
+    padding: 6.9rem 1rem 0;
+    overflow: hidden;
+  }
+
+  .instructionsTitleRow {
+    margin-bottom: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.85rem;
+  }
+
+  .instructionsIntro {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .instructionsTitle {
+    max-width: 12rem;
+    font-size: 2.05rem;
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+  }
+
+  .instructionsSubtitle {
+    margin-top: 0.55rem;
+    max-width: 15.75rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.64);
+  }
+
+  .instructionsToggle {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0.95rem 1rem;
+    align-items: flex-start;
+    border-radius: 1.45rem;
+    overflow: hidden;
+  }
+
+  .instructionsToggleCopy {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .instructionsToggleHead {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.45rem;
+  }
+
+  .instructionsToggleLabel {
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  .instructionsToggleBadge {
+    padding: 0.32rem 0.56rem !important;
+    font-size: 0.54rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .instructionsToggleHint {
+    margin-top: 0.32rem;
+    font-size: 0.79rem;
+    line-height: 1.35;
+  }
+
+  .instructionsToggleSwitch {
+    width: 2.2rem !important;
+    height: 1.3rem !important;
+    margin-top: 0.05rem;
+  }
+
+  .instructionsToggleThumb {
+    width: 0.9rem !important;
+    height: 0.9rem !important;
+    top: 0.2rem !important;
+  }
+
+  .instructionsContent {
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 0.75rem;
+  }
+
+  .instructionsTextarea {
+    min-height: 11.5rem;
+    flex: 0 0 auto;
+    max-width: 100%;
+    padding: 1.15rem 1.15rem 1.2rem;
+    border-radius: 1.3rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .instructionsDivider {
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+  }
+
+  .instructionsDividerText {
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+  }
+
+  .instructionsUpload {
+    flex: 0 0 auto;
+    min-height: 12.75rem;
+    max-width: 100%;
+    padding: 1.5rem 1.25rem;
+    border-radius: 1.3rem;
+  }
+
+  .instructionsUploadIcon {
+    margin-bottom: 0.85rem;
+  }
+
+  .instructionsUploadIcon :global(svg) {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .instructionsUploadTitle {
+    text-align: center;
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+
+  .instructionsUploadHint {
+    text-align: center;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .instructionsFooter {
+    position: sticky !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: 0 !important;
+    flex-shrink: 0;
+    margin: 0 -1rem;
+    padding: 0.95rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+    border-top: 0 !important;
+    background: linear-gradient(180deg, rgba(5, 5, 5, 0), rgba(5, 5, 5, 0.88) 20%, #050505 100%) !important;
+    backdrop-filter: none !important;
+  }
+
+  .instructionsFooterInner {
+    position: relative;
+    gap: 0.75rem;
+    padding: 0 !important;
+  }
+
+  .instructionsBackButton {
+    margin-left: 0 !important;
+    min-width: 0;
+    flex: 0 0 38%;
+    padding: 0 1rem;
+    min-height: 3.15rem;
+    font-size: 0.98rem;
+  }
+
+  .instructionsReadButton {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+    padding: 0 1rem;
+    min-height: 3.15rem;
+    font-size: 0.98rem;
+  }
+
+  .instructionsError {
+    width: calc(100vw - 2rem);
+    max-width: 20rem;
+    text-align: center;
+    font-size: 0.76rem;
+    line-height: 1.4;
+    white-space: normal;
+  }
+}

@@ -7,6 +7,7 @@ import { FileReadService } from "@/services/FileReadService";
 import { Organizer } from "@/services/OrganizerService";
 import { HeinService } from "@/services/HeinService";
 import { TestService } from "@/services/TestService";
+import styles from "./InstructionsViewMobile.module.css";
 
 interface InstructionsViewProps {
     onBack: () => void;
@@ -100,14 +101,14 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     };
 
     return (
-        <div className="flex min-h-full w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14">
+        <div className={`flex min-h-full w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14 ${styles.instructionsShell}`}>
             {/* Title row with Imperfect Mode toggle */}
-            <div className="mb-6 flex items-start justify-between">
-                <div>
-                    <h1 className="text-[36px] font-bold text-white">
+            <div className={`mb-6 flex items-start justify-between ${styles.instructionsTitleRow}`}>
+                <div className={styles.instructionsIntro}>
+                    <h1 className={`text-[36px] font-bold text-white ${styles.instructionsTitle}`}>
                         Give us your assignment instructions
                     </h1>
-                    <p className="mt-1 text-[16px] text-white/50">
+                    <p className={`mt-1 text-[16px] text-white/50 ${styles.instructionsSubtitle}`}>
                         Provide your assignment details so we can create the perfect essay outline
                     </p>
                 </div>
@@ -120,29 +121,29 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         }
                     }}
                     disabled={isAnalyzing || !isSubscriber}
-                    className={`ml-6 mt-1 flex shrink-0 items-center gap-3 rounded-full border px-5 py-3 text-left transition-all duration-300 ${imperfectMode
+                    className={`ml-6 mt-1 flex shrink-0 items-center gap-3 rounded-full border px-5 py-3 text-left transition-all duration-300 ${styles.instructionsToggle} ${imperfectMode
                         ? "border-red-500/60 bg-red-500/[0.12]"
                         : "border-red-500/30 bg-red-500/[0.04] hover:border-red-500/50 hover:bg-red-500/[0.08]"
                         }`}
                 >
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="block text-[14px] font-bold text-white">Imperfect Mode</span>
-                            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                    <div className={styles.instructionsToggleCopy}>
+                        <div className={`flex items-center gap-2 ${styles.instructionsToggleHead}`}>
+                            <span className={`block text-[14px] font-bold text-white ${styles.instructionsToggleLabel}`}>Imperfect Mode</span>
+                            <span className={`rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300 ${styles.instructionsToggleBadge}`}>
                                 Only Subscribers
                             </span>
                         </div>
-                        <span className="block text-[12px] text-white/40">Feed writing styles into AI</span>
+                        <span className={`block text-[12px] text-white/40 ${styles.instructionsToggleHint}`}>Feed writing styles into AI</span>
                     </div>
                     {/* Toggle switch */}
-                    <div className={`relative h-[22px] w-[40px] shrink-0 rounded-full transition-colors duration-300 ${imperfectMode ? "bg-red-500" : "bg-white/15"}`}>
-                        <div className={`absolute top-[3px] h-[16px] w-[16px] rounded-full bg-white shadow-md transition-transform duration-300 ${imperfectMode ? "translate-x-[21px]" : "translate-x-[3px]"}`} />
+                    <div className={`relative h-[22px] w-[40px] shrink-0 rounded-full transition-colors duration-300 ${styles.instructionsToggleSwitch} ${imperfectMode ? "bg-red-500" : "bg-white/15"}`}>
+                        <div className={`absolute top-[3px] h-[16px] w-[16px] rounded-full bg-white shadow-md transition-transform duration-300 ${styles.instructionsToggleThumb} ${imperfectMode ? "translate-x-[21px]" : "translate-x-[3px]"}`} />
                     </div>
                 </button>
             </div>
 
             {/* Content — fills remaining space, no scroll */}
-            <div className="flex flex-1 flex-col gap-0">
+            <div className={`flex flex-1 flex-col gap-0 ${styles.instructionsContent}`}>
                 {/* Textarea */}
                 <textarea
                     value={instructions}
@@ -152,12 +153,12 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         Organizer.set({ instructionTextInput: e.target.value });
                     }}
                     placeholder="Type your assignment instructions here..."
-                    className="min-h-[140px] flex-[2] w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-[15px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`min-h-[140px] flex-[2] w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-[15px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-60 ${styles.instructionsTextarea}`}
                 />
 
                 {/* "or" divider */}
-                <div className="flex items-center justify-center py-4">
-                    <span className="text-[14px] font-medium text-white/30">or</span>
+                <div className={`flex items-center justify-center py-4 ${styles.instructionsDivider}`}>
+                    <span className={`text-[14px] font-medium text-white/30 ${styles.instructionsDividerText}`}>or</span>
                 </div>
 
                 {/* Upload area */}
@@ -167,7 +168,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                             fileInputRef.current?.click();
                         }
                     }}
-                    className={`flex flex-[2] flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 transition-all duration-200 ${uploadedFile
+                    className={`flex flex-[2] flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 transition-all duration-200 ${styles.instructionsUpload} ${uploadedFile
                         ? "border-red-500/30 bg-red-500/[0.04]"
                         : "border-white/[0.08] bg-white/[0.01] hover:border-white/15 hover:bg-white/[0.03]"
                         } ${isAnalyzing ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
@@ -185,7 +186,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                     />
                     {/* Upload icon */}
                     <svg
-                        className="mb-3 text-red-500"
+                        className={`mb-3 text-red-500 ${styles.instructionsUploadIcon}`}
                         width="36"
                         height="36"
                         viewBox="0 0 24 24"
@@ -202,19 +203,19 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                     </svg>
                     {uploadedFile ? (
                         <>
-                            <p className="text-[15px] font-semibold text-red-400">
+                            <p className={`text-[15px] font-semibold text-red-400 ${styles.instructionsUploadTitle}`}>
                                 {uploadedFile.name}
                             </p>
-                            <p className="mt-1 text-[13px] text-white/40">
+                            <p className={`mt-1 text-[13px] text-white/40 ${styles.instructionsUploadHint}`}>
                                 Click to change file
                             </p>
                         </>
                     ) : (
                         <>
-                            <p className="text-[15px] font-semibold text-white">
+                            <p className={`text-[15px] font-semibold text-white ${styles.instructionsUploadTitle}`}>
                                 Upload your instruction document
                             </p>
-                            <p className="mt-1 text-[13px] text-white/40">
+                            <p className={`mt-1 text-[13px] text-white/40 ${styles.instructionsUploadHint}`}>
                                 One file only. {FileReadService.getSupportedTypeLabel()}
                             </p>
                         </>
@@ -224,12 +225,12 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
             </div>
 
             {/* Fixed Bottom Action Bar — Back + Read */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md">
-                <div className="flex w-full items-center justify-between gap-4 py-5">
+            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md ${styles.instructionsFooter}`}>
+                <div className={`flex w-full items-center justify-between gap-4 py-5 ${styles.instructionsFooterInner}`}>
                     <button
                         onClick={onBack}
                         disabled={isAnalyzing}
-                        className="ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:ml-24"
+                        className={`ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:ml-24 ${styles.instructionsBackButton}`}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
@@ -240,7 +241,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                     <button
                         onClick={handleRead}
                         disabled={isAnalyzing || (!instructions.trim() && !uploadedFile)}
-                        className={`group relative flex min-w-[250px] max-w-[460px] items-center justify-center gap-2 overflow-hidden rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-300 ${isAnalyzing || (!instructions.trim() && !uploadedFile)
+                        className={`group relative flex min-w-[250px] max-w-[460px] items-center justify-center gap-2 overflow-hidden rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-300 ${styles.instructionsReadButton} ${isAnalyzing || (!instructions.trim() && !uploadedFile)
                             ? "bg-white/[0.04] text-white/30 cursor-not-allowed"
                             : "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:bg-red-400"
                             }`}
@@ -266,7 +267,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         )}
                     </button>
                     {error && (
-                        <div className="absolute bottom-full left-1/2 mb-4 -translate-x-1/2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-4 py-2 text-[13px] text-red-400">
+                        <div className={`absolute bottom-full left-1/2 mb-4 -translate-x-1/2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-4 py-2 text-[13px] text-red-400 ${styles.instructionsError}`}>
                             {error}
                         </div>
                     )}
