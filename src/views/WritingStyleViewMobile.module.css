@@ -6,6 +6,12 @@
 
 .writingStyleInner {}
 
+.writingStyleIntro {}
+
+.writingStyleUploadSection {}
+
+.writingStyleActionSection {}
+
 .writingStyleTitle {}
 
 .writingStyleSubtitle {}
@@ -48,23 +54,26 @@
 
   .writingStyleStepper {
     top: 3.15rem !important;
-    border-bottom: 0 !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
-  }
-
-  .writingStyleStepper > :global(div:first-child) {
-    display: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(11, 11, 11, 0.82) !important;
+    backdrop-filter: blur(10px) !important;
   }
 
   .writingStyleShell {
-    padding-top: 5.7rem;
+    min-height: calc(100dvh - 4.2rem);
+    padding-top: 6.25rem;
     padding-left: 1rem;
     padding-right: 1rem;
+    padding-bottom: 1.35rem;
   }
 
   .writingStyleInner {
     max-width: 100%;
+    min-height: calc(100dvh - 7.6rem);
+  }
+
+  .writingStyleIntro {
+    width: 100%;
   }
 
   .writingStyleTitle {
@@ -76,16 +85,21 @@
   }
 
   .writingStyleSubtitle {
-    margin-bottom: 1.55rem;
+    margin-bottom: 0;
     max-width: 17rem;
     font-size: 0.86rem;
     line-height: 1.4;
     color: rgba(255, 255, 255, 0.72);
   }
 
+  .writingStyleUploadSection {
+    width: 100%;
+    margin-top: 1.35rem;
+  }
+
   .writingStyleUploadBox {
-    padding-top: 3.2rem;
-    padding-bottom: 3.2rem;
+    padding-top: 2.9rem;
+    padding-bottom: 2.9rem;
     border-radius: 1.45rem;
   }
 
@@ -123,8 +137,14 @@
     line-height: 1.4;
   }
 
+  .writingStyleActionSection {
+    width: 100%;
+    margin-top: auto;
+    padding-top: 1.25rem;
+  }
+
   .writingStyleLearnButton {
-    margin-top: 1.2rem;
+    margin-top: 0;
     min-height: 3.2rem;
     padding-left: 1.35rem;
     padding-right: 1.35rem;
@@ -134,5 +154,21 @@
   .writingStyleSkipButton {
     margin-top: 0.95rem;
     font-size: 0.86rem;
+  }
+
+  .writingStyleStepper > :global(div:first-child) {
+    padding-top: 0.38rem;
+    padding-bottom: 0.28rem;
+  }
+
+  .writingStyleStepper > :global(div:first-child > div:last-child) {
+    margin-top: 0.16rem;
+    font-size: 0.46rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .writingStyleStepper > :global(div:first-child span) {
+    font-size: 0.47rem !important;
+    letter-spacing: 0.06em !important;
   }
 }
