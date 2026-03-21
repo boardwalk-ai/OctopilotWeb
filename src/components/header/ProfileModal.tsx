@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { User } from "firebase/auth";
 import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
@@ -167,6 +168,7 @@ function Panel({
 }
 
 export default function ProfileModal({ open, onClose, user }: ProfileModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [authReadyUser, setAuthReadyUser] = useState<ReturnType<typeof AuthService.getCurrentUser>>(null);
   const [redeemCode, setRedeemCode] = useState("");
   const [referralRedeemCode, setReferralRedeemCode] = useState("");
@@ -202,6 +204,10 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
       .map((part) => part[0]?.toUpperCase() || "")
       .join("") || "U";
   }, [user]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const snapshot = AccountStateService.read();
@@ -407,7 +413,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
     }
   }
 
-  if (!open) {
+  if (!open || !mounted) {
     return null;
   }
 
@@ -420,8 +426,8 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
           ? "bg-red-400"
           : "bg-neutral-500";
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-6 lg:px-8">
+  return createPortal(
+    <div className="fixed inset-0 z-[2147483640] flex items-center justify-center px-4 py-6 lg:px-8">
       <button
         type="button"
         aria-label="Close profile modal"
@@ -645,6 +651,7 @@ export default function ProfileModal({ open, onClose, user }: ProfileModalProps)
           ) : null}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
