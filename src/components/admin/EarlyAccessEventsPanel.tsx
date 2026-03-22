@@ -42,6 +42,8 @@ type EarlyAccessEventsPanelProps = {
   refreshKey: number;
 };
 
+const DEFAULT_SLOT_TIMEZONE = "America/New_York";
+
 function toDateKey(value: Date) {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
@@ -90,9 +92,53 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
-function getBrowserTimezone() {
-  if (typeof window === "undefined") return "UTC";
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+function normalizeTimezoneValue(value?: string | null) {
+  const rawValue = `${value || ""}`.trim();
+  if (!rawValue) return DEFAULT_SLOT_TIMEZONE;
+
+  const offsetMatch = rawValue.match(/^(?:UTC|GMT)?\s*([+-])\s*(\d{1,2})(?::?(\d{2}))?$/i);
+  if (offsetMatch) {
+    const sign = offsetMatch[1];
+    const hours = offsetMatch[2].padStart(2, "0");
+    const minutes = (offsetMatch[3] || "00").padStart(2, "0");
+    return `UTC${sign}${hours}:${minutes}`;
+  }
+
+  return rawValue;
+}
+
+function getDefaultSlotTimezone() {
+  return DEFAULT_SLOT_TIMEZONE;
+}
+
+function normalizeTimeInputValue(value?: string | null) {
+  const rawValue = `${value || ""}`.trim();
+  if (!rawValue) return "09:00";
+
+  const match24Hour = rawValue.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24Hour) {
+    const hour = Number(match24Hour[1]);
+    const minute = Number(match24Hour[2]);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  const match12Hour = rawValue.match(/^(\d{1,2})(?::(\d{2}))?\s*([AP]M)$/i);
+  if (match12Hour) {
+    const rawHour = Number(match12Hour[1]);
+    const minute = Number(match12Hour[2] || "0");
+    const meridiem = match12Hour[3].toUpperCase();
+    if (rawHour >= 1 && rawHour <= 12 && minute >= 0 && minute <= 59) {
+      let hour = rawHour % 12;
+      if (meridiem === "PM") {
+        hour += 12;
+      }
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  return rawValue;
 }
 
 function getTimeInputValue(isoValue?: string | null, timezone = "UTC") {
@@ -173,7 +219,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
   const [slotTime, setSlotTime] = useState("09:00");
   const [slotDuration, setSlotDuration] = useState(30);
   const [slotLabel, setSlotLabel] = useState("");
-  const [slotTimezone, setSlotTimezone] = useState("UTC");
+  const [slotTimezone, setSlotTimezone] = useState(DEFAULT_SLOT_TIMEZONE);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -220,7 +266,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
   }, []);
 
   useEffect(() => {
-    setSlotTimezone(getBrowserTimezone());
+    setSlotTimezone(getDefaultSlotTimezone());
   }, []);
 
   useEffect(() => {
@@ -255,7 +301,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
     setSlotTime("09:00");
     setSlotDuration(30);
     setSlotLabel("");
-    setSlotTimezone(getBrowserTimezone());
+    setSlotTimezone(getDefaultSlotTimezone());
   };
 
   const handleSaveSlot = async () => {
@@ -265,9 +311,9 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
     try {
       const payload = {
         date: selectedDate,
-        start_time: slotTime,
+        start_time: normalizeTimeInputValue(slotTime),
         duration_minutes: slotDuration,
-        timezone: slotTimezone,
+        timezone: normalizeTimezoneValue(slotTimezone),
         slot_label: slotLabel.trim() || null,
         ...(editingSlotId ? { is_active: true } : {}),
       };
@@ -299,7 +345,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
     setSlotTime(getTimeInputValue(slot.starts_at, slot.timezone));
     setSlotDuration(getDurationMinutes(slot));
     setSlotLabel(slot.slot_label || "");
-    setSlotTimezone(slot.timezone || getBrowserTimezone());
+    setSlotTimezone(normalizeTimezoneValue(slot.timezone || getDefaultSlotTimezone()));
     setError(null);
     setSuccess(null);
   };
