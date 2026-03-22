@@ -6,6 +6,7 @@ import type { User } from "firebase/auth";
 import { AuthService } from "@/services/AuthService";
 import { StreamService } from "@/services/StreamService";
 import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
+import EarlyAccessEventsPanel from "@/components/admin/EarlyAccessEventsPanel";
 
 type MenuItem = {
   id: string;
@@ -13,6 +14,7 @@ type MenuItem = {
   description: string;
   icon: JSX.Element;
   columns: string[];
+  group?: string;
 };
 
 type DataRow = Record<string, string | number | null>;
@@ -93,6 +95,14 @@ const menuItems: MenuItem[] = [
   { id: "purchase-history", label: "Purchase History", description: "Plan timeline and changes", icon: <ReceiptIcon />, columns: ["No", "Email", "Current Plan", "Plan History"] },
   { id: "promo-area", label: "Promo Area", description: "Codes, expiry, and claim control", icon: <TagIcon />, columns: ["Status"] },
   { id: "referral-section", label: "Referral Section", description: "Referral rewards and claim visibility", icon: <KeyIcon />, columns: ["Status"] },
+  {
+    id: "events-early-access",
+    label: "Early Access",
+    description: "Calendar availability and appointment bookings",
+    icon: <CalendarIcon />,
+    columns: ["Status"],
+    group: "Events",
+  },
   { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon />, columns: ["No", "Provider", "Key", "Status"] },
   { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator action", icon: <ChartIcon />, columns: ["No", "Name", "Email", "Total Sessions", "Action"] },
   { id: "analytics", label: "Analytics", description: "Performance and growth trends", icon: <PulseIcon />, columns: ["Metric", "Value", "Change"] },
@@ -205,6 +215,22 @@ function KeyIcon() {
         <path d="M11.5 15H21" />
         <path d="M18 12v6" />
         <path d="M15 13.5v3" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <rect x="3.5" y="5" width="17" height="15" rx="2.4" />
+        <path d="M7 3.5v3" />
+        <path d="M17 3.5v3" />
+        <path d="M3.5 9.5h17" />
+        <path d="M8 13h3" />
+        <path d="M13 13h3" />
+        <path d="M8 17h3" />
       </svg>
     </IconFrame>
   );
@@ -1338,24 +1364,30 @@ export default function BrokeOctopusPage() {
 
             <div className="flex-1 overflow-y-auto px-2 py-3">
               <div className="space-y-1.5">
-                {menuItems.map((item) => {
+                {menuItems.map((item, index) => {
                   const isActive = item.id === activeSectionId;
+                  const previousGroup = index > 0 ? menuItems[index - 1].group : undefined;
+                  const showGroupHeading = !sidebarCollapsed && item.group && item.group !== previousGroup;
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveSectionId(item.id)}
-                      className={`flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition ${
-                        isActive ? "border-red-500/40 bg-[#140b0b] text-white" : "border-transparent bg-transparent text-white/58 hover:border-white/8 hover:bg-[#101010] hover:text-white"
-                      }`}
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-[#0d0d0d] text-red-300">{item.icon}</div>
-                      {!sidebarCollapsed ? (
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold">{item.label}</div>
-                          <div className="mt-0.5 text-xs leading-5 text-white/38">{item.description}</div>
-                        </div>
+                    <div key={item.id}>
+                      {showGroupHeading ? (
+                        <div className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/25">{item.group}</div>
                       ) : null}
-                    </button>
+                      <button
+                        onClick={() => setActiveSectionId(item.id)}
+                        className={`flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition ${
+                          isActive ? "border-red-500/40 bg-[#140b0b] text-white" : "border-transparent bg-transparent text-white/58 hover:border-white/8 hover:bg-[#101010] hover:text-white"
+                        }`}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-[#0d0d0d] text-red-300">{item.icon}</div>
+                        {!sidebarCollapsed ? (
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold">{item.label}</div>
+                            <div className="mt-0.5 text-xs leading-5 text-white/38">{item.description}</div>
+                          </div>
+                        ) : null}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1412,6 +1444,8 @@ export default function BrokeOctopusPage() {
                 <PromoAreaPanel refreshKey={refreshKey} mode="promo" />
               ) : activeSection.id === "referral-section" ? (
                 <PromoAreaPanel refreshKey={refreshKey} mode="referral" />
+              ) : activeSection.id === "events-early-access" ? (
+                <EarlyAccessEventsPanel refreshKey={refreshKey} />
               ) : (
                 <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
