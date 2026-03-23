@@ -7,12 +7,22 @@ export type AdminRequestAuth = {
 };
 
 function resolveServiceAuthorization() {
-  return (
+  const rawValue =
     process.env.ADMIN_PUBLIC_UPSTREAM_AUTHORIZATION?.trim() ||
     process.env.ADMIN_AGENT_UPSTREAM_AUTHORIZATION?.trim() ||
     process.env.ADMIN_SERVICE_AUTHORIZATION?.trim() ||
-    ""
-  );
+    "";
+
+  if (!rawValue) {
+    return "";
+  }
+
+  // Allow a bare token like "brokeoctopus" in env and forward it as a bearer token.
+  if (/\s/.test(rawValue)) {
+    return rawValue;
+  }
+
+  return `Bearer ${rawValue}`;
 }
 
 export function resolveAdminRequestAuth(request: NextRequest, options?: { allowPublic?: boolean }): AdminRequestAuth {
