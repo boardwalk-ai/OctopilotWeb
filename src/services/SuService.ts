@@ -1,5 +1,6 @@
 import { SourceData } from "./OrganizerService";
 import { TestService } from "./TestService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 interface SuAssistResponse {
     bullets?: string[];
@@ -74,7 +75,7 @@ function fallbackIdeas(sectionTitle: string): string[] {
 
 export class SuService {
     private static async callAssist(payload: object): Promise<SuAssistResponse> {
-        const res = await fetch("/api/su/assist", {
+        const res = await fetchWithUserAuthorization("/api/su/assist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),

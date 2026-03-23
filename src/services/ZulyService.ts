@@ -1,5 +1,6 @@
 import { Organizer, SourceData, CompactedSource, WritingStyleProfile } from "./OrganizerService";
 import { TestService } from "./TestService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 type CompactionInput = {
     sourceTitle: string;
@@ -22,7 +23,7 @@ export class ZulyService {
             };
         }
 
-        const res = await fetch("/api/zuly/compact", {
+        const res = await fetchWithUserAuthorization("/api/zuly/compact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -51,7 +52,7 @@ export class ZulyService {
 
     static async compactSource(source: SourceData, sourceIndex: number): Promise<CompactedSource> {
         const compactionInput = ZulyService.buildCompactionInput(source);
-        const res = await fetch("/api/zuly/compact", {
+        const res = await fetchWithUserAuthorization("/api/zuly/compact", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

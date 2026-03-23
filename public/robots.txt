@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /brokeoctopus
+Disallow: /dashboard
+
+Sitemap: https://octopilotai.app/sitemap.xml

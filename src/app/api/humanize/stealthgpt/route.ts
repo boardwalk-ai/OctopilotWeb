@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHumanizerApiKey } from "@/server/backendConfig";
+import { requireAuthenticatedRequest } from "@/server/routeAuth";
 const STEALTHGPT_API_URL = "https://www.stealthgpt.ai/api/stealthify";
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedRequest(request);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
         const body = await request.json();
         const { prompt, rephrase, educationLevel, strength, detector } = body;
 

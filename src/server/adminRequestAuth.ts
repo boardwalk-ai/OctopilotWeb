@@ -1,29 +1,11 @@
 import type { NextRequest } from "next/server";
+import { resolveConfiguredUpstreamAuthorization } from "@/server/serviceAuthorization";
 
 export type AdminRequestAuth = {
   mode: "firebase" | "agent" | "public";
   upstreamAuthorization: string;
   skipAdminCheck: boolean;
 };
-
-function resolveServiceAuthorization() {
-  const rawValue =
-    process.env.ADMIN_PUBLIC_UPSTREAM_AUTHORIZATION?.trim() ||
-    process.env.ADMIN_AGENT_UPSTREAM_AUTHORIZATION?.trim() ||
-    process.env.ADMIN_SERVICE_AUTHORIZATION?.trim() ||
-    "";
-
-  if (!rawValue) {
-    return "";
-  }
-
-  // Allow a bare token like "brokeoctopus" in env and forward it as a bearer token.
-  if (/\s/.test(rawValue)) {
-    return rawValue;
-  }
-
-  return `Bearer ${rawValue}`;
-}
 
 export function resolveAdminRequestAuth(request: NextRequest, options?: { allowPublic?: boolean }): AdminRequestAuth {
   const authorization = request.headers.get("authorization")?.trim();
@@ -43,7 +25,11 @@ export function resolveAdminRequestAuth(request: NextRequest, options?: { allowP
       throw new Error("Invalid admin agent key.");
     }
 
-    const upstreamAuthorization = resolveServiceAuthorization();
+    const upstreamAuthorization = resolveConfiguredUpstreamAuthorization(
+      "ADMIN_AGENT_UPSTREAM_AUTHORIZATION",
+      "ADMIN_SERVICE_AUTHORIZATION",
+      "ADMIN_PUBLIC_UPSTREAM_AUTHORIZATION",
+    );
     if (!upstreamAuthorization) {
       throw new Error("ADMIN_AGENT_UPSTREAM_AUTHORIZATION is not configured.");
     }
@@ -56,7 +42,11 @@ export function resolveAdminRequestAuth(request: NextRequest, options?: { allowP
   }
 
   if (options?.allowPublic) {
-    const publicAuthorization = resolveServiceAuthorization();
+    const publicAuthorization = resolveConfiguredUpstreamAuthorization(
+      "ADMIN_PUBLIC_UPSTREAM_AUTHORIZATION",
+      "ADMIN_SERVICE_AUTHORIZATION",
+      "ADMIN_AGENT_UPSTREAM_AUTHORIZATION",
+    );
     if (!publicAuthorization) {
       throw new Error("ADMIN_PUBLIC_UPSTREAM_AUTHORIZATION is not configured.");
     }

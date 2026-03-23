@@ -1,3 +1,5 @@
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
+
 export interface StealthGPTParams {
     prompt: string;
     rephrase: boolean;
@@ -15,7 +17,7 @@ export interface UndetectableParams {
 
 export class HumanizerService {
     static async stealthGPT(params: StealthGPTParams): Promise<string> {
-        const res = await fetch("/api/humanize/stealthgpt", {
+        const res = await fetchWithUserAuthorization("/api/humanize/stealthgpt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(params),
@@ -32,7 +34,7 @@ export class HumanizerService {
     }
 
     static async undetectableAI(params: UndetectableParams): Promise<string> {
-        const res = await fetch("/api/humanize/undetectable", {
+        const res = await fetchWithUserAuthorization("/api/humanize/undetectable", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(params),
@@ -63,7 +65,7 @@ export class HumanizerService {
                 await new Promise((resolve) => setTimeout(resolve, 1500));
             }
 
-            const res = await fetch("/api/humanize/undetectable/document", {
+            const res = await fetchWithUserAuthorization("/api/humanize/undetectable/document", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id }),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { getOpenRouterConfig } from "@/server/backendConfig";
+import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_RETRIES = 2;
@@ -131,6 +132,11 @@ async function callOpenRouterWithRetry(payload: Record<string, unknown>, apiKey:
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedRequest(request);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
         const body = await request.json();
         const { targetCount, essayTopic, outlines } = body;
 

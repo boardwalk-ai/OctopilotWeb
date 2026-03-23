@@ -1,5 +1,6 @@
 import { Organizer } from "./OrganizerService";
 import { buildOctoRuntimeContext } from "@/lib/octoContext";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 interface OctoResponse {
     answer: string;
@@ -10,7 +11,7 @@ export class OctoService {
         const organizer = Organizer.get();
         const runtimeContext = buildOctoRuntimeContext(currentPage, organizer);
 
-        const res = await fetch("/api/octo/assist", {
+        const res = await fetchWithUserAuthorization("/api/octo/assist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

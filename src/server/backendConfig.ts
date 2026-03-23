@@ -1,3 +1,5 @@
+import { resolveDefaultServiceAuthorization } from "@/server/serviceAuthorization";
+
 type BackendKeysResponse = {
   openrouter_api_key?: string;
   brave_api_key?: string;
@@ -25,9 +27,17 @@ function getApiBaseUrl(): string {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
+  const authorization = resolveDefaultServiceAuthorization();
+  if (!authorization) {
+    throw new Error("Missing ADMIN_SERVICE_AUTHORIZATION for backend config access.");
+  }
+
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: {
+      Accept: "application/json",
+      Authorization: authorization,
+    },
     cache: "no-store",
   });
 

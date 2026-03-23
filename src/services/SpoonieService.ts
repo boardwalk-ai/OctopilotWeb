@@ -1,3 +1,5 @@
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
+
 interface SpoonieResponse {
     citation?: string;
     extracted_text?: string;
@@ -41,7 +43,7 @@ export interface SpoonieFieldworkCitationInput {
 
 export class SpoonieService {
     static async generateCitation(input: SpoonieCitationInput): Promise<string> {
-        const res = await fetch("/api/spoonie/citation", {
+        const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ task: "CITATION_PREVIEW", input }),
@@ -61,7 +63,7 @@ export class SpoonieService {
     }
 
     static async extractImageText(input: SpoonieOcrInput): Promise<string> {
-        const res = await fetch("/api/spoonie/citation", {
+        const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ task: "OCR_EXTRACT", input }),
@@ -81,7 +83,7 @@ export class SpoonieService {
     }
 
     static async generateFieldworkCitation(input: SpoonieFieldworkCitationInput): Promise<string> {
-        const res = await fetch("/api/spoonie/citation", {
+        const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ task: "FIELDWORK_CITATION", input }),

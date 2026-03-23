@@ -1,5 +1,6 @@
 import { Organizer } from "./OrganizerService";
 import { TestService } from "./TestService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 export interface AlvinSearchResult {
     website_URL: string;
@@ -15,7 +16,7 @@ export class AlvinService {
 
         for (let attempt = 0; attempt < 2; attempt++) {
             try {
-                const res = await fetch("/api/alvin/search", {
+                const res = await fetchWithUserAuthorization("/api/alvin/search", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenRouterConfig } from "@/server/backendConfig";
+import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -19,6 +20,11 @@ Respond in exactly this JSON format:
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedRequest(request);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
         const body = await request.json();
         const { major, essayType, instructions } = body;
 

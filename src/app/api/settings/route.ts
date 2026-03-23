@@ -1,11 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getApiBaseUrl } from "@/server/backendConfig";
+import { requireAdminRequest } from "@/server/routeAuth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminRequest(request);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
         const response = await fetch(
             `${getApiBaseUrl()}/api/v1/admin/settings`,
-            { method: "GET", headers: { "Accept": "application/json" } }
+            {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json",
+                    "Authorization": auth.authorization,
+                },
+                cache: "no-store",
+            }
         );
 
         if (!response.ok) {

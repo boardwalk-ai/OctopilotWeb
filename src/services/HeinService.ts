@@ -1,5 +1,6 @@
 import { Organizer } from "./OrganizerService";
 import { TestService } from "./TestService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 export interface HeinAnalysisResult {
     analysis: string;
@@ -32,7 +33,7 @@ export class HeinService {
 
         const state = Organizer.get();
 
-        const res = await fetch("/api/hein/analyze", {
+        const res = await fetchWithUserAuthorization("/api/hein/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHumanizerApiKey } from "@/server/backendConfig";
+import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedRequest(request);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
         const body = await request.json();
         const { id } = body;
 

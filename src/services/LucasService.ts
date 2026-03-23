@@ -1,10 +1,11 @@
 import { Organizer } from "./OrganizerService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 export class LucasService {
     static async generate(onChunk: (text: string) => void): Promise<string> {
         const state = Organizer.get();
 
-        const res = await fetch("/api/lucas/generate", {
+        const res = await fetchWithUserAuthorization("/api/lucas/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

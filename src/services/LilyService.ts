@@ -2,6 +2,7 @@
 
 import { Organizer } from "./OrganizerService";
 import { TestService } from "./TestService";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 export interface OutlineItem {
     type: "Introduction" | "Body Paragraph" | "Conclusion";
@@ -33,7 +34,7 @@ export class LilyService {
 
         const state = Organizer.get();
 
-        const res = await fetch("/api/lily/generate", {
+        const res = await fetchWithUserAuthorization("/api/lily/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
