@@ -204,7 +204,7 @@ export default function BrokeOctopusOverviewPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-[1680px] px-4 py-4 lg:px-6">
-        <section className="flex min-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
+        <section className="flex w-full flex-col rounded-[30px] border border-white/8 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.45)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4 lg:px-6">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/35">BrokeOctopus</p>
@@ -236,7 +236,7 @@ export default function BrokeOctopusOverviewPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="p-4 lg:p-6">
             <AdminOverviewPanel
               refreshKey={refreshKey}
               onOpenSection={(sectionId) => {
