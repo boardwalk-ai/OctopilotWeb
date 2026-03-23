@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import type { User } from "firebase/auth";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthService } from "@/services/AuthService";
 import { StreamService } from "@/services/StreamService";
+import AdminOverviewPanel from "@/components/admin/AdminOverviewPanel";
 import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
 import EarlyAccessEventsPanel from "@/components/admin/EarlyAccessEventsPanel";
 
@@ -81,6 +83,7 @@ type ControlCenterResponse = {
 type ResolveMethod = "word" | "humanizer" | "source" | "notify" | "deny";
 
 const menuItems: MenuItem[] = [
+  { id: "overview", label: "Overview", description: "Operational analytics snapshot", icon: <PulseIcon />, columns: ["Status"] },
   { id: "user-management", label: "User Management", description: "Accounts, status, and roles", icon: <UsersIcon />, columns: ["No", "Name", "Email", "Status", "Role", "Actions"] },
   {
     id: "subscription-management",
@@ -120,6 +123,16 @@ const keyOrderBySection: Record<string, string[]> = {
   "usage-tracking": ["no", "name", "email", "totalSessions", "action"],
   analytics: ["metric", "value", "change"],
 };
+
+const defaultAdminSectionId = "overview";
+
+function resolveAdminSectionId(value: string | null) {
+  if (!value) {
+    return defaultAdminSectionId;
+  }
+
+  return menuItems.some((item) => item.id === value) ? value : defaultAdminSectionId;
+}
 
 function IconFrame({ children }: { children: ReactNode }) {
   return <span className="inline-flex h-4 w-4 items-center justify-center">{children}</span>;
@@ -889,8 +902,11 @@ function AdminLoginView({
 }
 
 export default function BrokeOctopusPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedSectionId = resolveAdminSectionId(searchParams.get("section"));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState(menuItems[0].id);
+  const [activeSectionId, setActiveSectionId] = useState(requestedSectionId);
   const [data, setData] = useState<ControlCenterResponse | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -917,6 +933,27 @@ export default function BrokeOctopusPage() {
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
   const rows = data?.sections[activeSectionId] || [];
   const metadataRows = useMemo(() => (data?.sections.metadata || []) as MetadataRow[], [data?.sections.metadata]);
+
+  useEffect(() => {
+    setActiveSectionId(requestedSectionId);
+  }, [requestedSectionId]);
+
+  const openSection = (sectionId: string) => {
+    const nextSectionId = resolveAdminSectionId(sectionId);
+    setActiveSectionId(nextSectionId);
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextSectionId === defaultAdminSectionId) {
+      params.delete("section");
+    } else {
+      params.set("section", nextSectionId);
+    }
+
+    const query = params.toString();
+    startTransition(() => {
+      router.replace(query ? `/brokeoctopus?${query}` : "/brokeoctopus");
+    });
+  };
 
   const loadDashboard = async () => {
     const token = await AuthService.getIdToken(true);
@@ -1374,7 +1411,7 @@ export default function BrokeOctopusPage() {
                         <div className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/25">{item.group}</div>
                       ) : null}
                       <button
-                        onClick={() => setActiveSectionId(item.id)}
+                        onClick={() => openSection(item.id)}
                         className={`flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition ${
                           isActive ? "border-red-500/40 bg-[#140b0b] text-white" : "border-transparent bg-transparent text-white/58 hover:border-white/8 hover:bg-[#101010] hover:text-white"
                         }`}
@@ -1440,7 +1477,9 @@ export default function BrokeOctopusPage() {
                 </div>
               </section>
 
-              {activeSection.id === "promo-area" ? (
+              {activeSection.id === "overview" ? (
+                <AdminOverviewPanel refreshKey={refreshKey} onOpenSection={openSection} />
+              ) : activeSection.id === "promo-area" ? (
                 <PromoAreaPanel refreshKey={refreshKey} mode="promo" />
               ) : activeSection.id === "referral-section" ? (
                 <PromoAreaPanel refreshKey={refreshKey} mode="referral" />
