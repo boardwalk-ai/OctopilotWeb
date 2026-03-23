@@ -86,6 +86,25 @@ export default function BrokeOctopusOverviewPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverflowY = document.body.style.overflowY;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverflowY = document.documentElement.style.overflowY;
+
+    document.body.style.overflow = "auto";
+    document.body.style.overflowY = "auto";
+    document.documentElement.style.overflow = "auto";
+    document.documentElement.style.overflowY = "auto";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overflowY = previousBodyOverflowY;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overflowY = previousHtmlOverflowY;
+    };
+  }, []);
+
+  useEffect(() => {
     return AuthService.subscribe(setUser);
   }, []);
 
