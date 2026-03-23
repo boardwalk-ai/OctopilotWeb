@@ -526,7 +526,7 @@ async function buildAdminOverviewPayload(authorization: string): Promise<AdminOv
   const usDateTime = formatUsDateTime(now);
 
   return {
-    dashboardHref: "/brokeoctopus?section=user-management",
+    dashboardHref: "/brokeoctopus/dashboard",
     generatedAt: now.toISOString(),
     isPartial: Object.keys(errors).length > 0,
     errors,
@@ -585,7 +585,7 @@ async function buildAdminOverviewPayload(authorization: string): Promise<AdminOv
         unsolvedReports,
         {
           label: "Check",
-          href: "/brokeoctopus?section=reports",
+          href: "/brokeoctopus/dashboard?section=reports",
           sectionId: "reports",
         }
       ),
@@ -594,14 +594,16 @@ async function buildAdminOverviewPayload(authorization: string): Promise<AdminOv
   };
 }
 
-export async function getAdminOverviewPayload(authorization: string) {
-  await assertAdminAccess(authorization);
+export async function getAdminOverviewPayload(options: { authorization: string; skipAdminCheck?: boolean }) {
+  if (!options.skipAdminCheck) {
+    await assertAdminAccess(options.authorization);
+  }
 
   if (overviewCache && overviewCache.expiresAt > Date.now()) {
     return overviewCache.value;
   }
 
-  const value = await buildAdminOverviewPayload(authorization);
+  const value = await buildAdminOverviewPayload(options.authorization);
   overviewCache = {
     value,
     expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS,

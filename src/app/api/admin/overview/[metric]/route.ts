@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminOverviewPayload, getOverviewMetricBySlug } from "@/server/adminOverview";
+import { resolveAdminRequestAuth } from "@/server/adminRequestAuth";
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ metric: string }> }
 ) {
-  const authorization = request.headers.get("authorization");
-
-  if (!authorization) {
-    return NextResponse.json({ error: "Missing authorization header." }, { status: 401 });
-  }
-
   const { metric } = await context.params;
 
   try {
-    const payload = await getAdminOverviewPayload(authorization);
+    const auth = resolveAdminRequestAuth(request);
+    const payload = await getAdminOverviewPayload({
+      authorization: auth.upstreamAuthorization,
+      skipAdminCheck: auth.skipAdminCheck,
+    });
     const metricPayload = getOverviewMetricBySlug(payload, metric);
 
     if (!metricPayload) {
@@ -29,7 +28,8 @@ export async function GET(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load admin overview metric.";
-    const status = message.includes("admin access") ? 403 : 500;
+    const status =
+      message.includes("Missing authorization") ? 401 : message.includes("agent key") || message.includes("admin access") ? 403 : 500;
     return NextResponse.json(
       { error: message },
       { status }
