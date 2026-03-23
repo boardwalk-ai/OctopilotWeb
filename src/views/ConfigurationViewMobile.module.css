@@ -2,9 +2,18 @@
 
 .configStepper {}
 
-.configShell {}
+.configShell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
 
-.configScrollViewport {}
+.configScrollViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 .configHero {}
 

@@ -2,9 +2,18 @@
 
 .previewStepper {}
 
-.previewShell {}
+.previewShell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
 
-.previewScrollViewport {}
+.previewScrollViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 .previewTopBar {}
 

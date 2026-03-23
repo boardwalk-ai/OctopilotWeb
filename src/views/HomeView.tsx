@@ -359,7 +359,7 @@ export default function HomeView() {
 
           <div
             ref={stepScrollRef}
-            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" || page === "preview" || page === "humanizer" ? "overflow-hidden" : "overflow-y-auto"}`}
+            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" || page === "preview" || page === "humanizer" ? "overflow-hidden md:overflow-y-auto" : "overflow-y-auto"}`}
           >
             {page === "writing-style" ? (
               <WritingStyleView onBack={goBack} onNext={goNext} />

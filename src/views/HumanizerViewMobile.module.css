@@ -2,13 +2,19 @@
 
 .humanizerStepper {}
 
-.humanizerShell {}
+.humanizerShell {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
 
 .humanizerScrollViewport {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .humanizerTopBar {}
