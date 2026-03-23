@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import type { User } from "firebase/auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AuthService } from "@/services/AuthService";
 import { StreamService } from "@/services/StreamService";
 import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
@@ -901,10 +901,8 @@ function AdminLoginView({
 
 export default function BrokeOctopusPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedSectionId = resolveAdminSectionId(searchParams.get("section"));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState(requestedSectionId);
+  const [activeSectionId, setActiveSectionId] = useState(defaultAdminSectionId);
   const [data, setData] = useState<ControlCenterResponse | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -933,14 +931,24 @@ export default function BrokeOctopusPage() {
   const metadataRows = useMemo(() => (data?.sections.metadata || []) as MetadataRow[], [data?.sections.metadata]);
 
   useEffect(() => {
-    setActiveSectionId(requestedSectionId);
-  }, [requestedSectionId]);
+    const syncSectionFromLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      setActiveSectionId(resolveAdminSectionId(params.get("section")));
+    };
+
+    syncSectionFromLocation();
+    window.addEventListener("popstate", syncSectionFromLocation);
+
+    return () => {
+      window.removeEventListener("popstate", syncSectionFromLocation);
+    };
+  }, []);
 
   const openSection = (sectionId: string) => {
     const nextSectionId = resolveAdminSectionId(sectionId);
     setActiveSectionId(nextSectionId);
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
     if (nextSectionId === defaultAdminSectionId) {
       params.delete("section");
     } else {
