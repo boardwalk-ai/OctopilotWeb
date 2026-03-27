@@ -10,6 +10,7 @@ import { InTextCitationService } from "@/services/InTextCitationService";
 import { Organizer, SourceData } from "@/services/OrganizerService";
 import { SpoonieService } from "@/services/SpoonieService";
 import { SuService } from "@/services/SuService";
+import mobileStyles from "./WritingChamberViewMobile.module.css";
 
 interface WritingChamberViewProps {
     onBack: () => void;
@@ -1222,7 +1223,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         <button
             onClick={continueToPreview}
             disabled={!canContinueToPreview || isPreparingPreview}
-            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"}`}
+            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"} ${mobileStyles.wcContinueBtn}`}
         >
             <span>{isPreparingPreview ? "Preparing Preview" : "Continue to Preview"}</span>
             <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview && !isPreparingPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>
@@ -1232,7 +1233,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     );
     return (
         <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            <div className="relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5">
+            <div className={`relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5 ${mobileStyles.wcHeader}`}>
                 <button
                     onClick={openAddSectionModal}
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a52] text-[24px] font-medium text-white shadow-[0_4px_12px_rgba(255,90,82,0.4)] transition hover:bg-[#ff736b]"
@@ -1241,7 +1242,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                     +
                 </button>
 
-                <div className="pointer-events-none absolute left-1/2 top-1/2 flex w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-4">
+                <div className={`pointer-events-none absolute left-1/2 top-1/2 flex w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-4 ${mobileStyles.wcHeaderTitle}`}>
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff5a52]">Writing Chamber</div>
                     <label className="pointer-events-auto mt-0.5 flex min-w-0 w-full max-w-[520px] items-center gap-2 rounded-full border border-white/10 bg-[#111318] px-3 py-1.5 text-white/80 transition hover:border-white/20">
                         <span className="text-[#f0c84a]">
@@ -1251,22 +1252,22 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                             value={org.finalEssayTitle || ""}
                             onChange={(event) => Organizer.set({ finalEssayTitle: event.target.value })}
                             placeholder="Untitled Essay"
-                            className="min-w-0 flex-1 bg-transparent text-center text-[15px] font-bold text-[#f4f4f5] outline-none placeholder:text-white/35"
+                            className={`min-w-0 flex-1 bg-transparent text-center text-[15px] font-bold text-[#f4f4f5] outline-none placeholder:text-white/35 ${mobileStyles.wcHeaderTitleInput}`}
                         />
                     </label>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2.5">
+                <div className={`ml-auto flex items-center gap-2.5 ${mobileStyles.wcHeaderRight}`}>
                     <button
                         onClick={handleSummaryClick}
                         disabled={summaryLoading}
-                        className="rounded-full border border-[#7b6a2a] bg-[#2c260f] px-4 py-2 text-[12px] font-bold text-[#ffe57d] transition hover:bg-[#3a3112] disabled:opacity-50"
+                        className={`rounded-full border border-[#7b6a2a] bg-[#2c260f] px-4 py-2 text-[12px] font-bold text-[#ffe57d] transition hover:bg-[#3a3112] disabled:opacity-50 ${mobileStyles.wcSummaryButton}`}
                     >
                         {summaryLoading ? "Summarizing..." : "Summary"}
                     </button>
 
                     <div className="flex items-center gap-2">
-                        <div className="relative h-[60px] w-[60px]">
+                        <div className={`relative h-[60px] w-[60px] ${mobileStyles.wcWordCountCircle}`}>
                             <div
                                 className="absolute inset-0 rounded-full opacity-80 animate-[spin_8s_linear_infinite]"
                                 style={{
@@ -1284,21 +1285,21 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                             />
                             <div className="absolute inset-0 flex items-center justify-center text-[20px] font-black text-white">{totalWords}</div>
                         </div>
-                        <div className="text-[12px] font-semibold text-white/55">of {targetWords} words</div>
+                        <div className={`text-[12px] font-semibold text-white/55 ${mobileStyles.wcWordCountLabel}`}>of {targetWords} words</div>
                     </div>
                 </div>
             </div>
 
             {!canContinueToPreview && (
-                <div className="flex justify-center border-b border-white/10 bg-[#0b0b0c] px-5 py-2">
+                <div className={`flex justify-center border-b border-white/10 bg-[#0b0b0c] px-5 py-2 ${mobileStyles.wcWarningBanner}`}>
                     <div className="text-center text-[12px] font-semibold text-[#f1c26f]">
                         Write at least 200 words to continue to Preview.
                     </div>
                 </div>
             )}
 
-            <div className="flex min-h-0 flex-1">
-                <div className="flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707]">
+            <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout}`}>
+                <div className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn}`}>
                     <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
                         <div className="flex flex-col gap-3">
                             {sections.map((section, index) => {
@@ -1326,19 +1327,19 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                             swapSectionsById(draggedSectionId, section.id);
                                             setDraggedSectionId(null);
                                         }}
-                                        className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? "border-[#ff5a52] shadow-[inset_0_0_0_1px_rgba(255,90,82,0.35)]" : "border-white/15"} ${swapFlashSectionIds.includes(section.id) ? "scale-[1.01] ring-1 ring-[#ff8f89]/60" : ""}`}
+                                        className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? "border-[#ff5a52] shadow-[inset_0_0_0_1px_rgba(255,90,82,0.35)]" : "border-white/15"} ${swapFlashSectionIds.includes(section.id) ? "scale-[1.01] ring-1 ring-[#ff8f89]/60" : ""} ${mobileStyles.wcSectionCard}`}
                                     >
-                                        <div className="flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5">
+                                        <div className={`flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5 ${mobileStyles.wcSectionHeader}`}>
                                             <button
                                                 type="button"
-                                                className="cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70"
+                                                className={`cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70 ${mobileStyles.wcSectionDragHandle}`}
                                                 title="Drag card to reorder within the same paragraph type"
                                             >
                                                 ≡
                                             </button>
-                                            <span className="px-1 text-[16px] font-black text-white">{index + 1}</span>
+                                            <span className={`px-1 text-[16px] font-black text-white ${mobileStyles.wcSectionIndex}`}>{index + 1}</span>
 
-                                            <span className={`rounded-full px-3.5 py-1 text-[9px] font-black uppercase tracking-wider ${TYPE_BADGE[typeKey] || "border border-[#4f3517] bg-[#33230f] text-[#f4c37a]"}`}>
+                                            <span className={`rounded-full px-3.5 py-1 text-[9px] font-black uppercase tracking-wider ${TYPE_BADGE[typeKey] || "border border-[#4f3517] bg-[#33230f] text-[#f4c37a]"} ${mobileStyles.wcSectionBadge}`}>
                                                 {section.type}
                                             </span>
 
@@ -1347,10 +1348,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                 onFocus={() => setActiveSectionId(section.id)}
                                                 onChange={(e) => updateSectionTitle(section.id, e.target.value)}
                                                 placeholder="Section title"
-                                                className="h-8 min-w-0 max-w-[860px] flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35"
+                                                className={`h-8 min-w-0 max-w-[860px] flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35 ${mobileStyles.wcSectionTitleInput}`}
                                             />
 
-                                            <div className="flex items-center gap-1 rounded-full border border-[#695d1c] bg-[#282109] px-2.5 py-1 text-[#ffe35a]">
+                                            <div className={`flex items-center gap-1 rounded-full border border-[#695d1c] bg-[#282109] px-2.5 py-1 text-[#ffe35a] ${mobileStyles.wcSectionSparkle}`}>
                                                 <EditIcon />
                                                 <MaterialSparkleIcon />
                                             </div>
@@ -1358,15 +1359,15 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                             <button
                                                 onClick={() => handleMoreIdeas(section)}
                                                 disabled={isLoadingAssistant}
-                                                className="rounded-full bg-[#332e10] px-4 py-1.5 text-[11px] font-bold text-[#ffe35a] disabled:opacity-45"
+                                                className={`rounded-full bg-[#332e10] px-4 py-1.5 text-[11px] font-bold text-[#ffe35a] disabled:opacity-45 ${mobileStyles.wcSectionMoreIdeas}`}
                                             >
                                                 {isLoadingAssistant ? "Thinking..." : "More ideas"}
                                             </button>
 
-                                            <div className="ml-auto flex items-center gap-2.5">
+                                            <div className={`ml-auto flex items-center gap-2.5 ${mobileStyles.wcSectionActions}`}>
                                                 <button
                                                     onClick={() => deleteSection(section.id)}
-                                                    className="mr-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#ff5a52] text-white hover:bg-[#ff736b]"
+                                                        className={`mr-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#ff5a52] text-white hover:bg-[#ff736b] ${mobileStyles.wcSectionDeleteBtn}`}
                                                     title={sections.length <= 1 ? "At least one section is required" : "Delete section"}
                                                     disabled={sections.length <= 1}
                                                 >
@@ -1376,7 +1377,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                 <div className="relative" ref={switchMenuSectionId === section.id ? switchMenuRef : undefined}>
                                                     <button
                                                         onClick={() => setSwitchMenuSectionId((prev) => prev === section.id ? null : section.id)}
-                                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-[#151922] text-white/75 hover:bg-[#242832]"
+                                                        className={`flex h-8 w-8 items-center justify-center rounded-full bg-[#151922] text-white/75 hover:bg-[#242832] ${mobileStyles.wcSectionSwitchBtn}`}
                                                         title="Switch with another section of the same type"
                                                     >
                                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -1407,11 +1408,11 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                     )}
                                                 </div>
 
-                                                <span className="min-w-[70px] text-right text-[12px] font-semibold text-white/55">{words} words</span>
+                                                <span className={`min-w-[70px] text-right text-[12px] font-semibold text-white/55 ${mobileStyles.wcSectionWordCount}`}>{words} words</span>
 
                                                 <button
                                                     onClick={() => toggleSectionCollapse(section.id)}
-                                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1a1d23] text-[12px] text-white/80 hover:bg-[#242832]"
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-full bg-[#1a1d23] text-[12px] text-white/80 hover:bg-[#242832] ${mobileStyles.wcSectionCollapseBtn}`}
                                                 >
                                                     {isCollapsed ? "⌄" : "⌃"}
                                                 </button>
@@ -1425,8 +1426,8 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                 opacity: isCollapsed ? 0 : 1,
                                             }}
                                         >
-                                            <div className="grid min-h-[360px] grid-cols-[280px_minmax(0,1fr)]">
-                                                <div className="rounded-bl-2xl border-r border-white/10 bg-[#0a0a0a] p-4">
+                                            <div className={`grid min-h-[360px] grid-cols-[280px_minmax(0,1fr)] ${mobileStyles.wcEditorGrid}`}>
+                                                <div className={`rounded-bl-2xl border-r border-white/10 bg-[#0a0a0a] p-4 ${mobileStyles.wcAssistantSidebar}`}>
                                                     <div className="mb-2 text-[11px] font-semibold tracking-wide text-[#ffe35a]">AI Writing Assistant</div>
                                                     <div className="mb-2.5 flex items-center gap-2">
                                                         <input
@@ -1483,7 +1484,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                     </div>
                                                 </div>
 
-                                                <div className="rounded-br-2xl bg-[#090909] p-4">
+                                                <div className={`rounded-br-2xl bg-[#090909] p-4 ${mobileStyles.wcWritingArea}`}>
                                                     <div className="mb-2 text-[12px] font-semibold text-[#b3b8c2]">Writing Area</div>
                                                     <div
                                                         className={`relative rounded-xl border ${isActive ? "border-white/35 bg-[#35393f]" : "border-white/15 bg-[#32353a]"}`}
@@ -1526,12 +1527,12 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         </div>
                     </div>
 
-                    <div className="border-t border-white/10 bg-[#090909]">
+                    <div className={`border-t border-white/10 bg-[#090909] ${mobileStyles.wcInsightsBar}`}>
                         <div className="relative h-12">
                             <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
                             <button
                                 onPointerDown={startInsightsDrag}
-                                className="group absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#121317] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24]"
+                                className={`group absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#121317] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24] ${mobileStyles.wcInsightsToggle}`}
                                 title="Drag or click"
                             >
                                 <span className="pointer-events-none flex items-center justify-center text-white">
@@ -1549,7 +1550,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         </div>
 
                         <div
-                            className={`overflow-hidden transition-[height] ease-in-out ${isDraggingInsights ? "duration-0" : "duration-300"}`}
+                            className={`overflow-hidden transition-[height] ease-in-out ${isDraggingInsights ? "duration-0" : "duration-300"} ${mobileStyles.wcInsightsPanel}`}
                             style={{ height: isInsightsOpen ? insightsHeight : 0 }}
                         >
                             <div className="h-full border-t border-white/10 px-4 py-3">
@@ -1579,7 +1580,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                 )}
 
                                 {summaryInsights && !summaryLoading && (
-                                    <div className="grid h-[calc(100%-30px)] grid-cols-2 gap-3">
+                                        <div className={`grid h-[calc(100%-30px)] grid-cols-2 gap-3 ${mobileStyles.wcInsightsGrid}`}>
                                         <div className="overflow-y-auto rounded-xl border border-[#2b4f88] bg-[#0f182a] p-3">
                                             <div className="mb-2 text-[12px] font-bold text-[#9bc9ff]">What is done</div>
                                             <div className="space-y-2">
@@ -1615,22 +1616,22 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         </div>
                     </div>
 
-                    <div className="flex h-[50px] items-center border-t border-white/10 bg-[#0a0a0a] px-4 text-[13px] text-white/65">
+                    <div className={`flex h-[50px] items-center border-t border-white/10 bg-[#0a0a0a] px-4 text-[13px] text-white/65 ${mobileStyles.wcSectionCountBar}`}>
                         {sections.length} sections
                     </div>
                 </div>
 
-                <div className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"}`}>
+                <div className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}>
                     <button
                         onClick={() => setIsSourcesCollapsed((prev) => !prev)}
-                        className="absolute -left-3 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/20 bg-[#131820] px-2.5 py-1.5 text-[11px] font-black text-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                        className={`absolute -left-3 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/20 bg-[#131820] px-2.5 py-1.5 text-[11px] font-black text-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)] ${mobileStyles.wcSourcesToggleBtn}`}
                         title={isSourcesCollapsed ? "Expand sources panel" : "Collapse sources panel"}
                     >
                         {isSourcesCollapsed ? "◀" : "▶"}
                     </button>
 
                     {isSourcesCollapsed ? (
-                        <div className="flex h-full items-center justify-center">
+                        <div className={`flex h-full items-center justify-center ${mobileStyles.wcSourcesPanelCollapsed}`}>
                             <span className="-rotate-180 text-[11px] font-semibold tracking-[0.16em] text-white/60 [writing-mode:vertical-rl]">SOURCES</span>
                         </div>
                     ) : (
@@ -1640,7 +1641,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                 <span className="rounded-full border border-white/20 bg-[#11151d] px-3 py-1 text-[10px] font-bold text-[#9bc9ff]">{sourceStyleBadge}</span>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-2.5">
+                            <div className={`flex-1 overflow-y-auto p-2.5 ${mobileStyles.wcSourcesContent}`}>
                                 <div className="flex flex-col gap-2.5">
                                     {sourceThreads.map((source) => {
                                         const palette = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
@@ -1650,7 +1651,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                         return (
                                             <div
                                                 key={`${source.index}-${source.url}`}
-                                                className="cursor-pointer rounded-xl border p-2.5 transition hover:bg-[#121212]"
+                                                className={`cursor-pointer rounded-xl border p-2.5 transition hover:bg-[#121212] ${mobileStyles.wcSourceCard}`}
                                                 style={{ borderColor: `${palette.border}66`, backgroundColor: palette.soft }}
                                                 onClick={() => openSourceModal(source)}
                                             >
@@ -1723,8 +1724,8 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             {isClientMounted && createPortal(continueButton, document.body)}
 
             {sourceModal && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="flex h-[78vh] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl border border-white/15 bg-[#090909]">
+                <div className={`fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm ${mobileStyles.wcSourceModalOverlay}`}>
+                    <div className={`flex h-[78vh] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl border border-white/15 bg-[#090909] ${mobileStyles.wcSourceModal}`}>
                         <div className="flex items-start justify-between border-b border-white/10 px-5 py-4">
                             <div className="min-w-0">
                                 <h3 className="text-[24px] font-bold uppercase text-white">{sourceModal.title || "Untitled Source"}</h3>
@@ -1786,7 +1787,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
             {showAddSectionModal && (
                 <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-[460px] rounded-2xl border border-white/15 bg-[#0f1218] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                    <div className={`w-full max-w-[460px] rounded-2xl border border-white/15 bg-[#0f1218] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${mobileStyles.wcAddSectionModal}`}>
                         <div className="text-[20px] font-bold text-white">Add Paragraph</div>
                         <div className="mt-2 text-[14px] text-white/60">Create a new paragraph box and place it within the matching type group.</div>
 
@@ -1837,7 +1838,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             )}
 
             {dialog && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
+                <div className={`fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 ${mobileStyles.wcDialogOverlay}`}>
                     {dialog.type === "source-in-use" ? (
                         <div className="w-full max-w-[460px] rounded-[28px] border border-[#6c4b20] bg-[radial-gradient(circle_at_top,rgba(120,82,22,0.22),rgba(11,14,20,0.98)_58%)] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#8d6329] bg-[#2b1f0b] text-[#ffd36d] shadow-[0_10px_26px_rgba(0,0,0,0.35)]">

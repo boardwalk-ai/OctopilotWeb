@@ -1,0 +1,400 @@
+/* WritingChamberView Mobile CSS Module */
+/* Class names are placeholders at desktop; all overrides live inside @media (max-width: 767px) */
+
+/* ── Header ─────────────────────────────────────────── */
+.wcHeader {}
+.wcHeaderTitle {}
+.wcHeaderTitleInput {}
+.wcSummaryButton {}
+.wcWordCountCircle {}
+.wcWordCountLabel {}
+.wcHeaderRight {}
+
+/* ── Warning Banner ─────────────────────────────────── */
+.wcWarningBanner {}
+
+/* ── Main Layout ────────────────────────────────────── */
+.wcMainLayout {}
+
+/* ── Writing Column (left) ──────────────────────────── */
+.wcWritingColumn {}
+
+/* ── Section Card ───────────────────────────────────── */
+.wcSectionCard {}
+.wcSectionHeader {}
+.wcSectionTitleInput {}
+.wcSectionBadge {}
+.wcSectionMoreIdeas {}
+.wcSectionActions {}
+.wcSectionDeleteBtn {}
+.wcSectionSwitchBtn {}
+.wcSectionWordCount {}
+.wcSectionCollapseBtn {}
+.wcSectionDragHandle {}
+.wcSectionIndex {}
+.wcSectionSparkle {}
+.wcEditorGrid {}
+.wcAssistantSidebar {}
+.wcWritingArea {}
+
+/* ── AI Insights Drawer ─────────────────────────────── */
+.wcInsightsBar {}
+.wcInsightsToggle {}
+.wcInsightsPanel {}
+.wcInsightsGrid {}
+
+/* ── Footer Section Count ───────────────────────────── */
+.wcSectionCountBar {}
+
+/* ── Continue Button ────────────────────────────────── */
+.wcContinueBtn {}
+
+/* ── Sources Panel (right sidebar) ──────────────────── */
+.wcSourcesPanel {}
+.wcSourcesPanelCollapsed {}
+.wcSourcesToggleBtn {}
+.wcSourcesContent {}
+.wcSourceCard {}
+
+/* ── Source Modal ───────────────────────────────────── */
+.wcSourceModalOverlay {}
+.wcSourceModal {}
+
+/* ── Add Section Modal ──────────────────────────────── */
+.wcAddSectionModal {}
+
+/* ── Dialog ─────────────────────────────────────────── */
+.wcDialogOverlay {}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE OVERRIDES
+   ═══════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+
+  /* ── Header ───────────────────────────────────────── */
+  .wcHeader {
+    height: auto !important;
+    min-height: auto;
+    padding: 0.5rem 0.65rem !important;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .wcHeaderTitle {
+    display: none !important;
+  }
+
+  .wcHeaderTitleInput {
+    display: none !important;
+  }
+
+  .wcHeaderRight {
+    gap: 0.45rem !important;
+  }
+
+  .wcSummaryButton {
+    padding: 0.35rem 0.65rem !important;
+    font-size: 0.68rem !important;
+    border-radius: 9999px;
+  }
+
+  .wcWordCountCircle {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .wcWordCountCircle > div:first-child,
+  .wcWordCountCircle > div:nth-child(2),
+  .wcWordCountCircle > div:nth-child(3) {
+    inset: 2px !important;
+  }
+
+  .wcWordCountCircle > div:first-child {
+    inset: 2px !important;
+  }
+
+  .wcWordCountLabel {
+    font-size: 0.56rem !important;
+  }
+
+  /* ── Warning Banner ───────────────────────────────── */
+  .wcWarningBanner {
+    padding: 0.35rem 0.65rem !important;
+  }
+
+  .wcWarningBanner > div {
+    font-size: 0.68rem !important;
+  }
+
+  /* ── Main Layout ──────────────────────────────────── */
+  .wcMainLayout {
+    flex-direction: column !important;
+  }
+
+  /* ── Writing Column ───────────────────────────────── */
+  .wcWritingColumn {
+    border-right: none !important;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* ── Section Card ─────────────────────────────────── */
+  .wcSectionHeader {
+    padding: 0.45rem 0.6rem !important;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.4rem;
+  }
+
+  .wcSectionDragHandle {
+    font-size: 0.95rem !important;
+    padding: 0.15rem !important;
+  }
+
+  .wcSectionIndex {
+    font-size: 0.82rem !important;
+  }
+
+  .wcSectionBadge {
+    font-size: 0.5rem !important;
+    padding: 0.2rem 0.45rem !important;
+  }
+
+  .wcSectionTitleInput {
+    font-size: 0.72rem !important;
+    height: 1.85rem !important;
+    padding: 0 0.55rem !important;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .wcSectionSparkle {
+    display: none !important;
+  }
+
+  .wcSectionMoreIdeas {
+    font-size: 0.6rem !important;
+    padding: 0.3rem 0.55rem !important;
+  }
+
+  .wcSectionDeleteBtn {
+    width: 1.65rem !important;
+    height: 1.65rem !important;
+  }
+
+  .wcSectionDeleteBtn svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .wcSectionSwitchBtn {
+    width: 1.65rem !important;
+    height: 1.65rem !important;
+  }
+
+  .wcSectionSwitchBtn svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .wcSectionWordCount {
+    font-size: 0.62rem !important;
+    min-width: 0 !important;
+  }
+
+  .wcSectionCollapseBtn {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    font-size: 0.65rem !important;
+  }
+
+  /* ── Editor Grid: Stack vertically ────────────────── */
+  .wcEditorGrid {
+    grid-template-columns: 1fr !important;
+    min-height: 0 !important;
+  }
+
+  .wcWritingArea {
+    order: -1;
+    min-height: 200px !important;
+  }
+
+  .wcWritingArea > div:last-child {
+    min-height: 180px !important;
+  }
+
+  .wcWritingArea > div:last-child > div[contenteditable] {
+    min-height: 160px !important;
+    font-size: 0.82rem !important;
+    padding: 0.75rem !important;
+  }
+
+  .wcAssistantSidebar {
+    border-right: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-bottom-left-radius: 1rem !important;
+    border-bottom-right-radius: 1rem !important;
+    padding: 0.65rem !important;
+  }
+
+  .wcAssistantSidebar input {
+    font-size: 0.72rem !important;
+    height: 2rem !important;
+    padding: 0 0.65rem !important;
+  }
+
+  .wcAssistantSidebar button {
+    font-size: 0.62rem !important;
+    padding: 0.3rem 0.55rem !important;
+    height: 2rem !important;
+  }
+
+  /* ── AI Insights Drawer ───────────────────────────── */
+  .wcInsightsBar {
+    height: 2.5rem !important;
+  }
+
+  .wcInsightsToggle {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+  }
+
+  .wcInsightsToggle svg {
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+
+  .wcInsightsGrid {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+    overflow-y: auto;
+  }
+
+  .wcInsightsGrid > div {
+    max-height: none !important;
+  }
+
+  /* ── Footer Section Count ─────────────────────────── */
+  .wcSectionCountBar {
+    height: 2.25rem !important;
+    padding: 0 0.65rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* ── Continue Button ──────────────────────────────── */
+  .wcContinueBtn {
+    bottom: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    margin: 0 0.65rem calc(0.5rem + env(safe-area-inset-bottom)) !important;
+    justify-content: center;
+    border-radius: 9999px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .wcContinueBtn > span:last-child {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* ── Sources Panel ────────────────────────────────── */
+  .wcSourcesPanel {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    z-index: 70 !important;
+    width: 100% !important;
+    max-height: 60vh;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    transform: translateY(calc(100% - 2.75rem));
+    transition: transform 0.3s ease, max-height 0.3s ease;
+  }
+
+  .wcSourcesPanelOpen {
+    transform: translateY(0) !important;
+    max-height: 70vh !important;
+  }
+
+  .wcSourcesPanelCollapsed {
+    width: 100% !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: auto !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    transform: translateY(calc(100% - 2.25rem));
+    transition: transform 0.3s ease;
+  }
+
+  .wcSourcesToggleBtn {
+    left: 50% !important;
+    top: auto !important;
+    bottom: calc(100% - 0.5rem) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .wcSourcesContent {
+    padding: 0.5rem !important;
+  }
+
+  .wcSourceCard {
+    padding: 0.6rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .wcSourceCard h4 {
+    font-size: 0.82rem !important;
+  }
+
+  .wcSourceCard p {
+    font-size: 0.68rem !important;
+  }
+
+  /* ── Source Modal (full-screen on mobile) ─────────── */
+  .wcSourceModalOverlay {
+    padding: 0 !important;
+  }
+
+  .wcSourceModal {
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .wcSourceModal h3 {
+    font-size: 1.1rem !important;
+  }
+
+  .wcSourceModal p,
+  .wcSourceModal a {
+    font-size: 0.78rem !important;
+  }
+
+  /* ── Add Section Modal ────────────────────────────── */
+  .wcAddSectionModal {
+    max-width: calc(100vw - 1.5rem) !important;
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .wcAddSectionModal input {
+    font-size: 0.82rem !important;
+    height: 2.5rem !important;
+  }
+
+  /* ── Dialog ───────────────────────────────────────── */
+  .wcDialogOverlay {
+    padding: 0.75rem !important;
+  }
+}
