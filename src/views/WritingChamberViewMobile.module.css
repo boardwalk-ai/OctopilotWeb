@@ -18,6 +18,7 @@
 
 /* ── Writing Column (left) ──────────────────────────── */
 .wcWritingColumn {}
+.wcScrollViewport {}
 
 /* ── Section Card ───────────────────────────────────── */
 .wcSectionCard {}
@@ -48,11 +49,15 @@
 
 /* ── Continue Button ────────────────────────────────── */
 .wcContinueBtn {}
+.wcContinueBtnHidden {}
 
 /* ── Sources Panel (right sidebar) ──────────────────── */
 .wcSourcesPanel {}
 .wcSourcesPanelCollapsed {}
 .wcSourcesToggleBtn {}
+.wcSourcesToggleLabel {}
+.wcSourcesToggleCount {}
+.wcSourcesBackdrop {}
 .wcSourcesContent {}
 .wcSourceCard {}
 
@@ -139,7 +144,17 @@
     min-height: 0;
   }
 
+  .wcScrollViewport {
+    padding-right: 0.8rem !important;
+    padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
   /* ── Section Card ─────────────────────────────────── */
+  .wcSectionCard[data-collapsed="true"] {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(10, 10, 10, 0.88);
+  }
+
   .wcSectionHeader {
     padding: 0.45rem 0.6rem !important;
     flex-wrap: wrap;
@@ -147,8 +162,7 @@
   }
 
   .wcSectionDragHandle {
-    font-size: 0.95rem !important;
-    padding: 0.15rem !important;
+    display: none !important;
   }
 
   .wcSectionIndex {
@@ -299,51 +313,107 @@
     font-size: 0.82rem !important;
   }
 
+  .wcContinueBtnHidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(0.75rem);
+  }
+
   /* ── Sources Panel ────────────────────────────────── */
   .wcSourcesPanel {
     position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    top: auto !important;
-    z-index: 70 !important;
-    width: 100% !important;
-    max-height: 60vh;
-    border-left: none !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 1rem 1rem 0 0 !important;
-    transform: translateY(calc(100% - 2.75rem));
-    transition: transform 0.3s ease, max-height 0.3s ease;
+    top: 7.3rem !important;
+    right: 0.65rem !important;
+    bottom: calc(5.75rem + env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    z-index: 82 !important;
+    width: 5rem !important;
+    max-height: none;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 1.2rem !important;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    overflow: hidden;
+    transition: width 0.28s ease, transform 0.28s ease, opacity 0.2s ease;
   }
 
   .wcSourcesPanelOpen {
-    transform: translateY(0) !important;
-    max-height: 70vh !important;
+    width: min(22rem, calc(100vw - 1.3rem)) !important;
   }
 
   .wcSourcesPanelCollapsed {
     width: 100% !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    height: auto !important;
+    position: relative !important;
+    height: 100% !important;
     border-left: none !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 1rem 1rem 0 0 !important;
-    transform: translateY(calc(100% - 2.25rem));
-    transition: transform 0.3s ease;
+    border-top: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    transition: none;
   }
 
   .wcSourcesToggleBtn {
-    left: 50% !important;
-    top: auto !important;
-    bottom: calc(100% - 0.5rem) !important;
-    transform: translateX(-50%) !important;
+    left: 0.55rem !important;
+    right: 0.55rem !important;
+    top: 0.55rem !important;
+    bottom: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    border-radius: 999px !important;
+    padding: 0.55rem 0.35rem !important;
+    background: rgba(19, 24, 32, 0.96) !important;
+    backdrop-filter: blur(14px);
+  }
+
+  .wcSourcesToggleBtn[data-open="true"] {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem !important;
+  }
+
+  .wcSourcesToggleLabel {
+    font-size: 0.56rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .wcSourcesToggleBtn[data-open="false"] .wcSourcesToggleLabel {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .wcSourcesToggleBtn[data-open="true"] .wcSourcesToggleLabel {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+  }
+
+  .wcSourcesToggleCount {
+    min-width: 1.5rem;
+    padding: 0.14rem 0.34rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .wcSourcesBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 81;
+    border: 0;
+    background: rgba(3, 5, 8, 0.4);
+    backdrop-filter: blur(4px);
   }
 
   .wcSourcesContent {
-    padding: 0.5rem !important;
+    padding: 3.4rem 0.6rem 0.7rem !important;
   }
 
   .wcSourceCard {

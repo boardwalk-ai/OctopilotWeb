@@ -238,10 +238,10 @@ export default function HomeView() {
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
 
     return (
-      <>
+        <>
         <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <AppHeader
-            className={`transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
+            className={`${editorMobileStyles.editorHeader} transition-transform duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "-translate-y-full" : "translate-y-0"}`}
             left={<LogoNav />}
             right={<MainHeaderActions />}
           />
@@ -262,14 +262,14 @@ export default function HomeView() {
               skipFormat={skipFormat}
               skipWritingStyle={skipWritingStyle}
               writingMode={org.writingMode}
-              className="top-16"
+              className={editorMobileStyles.editorStepper}
             />
           )}
 
           <button
             type="button"
             onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
-            className={`fixed right-4 z-50 flex h-8 items-center gap-1 rounded-full border border-white/15 bg-[#121821]/95 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/85 shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-all duration-300 hover:bg-[#1a2230] ${isWorkspaceTopBarCollapsed ? "top-3" : "top-[86px]"}`}
+            className={`${editorMobileStyles.editorCollapseButton} ${isWorkspaceTopBarCollapsed ? editorMobileStyles.editorCollapseButtonCollapsed : editorMobileStyles.editorCollapseButtonExpanded}`}
             title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -278,7 +278,7 @@ export default function HomeView() {
             {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
           </button>
 
-          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? "pt-2" : "pt-[124px]"}`}>
+          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? editorMobileStyles.editorViewportCollapsed : editorMobileStyles.editorViewportExpanded}`}>
             <WritingChamberView onBack={goBack} onNext={goNext} />
           </div>
         </div>

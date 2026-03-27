@@ -300,6 +300,14 @@ function parseAuthors(author: string | undefined): Array<{ firstName: string; la
         .filter((authorItem) => authorItem.firstName || authorItem.lastName);
 }
 
+function buildAccordionState(sections: ChamberSection[], expandedId: string): Record<string, boolean> {
+    const openId = expandedId || sections[0]?.id || "";
+    return sections.reduce<Record<string, boolean>>((acc, section) => {
+        acc[section.id] = section.id !== openId;
+        return acc;
+    }, {});
+}
+
 export default function WritingChamberView({ onNext }: WritingChamberViewProps) {
     const org = useOrganizer();
     const sourceStyleBadge = (org.citationStyle || "None").trim() || "None";
@@ -318,7 +326,14 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const [sourceModal, setSourceModal] = useState<SourceThread | null>(null);
     const [inTextCitationMap, setInTextCitationMap] = useState<Record<number, string>>({});
 
-    const [isSourcesCollapsed, setIsSourcesCollapsed] = useState(false);
+    const [isSourcesCollapsed, setIsSourcesCollapsed] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.matchMedia("(max-width: 767px)").matches;
+    });
+    const [isMobileViewport, setIsMobileViewport] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.matchMedia("(max-width: 767px)").matches;
+    });
 
     const [summaryInsights, setSummaryInsights] = useState<SummaryInsights | null>(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
@@ -345,6 +360,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const switchMenuRef = useRef<HTMLDivElement>(null);
     const assistantActionLockRef = useRef<Record<string, boolean>>({});
     const summaryLockRef = useRef(false);
+    const mobileDefaultsAppliedRef = useRef(false);
 
     const sourceThreads = useMemo<SourceThread[]>(() => {
         return org.manualSources
@@ -422,7 +438,25 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         setIsClientMounted(true);
         const target = Math.round(window.innerHeight * 0.25);
         setInsightsHeight(clamp(target, INSIGHTS_MIN_HEIGHT, INSIGHTS_MAX_HEIGHT));
+
+        const media = window.matchMedia("(max-width: 767px)");
+        const syncViewport = () => setIsMobileViewport(media.matches);
+        syncViewport();
+        media.addEventListener("change", syncViewport);
+        return () => media.removeEventListener("change", syncViewport);
     }, []);
+
+    useEffect(() => {
+        if (!isMobileViewport) {
+            mobileDefaultsAppliedRef.current = false;
+            return;
+        }
+        if (mobileDefaultsAppliedRef.current) return;
+
+        mobileDefaultsAppliedRef.current = true;
+        setCollapsed(buildAccordionState(sections, activeSectionId || sections[0]?.id || ""));
+        setIsSourcesCollapsed(true);
+    }, [activeSectionId, isMobileViewport, sections]);
 
     useEffect(() => {
         if (!isDraggingInsights) return;
@@ -507,6 +541,45 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         if (!editor) return;
         setSectionHtml((prev) => ({ ...prev, [sectionId]: editor.innerHTML || "" }));
     }, []);
+
+    const expandSection = useCallback((sectionId: string) => {
+        if (!sectionId) return;
+        setCollapsed((prev) => {
+            if (!isMobileViewport) {
+                if (prev[sectionId] === false) return prev;
+                return { ...prev, [sectionId]: false };
+            }
+
+            const next = buildAccordionState(sections, sectionId);
+            const changed = sections.some((section) => Boolean(prev[section.id]) !== next[section.id]);
+            return changed ? next : prev;
+        });
+    }, [isMobileViewport, sections]);
+
+    const focusSection = useCallback((sectionId: string, options?: { expand?: boolean }) => {
+        setActiveSectionId(sectionId);
+        if (options?.expand) {
+            expandSection(sectionId);
+        }
+    }, [expandSection]);
+
+    const handleSectionHeaderClick = useCallback((event: React.MouseEvent<HTMLDivElement>, sectionId: string) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button, input, textarea, a, label, [contenteditable='true']")) return;
+
+        if (!isMobileViewport) {
+            setActiveSectionId(sectionId);
+            return;
+        }
+
+        setActiveSectionId(sectionId);
+        setCollapsed((prev) => {
+            if (prev[sectionId]) {
+                return buildAccordionState(sections, sectionId);
+            }
+            return { ...buildAccordionState(sections, sectionId), [sectionId]: true };
+        });
+    }, [isMobileViewport, sections]);
 
     const saveSelection = useCallback((sectionId: string) => {
         const editor = editorRefs.current[sectionId];
@@ -657,13 +730,13 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         const editor = editorRefs.current[activeSectionId];
         if (!editor) return;
 
-        setCollapsed((prev) => ({ ...prev, [activeSectionId]: false }));
+        expandSection(activeSectionId);
         editor.focus({ preventScroll: true });
         restoreSelection(activeSectionId);
         document.execCommand("insertHTML", false, html);
         syncSectionFromDom(activeSectionId);
         saveSelection(activeSectionId);
-    }, [activeSectionId, restoreSelection, saveSelection, syncSectionFromDom]);
+    }, [activeSectionId, expandSection, restoreSelection, saveSelection, syncSectionFromDom]);
 
     const openSourceModal = useCallback((source: SourceThread) => {
         setSourceModal(source);
@@ -889,6 +962,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             description: "New writing section",
         };
 
+        let nextSections = sections;
         setSections((prev) => {
             const next = [...prev];
             const sameTypeIndices = next.reduce<number[]>((acc, section, index) => {
@@ -897,15 +971,20 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             }, []);
             const insertAt = sameTypeIndices.length > 0 ? sameTypeIndices[sameTypeIndices.length - 1] + 1 : next.length;
             next.splice(insertAt, 0, nextSection);
+            nextSections = next;
             return next;
         });
         setSectionHtml((prev) => ({ ...prev, [newId]: "" }));
-        setCollapsed((prev) => ({ ...prev, [newId]: false }));
+        setCollapsed((prev) => (
+            isMobileViewport
+                ? buildAccordionState(nextSections, newId)
+                : { ...prev, [newId]: false }
+        ));
         setAssistantQuestionBySection((prev) => ({ ...prev, [newId]: "" }));
         setAssistantItemsBySection((prev) => ({ ...prev, [newId]: [] }));
         setActiveSectionId(newId);
         setShowAddSectionModal(false);
-    }, [newSectionTitle, newSectionType, sections]);
+    }, [isMobileViewport, newSectionTitle, newSectionType, sections]);
 
     const updateSourcePalette = useCallback((sourceIndex: number, border: string) => {
         setSourcePalettes((prev) => ({ ...prev, [sourceIndex]: buildPaletteFromHex(border) }));
@@ -913,7 +992,12 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
     const deleteSection = useCallback((sectionId: string) => {
         if (sections.length <= 1) return;
-        setSections((prev) => prev.filter((section) => section.id !== sectionId));
+        const nextSections = sections.filter((section) => section.id !== sectionId);
+        const fallbackSectionId = activeSectionId === sectionId
+            ? (nextSections[0]?.id || "")
+            : (activeSectionId || nextSections[0]?.id || "");
+
+        setSections(nextSections);
 
         setSectionHtml((prev) => {
             const next = { ...prev };
@@ -921,6 +1005,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             return next;
         });
         setCollapsed((prev) => {
+            if (isMobileViewport) {
+                return nextSections.length > 0 ? buildAccordionState(nextSections, fallbackSectionId) : {};
+            }
+
             const next = { ...prev };
             delete next[sectionId];
             return next;
@@ -936,15 +1024,25 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             return next;
         });
 
-        if (activeSectionId === sectionId) {
-            const fallback = sections.find((s) => s.id !== sectionId);
-            if (fallback) setActiveSectionId(fallback.id);
+        if (fallbackSectionId) {
+            setActiveSectionId(fallbackSectionId);
         }
-    }, [activeSectionId, sections]);
+    }, [activeSectionId, isMobileViewport, sections]);
 
     const toggleSectionCollapse = useCallback((sectionId: string) => {
-        setCollapsed((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
-    }, []);
+        setCollapsed((prev) => {
+            if (!isMobileViewport) {
+                return { ...prev, [sectionId]: !prev[sectionId] };
+            }
+
+            if (prev[sectionId]) {
+                return buildAccordionState(sections, sectionId);
+            }
+
+            return { ...buildAccordionState(sections, sectionId), [sectionId]: true };
+        });
+        setActiveSectionId(sectionId);
+    }, [isMobileViewport, sections]);
 
     const syncAllEditors = useCallback(() => {
         sections.forEach((section) => syncSectionFromDom(section.id));
@@ -1223,7 +1321,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         <button
             onClick={continueToPreview}
             disabled={!canContinueToPreview || isPreparingPreview}
-            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"} ${mobileStyles.wcContinueBtn}`}
+            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"} ${mobileStyles.wcContinueBtn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcContinueBtnHidden : ""}`}
         >
             <span>{isPreparingPreview ? "Preparing Preview" : "Continue to Preview"}</span>
             <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview && !isPreparingPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>
@@ -1300,7 +1398,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
             <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout}`}>
                 <div className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn}`}>
-                    <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
+                    <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport}`}>
                         <div className="flex flex-col gap-3">
                             {sections.map((section, index) => {
                                 const isCollapsed = Boolean(collapsed[section.id]);
@@ -1313,23 +1411,29 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                 return (
                                     <div
                                         key={section.id}
-                                        draggable
+                                        draggable={!isMobileViewport}
                                         onDragStart={() => setDraggedSectionId(section.id)}
                                         onDragEnd={() => setDraggedSectionId(null)}
                                         onDragOver={(event) => {
+                                            if (isMobileViewport) return;
                                             if (draggedSectionId && draggedSectionId !== section.id) {
                                                 const draggedSection = sections.find((item) => item.id === draggedSectionId);
                                                 if (draggedSection?.type === section.type) event.preventDefault();
                                             }
                                         }}
                                         onDrop={() => {
+                                            if (isMobileViewport) return;
                                             if (!draggedSectionId || draggedSectionId === section.id) return;
                                             swapSectionsById(draggedSectionId, section.id);
                                             setDraggedSectionId(null);
                                         }}
                                         className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isActive ? "border-[#ff5a52] shadow-[inset_0_0_0_1px_rgba(255,90,82,0.35)]" : "border-white/15"} ${swapFlashSectionIds.includes(section.id) ? "scale-[1.01] ring-1 ring-[#ff8f89]/60" : ""} ${mobileStyles.wcSectionCard}`}
+                                        data-collapsed={isCollapsed ? "true" : "false"}
                                     >
-                                        <div className={`flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5 ${mobileStyles.wcSectionHeader}`}>
+                                        <div
+                                            className={`flex items-center gap-3 border-b border-white/10 bg-[#0a0a0a] px-4 py-2.5 ${mobileStyles.wcSectionHeader}`}
+                                            onClick={(event) => handleSectionHeaderClick(event, section.id)}
+                                        >
                                             <button
                                                 type="button"
                                                 className={`cursor-grab rounded-full p-1 text-[21px] font-black leading-none text-white/45 transition hover:bg-white/5 hover:text-white/70 ${mobileStyles.wcSectionDragHandle}`}
@@ -1345,7 +1449,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
                                             <input
                                                 value={section.title}
-                                                onFocus={() => setActiveSectionId(section.id)}
+                                                onFocus={() => focusSection(section.id, { expand: isMobileViewport })}
                                                 onChange={(e) => updateSectionTitle(section.id, e.target.value)}
                                                 placeholder="Section title"
                                                 className={`h-8 min-w-0 max-w-[860px] flex-1 rounded-full border border-white/15 bg-[#111217] px-3 text-[13px] font-semibold text-[#f8fafc] outline-none transition focus:border-white/35 ${mobileStyles.wcSectionTitleInput}`}
@@ -1488,7 +1592,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                     <div className="mb-2 text-[12px] font-semibold text-[#b3b8c2]">Writing Area</div>
                                                     <div
                                                         className={`relative rounded-xl border ${isActive ? "border-white/35 bg-[#35393f]" : "border-white/15 bg-[#32353a]"}`}
-                                                        onClick={() => setActiveSectionId(section.id)}
+                                                        onClick={() => focusSection(section.id, { expand: isMobileViewport })}
                                                     >
                                                         <div
                                                             ref={(el) => {
@@ -1501,7 +1605,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                                             contentEditable
                                                             suppressContentEditableWarning
                                                             onFocus={() => {
-                                                                setActiveSectionId(section.id);
+                                                                focusSection(section.id, { expand: isMobileViewport });
                                                                 saveSelection(section.id);
                                                             }}
                                                             onInput={() => syncSectionFromDom(section.id)}
@@ -1621,13 +1725,29 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                     </div>
                 </div>
 
+                {isMobileViewport && !isSourcesCollapsed && (
+                    <button
+                        type="button"
+                        aria-label="Close sources panel"
+                        onClick={() => setIsSourcesCollapsed(true)}
+                        className={mobileStyles.wcSourcesBackdrop}
+                    />
+                )}
+
                 <div className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}>
                     <button
+                        type="button"
                         onClick={() => setIsSourcesCollapsed((prev) => !prev)}
                         className={`absolute -left-3 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/20 bg-[#131820] px-2.5 py-1.5 text-[11px] font-black text-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)] ${mobileStyles.wcSourcesToggleBtn}`}
                         title={isSourcesCollapsed ? "Expand sources panel" : "Collapse sources panel"}
+                        data-open={!isSourcesCollapsed ? "true" : "false"}
                     >
-                        {isSourcesCollapsed ? "◀" : "▶"}
+                        {isMobileViewport ? (
+                            <>
+                                <span className={mobileStyles.wcSourcesToggleLabel}>{isSourcesCollapsed ? "Sources" : "Close"}</span>
+                                <span className={mobileStyles.wcSourcesToggleCount}>{sourceThreads.length}</span>
+                            </>
+                        ) : (isSourcesCollapsed ? "◀" : "▶")}
                     </button>
 
                     {isSourcesCollapsed ? (
