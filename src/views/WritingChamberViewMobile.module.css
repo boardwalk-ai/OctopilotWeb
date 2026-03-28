@@ -321,6 +321,8 @@
      ───────────────────────────────────────────────────── */
 
   .wcInsightsBar {
+    position: relative !important;
+    z-index: 100 !important;
     height: 2.25rem !important;
   }
 
@@ -328,6 +330,7 @@
     width: 2.25rem !important;
     height: 2.25rem !important;
     touch-action: none;
+    z-index: 101 !important;
   }
 
   .wcInsightsToggle svg {
@@ -391,7 +394,7 @@
 
   .wcSourcesPanel {
     position: fixed !important;
-    top: 7.3rem !important;
+    top: 6rem !important;
     right: 0 !important;
     bottom: calc(4.5rem + env(safe-area-inset-bottom)) !important;
     left: auto !important;
@@ -402,7 +405,7 @@
     border-right: none !important;
     border-radius: 0.85rem 0 0 0.85rem !important;
     box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3);
-    overflow: visible !important;
+    overflow: hidden !important;
     background: rgba(7, 7, 7, 0.96) !important;
     backdrop-filter: blur(12px);
     transition: width 0.28s ease, border-radius 0.28s ease;
@@ -434,15 +437,14 @@
     width: 100% !important;
     height: 100% !important;
     transform: none !important;
-    display: inline-flex !important;
-    flex-direction: column;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
     border-radius: 0 !important;
     border: none !important;
-    padding: 0.6rem 0.15rem !important;
+    padding: 0 !important;
     background: transparent !important;
+    z-index: 5;
   }
 
   .wcSourcesToggleBtn[data-open="true"] {

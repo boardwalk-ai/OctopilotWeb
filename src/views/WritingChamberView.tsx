@@ -1742,32 +1742,32 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         title={isSourcesCollapsed ? "Expand sources panel" : "Collapse sources panel"}
                         data-open={!isSourcesCollapsed ? "true" : "false"}
                     >
-                        {isMobileViewport ? (
-                            isSourcesCollapsed ? (
-                                <div className="flex flex-col items-center gap-1.5">
-                                    {sourceThreads.length === 0 && (
-                                        <span className="text-[8px] font-medium text-white/40">0</span>
-                                    )}
+                        {isMobileViewport ? null : (isSourcesCollapsed ? "◀" : "▶")}
+                    </button>
+
+                    {isSourcesCollapsed ? (
+                        <div className={`flex h-full items-center justify-center ${mobileStyles.wcSourcesPanelCollapsed}`}>
+                            {isMobileViewport ? (
+                                <div className="flex flex-col items-center gap-2 overflow-y-auto py-3" style={{ scrollbarWidth: "none" }}>
                                     {sourceThreads.map((source) => {
                                         const p = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
                                         return (
                                             <div
                                                 key={source.index}
-                                                className="flex h-[1.15rem] w-[1.15rem] items-center justify-center rounded-full text-[8px] font-bold text-white shadow-sm"
+                                                className="flex h-[1.25rem] w-[1.25rem] shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
                                                 style={{ backgroundColor: p.border }}
                                             >
                                                 {source.index + 1}
                                             </div>
                                         );
                                     })}
+                                    {sourceThreads.length === 0 && (
+                                        <span className="text-[8px] font-medium text-white/40">0</span>
+                                    )}
                                 </div>
-                            ) : null
-                        ) : (isSourcesCollapsed ? "◀" : "▶")}
-                    </button>
-
-                    {isSourcesCollapsed ? (
-                        <div className={`flex h-full items-center justify-center ${mobileStyles.wcSourcesPanelCollapsed}`}>
-                            <span className="-rotate-180 text-[11px] font-semibold tracking-[0.16em] text-white/60 [writing-mode:vertical-rl]">SOURCES</span>
+                            ) : (
+                                <span className="-rotate-180 text-[11px] font-semibold tracking-[0.16em] text-white/60 [writing-mode:vertical-rl]">SOURCES</span>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -1867,7 +1867,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 </div>
             </div>
 
-            {isClientMounted && createPortal(continueButton, document.body)}
+            {isClientMounted && (isMobileViewport ? continueButton : createPortal(continueButton, document.body))}
 
             {sourceModal && (
                 <div className={`fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm ${mobileStyles.wcSourceModalOverlay}`}>
