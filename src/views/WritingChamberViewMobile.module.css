@@ -51,6 +51,9 @@
 .wcContinueBtn {}
 .wcContinueBtnHidden {}
 
+/* ── Content Row (row wrapper for writing+sources) ──── */
+.wcContentRow {}
+
 /* ── Sources-Open Compact Mode ────────────────────────── */
 .wcMainLayoutSourcesOpen {}
 .wcWritingColumnCompact {}
@@ -141,7 +144,7 @@
   }
 
   /* ─────────────────────────────────────────────────────
-     MAIN LAYOUT — stack vertically
+     MAIN LAYOUT — column so footer bars sit below content
      ───────────────────────────────────────────────────── */
 
   .wcMainLayout {
@@ -150,19 +153,33 @@
   }
 
   /* ─────────────────────────────────────────────────────
-     WRITING COLUMN
+     CONTENT ROW — always row; writing + sources side-by-side
      ───────────────────────────────────────────────────── */
 
-  .wcWritingColumn {
-    border-right: none !important;
+  .wcContentRow {
+    display: flex !important;
+    flex-direction: row !important;
     flex: 1 1 0% !important;
     min-height: 0 !important;
     overflow: hidden !important;
   }
 
+  /* ─────────────────────────────────────────────────────
+     WRITING COLUMN — animates between full-width and 3.5rem
+     ───────────────────────────────────────────────────── */
+
+  .wcWritingColumn {
+    flex: none !important;
+    width: calc(100% - 2.6rem) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border-right: none !important;
+    transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
   .wcScrollViewport {
     padding-left: 0.5rem !important;
-    padding-right: 3.2rem !important;
+    padding-right: 0.5rem !important;
     padding-top: 0.5rem !important;
     padding-bottom: 1.5rem !important;
   }
@@ -402,16 +419,17 @@
   }
 
   /* ─────────────────────────────────────────────────────
-     SOURCES PANEL — thin collapsed tab on right edge
+     SOURCES PANEL — in-flow flex child, animates width
      ───────────────────────────────────────────────────── */
 
   .wcSourcesPanel {
-    position: absolute !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
     left: auto !important;
-    z-index: 82 !important;
+    z-index: auto !important;
+    flex: none !important;
     width: 2.6rem !important;
     max-height: none;
     border: none !important;
@@ -420,40 +438,25 @@
     box-shadow: none;
     overflow: hidden !important;
     background: rgba(7, 7, 7, 0.96) !important;
-    transition: width 0.28s ease;
+    transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   .wcSourcesPanelOpen {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    width: auto !important;
-    flex: 1 1 0 !important;
-    border-radius: 0 !important;
-    overflow: hidden !important;
-    box-shadow: none;
-    border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+    width: calc(100% - 3.5rem) !important;
   }
 
   /* ─────────────────────────────────────────────────────
      SOURCES-OPEN COMPACT MODE
-     When sources are expanded on mobile, the main layout
-     switches to row, writing column becomes narrow with
-     compact section pills (P1, P2…), sources take rest.
+     Writing column shrinks to 3.5rem with compact pills.
      ───────────────────────────────────────────────────── */
 
   .wcMainLayoutSourcesOpen {
-    flex-direction: row !important;
+    /* no longer needed — content row is always row */
   }
 
   .wcWritingColumnCompact {
     width: 3.5rem !important;
-    flex: 0 0 3.5rem !important;
-    min-width: 0 !important;
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-left: none !important;
   }
 
   .wcScrollViewportCompact {
@@ -525,12 +528,7 @@
   }
 
   .wcSourcesBackdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 81;
-    border: 0;
-    background: rgba(3, 5, 8, 0.4);
-    backdrop-filter: blur(4px);
+    display: none !important;
   }
 
   .wcSourcesContent {
