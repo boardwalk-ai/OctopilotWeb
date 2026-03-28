@@ -155,9 +155,9 @@
 
   .wcScrollViewport {
     padding-left: 0.5rem !important;
-    padding-right: 3.5rem !important;
+    padding-right: 3.2rem !important;
     padding-top: 0.5rem !important;
-    padding-bottom: calc(8rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: 1.5rem !important;
   }
 
   /* ─────────────────────────────────────────────────────
@@ -346,11 +346,14 @@
 
   /* ─────────────────────────────────────────────────────
      FOOTER SECTION COUNT
+     Includes extra bottom padding so Continue button
+     overlays empty space — not the section count text
+     or the insights drawer above it.
      ───────────────────────────────────────────────────── */
 
   .wcSectionCountBar {
-    height: 2rem !important;
-    padding: 0 0.55rem !important;
+    height: auto !important;
+    padding: 0.4rem 0.55rem calc(4.5rem + env(safe-area-inset-bottom)) !important;
     font-size: 0.65rem !important;
   }
 
@@ -389,22 +392,25 @@
     position: fixed !important;
     top: 7.3rem !important;
     right: 0 !important;
-    bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom)) !important;
     left: auto !important;
     z-index: 82 !important;
-    width: 2.8rem !important;
+    width: 2.6rem !important;
     max-height: none;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-right: none !important;
-    border-radius: 1rem 0 0 1rem !important;
+    border-radius: 0.85rem 0 0 0.85rem !important;
     box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-    transition: width 0.28s ease, transform 0.28s ease, opacity 0.2s ease;
+    overflow: visible !important;
+    background: rgba(7, 7, 7, 0.96) !important;
+    backdrop-filter: blur(12px);
+    transition: width 0.28s ease, border-radius 0.28s ease;
   }
 
   .wcSourcesPanelOpen {
     width: min(22rem, calc(100vw - 1rem)) !important;
     border-radius: 1.2rem 0 0 1.2rem !important;
+    overflow: hidden !important;
   }
 
   .wcSourcesPanelCollapsed {
@@ -415,37 +421,50 @@
     border-top: none !important;
     border-radius: 0 !important;
     transform: none !important;
+    overflow: hidden !important;
     transition: none;
   }
 
   .wcSourcesToggleBtn {
-    left: 0.3rem !important;
-    right: 0.3rem !important;
-    top: 0.4rem !important;
-    bottom: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     transform: none !important;
     display: inline-flex !important;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    border-radius: 999px !important;
-    padding: 0.4rem 0.2rem !important;
-    background: rgba(19, 24, 32, 0.96) !important;
-    backdrop-filter: blur(14px);
+    gap: 0.35rem;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0.6rem 0.15rem !important;
+    background: transparent !important;
   }
 
   .wcSourcesToggleBtn[data-open="true"] {
+    position: absolute !important;
+    width: auto !important;
+    height: auto !important;
     flex-direction: row;
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.5rem 0.7rem !important;
+    top: 0.4rem !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    bottom: auto !important;
+    border-radius: 999px !important;
+    background: rgba(19, 24, 32, 0.96) !important;
+    backdrop-filter: blur(14px);
   }
 
   .wcSourcesToggleLabel {
-    font-size: 0.48rem;
+    font-size: 0.5rem;
     line-height: 1;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-align: center;
   }
@@ -461,12 +480,13 @@
   }
 
   .wcSourcesToggleCount {
-    min-width: 1.2rem;
-    padding: 0.1rem 0.25rem;
+    min-width: 1.3rem;
+    padding: 0.12rem 0.3rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    font-size: 0.58rem;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.6rem;
     text-align: center;
+    font-weight: 700;
   }
 
   .wcSourcesBackdrop {
