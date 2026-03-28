@@ -1398,7 +1398,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
             <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout}`}>
               <div className={`contents ${mobileStyles.wcContentRow}`}>
-                <div className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcWritingColumnCompact : ""}`}>
+                <div
+                    className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcWritingColumnCompact : ""}`}
+                    style={isMobileViewport ? { flex: "none", width: isSourcesCollapsed ? "calc(100% - 2.6rem)" : "3.5rem", transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
+                >
                     <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcScrollViewportCompact : ""}`}>
                       {isMobileViewport && !isSourcesCollapsed ? (
                         <div className="flex flex-col gap-1">
@@ -1754,7 +1757,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                     )}
                 </div>
 
-                <div className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}>
+                <div
+                    className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}
+                    style={isMobileViewport ? { flex: "none", width: isSourcesCollapsed ? "2.6rem" : "calc(100% - 3.5rem)", transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
+                >
                     <button
                         type="button"
                         onClick={() => setIsSourcesCollapsed((prev) => !prev)}
