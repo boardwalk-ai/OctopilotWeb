@@ -51,6 +51,11 @@
 .wcContinueBtn {}
 .wcContinueBtnHidden {}
 
+/* ── Sources-Open Compact Mode ────────────────────────── */
+.wcMainLayoutSourcesOpen {}
+.wcWritingColumnCompact {}
+.wcScrollViewportCompact {}
+
 /* ── Sources Panel (right sidebar) ──────────────────── */
 .wcSourcesPanel {}
 .wcSourcesPanelCollapsed {}
@@ -418,14 +423,40 @@
   }
 
   .wcSourcesPanelOpen {
-    position: fixed !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: min(22rem, calc(100vw - 1rem)) !important;
-    border-radius: 1.2rem 0 0 1.2rem !important;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: auto !important;
+    flex: 1 1 0 !important;
+    border-radius: 0 !important;
     overflow: hidden !important;
-    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* ─────────────────────────────────────────────────────
+     SOURCES-OPEN COMPACT MODE
+     When sources are expanded on mobile, the main layout
+     switches to row, writing column becomes narrow with
+     compact section pills (P1, P2…), sources take rest.
+     ───────────────────────────────────────────────────── */
+
+  .wcMainLayoutSourcesOpen {
+    flex-direction: row !important;
+  }
+
+  .wcWritingColumnCompact {
+    width: 3.5rem !important;
+    flex: 0 0 3.5rem !important;
+    min-width: 0 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-left: none !important;
+  }
+
+  .wcScrollViewportCompact {
+    padding: 0.4rem !important;
   }
 
   .wcSourcesPanelCollapsed {

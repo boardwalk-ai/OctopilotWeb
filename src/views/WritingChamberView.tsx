@@ -1396,9 +1396,31 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 </div>
             )}
 
-            <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout}`}>
-                <div className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn}`}>
-                    <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport}`}>
+            <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcMainLayoutSourcesOpen : ""}`}>
+                <div className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcWritingColumnCompact : ""}`}>
+                    <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcScrollViewportCompact : ""}`}>
+                      {isMobileViewport && !isSourcesCollapsed ? (
+                        <div className="flex flex-col gap-1">
+                            {sections.map((section, index) => {
+                                const isActive = section.id === activeSectionId;
+                                const typeKey = section.type.toLowerCase();
+                                const badgeColor = typeKey === "introduction" ? "#8dc8ff" : typeKey === "conclusion" ? "#ffdca1" : "#ffadad";
+                                return (
+                                    <button
+                                        key={section.id}
+                                        type="button"
+                                        onClick={() => {
+                                            focusSection(section.id, { expand: true });
+                                            setIsSourcesCollapsed(true);
+                                        }}
+                                        className={`flex h-8 items-center justify-center rounded-lg text-[11px] font-black transition ${isActive ? "bg-[#ff5a52] text-white shadow-[0_0_8px_rgba(255,90,82,0.3)]" : "bg-white/[0.06] text-white/60 hover:bg-white/10"}`}
+                                    >
+                                        {index + 1}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                      ) : (
                         <div className="flex flex-col gap-3">
                             {sections.map((section, index) => {
                                 const isCollapsed = Boolean(collapsed[section.id]);
@@ -1629,8 +1651,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                                 );
                             })}
                         </div>
+                      )}
                     </div>
 
+                    {(!isMobileViewport || isSourcesCollapsed) && (
                     <div className={`border-t border-white/10 bg-[#090909] ${mobileStyles.wcInsightsBar}`}>
                         <div className="relative h-12">
                             <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
@@ -1720,20 +1744,14 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                             </div>
                         </div>
                     </div>
+                    )}
 
+                    {(!isMobileViewport || isSourcesCollapsed) && (
                     <div className={`flex h-[50px] items-center border-t border-white/10 bg-[#0a0a0a] px-4 text-[13px] text-white/65 ${mobileStyles.wcSectionCountBar}`}>
                         {sections.length} sections
                     </div>
+                    )}
                 </div>
-
-                {isMobileViewport && !isSourcesCollapsed && (
-                    <button
-                        type="button"
-                        aria-label="Close sources panel"
-                        onClick={() => setIsSourcesCollapsed(true)}
-                        className={mobileStyles.wcSourcesBackdrop}
-                    />
-                )}
 
                 <div className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}>
                     <button
