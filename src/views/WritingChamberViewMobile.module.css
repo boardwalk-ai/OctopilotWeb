@@ -141,6 +141,7 @@
 
   .wcMainLayout {
     flex-direction: column !important;
+    position: relative !important;
   }
 
   /* ─────────────────────────────────────────────────────
@@ -322,20 +323,26 @@
 
   .wcInsightsBar {
     position: relative !important;
-    z-index: 100 !important;
+    z-index: 200 !important;
     height: 2.25rem !important;
+    background: #090909 !important;
   }
 
   .wcInsightsToggle {
-    width: 2.25rem !important;
-    height: 2.25rem !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
     touch-action: none;
-    z-index: 101 !important;
+    z-index: 201 !important;
   }
 
   .wcInsightsToggle svg {
     width: 0.85rem !important;
     height: 0.85rem !important;
+  }
+
+  .wcInsightsPanel {
+    position: relative !important;
+    z-index: 200 !important;
   }
 
   .wcInsightsGrid {
@@ -393,40 +400,47 @@
      ───────────────────────────────────────────────────── */
 
   .wcSourcesPanel {
-    position: fixed !important;
-    top: 6rem !important;
+    position: absolute !important;
+    top: 0 !important;
     right: 0 !important;
-    bottom: calc(4.5rem + env(safe-area-inset-bottom)) !important;
+    bottom: 0 !important;
     left: auto !important;
     z-index: 82 !important;
     width: 2.6rem !important;
     max-height: none;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-right: none !important;
-    border-radius: 0.85rem 0 0 0.85rem !important;
-    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.3);
+    border: none !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 0 !important;
+    box-shadow: none;
     overflow: hidden !important;
     background: rgba(7, 7, 7, 0.96) !important;
-    backdrop-filter: blur(12px);
-    transition: width 0.28s ease, border-radius 0.28s ease;
+    transition: width 0.28s ease;
   }
 
   .wcSourcesPanelOpen {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
     width: min(22rem, calc(100vw - 1rem)) !important;
     border-radius: 1.2rem 0 0 1.2rem !important;
     overflow: hidden !important;
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
   }
 
   .wcSourcesPanelCollapsed {
     width: 100% !important;
     position: relative !important;
     height: 100% !important;
-    border-left: none !important;
-    border-top: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    border: none !important;
     border-radius: 0 !important;
-    transform: none !important;
-    overflow: hidden !important;
-    transition: none;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: none;
   }
 
   .wcSourcesToggleBtn {

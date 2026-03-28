@@ -1636,6 +1636,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                             <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
                             <button
                                 onPointerDown={startInsightsDrag}
+                                style={{ touchAction: "none" }}
                                 className={`group absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#121317] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24] ${mobileStyles.wcInsightsToggle}`}
                                 title="Drag or click"
                             >
@@ -1748,23 +1749,26 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                     {isSourcesCollapsed ? (
                         <div className={`flex h-full items-center justify-center ${mobileStyles.wcSourcesPanelCollapsed}`}>
                             {isMobileViewport ? (
-                                <div className="flex flex-col items-center gap-2 overflow-y-auto py-3" style={{ scrollbarWidth: "none" }}>
-                                    {sourceThreads.map((source) => {
-                                        const p = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
-                                        return (
-                                            <div
-                                                key={source.index}
-                                                className="flex h-[1.25rem] w-[1.25rem] shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
-                                                style={{ backgroundColor: p.border }}
-                                            >
-                                                {source.index + 1}
-                                            </div>
-                                        );
-                                    })}
-                                    {sourceThreads.length === 0 && (
-                                        <span className="text-[8px] font-medium text-white/40">0</span>
-                                    )}
-                                </div>
+                                <>
+                                    <div className="flex shrink-0 flex-col items-center gap-1.5 pt-2 pb-1">
+                                        {sourceThreads.map((source) => {
+                                            const p = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
+                                            return (
+                                                <div
+                                                    key={source.index}
+                                                    className="flex h-[1.25rem] w-[1.25rem] shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                                                    style={{ backgroundColor: p.border }}
+                                                >
+                                                    {source.index + 1}
+                                                </div>
+                                            );
+                                        })}
+                                        {sourceThreads.length === 0 && (
+                                            <span className="text-[8px] font-medium text-white/40">0</span>
+                                        )}
+                                    </div>
+                                    <span className="-rotate-180 mt-1 text-[8px] font-semibold tracking-[0.14em] text-white/35 [writing-mode:vertical-rl]">SOURCES</span>
+                                </>
                             ) : (
                                 <span className="-rotate-180 text-[11px] font-semibold tracking-[0.16em] text-white/60 [writing-mode:vertical-rl]">SOURCES</span>
                             )}
