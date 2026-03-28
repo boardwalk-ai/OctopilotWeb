@@ -1743,10 +1743,25 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         data-open={!isSourcesCollapsed ? "true" : "false"}
                     >
                         {isMobileViewport ? (
-                            <>
-                                <span className={mobileStyles.wcSourcesToggleLabel}>{isSourcesCollapsed ? "Sources" : "Close"}</span>
-                                <span className={mobileStyles.wcSourcesToggleCount}>{sourceThreads.length}</span>
-                            </>
+                            isSourcesCollapsed ? (
+                                <div className="flex flex-col items-center gap-1.5">
+                                    {sourceThreads.length === 0 && (
+                                        <span className="text-[8px] font-medium text-white/40">0</span>
+                                    )}
+                                    {sourceThreads.map((source) => {
+                                        const p = sourcePalettes[source.index] || SOURCE_PICKER_COLORS[source.index % SOURCE_PICKER_COLORS.length];
+                                        return (
+                                            <div
+                                                key={source.index}
+                                                className="flex h-[1.15rem] w-[1.15rem] items-center justify-center rounded-full text-[8px] font-bold text-white shadow-sm"
+                                                style={{ backgroundColor: p.border }}
+                                            >
+                                                {source.index + 1}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : null
                         ) : (isSourcesCollapsed ? "◀" : "▶")}
                     </button>
 
@@ -1758,7 +1773,18 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                         <>
                             <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
                                 <h3 className="text-[20px] font-bold text-white">Sources</h3>
-                                <span className="rounded-full border border-white/20 bg-[#11151d] px-3 py-1 text-[10px] font-bold text-[#9bc9ff]">{sourceStyleBadge}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="rounded-full border border-white/20 bg-[#11151d] px-3 py-1 text-[10px] font-bold text-[#9bc9ff]">{sourceStyleBadge}</span>
+                                    {isMobileViewport && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsSourcesCollapsed(true)}
+                                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#181d27] text-[15px] font-bold text-white/80 transition hover:bg-[#252c38]"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className={`flex-1 overflow-y-auto p-2.5 ${mobileStyles.wcSourcesContent}`}>
