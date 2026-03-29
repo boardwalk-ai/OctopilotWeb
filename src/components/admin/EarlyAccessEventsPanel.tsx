@@ -31,6 +31,7 @@ type BookingRow = {
 type OverviewPayload = {
   slots: EventSlotRow[];
   bookings: BookingRow[];
+  available_date_overrides: string[];
   counts: {
     slots: number;
     active_slots: number;
@@ -112,21 +113,9 @@ function isDateWithinEarlyAccessWindow(dateKey: string) {
   return dateKey >= EARLY_ACCESS_WINDOW_START_KEY && dateKey <= EARLY_ACCESS_WINDOW_END_KEY;
 }
 
-function isEarlyAccessUnavailableDate(dateKey: string) {
+function getEarlyAccessBaseDateRestriction(dateKey: string) {
   if (!isDateWithinEarlyAccessWindow(dateKey)) {
-    return false;
-  }
-
-  if (EARLY_ACCESS_BLOCKED_DATE_KEYS.has(dateKey)) {
-    return true;
-  }
-
-  return parseDateKey(dateKey).getDay() === THURSDAY_INDEX;
-}
-
-function getEarlyAccessDateRestriction(dateKey: string) {
-  if (!isDateWithinEarlyAccessWindow(dateKey)) {
-    return `Slots can only be added from ${EARLY_ACCESS_WINDOW_LABEL}.`;
+    return null;
   }
 
   if (EARLY_ACCESS_BLOCKED_DATE_KEYS.has(dateKey)) {
@@ -138,6 +127,30 @@ function getEarlyAccessDateRestriction(dateKey: string) {
   }
 
   return null;
+}
+
+function isEarlyAccessUnavailableDate(dateKey: string, availableDateOverrideSet: Set<string>) {
+  if (!isDateWithinEarlyAccessWindow(dateKey)) {
+    return false;
+  }
+
+  if (availableDateOverrideSet.has(dateKey)) {
+    return false;
+  }
+
+  return Boolean(getEarlyAccessBaseDateRestriction(dateKey));
+}
+
+function getEarlyAccessDateRestriction(dateKey: string, availableDateOverrideSet: Set<string>) {
+  if (!isDateWithinEarlyAccessWindow(dateKey)) {
+    return `Slots can only be added from ${EARLY_ACCESS_WINDOW_LABEL}.`;
+  }
+
+  if (availableDateOverrideSet.has(dateKey)) {
+    return null;
+  }
+
+  return getEarlyAccessBaseDateRestriction(dateKey);
 }
 
 function normalizeTimezoneValue(value?: string | null) {
@@ -262,6 +275,7 @@ function SectionFrame({
 export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEventsPanelProps) {
   const [slots, setSlots] = useState<EventSlotRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [availableDateOverrides, setAvailableDateOverrides] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState(EARLY_ACCESS_WINDOW_START_KEY);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(EARLY_ACCESS_WINDOW_START));
   const [slotTime, setSlotTime] = useState("09:00");
@@ -271,11 +285,13 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTogglingDateAvailability, setIsTogglingDateAvailability] = useState(false);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const availableDateOverrideSet = useMemo(() => new Set(availableDateOverrides), [availableDateOverrides]);
   const availableDateSet = useMemo(() => new Set(slots.filter((slot) => slot.is_active && !slot.is_booked).map((slot) => slot.event_date)), [slots]);
   const filledDateSet = useMemo(() => new Set(slots.filter((slot) => slot.is_active && slot.is_booked).map((slot) => slot.event_date)), [slots]);
   const selectedDateSlots = useMemo(
@@ -285,7 +301,16 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
         .sort((left, right) => new Date(left.starts_at || "").getTime() - new Date(right.starts_at || "").getTime()),
     [slots, selectedDate]
   );
-  const selectedDateRestriction = useMemo(() => getEarlyAccessDateRestriction(selectedDate), [selectedDate]);
+  const selectedDateBaseRestriction = useMemo(() => getEarlyAccessBaseDateRestriction(selectedDate), [selectedDate]);
+  const selectedDateHasManualAvailability = useMemo(() => availableDateOverrideSet.has(selectedDate), [availableDateOverrideSet, selectedDate]);
+  const selectedDateCanToggleAvailability = useMemo(
+    () => isDateWithinEarlyAccessWindow(selectedDate) && Boolean(selectedDateBaseRestriction),
+    [selectedDate, selectedDateBaseRestriction]
+  );
+  const selectedDateRestriction = useMemo(
+    () => getEarlyAccessDateRestriction(selectedDate, availableDateOverrideSet),
+    [selectedDate, availableDateOverrideSet]
+  );
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
   const monthLabel = useMemo(
     () => new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(visibleMonth),
@@ -301,6 +326,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
       const payload = await adminFetch<OverviewPayload>("/backend/api/v1/appointments/admin/early-access/overview");
       setSlots(payload.slots || []);
       setBookings(payload.bookings || []);
+      setAvailableDateOverrides(payload.available_date_overrides || []);
       setSelectedDate((current) => (isDateWithinEarlyAccessWindow(current) ? current : EARLY_ACCESS_WINDOW_START_KEY));
       setVisibleMonth((current) => {
         const monthStart = startOfMonth(current);
@@ -395,6 +421,32 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
       setError(saveError instanceof Error ? saveError.message : "Failed to save the slot.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleToggleDateAvailability = async (makeAvailable: boolean) => {
+    if (!selectedDateCanToggleAvailability) return;
+
+    setIsTogglingDateAvailability(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await adminFetch<{ message: string; available_date_overrides?: string[] }>(
+        "/backend/api/v1/appointments/admin/early-access/date-overrides/" + selectedDate,
+        {
+          method: makeAvailable ? "PUT" : "DELETE",
+        }
+      );
+
+      if (Array.isArray(response.available_date_overrides)) {
+        setAvailableDateOverrides(response.available_date_overrides);
+      }
+      setSuccess(response.message || (makeAvailable ? "Date is now available for slots." : "Date reset to unavailable."));
+      await load();
+    } catch (toggleError) {
+      setError(toggleError instanceof Error ? toggleError.message : "Failed to update date availability.");
+    } finally {
+      setIsTogglingDateAvailability(false);
     }
   };
 
@@ -499,7 +551,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
           <div className="mt-3 grid grid-cols-7 gap-2">
             {calendarDays.map((day) => {
               const isWithinWindow = isDateWithinEarlyAccessWindow(day.key);
-              const isUnavailable = isEarlyAccessUnavailableDate(day.key);
+              const isUnavailable = isEarlyAccessUnavailableDate(day.key, availableDateOverrideSet);
               const isSelected = day.key === selectedDate;
               const isAvailable = availableDateSet.has(day.key);
               const isFilled = filledDateSet.has(day.key);
@@ -627,6 +679,31 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
             {selectedDateRestriction ? (
               <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170d0d] px-4 py-3 text-sm text-red-100">
                 {selectedDateRestriction}
+              </div>
+            ) : null}
+
+            {selectedDateCanToggleAvailability ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => void handleToggleDateAvailability(!selectedDateHasManualAvailability)}
+                  disabled={isTogglingDateAvailability}
+                  className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    selectedDateHasManualAvailability
+                      ? "border border-white/10 bg-[#141414] text-white/78 hover:border-red-500/35 hover:text-red-300"
+                      : "bg-red-500 text-black hover:bg-white hover:text-red-500"
+                  }`}
+                >
+                  {isTogglingDateAvailability
+                    ? "Saving..."
+                    : selectedDateHasManualAvailability
+                      ? "Reset To Unavailable"
+                      : "Make Date Available"}
+                </button>
+                <div className="text-xs text-white/42">
+                  {selectedDateHasManualAvailability
+                    ? "This normally blocked date has been reopened by admin."
+                    : "Use this if you want to allow slots on this blocked date."}
+                </div>
               </div>
             ) : null}
 
