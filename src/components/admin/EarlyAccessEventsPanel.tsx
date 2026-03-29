@@ -43,6 +43,22 @@ type EarlyAccessEventsPanelProps = {
 };
 
 const DEFAULT_SLOT_TIMEZONE = "America/New_York";
+const EARLY_ACCESS_WINDOW_START = new Date(2026, 3, 1);
+const EARLY_ACCESS_WINDOW_END = new Date(2026, 4, 14);
+const EARLY_ACCESS_WINDOW_START_KEY = toDateKey(EARLY_ACCESS_WINDOW_START);
+const EARLY_ACCESS_WINDOW_END_KEY = toDateKey(EARLY_ACCESS_WINDOW_END);
+const EARLY_ACCESS_BLOCKED_DATE_KEYS = new Set([
+  "2026-04-06",
+  "2026-04-07",
+  "2026-04-08",
+  "2026-04-09",
+  "2026-04-15",
+  "2026-04-16",
+  "2026-04-17",
+  "2026-04-22",
+]);
+const THURSDAY_INDEX = 4;
+const EARLY_ACCESS_WINDOW_LABEL = "April 1, 2026 to May 14, 2026";
 
 function toDateKey(value: Date) {
   const year = value.getFullYear();
@@ -90,6 +106,38 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString();
+}
+
+function isDateWithinEarlyAccessWindow(dateKey: string) {
+  return dateKey >= EARLY_ACCESS_WINDOW_START_KEY && dateKey <= EARLY_ACCESS_WINDOW_END_KEY;
+}
+
+function isEarlyAccessUnavailableDate(dateKey: string) {
+  if (!isDateWithinEarlyAccessWindow(dateKey)) {
+    return false;
+  }
+
+  if (EARLY_ACCESS_BLOCKED_DATE_KEYS.has(dateKey)) {
+    return true;
+  }
+
+  return parseDateKey(dateKey).getDay() === THURSDAY_INDEX;
+}
+
+function getEarlyAccessDateRestriction(dateKey: string) {
+  if (!isDateWithinEarlyAccessWindow(dateKey)) {
+    return `Slots can only be added from ${EARLY_ACCESS_WINDOW_LABEL}.`;
+  }
+
+  if (EARLY_ACCESS_BLOCKED_DATE_KEYS.has(dateKey)) {
+    return "This date is marked unavailable.";
+  }
+
+  if (parseDateKey(dateKey).getDay() === THURSDAY_INDEX) {
+    return "Every Thursday is unavailable.";
+  }
+
+  return null;
 }
 
 function normalizeTimezoneValue(value?: string | null) {
@@ -214,8 +262,8 @@ function SectionFrame({
 export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEventsPanelProps) {
   const [slots, setSlots] = useState<EventSlotRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()));
-  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState(EARLY_ACCESS_WINDOW_START_KEY);
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(EARLY_ACCESS_WINDOW_START));
   const [slotTime, setSlotTime] = useState("09:00");
   const [slotDuration, setSlotDuration] = useState(30);
   const [slotLabel, setSlotLabel] = useState("");
@@ -237,11 +285,14 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
         .sort((left, right) => new Date(left.starts_at || "").getTime() - new Date(right.starts_at || "").getTime()),
     [slots, selectedDate]
   );
+  const selectedDateRestriction = useMemo(() => getEarlyAccessDateRestriction(selectedDate), [selectedDate]);
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
   const monthLabel = useMemo(
     () => new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(visibleMonth),
     [visibleMonth]
   );
+  const canGoToPreviousMonth = visibleMonth.getTime() > startOfMonth(EARLY_ACCESS_WINDOW_START).getTime();
+  const canGoToNextMonth = visibleMonth.getTime() < startOfMonth(EARLY_ACCESS_WINDOW_END).getTime();
 
   const load = useCallback(async () => {
     setIsBusy(true);
@@ -250,13 +301,16 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
       const payload = await adminFetch<OverviewPayload>("/backend/api/v1/appointments/admin/early-access/overview");
       setSlots(payload.slots || []);
       setBookings(payload.bookings || []);
-      setSelectedDate((current) => {
-        const knownDate = payload.slots?.some((slot) => slot.event_date === current);
-        const nextDate = knownDate ? current : payload.slots?.[0]?.event_date || toDateKey(new Date());
-        if (!knownDate) {
-          setVisibleMonth(startOfMonth(parseDateKey(nextDate)));
+      setSelectedDate((current) => (isDateWithinEarlyAccessWindow(current) ? current : EARLY_ACCESS_WINDOW_START_KEY));
+      setVisibleMonth((current) => {
+        const monthStart = startOfMonth(current);
+        if (monthStart.getTime() < startOfMonth(EARLY_ACCESS_WINDOW_START).getTime()) {
+          return startOfMonth(EARLY_ACCESS_WINDOW_START);
         }
-        return nextDate;
+        if (monthStart.getTime() > startOfMonth(EARLY_ACCESS_WINDOW_END).getTime()) {
+          return startOfMonth(EARLY_ACCESS_WINDOW_END);
+        }
+        return monthStart;
       });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load early-access events.");
@@ -305,6 +359,12 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
   };
 
   const handleSaveSlot = async () => {
+    if (selectedDateRestriction) {
+      setError(selectedDateRestriction);
+      setSuccess(null);
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
     setSuccess(null);
@@ -410,19 +470,21 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionFrame
           title="Events Calendar"
-          description="Green dates have open slots. Booked-only dates stay visible so you can inspect or clear them from the booking table."
+          description={`Calendar is limited to ${EARLY_ACCESS_WINDOW_LABEL}. Green dates have open slots, amber dates are booked-only, and red dates are unavailable for new slots.`}
         >
           <div className="flex items-center justify-between gap-3">
             <button
-              onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-              className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+              onClick={() => canGoToPreviousMonth && setVisibleMonth((current) => addMonths(current, -1))}
+              disabled={!canGoToPreviousMonth}
+              className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-35"
             >
               Prev
             </button>
             <div className="text-lg font-semibold text-white">{monthLabel}</div>
             <button
-              onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-              className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+              onClick={() => canGoToNextMonth && setVisibleMonth((current) => addMonths(current, 1))}
+              disabled={!canGoToNextMonth}
+              className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-35"
             >
               Next
             </button>
@@ -436,6 +498,8 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
 
           <div className="mt-3 grid grid-cols-7 gap-2">
             {calendarDays.map((day) => {
+              const isWithinWindow = isDateWithinEarlyAccessWindow(day.key);
+              const isUnavailable = isEarlyAccessUnavailableDate(day.key);
               const isSelected = day.key === selectedDate;
               const isAvailable = availableDateSet.has(day.key);
               const isFilled = filledDateSet.has(day.key);
@@ -444,20 +508,29 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
                 <button
                   key={day.key}
                   onClick={() => {
+                    if (!isWithinWindow) return;
                     setSelectedDate(day.key);
                     setVisibleMonth(startOfMonth(parseDateKey(day.key)));
                   }}
+                  disabled={!isWithinWindow}
                   className={`relative min-h-[86px] rounded-[20px] border px-3 py-3 text-left transition ${
-                    isSelected
-                      ? "border-red-500/45 bg-[#1b0f0f] text-white"
-                      : day.isCurrentMonth
-                        ? "border-white/8 bg-[#121212] text-white/86 hover:border-red-500/28"
-                        : "border-white/5 bg-[#0c0c0c] text-white/24 hover:border-white/10"
+                    !isWithinWindow
+                      ? "cursor-not-allowed border-white/5 bg-[#090909] text-white/16"
+                      : isSelected
+                        ? isUnavailable
+                          ? "border-red-400/55 bg-[#210d0d] text-red-100"
+                          : "border-red-500/45 bg-[#1b0f0f] text-white"
+                        : isUnavailable
+                          ? "border-red-500/25 bg-[#190d0d] text-red-100 hover:border-red-500/45"
+                          : day.isCurrentMonth
+                            ? "border-white/8 bg-[#121212] text-white/86 hover:border-red-500/28"
+                            : "border-white/8 bg-[#0e0e0e] text-white/50 hover:border-white/14"
                   }`}
                 >
                   <div className="text-lg font-semibold">{day.day}</div>
-                  {isAvailable ? <span className="absolute bottom-3 left-3 h-2.5 w-2.5 rounded-full bg-emerald-400" /> : null}
-                  {!isAvailable && isFilled ? <span className="absolute bottom-3 left-3 h-2.5 w-2.5 rounded-full bg-amber-400" /> : null}
+                  {isUnavailable ? <span className="absolute bottom-3 left-3 h-2.5 w-2.5 rounded-full bg-red-400" /> : null}
+                  {!isUnavailable && isAvailable ? <span className="absolute bottom-3 left-3 h-2.5 w-2.5 rounded-full bg-emerald-400" /> : null}
+                  {!isUnavailable && !isAvailable && isFilled ? <span className="absolute bottom-3 left-3 h-2.5 w-2.5 rounded-full bg-amber-400" /> : null}
                 </button>
               );
             })}
@@ -472,6 +545,10 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
               <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
               Booked-only date
             </div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+              Unavailable date
+            </div>
           </div>
         </SectionFrame>
 
@@ -482,7 +559,9 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
           <div className="rounded-[20px] border border-white/8 bg-[#121212] px-4 py-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Selected Date</div>
             <div className="mt-2 text-xl font-semibold text-white">{formatDateLabel(selectedDate)}</div>
-            <div className="mt-1 text-sm text-white/46">{selectedDateSlots.length} slot(s) on this date</div>
+            <div className={`mt-1 text-sm ${selectedDateRestriction ? "text-red-200" : "text-white/46"}`}>
+              {selectedDateRestriction || `${selectedDateSlots.length} slot(s) on this date`}
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -520,7 +599,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
               ))
             ) : (
               <div className="rounded-[20px] border border-dashed border-white/10 bg-[#0f0f0f] px-4 py-8 text-sm text-white/42">
-                {isBusy ? "Loading slots..." : "No slots saved for this date yet."}
+                {isBusy ? "Loading slots..." : selectedDateRestriction ? "This date is unavailable. No slots can be added here." : "No slots saved for this date yet."}
               </div>
             )}
           </div>
@@ -544,6 +623,12 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
                 </button>
               ) : null}
             </div>
+
+            {selectedDateRestriction ? (
+              <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170d0d] px-4 py-3 text-sm text-red-100">
+                {selectedDateRestriction}
+              </div>
+            ) : null}
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div>
@@ -589,7 +674,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
 
             <button
               onClick={() => void handleSaveSlot()}
-              disabled={isSaving}
+              disabled={isSaving || Boolean(selectedDateRestriction)}
               className="mt-5 rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? "Saving..." : editingSlotId ? "Update Slot" : "Add Slot"}
