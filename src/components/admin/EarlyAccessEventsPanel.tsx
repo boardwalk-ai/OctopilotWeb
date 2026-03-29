@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthService } from "@/services/AuthService";
 
 type EventSlotRow = {
@@ -37,6 +37,11 @@ type OverviewPayload = {
     active_slots: number;
     booked: number;
   };
+};
+
+type SlotMutationResponse = {
+  message: string;
+  slot: EventSlotRow;
 };
 
 type EarlyAccessEventsPanelProps = {
@@ -225,20 +230,27 @@ function getDurationMinutes(slot: EventSlotRow) {
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await AuthService.getIdToken(true);
-  if (!token) {
-    throw new Error("You need to be signed in as an admin.");
-  }
+  const performFetch = async (forceRefresh: boolean) => {
+    const token = await AuthService.getIdToken(forceRefresh);
+    if (!token) {
+      throw new Error("You need to be signed in as an admin.");
+    }
 
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers || {}),
-    },
-  });
+    return fetch(path, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...(init?.headers || {}),
+      },
+    });
+  };
+
+  let response = await performFetch(false);
+  if (response.status === 401) {
+    response = await performFetch(true);
+  }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -273,6 +285,7 @@ function SectionFrame({
 }
 
 export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEventsPanelProps) {
+  const saveSlotLockRef = useRef(false);
   const [slots, setSlots] = useState<EventSlotRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [availableDateOverrides, setAvailableDateOverrides] = useState<string[]>([]);
@@ -384,13 +397,29 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
     setSlotTimezone(getDefaultSlotTimezone());
   };
 
+  const upsertSlot = useCallback((nextSlot: EventSlotRow) => {
+    setSlots((current) =>
+      [...current.filter((slot) => slot.id !== nextSlot.id), nextSlot].sort((left, right) => {
+        if (left.event_date !== right.event_date) {
+          return left.event_date.localeCompare(right.event_date);
+        }
+        return new Date(left.starts_at || "").getTime() - new Date(right.starts_at || "").getTime();
+      })
+    );
+  }, []);
+
   const handleSaveSlot = async () => {
+    if (saveSlotLockRef.current || isSaving) {
+      return;
+    }
+
     if (selectedDateRestriction) {
       setError(selectedDateRestriction);
       setSuccess(null);
       return;
     }
 
+    saveSlotLockRef.current = true;
     setIsSaving(true);
     setError(null);
     setSuccess(null);
@@ -405,21 +434,23 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
       };
 
       const response = editingSlotId
-        ? await adminFetch<{ message: string }>("/backend/api/v1/appointments/admin/early-access/slots/" + editingSlotId, {
+        ? await adminFetch<SlotMutationResponse>("/backend/api/v1/appointments/admin/early-access/slots/" + editingSlotId, {
             method: "PUT",
             body: JSON.stringify(payload),
           })
-        : await adminFetch<{ message: string }>("/backend/api/v1/appointments/admin/early-access/slots", {
+        : await adminFetch<SlotMutationResponse>("/backend/api/v1/appointments/admin/early-access/slots", {
             method: "POST",
             body: JSON.stringify(payload),
           });
 
+      upsertSlot(response.slot);
       setSuccess(response.message || (editingSlotId ? "Slot updated." : "Slot created."));
       resetForm();
-      await load();
+      void load();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to save the slot.");
     } finally {
+      saveSlotLockRef.current = false;
       setIsSaving(false);
     }
   };
