@@ -284,6 +284,24 @@ function SectionFrame({
   );
 }
 
+function EyeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEventsPanelProps) {
   const saveSlotLockRef = useRef(false);
   const [slots, setSlots] = useState<EventSlotRow[]>([]);
@@ -301,6 +319,7 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
   const [isTogglingDateAvailability, setIsTogglingDateAvailability] = useState(false);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
+  const [reviewModal, setReviewModal] = useState<BookingRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -822,17 +841,29 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
                     <td className="px-3 py-4 text-sm text-white/76">{booking.review_rating ? `${booking.review_rating}/5` : "-"}</td>
                     <td className="px-3 py-4 text-sm text-white/76">{formatDateTime(booking.created_at)}</td>
                     <td className="px-3 py-4">
-                      {booking.status === "booked" ? (
-                        <button
-                          onClick={() => void handleCancelBooking(booking.id)}
-                          disabled={cancellingBookingId === booking.id}
-                          className="rounded-full border border-red-500/18 bg-[#160b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200 transition hover:border-red-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {cancellingBookingId === booking.id ? "Cancelling..." : "Cancel"}
-                        </button>
-                      ) : (
-                        <span className="text-xs uppercase tracking-[0.2em] text-white/32">{booking.status}</span>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {booking.review_text ? (
+                          <button
+                            onClick={() => setReviewModal(booking)}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white/78 transition hover:border-red-500/35 hover:text-red-300"
+                            title="View full review"
+                            aria-label={`View full review from ${booking.booked_email}`}
+                          >
+                            <EyeIcon />
+                          </button>
+                        ) : null}
+                        {booking.status === "booked" ? (
+                          <button
+                            onClick={() => void handleCancelBooking(booking.id)}
+                            disabled={cancellingBookingId === booking.id}
+                            className="rounded-full border border-red-500/18 bg-[#160b0b] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200 transition hover:border-red-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {cancellingBookingId === booking.id ? "Cancelling..." : "Cancel"}
+                          </button>
+                        ) : (
+                          <span className="text-xs uppercase tracking-[0.2em] text-white/32">{booking.status}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -847,6 +878,63 @@ export default function EarlyAccessEventsPanel({ refreshKey }: EarlyAccessEvents
           </table>
         </div>
       </SectionFrame>
+
+      {reviewModal ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/76 px-4 py-6">
+          <button
+            type="button"
+            aria-label="Close review modal"
+            className="absolute inset-0"
+            onClick={() => setReviewModal(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="early-access-review-modal-title"
+            className="relative w-full max-w-[760px] rounded-[28px] border border-white/10 bg-[#090909] shadow-[0_32px_80px_rgba(0,0,0,0.55)]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Full Review</div>
+                <div id="early-access-review-modal-title" className="mt-2 text-[1.4rem] font-semibold tracking-[-0.05em] text-white">
+                  {reviewModal.booked_email}
+                </div>
+                <div className="mt-2 text-xs text-white/42">
+                  {reviewModal.slot.slot_label} · {reviewModal.slot.event_date} · {reviewModal.review_rating ? `${reviewModal.review_rating}/5` : "No rating"}
+                </div>
+              </div>
+              <button
+                onClick={() => setReviewModal(null)}
+                className="rounded-full border border-white/10 bg-[#141414] px-4 py-2.5 text-sm text-white/72 transition hover:border-red-500/35 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+              <div className="rounded-[22px] border border-white/8 bg-[#111111] px-5 py-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Review Text</div>
+                <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-white/78">
+                  {reviewModal.review_text || "No review text provided."}
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-[18px] border border-white/8 bg-[#111111] px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Booked At</div>
+                  <div className="mt-2 text-sm text-white/78">{formatDateTime(reviewModal.created_at)}</div>
+                </div>
+                <div className="rounded-[18px] border border-white/8 bg-[#111111] px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Time Slot</div>
+                  <div className="mt-2 text-sm text-white/78">{reviewModal.slot.slot_label}</div>
+                </div>
+                <div className="rounded-[18px] border border-white/8 bg-[#111111] px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Timezone</div>
+                  <div className="mt-2 text-sm text-white/78">{reviewModal.slot.timezone}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
