@@ -2,11 +2,19 @@
 
 .generationStepper {}
 
-.generationShell {}
+.generationShell {
+  justify-content: center;
+}
 
-.generationIntro {}
+.generationIntro {
+  max-width: 920px;
+  flex: 0 0 auto;
+  text-align: center;
+}
 
-.generationLogoWrap {}
+.generationLogoWrap {
+  margin: 0 auto 2rem;
+}
 
 .generationLogo {}
 
@@ -14,13 +22,31 @@
 
 .generationSubtitle {}
 
-.generationProgress {}
+.generationProgress {
+  margin-left: auto;
+  margin-right: auto;
+}
 
 .generationProgressMeta {}
 
-.generationStreamWrap {}
+.generationStreamWrap {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
 
-.generationStream {}
+.generationStream {
+  max-width: 1120px;
+  min-height: 260px;
+  padding: 0 2rem;
+  text-align: center;
+  font-size: 1.55rem;
+  line-height: 1.7;
+  letter-spacing: -0.02em;
+}
 
 @media (max-width: 767px) {
   .generationHeader {
