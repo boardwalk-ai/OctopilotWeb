@@ -40,12 +40,31 @@
 
 .generationStream {
   max-width: 1120px;
-  min-height: 260px;
+  height: clamp(18rem, 44vh, 31rem);
+  min-height: clamp(18rem, 44vh, 31rem);
+  overflow: hidden;
   padding: 0 2rem;
+  transform-style: preserve-3d;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 72%, transparent 100%);
+}
+
+.generationStreamContent {
+  min-height: 100%;
+  padding-top: 7rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-bottom: 4rem;
+  white-space: pre-wrap;
+  user-select: none;
   text-align: center;
+  transform-origin: center bottom;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
   font-size: 1.55rem;
-  line-height: 1.7;
+  line-height: 1.72;
   letter-spacing: -0.02em;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.06);
 }
 
 @media (max-width: 767px) {
@@ -160,8 +179,14 @@
     height: clamp(19rem, 42vh, 22rem);
     min-height: clamp(19rem, 42vh, 22rem);
     overflow: hidden;
-    padding: 0 0.65rem;
-    text-align: center;
+    padding: 0;
+  }
+
+  .generationStreamContent {
+    padding-top: 4.1rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    padding-bottom: 2rem;
     font-size: 0.96rem;
     line-height: 1.7;
     letter-spacing: -0.01em;

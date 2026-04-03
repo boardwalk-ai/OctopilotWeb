@@ -19,9 +19,13 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     const [streamedText, setStreamedText] = useState("");
     const [isGenerating, setIsGenerating] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [crawlOffset, setCrawlOffset] = useState(0);
     const hasStarted = useRef(false);
     const hasNavigated = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const crawlContentRef = useRef<HTMLDivElement>(null);
+    const targetTextRef = useRef("");
+    const flushTimerRef = useRef<number | null>(null);
 
     const extractGenerationResult = (raw: string): { essay_content: string; bibliography: string } | null => {
         let cleanOutput = raw.trim();
@@ -58,17 +62,47 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
         };
     };
 
-    // Auto-scroll when new text streams in
+    const queueDisplayedText = (nextText: string) => {
+        targetTextRef.current = nextText;
+        if (flushTimerRef.current !== null) return;
+
+        flushTimerRef.current = window.setInterval(() => {
+            setStreamedText((current) => {
+                const target = targetTextRef.current;
+                if (current === target) {
+                    if (flushTimerRef.current !== null) {
+                        window.clearInterval(flushTimerRef.current);
+                        flushTimerRef.current = null;
+                    }
+                    return current;
+                }
+
+                const remaining = target.length - current.length;
+                const step = remaining > 240 ? 44 : remaining > 120 ? 28 : remaining > 60 ? 18 : remaining > 24 ? 10 : 4;
+                return target.slice(0, current.length + step);
+            });
+        }, 24);
+    };
+
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
+        const viewport = scrollRef.current;
+        const content = crawlContentRef.current;
+        if (!viewport || !content) return;
+
+        const viewportHeight = viewport.clientHeight;
+        const contentHeight = content.scrollHeight;
+        if (viewportHeight <= 0 || contentHeight <= 0) return;
+
+        const visibleFloor = viewportHeight * 0.56;
+        const nextOffset = Math.max(0, contentHeight - visibleFloor);
+        setCrawlOffset(nextOffset);
     }, [streamedText]);
 
     // Calculate progress
     // Assume average word count based on words added vs target
     const targetWords = org.wordCount === "Custom" ? 1500 : (org.wordCount || 1000);
     const currentWords = streamedText.split(/\s+/).filter(w => w.length > 0).length;
+    const isStreamSettled = streamedText === targetTextRef.current;
     let progressPercent = Math.min(Math.round((currentWords / targetWords) * 100), 99);
 
     // Smooth progress clamping so it never hits 100% until DONE
@@ -83,6 +117,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
             if (org.isTestMode) {
                 // Mock Streaming
                 const mockText = org.generatedEssay || "Mock essay generated...";
+                targetTextRef.current = mockText;
                 let currentStr = "";
                 const chars = mockText.split('');
 
@@ -112,7 +147,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                     if (bibloIndex !== -1) {
                         pureText = pureText.substring(0, bibloIndex);
                     }
-                    setStreamedText(pureText);
+                    queueDisplayedText(pureText);
                 });
 
                 const parsed = extractGenerationResult(finalRawOutput);
@@ -142,7 +177,16 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     }, [onNext, org.isTestMode, org.generatedEssay, targetWords]);
 
     useEffect(() => {
-        if (isGenerating || error || hasNavigated.current) {
+        return () => {
+            if (flushTimerRef.current !== null) {
+                window.clearInterval(flushTimerRef.current);
+                flushTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isGenerating || error || hasNavigated.current || !isStreamSettled) {
             return;
         }
 
@@ -152,7 +196,7 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
         }, 900);
 
         return () => window.clearTimeout(timer);
-    }, [error, isGenerating, onNext]);
+    }, [error, isGenerating, isStreamSettled, onNext]);
 
     return (
         <div className={`flex h-full w-full flex-col items-center overflow-hidden px-6 pb-8 pt-20 lg:px-10 2xl:px-14 ${styles.generationShell}`}>
@@ -208,43 +252,47 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
             <div className={`relative mb-4 w-full flex-1 overflow-hidden ${styles.generationStreamWrap}`}>
                 <div
                     ref={scrollRef}
-                    className={`relative z-10 mx-auto w-full text-white/80 origin-bottom ${styles.generationStream}`}
+                    className={`relative z-10 mx-auto w-full text-white/80 ${styles.generationStream}`}
                     style={{
-                        whiteSpace: 'pre-wrap',
-                        userSelect: 'none',
-                        transform: 'perspective(300px) rotateX(35deg)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 70%, transparent 100%)',
-                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 70%, transparent 100%)'
+                        perspective: "900px",
                     }}
                 >
-                    {error ? (
-                        <div className="py-10 text-center text-red-400">
-                            <p className="mb-2 font-bold">Error Details:</p>
-                            <p className="font-mono text-sm">{error}</p>
-                            <button
-                                onClick={onBack}
-                                className="mt-6 rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
-                            >
-                                Try Again
-                            </button>
-                        </div>
-                    ) : !isGenerating ? (
-                        <div className="py-10 text-center">
-                            <p className="mb-3 text-white/60">Preparing your preview...</p>
-                            <button
-                                onClick={() => onNext("preview")}
-                                className="rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
-                            >
-                                Continue to Preview
-                            </button>
-                        </div>
-                    ) : (
-                        streamedText || <span className="animate-pulse text-white/30">Initializing neural pathways...</span>
-                    )}
+                    <div
+                        ref={crawlContentRef}
+                        className={styles.generationStreamContent}
+                        style={{
+                            transform: `perspective(980px) rotateX(34deg) translateY(-${crawlOffset}px)`,
+                        }}
+                    >
+                        {error ? (
+                            <div className="py-10 text-center text-red-400">
+                                <p className="mb-2 font-bold">Error Details:</p>
+                                <p className="font-mono text-sm">{error}</p>
+                                <button
+                                    onClick={onBack}
+                                    className="mt-6 rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        ) : !isGenerating ? (
+                            <div className="py-10 text-center">
+                                <p className="mb-3 text-white/60">Preparing your preview...</p>
+                                <button
+                                    onClick={() => onNext("preview")}
+                                    className="rounded-full bg-white/10 px-6 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+                                >
+                                    Continue to Preview
+                                </button>
+                            </div>
+                        ) : (
+                            streamedText || <span className="animate-pulse text-white/30">Initializing neural pathways...</span>
+                        )}
 
-                    {isGenerating && !error && streamedText && (
-                        <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-red-500" />
-                    )}
+                        {isGenerating && !error && streamedText && (
+                            <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-red-500 align-middle" />
+                        )}
+                    </div>
                 </div>
             </div>
 
