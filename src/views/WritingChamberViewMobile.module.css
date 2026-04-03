@@ -44,6 +44,15 @@
 .wcInsightsPanel {}
 .wcInsightsGrid {}
 
+/* ── Summary Panel (left sidebar on mobile) ─────────── */
+.wcSummaryPanel {}
+.wcSummaryPanelCollapsed {}
+.wcSummaryPanelOpen {}
+.wcSummaryToggleBtn {}
+.wcSummaryToggleLabel {}
+.wcSummaryToggleCount {}
+.wcSummaryContent {}
+
 /* ── Footer Section Count ───────────────────────────── */
 .wcSectionCountBar {}
 
@@ -153,7 +162,7 @@
   }
 
   /* ─────────────────────────────────────────────────────
-     CONTENT ROW — always row; writing + sources side-by-side
+     CONTENT ROW — summary + writing + sources side-by-side
      ───────────────────────────────────────────────────── */
 
   .wcContentRow {
@@ -165,12 +174,13 @@
   }
 
   /* ─────────────────────────────────────────────────────
-     WRITING COLUMN — animates between full-width and 3.5rem
+     WRITING COLUMN — sits between left/right collapsed rails
+     and shrinks to compact strip when a side panel opens
      ───────────────────────────────────────────────────── */
 
   .wcWritingColumn {
     flex: none !important;
-    width: calc(100% - 2.6rem) !important;
+    width: calc(100% - 5.2rem) !important;
     min-height: 0 !important;
     overflow: hidden !important;
     border-right: none !important;
@@ -416,6 +426,101 @@
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translateY(0.75rem);
+  }
+
+  /* ─────────────────────────────────────────────────────
+     SUMMARY PANEL — left in-flow rail, mirrors sources rail
+     ───────────────────────────────────────────────────── */
+
+  .wcSummaryPanel {
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: auto !important;
+    flex: none !important;
+    width: 2.6rem !important;
+    max-height: none;
+    border: none !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 0 !important;
+    box-shadow: none;
+    overflow: hidden !important;
+    background: rgba(7, 7, 7, 0.96) !important;
+    transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .wcSummaryPanelOpen {
+    width: calc(100% - 6.1rem) !important;
+  }
+
+  .wcSummaryPanelCollapsed {
+    width: 100% !important;
+    position: relative !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: none;
+  }
+
+  .wcSummaryToggleBtn {
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    z-index: 5;
+  }
+
+  .wcSummaryToggleBtn[data-open="true"] {
+    display: none !important;
+  }
+
+  .wcSummaryToggleLabel {
+    font-size: 0.5rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .wcSummaryToggleBtn[data-open="false"] .wcSummaryToggleLabel {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .wcSummaryToggleBtn[data-open="true"] .wcSummaryToggleLabel {
+    display: none;
+  }
+
+  .wcSummaryToggleCount {
+    min-width: 1.3rem;
+    padding: 0.12rem 0.3rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.6rem;
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .wcSummaryContent {
+    padding: 0.75rem !important;
   }
 
   /* ─────────────────────────────────────────────────────

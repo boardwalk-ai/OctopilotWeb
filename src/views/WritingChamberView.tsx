@@ -326,6 +326,10 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     const [sourceModal, setSourceModal] = useState<SourceThread | null>(null);
     const [inTextCitationMap, setInTextCitationMap] = useState<Record<number, string>>({});
 
+    const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.matchMedia("(max-width: 767px)").matches;
+    });
     const [isSourcesCollapsed, setIsSourcesCollapsed] = useState(() => {
         if (typeof window === "undefined") return false;
         return window.matchMedia("(max-width: 767px)").matches;
@@ -455,6 +459,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
         mobileDefaultsAppliedRef.current = true;
         setCollapsed(buildAccordionState(sections, activeSectionId || sections[0]?.id || ""));
+        setIsSummaryCollapsed(true);
         setIsSourcesCollapsed(true);
     }, [activeSectionId, isMobileViewport, sections]);
 
@@ -562,6 +567,41 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             expandSection(sectionId);
         }
     }, [expandSection]);
+
+    const closeMobileSidePanels = useCallback(() => {
+        setIsSummaryCollapsed(true);
+        setIsSourcesCollapsed(true);
+    }, []);
+
+    const openMobileSummaryPanel = useCallback(() => {
+        if (!isMobileViewport) return;
+        setIsSummaryCollapsed(false);
+        setIsSourcesCollapsed(true);
+    }, [isMobileViewport]);
+
+    const toggleMobileSummaryPanel = useCallback(() => {
+        if (!isMobileViewport) {
+            setIsInsightsOpen((prev) => !prev);
+            return;
+        }
+        setIsSummaryCollapsed((prev) => {
+            const nextCollapsed = !prev;
+            if (!nextCollapsed) {
+                setIsSourcesCollapsed(true);
+            }
+            return nextCollapsed;
+        });
+    }, [isMobileViewport]);
+
+    const toggleMobileSourcesPanel = useCallback(() => {
+        setIsSourcesCollapsed((prev) => {
+            const nextCollapsed = !prev;
+            if (!nextCollapsed && isMobileViewport) {
+                setIsSummaryCollapsed(true);
+            }
+            return nextCollapsed;
+        });
+    }, [isMobileViewport]);
 
     const handleSectionHeaderClick = useCallback((event: React.MouseEvent<HTMLDivElement>, sectionId: string) => {
         const target = event.target as HTMLElement;
@@ -1248,7 +1288,11 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
         const writtenEssay = writtenBySection.map((entry) => entry.body).join("\n\n");
         if (!writtenEssay.trim()) {
-            setIsInsightsOpen(true);
+            if (isMobileViewport) {
+                openMobileSummaryPanel();
+            } else {
+                setIsInsightsOpen(true);
+            }
             return;
         }
 
@@ -1274,7 +1318,11 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             Organizer.set({
                 manualSummaryCount: nextManualSummaryState.manualSummaryCount + 1,
             });
-            setIsInsightsOpen(true);
+            if (isMobileViewport) {
+                openMobileSummaryPanel();
+            } else {
+                setIsInsightsOpen(true);
+            }
         } catch (error) {
             console.error("[WritingChamber] Summary failed", error);
             setDialog({
@@ -1288,7 +1336,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             summaryLockRef.current = false;
             setSummaryLoading(false);
         }
-    }, [org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, sections, summaryInsights, syncAllEditors]);
+    }, [isMobileViewport, openMobileSummaryPanel, org.essayTopic, org.finalEssayTitle, org.isTestMode, sectionHtml, sections, summaryInsights, syncAllEditors]);
 
     const requestClearInsights = useCallback(() => {
         setDialog({
@@ -1317,11 +1365,17 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
         event.preventDefault();
     }, [insightsHeight, isInsightsOpen]);
 
+    const isMobileSidePanelExpanded = isMobileViewport && (!isSummaryCollapsed || !isSourcesCollapsed);
+    const mobileWritingColumnWidth = isMobileSidePanelExpanded ? "3.5rem" : "calc(100% - 5.2rem)";
+    const mobileSidePanelOpenWidth = "calc(100% - 6.1rem)";
+    const summaryInsightCount = (summaryInsights?.done.length || 0) + (summaryInsights?.suggestions.length || 0);
+    const insightsBodyClass = isMobileViewport ? "min-h-[220px]" : "h-[calc(100%-30px)]";
+
     const continueButton = (
         <button
             onClick={continueToPreview}
             disabled={!canContinueToPreview || isPreparingPreview}
-            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"} ${mobileStyles.wcContinueBtn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcContinueBtnHidden : ""}`}
+            className={`fixed bottom-4 right-4 z-[95] inline-flex items-center gap-3 rounded-full border px-6 py-3.5 text-[14px] font-bold shadow-[0_16px_40px_rgba(0,0,0,0.42)] transition ${canContinueToPreview && !isPreparingPreview ? "border-[#d55a4f] bg-[#b5473f] text-white hover:bg-[#ca544a]" : "cursor-not-allowed border-white/10 bg-[#26282d] text-white/35"} ${mobileStyles.wcContinueBtn} ${isMobileSidePanelExpanded ? mobileStyles.wcContinueBtnHidden : ""}`}
         >
             <span>{isPreparingPreview ? "Preparing Preview" : "Continue to Preview"}</span>
             <span className={`flex h-8 w-8 items-center justify-center rounded-full ${canContinueToPreview && !isPreparingPreview ? "bg-black/15 text-white" : "bg-black/20 text-white/35"}`}>
@@ -1329,6 +1383,70 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
             </span>
         </button>
     );
+
+    const insightsContent = (
+        <>
+            <div className="mb-2 flex items-center justify-between">
+                <div className="text-[12px] font-semibold text-white/70">AI Insights (Su)</div>
+                <button
+                    onClick={requestClearInsights}
+                    className="flex items-center gap-1 rounded-full border border-white/15 bg-[#11151c] px-3 py-1 text-[11px] font-semibold text-white/75 transition hover:bg-[#1b212b]"
+                >
+                    <MaterialDeleteIcon />
+                    <span>Delete</span>
+                </button>
+            </div>
+
+            <div className="-mt-1 mb-4 text-center text-[13px] font-black uppercase tracking-[0.34em] text-[#ff5a52]">SUMMARY</div>
+
+            {!summaryInsights && !summaryLoading && (
+                <div className={`flex items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#0d1117] px-4 text-center text-[13px] text-white/45 ${insightsBodyClass}`}>
+                    Ai insights? Su returned Nothing .... To get AI insights, summarize your essay at the top.
+                </div>
+            )}
+
+            {summaryLoading && (
+                <div className={`flex items-center justify-center rounded-xl border border-white/15 bg-[#0d1117] text-[13px] text-white/70 ${insightsBodyClass}`}>
+                    Su is summarizing your writing progress...
+                </div>
+            )}
+
+            {summaryInsights && !summaryLoading && (
+                <div className={`grid grid-cols-2 gap-3 ${mobileStyles.wcInsightsGrid} ${insightsBodyClass}`}>
+                    <div className="overflow-y-auto rounded-xl border border-[#2b4f88] bg-[#0f182a] p-3">
+                        <div className="mb-2 text-[12px] font-bold text-[#9bc9ff]">What is done</div>
+                        <div className="space-y-2">
+                            {summaryInsights.done.length === 0 && (
+                                <div className="text-[12px] text-white/55">No completed points detected yet.</div>
+                            )}
+                            {summaryInsights.done.map((item, idx) => (
+                                <div key={`done-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#121e34] px-2.5 py-2 text-[12px] text-white/85">
+                                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#7ec3ff]" />
+                                    <span>{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="overflow-y-auto rounded-xl border border-[#5a4d1e] bg-[#201b0e] p-3">
+                        <div className="mb-2 text-[12px] font-bold text-[#ffe47e]">Suggestions</div>
+                        <div className="space-y-2">
+                            {summaryInsights.suggestions.length === 0 && (
+                                <div className="text-[12px] text-white/55">No new suggestions yet.</div>
+                            )}
+                            {summaryInsights.suggestions.map((item, idx) => (
+                                <div key={`sug-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#2b250f] px-2.5 py-2 text-[12px] text-white/85">
+                                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#ffe35a]" />
+                                    <span>{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
     return (
         <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
             <div className={`relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5 ${mobileStyles.wcHeader}`}>
@@ -1398,24 +1516,71 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
             <div className={`flex min-h-0 flex-1 ${mobileStyles.wcMainLayout}`}>
               <div className={`contents ${mobileStyles.wcContentRow}`}>
+                {isMobileViewport && (
+                    <div
+                        className={`relative flex flex-col border-r border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSummaryCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSummaryPanel} ${isSummaryCollapsed ? "" : mobileStyles.wcSummaryPanelOpen}`}
+                        style={{ flex: "none", width: isSummaryCollapsed ? "2.6rem" : mobileSidePanelOpenWidth, transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" }}
+                    >
+                        <button
+                            type="button"
+                            onClick={toggleMobileSummaryPanel}
+                            className={`absolute left-0 top-0 z-30 ${mobileStyles.wcSummaryToggleBtn}`}
+                            title={isSummaryCollapsed ? "Expand summary panel" : "Collapse summary panel"}
+                            data-open={!isSummaryCollapsed ? "true" : "false"}
+                        >
+                            <span className={mobileStyles.wcSummaryToggleLabel}>{isSummaryCollapsed ? "Summary" : "Close"}</span>
+                            <span className={mobileStyles.wcSummaryToggleCount}>{summaryLoading ? "…" : summaryInsightCount}</span>
+                        </button>
+
+                        {isSummaryCollapsed ? (
+                            <div className={`flex h-full items-center justify-center ${mobileStyles.wcSummaryPanelCollapsed}`}>
+                                <div className="flex shrink-0 flex-col items-center gap-1.5 pt-2 pb-1">
+                                    <div className={`flex h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full text-[8px] font-bold ${summaryLoading ? "bg-[#2b4f88] text-white" : "bg-white/[0.08] text-white/80"}`}>
+                                        {summaryLoading ? "…" : summaryInsightCount}
+                                    </div>
+                                    {summaryInsights && (
+                                        <div className="h-1.5 w-1.5 rounded-full bg-[#ffe35a]" />
+                                    )}
+                                </div>
+                                <span className="-rotate-180 mt-1 text-[8px] font-semibold tracking-[0.14em] text-white/35 [writing-mode:vertical-rl]">SUMMARY</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
+                                    <h3 className="text-[20px] font-bold text-white">Summary</h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSummaryCollapsed(true)}
+                                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#181d27] text-[15px] font-bold text-white/80 transition hover:bg-[#252c38]"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className={`flex-1 overflow-y-auto p-3 ${mobileStyles.wcSummaryContent}`}>
+                                    {insightsContent}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 <div
-                    className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcWritingColumnCompact : ""}`}
-                    style={isMobileViewport ? { flex: "none", width: isSourcesCollapsed ? "calc(100% - 2.6rem)" : "3.5rem", transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
+                    className={`flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#070707] ${mobileStyles.wcWritingColumn} ${isMobileSidePanelExpanded ? mobileStyles.wcWritingColumnCompact : ""}`}
+                    style={isMobileViewport ? { flex: "none", width: mobileWritingColumnWidth, transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
                 >
-                    <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport} ${isMobileViewport && !isSourcesCollapsed ? mobileStyles.wcScrollViewportCompact : ""}`}>
-                      {isMobileViewport && !isSourcesCollapsed ? (
+                    <div className={`flex-1 overflow-y-auto px-4 pb-4 pt-3 ${mobileStyles.wcScrollViewport} ${isMobileSidePanelExpanded ? mobileStyles.wcScrollViewportCompact : ""}`}>
+                      {isMobileSidePanelExpanded ? (
                         <div className="flex flex-col gap-1">
                             {sections.map((section, index) => {
                                 const isActive = section.id === activeSectionId;
-                                const typeKey = section.type.toLowerCase();
-                                const badgeColor = typeKey === "introduction" ? "#8dc8ff" : typeKey === "conclusion" ? "#ffdca1" : "#ffadad";
                                 return (
                                     <button
                                         key={section.id}
                                         type="button"
                                         onClick={() => {
                                             focusSection(section.id, { expand: true });
-                                            setIsSourcesCollapsed(true);
+                                            closeMobileSidePanels();
                                         }}
                                         className={`flex h-8 items-center justify-center rounded-lg text-[11px] font-black transition ${isActive ? "bg-[#ff5a52] text-white shadow-[0_0_8px_rgba(255,90,82,0.3)]" : "bg-white/[0.06] text-white/60 hover:bg-white/10"}`}
                                     >
@@ -1687,64 +1852,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                             style={{ height: isInsightsOpen ? insightsHeight : 0 }}
                         >
                             <div className="h-full border-t border-white/10 px-4 py-3">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <div className="text-[12px] font-semibold text-white/70">AI Insights (Su)</div>
-                                    <button
-                                        onClick={requestClearInsights}
-                                        className="flex items-center gap-1 rounded-full border border-white/15 bg-[#11151c] px-3 py-1 text-[11px] font-semibold text-white/75 transition hover:bg-[#1b212b]"
-                                    >
-                                        <MaterialDeleteIcon />
-                                        <span>Delete</span>
-                                    </button>
-                                </div>
-
-                                <div className="-mt-1 mb-4 text-center text-[13px] font-black uppercase tracking-[0.34em] text-[#ff5a52]">SUMMARY</div>
-
-                                {!summaryInsights && !summaryLoading && (
-                                    <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#0d1117] px-4 text-center text-[13px] text-white/45">
-                                        Ai insights? Su returned Nothing .... To get AI insights, summarize your essay at the top.
-                                    </div>
-                                )}
-
-                                {summaryLoading && (
-                                    <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-white/15 bg-[#0d1117] text-[13px] text-white/70">
-                                        Su is summarizing your writing progress...
-                                    </div>
-                                )}
-
-                                {summaryInsights && !summaryLoading && (
-                                        <div className={`grid h-[calc(100%-30px)] grid-cols-2 gap-3 ${mobileStyles.wcInsightsGrid}`}>
-                                        <div className="overflow-y-auto rounded-xl border border-[#2b4f88] bg-[#0f182a] p-3">
-                                            <div className="mb-2 text-[12px] font-bold text-[#9bc9ff]">What is done</div>
-                                            <div className="space-y-2">
-                                                {summaryInsights.done.length === 0 && (
-                                                    <div className="text-[12px] text-white/55">No completed points detected yet.</div>
-                                                )}
-                                                {summaryInsights.done.map((item, idx) => (
-                                                    <div key={`done-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#121e34] px-2.5 py-2 text-[12px] text-white/85">
-                                                        <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#7ec3ff]" />
-                                                        <span>{item}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="overflow-y-auto rounded-xl border border-[#5a4d1e] bg-[#201b0e] p-3">
-                                            <div className="mb-2 text-[12px] font-bold text-[#ffe47e]">Suggestions</div>
-                                            <div className="space-y-2">
-                                                {summaryInsights.suggestions.length === 0 && (
-                                                    <div className="text-[12px] text-white/55">No new suggestions yet.</div>
-                                                )}
-                                                {summaryInsights.suggestions.map((item, idx) => (
-                                                    <div key={`sug-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#2b250f] px-2.5 py-2 text-[12px] text-white/85">
-                                                        <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#ffe35a]" />
-                                                        <span>{item}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                {insightsContent}
                             </div>
                         </div>
                     </div>
@@ -1759,11 +1867,11 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
 
                 <div
                     className={`relative flex flex-col border-l border-white/10 bg-[#070707] transition-[width] duration-300 ease-in-out ${isSourcesCollapsed ? "w-[56px]" : "w-[320px]"} ${mobileStyles.wcSourcesPanel} ${isSourcesCollapsed ? "" : mobileStyles.wcSourcesPanelOpen}`}
-                    style={isMobileViewport ? { flex: "none", width: isSourcesCollapsed ? "2.6rem" : "calc(100% - 3.5rem)", transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
+                    style={isMobileViewport ? { flex: "none", width: isSourcesCollapsed ? "2.6rem" : mobileSidePanelOpenWidth, transition: "width 0.32s cubic-bezier(0.4,0,0.2,1)" } : undefined}
                 >
                     <button
                         type="button"
-                        onClick={() => setIsSourcesCollapsed((prev) => !prev)}
+                        onClick={toggleMobileSourcesPanel}
                         className={`absolute -left-3 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/20 bg-[#131820] px-2.5 py-1.5 text-[11px] font-black text-white/90 shadow-[0_8px_18px_rgba(0,0,0,0.35)] ${mobileStyles.wcSourcesToggleBtn}`}
                         title={isSourcesCollapsed ? "Expand sources panel" : "Collapse sources panel"}
                         data-open={!isSourcesCollapsed ? "true" : "false"}
@@ -1896,97 +2004,6 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
                 </div>
               </div>
 
-              {isMobileViewport && (
-                <div className={`border-t border-white/10 bg-[#090909] ${mobileStyles.wcInsightsBar}`}>
-                    <div className="relative h-12">
-                        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
-                        <button
-                            onPointerDown={startInsightsDrag}
-                            style={{ touchAction: "none" }}
-                            className={`group absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#121317] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition hover:bg-[#1a1d24] ${mobileStyles.wcInsightsToggle}`}
-                            title="Drag or click"
-                        >
-                            <span className="pointer-events-none flex items-center justify-center text-white">
-                                <svg
-                                    viewBox="0 0 48 48"
-                                    className={`h-6 w-6 transition-transform duration-200 ${isInsightsOpen ? "rotate-180" : ""}`}
-                                    fill="none"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M8 31 L24 17 L40 31" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                                    <path d="M8 43 L24 29 L40 43" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            </span>
-                        </button>
-                    </div>
-
-                    <div
-                        className={`overflow-hidden transition-[height] ease-in-out ${isDraggingInsights ? "duration-0" : "duration-300"} ${mobileStyles.wcInsightsPanel}`}
-                        style={{ height: isInsightsOpen ? insightsHeight : 0 }}
-                    >
-                        <div className="h-full border-t border-white/10 px-4 py-3">
-                            <div className="mb-2 flex items-center justify-between">
-                                <div className="text-[12px] font-semibold text-white/70">AI Insights (Su)</div>
-                                <button
-                                    onClick={requestClearInsights}
-                                    className="flex items-center gap-1 rounded-full border border-white/15 bg-[#11151c] px-3 py-1 text-[11px] font-semibold text-white/75 transition hover:bg-[#1b212b]"
-                                >
-                                    <MaterialDeleteIcon />
-                                    <span>Delete</span>
-                                </button>
-                            </div>
-
-                            <div className="-mt-1 mb-4 text-center text-[13px] font-black uppercase tracking-[0.34em] text-[#ff5a52]">SUMMARY</div>
-
-                            {!summaryInsights && !summaryLoading && (
-                                <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-dashed border-white/15 bg-[#0d1117] px-4 text-center text-[13px] text-white/45">
-                                    Ai insights? Su returned Nothing .... To get AI insights, summarize your essay at the top.
-                                </div>
-                            )}
-
-                            {summaryLoading && (
-                                <div className="flex h-[calc(100%-30px)] items-center justify-center rounded-xl border border-white/15 bg-[#0d1117] text-[13px] text-white/70">
-                                    Su is summarizing your writing progress...
-                                </div>
-                            )}
-
-                            {summaryInsights && !summaryLoading && (
-                                <div className={`grid h-[calc(100%-30px)] grid-cols-2 gap-3 ${mobileStyles.wcInsightsGrid}`}>
-                                    <div className="overflow-y-auto rounded-xl border border-[#2b4f88] bg-[#0f182a] p-3">
-                                        <div className="mb-2 text-[12px] font-bold text-[#9bc9ff]">What is done</div>
-                                        <div className="space-y-2">
-                                            {summaryInsights.done.length === 0 && (
-                                                <div className="text-[12px] text-white/55">No completed points detected yet.</div>
-                                            )}
-                                            {summaryInsights.done.map((item, idx) => (
-                                                <div key={`done-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#121e34] px-2.5 py-2 text-[12px] text-white/85">
-                                                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#7ec3ff]" />
-                                                    <span>{item}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-y-auto rounded-xl border border-[#5a4d1e] bg-[#201b0e] p-3">
-                                        <div className="mb-2 text-[12px] font-bold text-[#ffe47e]">Suggestions</div>
-                                        <div className="space-y-2">
-                                            {summaryInsights.suggestions.length === 0 && (
-                                                <div className="text-[12px] text-white/55">No new suggestions yet.</div>
-                                            )}
-                                            {summaryInsights.suggestions.map((item, idx) => (
-                                                <div key={`sug-${idx}`} className="flex gap-2 rounded-lg border border-white/10 bg-[#2b250f] px-2.5 py-2 text-[12px] text-white/85">
-                                                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#ffe35a]" />
-                                                    <span>{item}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-              )}
 
               {isMobileViewport && (
                 <div className={`flex h-[50px] items-center border-t border-white/10 bg-[#0a0a0a] px-4 text-[13px] text-white/65 ${mobileStyles.wcSectionCountBar}`}>
