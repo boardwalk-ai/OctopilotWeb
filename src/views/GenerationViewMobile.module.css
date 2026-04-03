@@ -42,25 +42,31 @@
   max-width: 1120px;
   height: clamp(18rem, 44vh, 31rem);
   min-height: clamp(18rem, 44vh, 31rem);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0 2rem;
+  transform: perspective(320px) rotateX(35deg);
+  transform-origin: center bottom;
   transform-style: preserve-3d;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 72%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 72%, transparent 100%);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.generationStream::-webkit-scrollbar {
+  display: none;
 }
 
 .generationStreamContent {
-  min-height: 100%;
-  padding-top: 7rem;
+  min-height: calc(100% + 9rem);
+  padding-top: 11rem;
   padding-left: 2rem;
   padding-right: 2rem;
-  padding-bottom: 4rem;
+  padding-bottom: 9rem;
   white-space: pre-wrap;
   user-select: none;
   text-align: center;
-  transform-origin: center bottom;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
   font-size: 1.55rem;
   line-height: 1.72;
   letter-spacing: -0.02em;
@@ -178,15 +184,15 @@
     max-width: 100%;
     height: clamp(19rem, 42vh, 22rem);
     min-height: clamp(19rem, 42vh, 22rem);
-    overflow: hidden;
     padding: 0;
   }
 
   .generationStreamContent {
-    padding-top: 4.1rem;
+    min-height: calc(100% + 5rem);
+    padding-top: 5.5rem;
     padding-left: 0.65rem;
     padding-right: 0.65rem;
-    padding-bottom: 2rem;
+    padding-bottom: 4rem;
     font-size: 0.96rem;
     line-height: 1.7;
     letter-spacing: -0.01em;

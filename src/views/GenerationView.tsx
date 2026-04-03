@@ -19,11 +19,9 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
     const [streamedText, setStreamedText] = useState("");
     const [isGenerating, setIsGenerating] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [crawlOffset, setCrawlOffset] = useState(0);
     const hasStarted = useRef(false);
     const hasNavigated = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const crawlContentRef = useRef<HTMLDivElement>(null);
     const targetTextRef = useRef("");
     const flushTimerRef = useRef<number | null>(null);
 
@@ -86,16 +84,9 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
 
     useEffect(() => {
         const viewport = scrollRef.current;
-        const content = crawlContentRef.current;
-        if (!viewport || !content) return;
+        if (!viewport) return;
 
-        const viewportHeight = viewport.clientHeight;
-        const contentHeight = content.scrollHeight;
-        if (viewportHeight <= 0 || contentHeight <= 0) return;
-
-        const visibleFloor = viewportHeight * 0.56;
-        const nextOffset = Math.max(0, contentHeight - visibleFloor);
-        setCrawlOffset(nextOffset);
+        viewport.scrollTop = viewport.scrollHeight;
     }, [streamedText]);
 
     // Calculate progress
@@ -253,16 +244,9 @@ export default function GenerationView({ onBack, onNext }: GenerationViewProps) 
                 <div
                     ref={scrollRef}
                     className={`relative z-10 mx-auto w-full text-white/80 ${styles.generationStream}`}
-                    style={{
-                        perspective: "900px",
-                    }}
                 >
                     <div
-                        ref={crawlContentRef}
                         className={styles.generationStreamContent}
-                        style={{
-                            transform: `perspective(980px) rotateX(34deg) translateY(-${crawlOffset}px)`,
-                        }}
                     >
                         {error ? (
                             <div className="py-10 text-center text-red-400">
