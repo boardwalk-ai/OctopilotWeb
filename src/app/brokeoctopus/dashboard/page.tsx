@@ -81,6 +81,9 @@ type ControlCenterResponse = {
 };
 
 type ResolveMethod = "word" | "humanizer" | "source" | "notify" | "deny";
+type TableSearchField = "all" | "name" | "email";
+type TableNameOrder = "default" | "A-Z" | "Z-A" | "a-z" | "z-a";
+type TableSortField = "default" | "name" | "email" | "date";
 
 const menuItems: MenuItem[] = [
   { id: "user-management", label: "User Management", description: "Accounts, status, and roles", icon: <UsersIcon />, columns: ["No", "Name", "Email", "Status", "Role", "Actions"] },
@@ -124,6 +127,23 @@ const keyOrderBySection: Record<string, string[]> = {
 };
 
 const defaultAdminSectionId = "user-management";
+const PAGINATED_TABLE_SECTION_IDS = new Set([
+  "user-management",
+  "subscription-management",
+  "reports",
+  "metadata",
+  "market-data",
+  "purchase-history",
+]);
+const TABLE_PAGE_SIZE = 10;
+const tableControlConfig: Record<string, { searchKeys: string[]; dateKeys: string[] }> = {
+  "user-management": { searchKeys: ["name", "email"], dateKeys: ["createdAtRaw"] },
+  "subscription-management": { searchKeys: ["name", "email"], dateKeys: ["nextBillingRaw"] },
+  reports: { searchKeys: ["name", "email"], dateKeys: ["timestampRaw"] },
+  metadata: { searchKeys: ["name", "email"], dateKeys: ["lastActivityRaw"] },
+  "market-data": { searchKeys: ["name", "email"], dateKeys: ["customerSinceRaw"] },
+  "purchase-history": { searchKeys: ["name", "email"], dateKeys: ["purchaseDateRaw"] },
+};
 
 function resolveAdminSectionId(value: string | null) {
   if (!value) {
@@ -286,7 +306,7 @@ function toSnakeCase(value: string) {
   return value.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
 }
 
-function readRowValue(row: DataRow, key: string) {
+function getRowValue(row: DataRow, key: string) {
   const direct = row[key];
   if (direct !== undefined && direct !== null && direct !== "") return direct;
 
@@ -296,12 +316,75 @@ function readRowValue(row: DataRow, key: string) {
   const compact = row[key.toLowerCase()];
   if (compact !== undefined && compact !== null && compact !== "") return compact;
 
+  return null;
+}
+
+function readRowValue(row: DataRow, key: string) {
+  const value = getRowValue(row, key);
+  if (value !== null) {
+    return value;
+  }
+
   return "-";
 }
 
 function getOrderedRowValues(sectionId: string, row: DataRow) {
   const keyOrder = keyOrderBySection[sectionId] || Object.keys(row);
   return keyOrder.map((key) => readRowValue(row, key));
+}
+
+function readRowText(row: DataRow, key: string) {
+  const value = getRowValue(row, key);
+  if (value === null) {
+    return "";
+  }
+
+  const text = String(value).trim();
+  return text === "-" ? "" : text;
+}
+
+function readRowDateValue(row: DataRow, sectionId: string) {
+  const config = tableControlConfig[sectionId];
+  if (!config) {
+    return "";
+  }
+
+  for (const key of config.dateKeys) {
+    const rawValue = readRowText(row, key);
+    if (!rawValue) {
+      continue;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+      return rawValue.slice(0, 10);
+    }
+
+    const parsed = Date.parse(rawValue);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString().slice(0, 10);
+    }
+  }
+
+  return "";
+}
+
+function compareTextValues(left: string, right: string) {
+  return left.localeCompare(right, undefined, { sensitivity: "base", numeric: true });
+}
+
+function compareDateValues(left: string, right: string) {
+  if (!left && !right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+  return new Date(left).getTime() - new Date(right).getTime();
+}
+
+function getPreferredName(row: DataRow) {
+  return readRowText(row, "name") || readRowText(row, "email");
+}
+
+function getPreferredEmail(row: DataRow) {
+  return readRowText(row, "email");
 }
 
 function PencilIcon() {
@@ -926,10 +1009,97 @@ export default function BrokeOctopusPage() {
   const [isLoadingSessionInspector, setIsLoadingSessionInspector] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [tableSearchQuery, setTableSearchQuery] = useState("");
+  const [tableSearchField, setTableSearchField] = useState<TableSearchField>("all");
+  const [tableDateFilter, setTableDateFilter] = useState("");
+  const [tableNameOrder, setTableNameOrder] = useState<TableNameOrder>("default");
+  const [tableSortField, setTableSortField] = useState<TableSortField>("default");
+  const [tableSortDirection, setTableSortDirection] = useState<"asc" | "desc">("asc");
+  const [tablePage, setTablePage] = useState(1);
 
   const activeSection = menuItems.find((item) => item.id === activeSectionId) ?? menuItems[0];
-  const rows = data?.sections[activeSectionId] || [];
+  const rows = useMemo(() => data?.sections[activeSectionId] || [], [activeSectionId, data?.sections]);
   const metadataRows = useMemo(() => (data?.sections.metadata || []) as MetadataRow[], [data?.sections.metadata]);
+  const isEnhancedTableSection = PAGINATED_TABLE_SECTION_IDS.has(activeSection.id);
+  const activeTableConfig = tableControlConfig[activeSection.id];
+  const filteredRows = useMemo(() => {
+    if (!isEnhancedTableSection) {
+      return rows;
+    }
+
+    const normalizedQuery = tableSearchQuery.trim().toLowerCase();
+    const nextRows = [...rows];
+
+    const filtered = nextRows.filter((row) => {
+      if (normalizedQuery) {
+        const searchKeys =
+          tableSearchField === "all"
+            ? activeTableConfig?.searchKeys || ["name", "email"]
+            : [tableSearchField];
+        const matchesSearch = searchKeys.some((key) => readRowText(row, key).toLowerCase().includes(normalizedQuery));
+        if (!matchesSearch) {
+          return false;
+        }
+      }
+
+      if (tableDateFilter) {
+        const rowDateValue = readRowDateValue(row, activeSection.id);
+        if (!rowDateValue || rowDateValue !== tableDateFilter) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    const nameDirection = tableNameOrder === "A-Z" || tableNameOrder === "a-z" ? 1 : tableNameOrder === "Z-A" || tableNameOrder === "z-a" ? -1 : 0;
+    if (nameDirection !== 0) {
+      return filtered.sort(
+        (left, right) =>
+          compareTextValues(getPreferredName(left), getPreferredName(right)) * nameDirection ||
+          compareTextValues(getPreferredEmail(left), getPreferredEmail(right)) * nameDirection
+      );
+    }
+
+    if (tableSortField === "default") {
+      return filtered;
+    }
+
+    const sortDirection = tableSortDirection === "asc" ? 1 : -1;
+    return filtered.sort((left, right) => {
+      if (tableSortField === "name") {
+        return compareTextValues(getPreferredName(left), getPreferredName(right)) * sortDirection;
+      }
+      if (tableSortField === "email") {
+        return compareTextValues(getPreferredEmail(left), getPreferredEmail(right)) * sortDirection;
+      }
+      return compareDateValues(readRowDateValue(left, activeSection.id), readRowDateValue(right, activeSection.id)) * sortDirection;
+    });
+  }, [
+    activeSection.id,
+    activeTableConfig?.searchKeys,
+    isEnhancedTableSection,
+    rows,
+    tableDateFilter,
+    tableNameOrder,
+    tableSearchField,
+    tableSearchQuery,
+    tableSortDirection,
+    tableSortField,
+  ]);
+  const totalTableRows = isEnhancedTableSection ? filteredRows.length : rows.length;
+  const totalTablePages = Math.max(1, Math.ceil(totalTableRows / TABLE_PAGE_SIZE));
+  const paginatedRows = useMemo(() => {
+    if (!isEnhancedTableSection) {
+      return rows;
+    }
+
+    const startIndex = (tablePage - 1) * TABLE_PAGE_SIZE;
+    return filteredRows.slice(startIndex, startIndex + TABLE_PAGE_SIZE);
+  }, [filteredRows, isEnhancedTableSection, rows, tablePage]);
+  const displayRows = isEnhancedTableSection ? paginatedRows : rows;
+  const pageStartIndex = isEnhancedTableSection ? (tablePage - 1) * TABLE_PAGE_SIZE : 0;
+  const pageEndIndex = isEnhancedTableSection ? Math.min(pageStartIndex + displayRows.length, totalTableRows) : displayRows.length;
 
   useEffect(() => {
     const syncSectionFromLocation = () => {
@@ -944,6 +1114,26 @@ export default function BrokeOctopusPage() {
       window.removeEventListener("popstate", syncSectionFromLocation);
     };
   }, []);
+
+  useEffect(() => {
+    setTableSearchQuery("");
+    setTableSearchField("all");
+    setTableDateFilter("");
+    setTableNameOrder("default");
+    setTableSortField("default");
+    setTableSortDirection("asc");
+    setTablePage(1);
+  }, [activeSectionId]);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [tableSearchQuery, tableSearchField, tableDateFilter, tableNameOrder, tableSortField, tableSortDirection]);
+
+  useEffect(() => {
+    if (tablePage > totalTablePages) {
+      setTablePage(totalTablePages);
+    }
+  }, [tablePage, totalTablePages]);
 
   const openSection = (sectionId: string) => {
     const nextSectionId = resolveAdminSectionId(sectionId);
@@ -1499,8 +1689,122 @@ export default function BrokeOctopusPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Table View</div>
                       <div className="mt-2 text-lg font-semibold text-white">{activeSection.label}</div>
                     </div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">{rows.length > 0 ? `${rows.length} rows` : "No data"}</div>
+                    <div className="text-xs uppercase tracking-[0.24em] text-white/32">
+                      {rows.length > 0
+                        ? isEnhancedTableSection
+                          ? `${totalTableRows} match${totalTableRows === 1 ? "" : "es"} · ${rows.length} total`
+                          : `${rows.length} rows`
+                        : "No data"}
+                    </div>
                   </div>
+
+                  {isEnhancedTableSection ? (
+                    <div className="border-b border-white/8 px-4 py-4">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_160px_180px_180px_160px_150px]">
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Search</span>
+                          <input
+                            value={tableSearchQuery}
+                            onChange={(event) => setTableSearchQuery(event.target.value)}
+                            placeholder="Search by name or email"
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/22"
+                          />
+                        </label>
+
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Search In</span>
+                          <select
+                            value={tableSearchField}
+                            onChange={(event) => setTableSearchField(event.target.value as TableSearchField)}
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none"
+                          >
+                            <option value="all" className="bg-[#101010]">
+                              Name + Email
+                            </option>
+                            <option value="name" className="bg-[#101010]">
+                              Name
+                            </option>
+                            <option value="email" className="bg-[#101010]">
+                              Email
+                            </option>
+                          </select>
+                        </label>
+
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Filter by Date</span>
+                          <input
+                            type="date"
+                            value={tableDateFilter}
+                            onChange={(event) => setTableDateFilter(event.target.value)}
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+                          />
+                        </label>
+
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Filter by Name</span>
+                          <select
+                            value={tableNameOrder}
+                            onChange={(event) => setTableNameOrder(event.target.value as TableNameOrder)}
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none"
+                          >
+                            <option value="default" className="bg-[#101010]">
+                              Default
+                            </option>
+                            <option value="A-Z" className="bg-[#101010]">
+                              A-Z
+                            </option>
+                            <option value="Z-A" className="bg-[#101010]">
+                              Z-A
+                            </option>
+                            <option value="a-z" className="bg-[#101010]">
+                              a-z
+                            </option>
+                            <option value="z-a" className="bg-[#101010]">
+                              z-a
+                            </option>
+                          </select>
+                        </label>
+
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Sort Field</span>
+                          <select
+                            value={tableSortField}
+                            onChange={(event) => setTableSortField(event.target.value as TableSortField)}
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none"
+                          >
+                            <option value="default" className="bg-[#101010]">
+                              Default
+                            </option>
+                            <option value="name" className="bg-[#101010]">
+                              Name
+                            </option>
+                            <option value="email" className="bg-[#101010]">
+                              Email
+                            </option>
+                            <option value="date" className="bg-[#101010]">
+                              Date
+                            </option>
+                          </select>
+                        </label>
+
+                        <label className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">Sorting</span>
+                          <select
+                            value={tableSortDirection}
+                            onChange={(event) => setTableSortDirection(event.target.value as "asc" | "desc")}
+                            className="mt-2 w-full bg-transparent text-sm text-white outline-none"
+                          >
+                            <option value="asc" className="bg-[#101010]">
+                              Ascend
+                            </option>
+                            <option value="desc" className="bg-[#101010]">
+                              Descend
+                            </option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="max-h-[calc(100vh-18rem)] overflow-auto">
                     <table className="min-w-full border-collapse">
@@ -1514,12 +1818,14 @@ export default function BrokeOctopusPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.length > 0 ? (
-                          rows.map((row, rowIndex) => (
+                        {displayRows.length > 0 ? (
+                          displayRows.map((row, rowIndex) => (
                             <tr key={`${activeSection.id}-${rowIndex}`} className="border-b border-white/6 last:border-b-0">
                               {keyOrderBySection[activeSection.id]?.map((key, cellIndex) => (
                                 <td key={`${activeSection.id}-${rowIndex}-${cellIndex}`} className="px-4 py-4 text-sm leading-6 text-white/78">
-                                  {activeSection.id === "subscription-management" && key === "actions" && row.userId ? (
+                                  {key === "no" ? (
+                                    pageStartIndex + rowIndex + 1
+                                  ) : activeSection.id === "subscription-management" && key === "actions" && row.userId ? (
                                     <button
                                       onClick={() => {
                                         setCreditModalError(null);
@@ -1564,13 +1870,44 @@ export default function BrokeOctopusPage() {
                         ) : (
                           <tr>
                             <td colSpan={activeSection.columns.length} className="px-4 py-10 text-center text-sm text-white/42">
-                              {isBusy ? "Loading real data..." : "No data available for this section yet."}
+                              {rows.length > 0 && isEnhancedTableSection
+                                ? "No rows match the current search or filters."
+                                : isBusy
+                                  ? "Loading real data..."
+                                  : "No data available for this section yet."}
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {isEnhancedTableSection && totalTableRows > 0 ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 px-4 py-4">
+                      <div className="text-xs uppercase tracking-[0.24em] text-white/32">
+                        Showing {pageStartIndex + 1}-{pageEndIndex} of {totalTableRows}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setTablePage((current) => Math.max(1, current - 1))}
+                          disabled={tablePage === 1}
+                          className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <div className="rounded-full border border-white/8 bg-[#151515] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/62">
+                          Page {tablePage} / {totalTablePages}
+                        </div>
+                        <button
+                          onClick={() => setTablePage((current) => Math.min(totalTablePages, current + 1))}
+                          disabled={tablePage >= totalTablePages}
+                          className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/78 transition hover:border-red-500/35 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </section>
               )}
             </div>
