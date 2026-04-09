@@ -8,6 +8,7 @@ import { AuthService } from "@/services/AuthService";
 import { StreamService } from "@/services/StreamService";
 import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
 import EarlyAccessEventsPanel from "@/components/admin/EarlyAccessEventsPanel";
+import AdminSystemSettingsPanel from "@/components/admin/AdminSystemSettingsPanel";
 
 type MenuItem = {
   id: string;
@@ -107,7 +108,7 @@ const menuItems: MenuItem[] = [
   { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon />, columns: ["No", "Provider", "Key", "Status"] },
   { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator action", icon: <ChartIcon />, columns: ["No", "Name", "Email", "Total Sessions", "Action"] },
   { id: "analytics", label: "Analytics", description: "Performance and growth trends", icon: <PulseIcon />, columns: ["Metric", "Value", "Change"] },
-  { id: "system-settings", label: "System Settings", description: "Implement later", icon: <SettingsIcon />, columns: ["Status"] },
+  { id: "system-settings", label: "System Settings", description: "Guest starter credits and core controls", icon: <SettingsIcon />, columns: ["Status"] },
 ];
 
 const keyOrderBySection: Record<string, string[]> = {
@@ -1489,6 +1490,8 @@ export default function BrokeOctopusPage() {
                 <PromoAreaPanel refreshKey={refreshKey} mode="referral" />
               ) : activeSection.id === "events-early-access" ? (
                 <EarlyAccessEventsPanel refreshKey={refreshKey} />
+              ) : activeSection.id === "system-settings" ? (
+                <AdminSystemSettingsPanel refreshKey={refreshKey} />
               ) : (
                 <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-white/8 bg-[#101010]">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
