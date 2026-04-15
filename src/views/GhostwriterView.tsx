@@ -2,12 +2,14 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import type { User } from "firebase/auth";
 import { Sora } from "next/font/google";
 import {
   AppHeader,
   BackToHome,
   MainHeaderActions,
 } from "@/components/header";
+import { AuthService } from "@/services/AuthService";
 import styles from "./GhostwriterView.module.css";
 
 const sora = Sora({
@@ -54,8 +56,46 @@ declare global {
   }
 }
 
-function getGreetingLabel() {
-  return "Hello, writer";
+function getFirstName(user: User | null) {
+  const displayName = user?.displayName?.trim() || "";
+  if (displayName) {
+    return displayName.split(/\s+/)[0] || "";
+  }
+
+  const email = user?.email?.trim() || "";
+  if (!email) return "";
+  return email.split("@")[0]?.split(/[._-]/)[0] || "";
+}
+
+function toTitleCase(value: string) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getGreetingLabel(user: User | null) {
+  const firstName = toTitleCase(getFirstName(user));
+  const hour = new Date().getHours();
+
+  if (firstName) {
+    if (hour < 5) return `Hey there, ${firstName}`;
+    if (hour < 12) return `Hello, ${firstName}`;
+    if (hour < 18) return `What are we building, ${firstName}?`;
+    return `Back at it, ${firstName}?`;
+  }
+
+  if (hour < 5) return "Hey there, night owl";
+  if (hour < 12) return "Hello, bright mind";
+  if (hour < 18) return "What's on your mind?";
+  return "Ready for the next sharp draft?";
+}
+
+function getPromptPlaceholder(user: User | null) {
+  const firstName = toTitleCase(getFirstName(user));
+  if (firstName) {
+    return `Drop the brief, ${firstName}. I can shape the draft, rewrite a section, or polish attached sources.`;
+  }
+
+  return "Drop the brief. I can shape the draft, rewrite a section, or polish attached sources.";
 }
 
 function formatFileSize(file: File) {
@@ -69,16 +109,21 @@ function formatFileSize(file: File) {
 export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sourceSearchEnabled, setSourceSearchEnabled] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
-  const greeting = getGreetingLabel();
+  const greeting = getGreetingLabel(user);
+  const promptPlaceholder = getPromptPlaceholder(user);
 
   useEffect(() => {
+    const unsubscribe = AuthService.subscribe(setUser);
+
     return () => {
+      unsubscribe();
       recognitionRef.current?.stop();
     };
   }, []);
@@ -98,6 +143,7 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
 
   const removeAttachment = (indexToRemove: number) => {
     setAttachments((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setSubmitMessage("");
   };
 
   const toggleVoiceInput = () => {
@@ -191,25 +237,23 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
           </h1>
 
           <p className={styles.ghostwriterSubtitle}>
-            Bring rough ideas, source files, or a spoken brief. Ghostwriter shapes the next draft in your voice.
+            Draft fast. Revise cleanly. Bring a messy idea, a source pack, or a rough section and turn it into sharper prose.
           </p>
 
           <form className={styles.ghostwriterComposer} onSubmit={handleSubmit}>
-            <textarea
-              value={prompt}
-              onChange={(event) => {
-                setPrompt(event.target.value);
-                setSubmitMessage("");
-              }}
-              placeholder="What do you want Ghostwriter to write or revise?"
-              className={styles.ghostwriterInput}
-              rows={5}
-            />
-
             {attachments.length > 0 && (
-              <div className={styles.attachmentList}>
+              <div className={styles.attachmentTray}>
                 {attachments.map((file, index) => (
-                  <div key={`${file.name}-${file.size}-${index}`} className={styles.attachmentChip}>
+                  <div key={`${file.name}-${file.size}-${index}`} className={styles.attachmentCard}>
+                    <div className={styles.attachmentPreview}>
+                      <span className={styles.attachmentType}>
+                        {file.type.startsWith("image/")
+                          ? "IMG"
+                          : file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf")
+                            ? "PDF"
+                            : "TXT"}
+                      </span>
+                    </div>
                     <div className={styles.attachmentCopy}>
                       <span className={styles.attachmentName}>{file.name}</span>
                       <span className={styles.attachmentMeta}>{formatFileSize(file)}</span>
@@ -229,6 +273,17 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
                 ))}
               </div>
             )}
+
+            <textarea
+              value={prompt}
+              onChange={(event) => {
+                setPrompt(event.target.value);
+                setSubmitMessage("");
+              }}
+              placeholder={promptPlaceholder}
+              className={styles.ghostwriterInput}
+              rows={5}
+            />
 
             <div className={styles.ghostwriterActions}>
               <div className={styles.ghostwriterActionCluster}>
@@ -258,7 +313,7 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
                     <path d="M12 3a15 15 0 0 1 0 18" />
                     <path d="M12 3a15 15 0 0 0 0 18" />
                   </svg>
-                  <span className={styles.actionLabel}>Globe</span>
+                  <span className={styles.actionLabel}>Source</span>
                 </button>
               </div>
 
@@ -299,18 +354,6 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
               onChange={handleFilesSelected}
             />
           </form>
-
-          <div className={styles.ghostwriterStatusRow}>
-            <span className={styles.statusPill}>
-              {sourceSearchEnabled ? "Source search enabled" : "Source search off"}
-            </span>
-            <span className={styles.statusPill}>
-              {attachments.length} attachment{attachments.length === 1 ? "" : "s"}
-            </span>
-            <span className={styles.statusPill}>
-              Free browser STT
-            </span>
-          </div>
 
           {(speechError || submitMessage) && (
             <div className={styles.ghostwriterMessage}>
