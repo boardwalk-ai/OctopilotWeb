@@ -3,7 +3,7 @@
 import { AuthService } from "@/services/AuthService";
 import { OrganizerState } from "@/services/OrganizerService";
 
-type WritingMode = "automation" | "manual";
+type WritingMode = "automation" | "manual" | "ghostwriter";
 
 type SessionPayload = {
   login_email?: string;

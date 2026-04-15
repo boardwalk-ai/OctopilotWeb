@@ -23,6 +23,7 @@ import HumanizerView from "@/views/HumanizerView";
 import EditorView from "@/views/EditorView";
 import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
+import GhostwriterView from "@/views/GhostwriterView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import essayTypeMobileStyles from "./EssayTypeViewMobile.module.css";
@@ -44,7 +45,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -141,6 +142,12 @@ export default function HomeView() {
           onSelect={async (method) => {
             Organizer.set({ writingMode: method });
             await TrackerService.startSession(method);
+
+            if (method === "ghostwriter") {
+              setPage("ghostwriter");
+              return;
+            }
+
             const canUseWritingStyle = await resolveWritingStyleAccess();
 
             if (!canUseWritingStyle) {
@@ -156,6 +163,15 @@ export default function HomeView() {
             setPage("writing-style");
           }}
         />
+        <OctoAssistant currentPage={page} />
+      </>
+    );
+  }
+
+  if (page === "ghostwriter") {
+    return (
+      <>
+        <GhostwriterView onBack={() => setPage("methodology")} />
         <OctoAssistant currentPage={page} />
       </>
     );

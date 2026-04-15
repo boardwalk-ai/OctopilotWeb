@@ -11,7 +11,7 @@ import {
 import styles from "./MethodologyViewMobile.module.css";
 
 interface MethodologyViewProps {
-  onSelect: (method: "automation" | "manual") => void;
+  onSelect: (method: "automation" | "manual" | "ghostwriter") => void;
 }
 
 const automationFeatures = [
@@ -145,7 +145,7 @@ const ghostwriterFeatures = [
 
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
-  const [selected, setSelected] = useState<"automation" | "manual">(org.writingMode || "automation");
+  const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter">(org.writingMode || "automation");
 
   return (
     <div className={`fixed inset-0 flex flex-col overflow-hidden bg-black ${styles.methodologyShell}`}>
@@ -264,8 +264,15 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
             </button>
 
             {/* Ghostwriter Card */}
-            <div
-              className={`flex flex-col relative rounded-[20px] border border-white/[0.08] bg-white/[0.02] p-7 text-left ${styles.methodologyCard}`}
+            <button
+              onClick={() => {
+                setSelected("ghostwriter");
+                onSelect("ghostwriter");
+              }}
+              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "ghostwriter"
+                ? "border-red-500/40 bg-red-500/[0.04]"
+                : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
+                }`}
             >
               <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
                 <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
@@ -286,6 +293,10 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                     A revision-first writing mode for reshaping drafts, tightening tone, and polishing sections with guided AI help.
                   </p>
                 </div>
+                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "ghostwriter" ? "border-red-500" : "border-white/20"
+                  }`}>
+                  {selected === "ghostwriter" && <div className="h-3 w-3 rounded-full bg-red-500" />}
+                </div>
               </div>
 
               <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
@@ -302,7 +313,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   Beta
                 </span>
               </div>
-            </div>
+            </button>
           </div>
         </div>
 

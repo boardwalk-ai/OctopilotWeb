@@ -36,14 +36,14 @@ interface StepperHeaderProps {
   skipFormat?: boolean;
   skipWritingStyle?: boolean;
   className?: string;
-  writingMode?: "automation" | "manual";
+  writingMode?: "automation" | "manual" | "ghostwriter";
   progressOnly?: boolean;
 }
 
 export function getVisibleAutomationSteps(options?: {
   skipFormat?: boolean;
   skipWritingStyle?: boolean;
-  writingMode?: "automation" | "manual";
+  writingMode?: "automation" | "manual" | "ghostwriter";
 }): Array<{ id: AutomationStepId; label: string }> {
   const skipFormat = options?.skipFormat ?? false;
   const skipWritingStyle = options?.skipWritingStyle ?? false;
@@ -167,7 +167,7 @@ export default function StepperHeader({
               transition: "color 1s ease",
             }}
           >
-            Writing Mode: {writingMode === "manual" ? "Manual" : "Automation"}
+            Writing Mode: {writingMode === "manual" ? "Manual" : writingMode === "ghostwriter" ? "Ghostwriter" : "Automation"}
           </div>
         </div>
       )}
