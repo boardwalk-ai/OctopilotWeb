@@ -284,7 +284,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                 <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
                   <div className="mb-2 flex items-center gap-2">
                     <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Ghostwriter</h2>
-                    <span className="rounded-full border border-red-500/30 bg-red-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400">
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300">
                       Beta
                     </span>
                   </div>
@@ -309,7 +309,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
               </ul>
 
               <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
-                <span className={`rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500 ${styles.methodologyBadge}`}>
+                <span className={`rounded-full bg-emerald-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ${styles.methodologyBadge}`}>
                   Beta
                 </span>
               </div>

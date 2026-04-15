@@ -228,6 +228,10 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
 }
 
+.voiceButtonActive svg {
+  animation: ghostwriterPulse 1.15s ease-in-out infinite;
+}
+
 .submitButton {
   border-color: rgba(239, 68, 68, 0.22);
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.92), rgba(185, 28, 28, 0.92));
@@ -312,5 +316,18 @@
 
   .attachmentName {
     -webkit-line-clamp: 2;
+  }
+}
+
+@keyframes ghostwriterPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.72;
   }
 }

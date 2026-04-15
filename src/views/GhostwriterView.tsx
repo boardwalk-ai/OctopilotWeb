@@ -110,6 +110,7 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
+  const [accessState, setAccessState] = useState<"loading" | "allowed" | "blocked">("loading");
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sourceSearchEnabled, setSourceSearchEnabled] = useState(true);
@@ -125,6 +126,32 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
     return () => {
       unsubscribe();
       recognitionRef.current?.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/ghostwriter/access", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({ allowed: false }));
+        if (!isCancelled) {
+          setAccessState(payload.allowed ? "allowed" : "blocked");
+        }
+      } catch {
+        if (!isCancelled) {
+          setAccessState("blocked");
+        }
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
     };
   }, []);
 
@@ -211,6 +238,67 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
       ? "Ghostwriter draft staged with source search enabled."
       : "Ghostwriter draft staged with local-only input.");
   };
+
+  if (accessState === "loading") {
+    return (
+      <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
+        <AppHeader
+          className={styles.ghostwriterHeader}
+          left={<BackToHome onClick={onBack} />}
+          right={<MainHeaderActions />}
+        />
+
+        <div className={styles.ghostwriterBackdropGrid} />
+
+        <main className={styles.ghostwriterBody}>
+          <div className={styles.ghostwriterCenter}>
+            <Image
+              src="/OCTOPILOT.png"
+              alt="Octopilot"
+              width={72}
+              height={72}
+              className={styles.ghostwriterLogo}
+            />
+            <h1 className={`${sora.className} ${styles.ghostwriterGreeting}`}>Checking Ghostwriter access</h1>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (accessState === "blocked") {
+    return (
+      <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
+        <AppHeader
+          className={styles.ghostwriterHeader}
+          left={<BackToHome onClick={onBack} />}
+          right={<MainHeaderActions />}
+        />
+
+        <div className={styles.ghostwriterBackdropGrid} />
+
+        <main className={styles.ghostwriterBody}>
+          <div className={styles.ghostwriterCenter}>
+            <Image
+              src="/OCTOPILOT.png"
+              alt="Octopilot"
+              width={88}
+              height={88}
+              className={styles.ghostwriterLogo}
+            />
+
+            <h1 className={`${sora.className} ${styles.ghostwriterGreeting}`}>
+              Ghostwriter is still under development
+            </h1>
+
+            <p className={styles.ghostwriterSubtitle}>
+              This mode is being refined on live production right now. It will open for everyone once the workflow and UX are ready.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
@@ -323,13 +411,13 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
                   onClick={toggleVoiceInput}
                   className={`${styles.actionButton} ${isListening ? styles.voiceButtonActive : ""}`}
                   title="Toggle voice transcription"
+                  aria-label={isListening ? "Stop voice transcription" : "Start voice transcription"}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9" y="3" width="6" height="12" rx="3" />
                     <path d="M5 11a7 7 0 0 0 14 0" />
                     <path d="M12 18v3" />
                   </svg>
-                  <span className={styles.actionLabel}>{isListening ? "Listening" : "Voice"}</span>
                 </button>
 
                 <button
