@@ -100,6 +100,49 @@ const manualFeatures = [
   },
 ];
 
+const ghostwriterFeatures = [
+  {
+    label: "Human-sounding output",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Adaptive tone matching",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v18" /><path d="M5 8c0-2.5 1.8-4 4-4 1.8 0 3.2.8 4 2 0.8-1.2 2.2-2 4-2 2.2 0 4 1.5 4 4s-1.8 4-4 4c-1.8 0-3.2-.8-4-2-.8 1.2-2.2 2-4 2-2.2 0-4-1.5-4-4Z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Draft polishing",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m4 20 4.5-1 9.7-9.7a2.1 2.1 0 1 0-3-3L5.5 16 4 20Z" /><path d="m13.5 6.5 4 4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Built-in citations",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 17.6V2h12v15.6" /><path d="M6 2H4v18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Revision-focused flow",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v5h5" />
+      </svg>
+    ),
+  },
+];
+
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
   const [selected, setSelected] = useState<"automation" | "manual">(org.writingMode || "automation");
@@ -131,7 +174,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
 
         {/* Two Column Cards Container */}
         <div className={`w-full flex-1 mt-4 ${styles.methodologySelection}`}>
-          <div className={`grid w-full grid-cols-2 gap-6 ${styles.methodologyGrid}`}>
+          <div className={`grid w-full grid-cols-1 gap-6 md:grid-cols-3 ${styles.methodologyGrid}`}>
             {/* Automation Card */}
             <button
               onClick={() => setSelected("automation")}
@@ -219,6 +262,47 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                 </span>
               </div>
             </button>
+
+            {/* Ghostwriter Card */}
+            <div
+              className={`flex flex-col relative rounded-[20px] border border-white/[0.08] bg-white/[0.02] p-7 text-left ${styles.methodologyCard}`}
+            >
+              <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m4 20 4.5-1 9.7-9.7a2.1 2.1 0 1 0-3-3L5.5 16 4 20Z" />
+                    <path d="m13.5 6.5 4 4" />
+                  </svg>
+                </div>
+                <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                  <div className="mb-2 flex items-center gap-2">
+                    <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Ghostwriter</h2>
+                    <span className="rounded-full border border-red-500/30 bg-red-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400">
+                      Beta
+                    </span>
+                  </div>
+                  <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>You steer the idea. AI sharpens the prose.</p>
+                  <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
+                    A revision-first writing mode for reshaping drafts, tightening tone, and polishing sections with guided AI help.
+                  </p>
+                </div>
+              </div>
+
+              <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
+                {ghostwriterFeatures.map((f) => (
+                  <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                    <span className={`text-red-500 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                    <span>{f.label}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                <span className={`rounded-full bg-red-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500 ${styles.methodologyBadge}`}>
+                  Beta
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
