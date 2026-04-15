@@ -106,6 +106,34 @@ function formatFileSize(file: File) {
   return `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+async function ensureMicrophoneAccess() {
+  if (typeof window === "undefined") {
+    throw new Error("Voice input is only available in the browser.");
+  }
+
+  if (!window.isSecureContext) {
+    throw new Error("Microphone access requires HTTPS in production.");
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("This browser does not support microphone capture.");
+  }
+
+  try {
+    const permissionStatus = await (navigator.permissions as { query?: (permissionDesc: { name: string }) => Promise<{ state: string }> } | undefined)?.query?.({ name: "microphone" });
+    if (permissionStatus?.state === "denied") {
+      throw new Error("Microphone permission is blocked in your browser settings.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("blocked")) {
+      throw error;
+    }
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  stream.getTracks().forEach((track) => track.stop());
+}
+
 export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -173,7 +201,7 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
     setSubmitMessage("");
   };
 
-  const toggleVoiceInput = () => {
+  const toggleVoiceInput = async () => {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -183,6 +211,13 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
       setSpeechError("Voice input is not supported in this browser.");
+      return;
+    }
+
+    try {
+      await ensureMicrophoneAccess();
+    } catch (error) {
+      setSpeechError(error instanceof Error ? error.message : "Microphone access is unavailable.");
       return;
     }
 
@@ -208,8 +243,12 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
     };
 
     recognition.onerror = (event) => {
-      if (event.error === "not-allowed") {
-        setSpeechError("Microphone permission is blocked.");
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setSpeechError("Microphone permission is blocked in your browser settings.");
+      } else if (event.error === "audio-capture") {
+        setSpeechError("No microphone was found for voice input.");
+      } else if (event.error === "network") {
+        setSpeechError("Voice transcription hit a network issue.");
       } else {
         setSpeechError("Voice transcription stopped unexpectedly.");
       }
@@ -408,7 +447,7 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
               <div className={styles.ghostwriterActionCluster}>
                 <button
                   type="button"
-                  onClick={toggleVoiceInput}
+                  onClick={() => void toggleVoiceInput()}
                   className={`${styles.actionButton} ${isListening ? styles.voiceButtonActive : ""}`}
                   title="Toggle voice transcription"
                   aria-label={isListening ? "Stop voice transcription" : "Start voice transcription"}
