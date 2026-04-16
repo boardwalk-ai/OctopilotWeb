@@ -139,7 +139,6 @@ export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
-  const [accessState, setAccessState] = useState<"loading" | "allowed" | "blocked">("loading");
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sourceSearchEnabled, setSourceSearchEnabled] = useState(true);
@@ -155,32 +154,6 @@ export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProp
     return () => {
       unsubscribe();
       recognitionRef.current?.stop();
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    void (async () => {
-      try {
-        const response = await fetch("/api/ghostwriter/access", {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        });
-        const payload = await response.json().catch(() => ({ allowed: false }));
-        if (!isCancelled) {
-          setAccessState(payload.allowed ? "allowed" : "blocked");
-        }
-      } catch {
-        if (!isCancelled) {
-          setAccessState("blocked");
-        }
-      }
-    })();
-
-    return () => {
-      isCancelled = true;
     };
   }, []);
 
@@ -280,67 +253,6 @@ export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProp
       attachments,
     });
   };
-
-  if (accessState === "loading") {
-    return (
-      <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
-        <AppHeader
-          className={styles.ghostwriterHeader}
-          left={<BackToHome onClick={onBack} />}
-          right={<MainHeaderActions />}
-        />
-
-        <div className={styles.ghostwriterBackdropGrid} />
-
-        <main className={styles.ghostwriterBody}>
-          <div className={styles.ghostwriterCenter}>
-            <Image
-              src="/OCTOPILOT.png"
-              alt="Octopilot"
-              width={72}
-              height={72}
-              className={styles.ghostwriterLogo}
-            />
-            <h1 className={`${sora.className} ${styles.ghostwriterGreeting}`}>Checking Ghostwriter access</h1>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (accessState === "blocked") {
-    return (
-      <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
-        <AppHeader
-          className={styles.ghostwriterHeader}
-          left={<BackToHome onClick={onBack} />}
-          right={<MainHeaderActions />}
-        />
-
-        <div className={styles.ghostwriterBackdropGrid} />
-
-        <main className={styles.ghostwriterBody}>
-          <div className={styles.ghostwriterCenter}>
-            <Image
-              src="/OCTOPILOT.png"
-              alt="Octopilot"
-              width={88}
-              height={88}
-              className={styles.ghostwriterLogo}
-            />
-
-            <h1 className={`${sora.className} ${styles.ghostwriterGreeting}`}>
-              Ghostwriter is still under development
-            </h1>
-
-            <p className={styles.ghostwriterSubtitle}>
-              This mode is being refined on live production right now. It will open for everyone once the workflow and UX are ready.
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
