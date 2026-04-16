@@ -275,8 +275,8 @@ export class GhostwriterOrchestrator {
             return HumanizerService.stealthGPT({
                 prompt: essay,
                 rephrase: true,
-                educationLevel: "university",
-                strength: "More Stealth",
+                educationLevel: "Standard",
+                strength: "Medium",
             });
         }
 
