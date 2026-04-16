@@ -120,9 +120,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [runError, setRunError] = useState("");
   const [showOutlines, setShowOutlines] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [chatMessage, setChatMessage] = useState("");
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
   const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const streamRef = useRef<HTMLElement>(null);
 
   const topicSummary = useMemo(() => ({
     topic: org.essayTopic || "Waiting for topic",
@@ -176,6 +178,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       setExportDocument(Organizer.get().exportDocument);
     }
   }, [runState]);
+
+  // Auto-scroll stream to bottom whenever new steps appear
+  useEffect(() => {
+    const el = streamRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [visibleSteps]);
 
   const submitCurrentAnswer = async () => {
     if (!runState?.pendingQuestion) return;
@@ -293,7 +301,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             </div>
           </div>
 
-          <section className={styles.workflowStream}>
+          <section ref={streamRef} className={styles.workflowStream}>
             {visibleSteps.map((step) => (
               <div
                 key={step.id}
@@ -335,6 +343,33 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
           </section>
+
+          {/* Chat bar */}
+          <div className={styles.mainChatBar}>
+            <input
+              type="text"
+              className={styles.chatInput}
+              placeholder="Send a message to Ghostwriter…"
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && chatMessage.trim()) {
+                  setChatMessage("");
+                }
+              }}
+            />
+            <button
+              type="button"
+              className={styles.chatSendBtn}
+              disabled={!chatMessage.trim()}
+              onClick={() => setChatMessage("")}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 2 11 13" />
+                <path d="M22 2 15 22 11 13 2 9l20-7z" />
+              </svg>
+            </button>
+          </div>
         </main>
 
         {/* Right sidebar */}

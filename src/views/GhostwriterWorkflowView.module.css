@@ -44,6 +44,12 @@
   border-right: 1px solid rgba(255,255,255,0.06);
   overflow-y: auto;
   padding: 1rem 0.9rem 1.4rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.leftSidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .newChatButton {
@@ -169,7 +175,7 @@
   flex-direction: column;
   gap: 0;
   overflow: hidden;
-  padding: 0 0 1rem;
+  padding: 0;
 }
 
 .mainHero {
@@ -216,8 +222,16 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 0;
-  padding: 0.6rem 2rem;
+  padding: 0.6rem 2rem 0.4rem;
+  /* hide scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workflowStream::-webkit-scrollbar {
+  display: none;
 }
 
 .streamLine {
@@ -362,8 +376,14 @@
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
-  transition: opacity 180ms ease, transform 180ms ease;
-  overflow: hidden;
+  transition: opacity 180ms ease;
+  /* hide scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rightSidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .rightSidebarHidden {
@@ -642,6 +662,62 @@
   border-color: rgba(239,68,68,0.45);
 }
 
+/* ─── Main Chat Bar ──────────────────────────────────────────────────────── */
+
+.mainChatBar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 2rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: #000;
+}
+
+.chatInput {
+  flex: 1;
+  min-height: 2.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
+  color: white;
+  padding: 0 0.9rem;
+  outline: none;
+  font-size: 0.83rem;
+  transition: border-color 140ms;
+}
+
+.chatInput::placeholder {
+  color: rgba(255,255,255,0.28);
+}
+
+.chatInput:focus {
+  border-color: rgba(239,68,68,0.4);
+}
+
+.chatSendBtn {
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 12px;
+  border: 0;
+  background: #ef4444;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, opacity 120ms;
+}
+
+.chatSendBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.chatSendBtn:disabled {
+  background: rgba(239,68,68,0.25);
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ─── Hidden PDF Preview ─────────────────────────────────────────────────── */
 
 .hiddenPreview {
@@ -721,7 +797,11 @@
   }
 
   .workflowStream {
-    padding: 0.6rem 1.1rem;
+    padding: 0.6rem 1.1rem 0.4rem;
+  }
+
+  .mainChatBar {
+    padding: 0.7rem 1rem 0.85rem;
   }
 
   .bottomQuestionDock {
