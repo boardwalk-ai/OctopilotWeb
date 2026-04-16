@@ -854,6 +854,123 @@
   cursor: default;
 }
 
+/* ─── Timer Bar ──────────────────────────────────────────────────────────── */
+
+.timerBar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.32);
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.timerBarDone {
+  color: rgba(34,197,94,0.65);
+}
+
+.timerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: timerPulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ─── Editing box (essay stream) ─────────────────────────────────────────── */
+
+.editingBox {
+  white-space: pre-wrap;
+  max-height: 260px;
+  overflow-y: auto;
+  font-size: 0.71rem;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.5);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.editingBox::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Humanized content section ──────────────────────────────────────────── */
+
+.humanizedSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  animation: streamFadeIn 200ms ease-out;
+}
+
+.humanizedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.humanizedLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.3);
+}
+
+.humanizedActions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.humanizedActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.38);
+  text-decoration: none;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.humanizedActionBtn:hover {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.14);
+}
+
+.humanizedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  transition: color 120ms;
+}
+
+.humanizedToggle:hover {
+  color: rgba(255,255,255,0.6);
+}
+
 /* ─── Main Chat Bar ──────────────────────────────────────────────────────── */
 
 .mainChatBar {
@@ -1001,6 +1118,10 @@
 
   .workflowStream {
     padding: 0.6rem 1.1rem 0.4rem;
+  }
+
+  .timerBar {
+    padding: 0.4rem 1.1rem;
   }
 
   .mainChatBar {

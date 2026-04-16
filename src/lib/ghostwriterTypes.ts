@@ -3,21 +3,24 @@ import type { AlvinSearchResult } from "@/services/AlvinService";
 export type GhostwriterToolName =
   | "analyze_instruction"
   | "generate_outlines"
-  | "search_sources"
-  | "scrape_sources"
-  | "compact_sources"
+  | "gather_sources"
   | "generate_essay"
-  | "finalize_export";
+  | "finalize_export"
+  | "humanize_essay"
+  | "finalize_export_humanized";
 
 export type GhostwriterQuestionField =
   | "wordCount"
   | "citationStyle"
+  | "outlineCount"
   | "studentName"
   | "instructorName"
   | "institutionName"
   | "courseInfo"
   | "subjectCode"
-  | "essayDate";
+  | "essayDate"
+  | "humanizeChoice"
+  | "humanizerChoice";
 
 export type GhostwriterStepStatus = "pending" | "running" | "completed" | "blocked";
 
@@ -63,6 +66,8 @@ export type GhostwriterRunContext = {
   wordCount?: number;
   citationStyle?: string;
   searchResults?: AlvinSearchResult[];
+  humanizedContent?: string;
+  humanizeProvider?: string;
 };
 
 export type GhostwriterRunState = {

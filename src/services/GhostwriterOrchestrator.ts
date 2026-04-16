@@ -7,6 +7,7 @@ import { ScraperService } from "./ScraperService";
 import { ZulyService } from "./ZulyService";
 import { LucasService } from "./LucasService";
 import { FormatterService } from "./FormatterService";
+import { HumanizerService } from "./HumanizerService";
 import { FormatterPage } from "./FormatterTypes";
 import { fetchWithUserAuthorization } from "./authenticatedFetch";
 import { GhostwriterRunState, GhostwriterToolCall, GhostwriterQuestionField } from "@/lib/ghostwriterTypes";
@@ -112,22 +113,18 @@ export class GhostwriterOrchestrator {
 
     static async prepareInstructionBundle(input: GhostwriterDraftInput): Promise<string> {
         const textParts = [input.prompt.trim()].filter(Boolean);
-
         for (const file of input.attachments) {
             const lowerName = file.name.toLowerCase();
             let extracted = "";
-
             if (lowerName.endsWith(".txt") || file.type === "text/plain") {
                 extracted = (await file.text()).trim();
             } else {
                 extracted = (await FileReadService.extractText(file)).trim();
             }
-
             if (extracted) {
                 textParts.push(`Attached File (${file.name}):\n${extracted}`);
             }
         }
-
         return textParts.join("\n\n").trim();
     }
 
@@ -140,19 +137,18 @@ export class GhostwriterOrchestrator {
             instructionFileName: input.attachments[0]?.name || null,
             instructionSource: input.attachments.length > 0 && input.prompt.trim() ? "text+document" : input.attachments.length > 0 ? "document" : "text",
         });
-
         const result = await HeinService.analyze();
         Organizer.set({
             finalEssayTitle: result.essayTopic,
             essayType: result.essayType || Organizer.get().essayType || "Essay",
         });
-
         return result;
     }
 
-    static async setupOutlines() {
+    static async setupOutlines(targetCount?: number) {
         const generated = await LilyService.generate("auto");
-        const cards = generated.map((item, index) => ({
+        const sliced = targetCount ? generated.slice(0, targetCount) : generated;
+        const cards = sliced.map((item, index) => ({
             id: `ghostwriter-outline-${index + 1}`,
             type: item.type,
             title: item.title,
@@ -161,7 +157,6 @@ export class GhostwriterOrchestrator {
             hidden: false,
             isNew: false,
         }));
-
         Organizer.set({
             outlines: cards,
             selectedOutlines: cards.map((card) => ({
@@ -171,59 +166,82 @@ export class GhostwriterOrchestrator {
                 description: card.description,
             })),
         });
-
         return cards;
     }
 
-    static async searchSources(targetCount = 4): Promise<AlvinSearchResult[]> {
-        return AlvinService.searchSources(targetCount);
-    }
+    /**
+     * Gather sources with retry loop:
+     * - Search → scrape each source individually
+     * - Remove failed scrapes
+     * - Loop until 5+ successful sources (max 4 rounds)
+     * - Deduplicate across rounds by URL
+     */
+    static async gatherSourcesWithRetry(): Promise<{
+        goodSources: SourceData[];
+        allSearchResults: AlvinSearchResult[];
+        compactedCount: number;
+    }> {
+        const usedUrls = new Set<string>();
+        const goodSources: SourceData[] = [];
+        const allSearchResults: AlvinSearchResult[] = [];
+        const MAX_ROUNDS = 4;
 
-    static async scrapeSources(results: AlvinSearchResult[]) {
-        const nextSources: SourceData[] = results.map((result) => ({
-            url: result.website_URL,
-            title: result.Title,
-            author: result.Author,
-            publishedYear: result["Published Year"],
-            publisher: result.Publisher,
-            status: "loading",
-        }));
+        for (let round = 0; round < MAX_ROUNDS && goodSources.length < 5; round++) {
+            const targetCount = Math.max(8, (5 - goodSources.length) * 2 + 2);
+            const results = await AlvinService.searchSources(targetCount);
 
-        while (nextSources.length < 5) {
-            nextSources.push({ url: "", status: "empty" });
-        }
+            // Filter duplicates
+            const newResults = results.filter((r) => !usedUrls.has(r.website_URL));
+            newResults.forEach((r) => usedUrls.add(r.website_URL));
 
-        Organizer.set({
-            manualSources: nextSources,
-            selectedSourceCount: results.length,
-        });
+            if (newResults.length === 0) break;
 
-        for (let index = 0; index < results.length; index += 1) {
-            const result = results[index];
-            try {
-                const scraped = await ScraperService.scrape(result.website_URL);
-                nextSources[index] = {
-                    ...nextSources[index],
-                    title: scraped.title || result.Title,
-                    author: result.Author,
-                    publishedYear: result["Published Year"],
-                    publisher: scraped.publisher || result.Publisher,
-                    fullContent: scraped.fullContent || "",
-                    status: "scraped",
-                };
-            } catch {
-                nextSources[index] = {
-                    ...nextSources[index],
-                    status: "failed",
-                };
+            // Track for sidebar display
+            allSearchResults.push(...newResults);
+
+            // Update organizer manualSources with loading placeholders
+            const loadingSlots: SourceData[] = newResults.map((r) => ({
+                url: r.website_URL,
+                title: r.Title,
+                author: r.Author,
+                publishedYear: r["Published Year"],
+                publisher: r.Publisher,
+                status: "loading",
+            }));
+            Organizer.set({ manualSources: [...goodSources, ...loadingSlots] });
+
+            // Scrape each one individually
+            for (const result of newResults) {
+                if (goodSources.length >= 5) break;
+                try {
+                    const scraped = await ScraperService.scrape(result.website_URL);
+                    const source: SourceData = {
+                        url: result.website_URL,
+                        title: scraped.title || result.Title,
+                        author: result.Author,
+                        publishedYear: result["Published Year"],
+                        publisher: scraped.publisher || result.Publisher,
+                        fullContent: scraped.fullContent || "",
+                        status: "scraped",
+                    };
+                    goodSources.push(source);
+                } catch {
+                    // Skip failed — auto-removed by not adding to goodSources
+                }
+                // Update organizer with current good sources
+                Organizer.set({ manualSources: [...goodSources], selectedSourceCount: goodSources.length });
             }
-
-            Organizer.set({
-                manualSources: [...nextSources],
-            });
         }
 
-        return nextSources.filter((source) => source.status === "scraped");
+        // Compact whatever we have
+        await ZulyService.compactAllSources();
+        const compacted = Organizer.get().compactedSources;
+
+        return {
+            goodSources,
+            allSearchResults,
+            compactedCount: compacted.length,
+        };
     }
 
     static async gatherSourceData() {
@@ -232,26 +250,43 @@ export class GhostwriterOrchestrator {
     }
 
     static applyDraftSettings(settings: GhostwriterDraftSettings) {
-        Organizer.set({
-            wordCount: settings.wordCount,
-            citationStyle: settings.citationStyle,
-        });
+        Organizer.set({ wordCount: settings.wordCount, citationStyle: settings.citationStyle });
     }
 
     static async sculptEssay(onChunk: (text: string) => void): Promise<{ essay: string; bibliography: string }> {
         const raw = await LucasService.generate(onChunk);
         const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
         const parsed = JSON.parse(clean) as { essay_content?: string; bibliography?: string };
-
         Organizer.set({
             generatedEssay: parsed.essay_content || "",
             generatedBibliography: parsed.bibliography || "",
         });
-
         return {
             essay: parsed.essay_content || "",
             bibliography: parsed.bibliography || "",
         };
+    }
+
+    static async humanizeEssay(provider: string): Promise<string> {
+        const essay = Organizer.get().generatedEssay || "";
+        if (!essay) throw new Error("No essay content to humanize.");
+
+        if (provider === "StealthGPT") {
+            return HumanizerService.stealthGPT({
+                prompt: essay,
+                rephrase: true,
+                educationLevel: "university",
+                strength: "More Stealth",
+            });
+        }
+
+        // Default: UndetectableAI
+        return HumanizerService.undetectableAI({
+            content: essay,
+            readability: "University",
+            purpose: "Essay",
+            strength: "More Human",
+        });
     }
 
     static applyFormatAnswers(answers: GhostwriterFormatAnswers) {
@@ -269,9 +304,19 @@ export class GhostwriterOrchestrator {
     static async finalizeDocument() {
         const org = Organizer.get();
         const snapshot = buildExportSnapshot(org.finalEssayTitle || org.essayTopic || "Ghostwriter Draft", org.citationStyle);
-        Organizer.set({
-            exportDocument: snapshot,
-        });
+        Organizer.set({ exportDocument: snapshot });
+        return snapshot;
+    }
+
+    static async finalizeHumanizedDocument(humanizedText: string) {
+        const org = Organizer.get();
+        // Temporarily override the generatedEssay with humanized text for formatting
+        Organizer.set({ generatedEssay: humanizedText });
+        const snapshot = buildExportSnapshot(
+            (org.finalEssayTitle || org.essayTopic || "Ghostwriter Draft") + " (Humanized)",
+            org.citationStyle,
+        );
+        Organizer.set({ exportDocument: snapshot });
         return snapshot;
     }
 
@@ -280,17 +325,12 @@ export class GhostwriterOrchestrator {
         const response = await fetchWithUserAuthorization("/api/ghostwriter/runs/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                prompt,
-                detectedSettings,
-            }),
+            body: JSON.stringify({ prompt, detectedSettings }),
         });
-
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
             throw new Error(payload.error || `Ghostwriter run failed to start: ${response.status}`);
         }
-
         return response.json() as Promise<GhostwriterRunState>;
     }
 
@@ -298,17 +338,12 @@ export class GhostwriterOrchestrator {
         const response = await fetchWithUserAuthorization(`/api/ghostwriter/runs/${runId}/tool`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                toolName,
-                result,
-            }),
+            body: JSON.stringify({ toolName, result }),
         });
-
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
             throw new Error(payload.error || `Ghostwriter tool submission failed: ${response.status}`);
         }
-
         return response.json() as Promise<GhostwriterRunState>;
     }
 
@@ -316,48 +351,39 @@ export class GhostwriterOrchestrator {
         const response = await fetchWithUserAuthorization(`/api/ghostwriter/runs/${runId}/answer`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                field,
-                value,
-            }),
+            body: JSON.stringify({ field, value }),
         });
-
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
             throw new Error(payload.error || `Ghostwriter answer submission failed: ${response.status}`);
         }
-
         return response.json() as Promise<GhostwriterRunState>;
     }
 
-    static async executeToolCall(toolCall: GhostwriterToolCall, draft: GhostwriterDraftInput): Promise<unknown> {
+    static async executeToolCall(
+        toolCall: GhostwriterToolCall,
+        draft: GhostwriterDraftInput,
+        onEssayChunk?: (chunk: string) => void,
+    ): Promise<unknown> {
         switch (toolCall.name) {
             case "analyze_instruction": {
-                const analysis = await GhostwriterOrchestrator.analyzeInstruction(draft);
-                return analysis;
+                return GhostwriterOrchestrator.analyzeInstruction(draft);
             }
             case "generate_outlines": {
-                const outlines = await GhostwriterOrchestrator.setupOutlines();
+                const count = Number(toolCall.args?.count || 0) || undefined;
+                const outlines = await GhostwriterOrchestrator.setupOutlines(count);
                 return { count: outlines.length };
             }
-            case "search_sources": {
-                const targetCount = Number(toolCall.args?.targetCount || 4);
-                const sources = await GhostwriterOrchestrator.searchSources(targetCount);
-                return { sources };
-            }
-            case "scrape_sources": {
-                const sources = (toolCall.args?.sources || []) as AlvinSearchResult[];
-                const scraped = await GhostwriterOrchestrator.scrapeSources(sources);
-                return { scrapedCount: scraped.length };
-            }
-            case "compact_sources": {
-                const compacted = await GhostwriterOrchestrator.gatherSourceData();
-                return { compactedCount: compacted.length };
+            case "gather_sources": {
+                const { goodSources, allSearchResults, compactedCount } = await GhostwriterOrchestrator.gatherSourcesWithRetry();
+                return {
+                    scrapedCount: goodSources.length,
+                    compactedCount,
+                    searchResults: allSearchResults,
+                };
             }
             case "generate_essay": {
-                const essay = await GhostwriterOrchestrator.sculptEssay(() => {
-                    // Run silently. The orchestrator owns progress now.
-                });
+                const essay = await GhostwriterOrchestrator.sculptEssay(onEssayChunk ?? (() => {}));
                 return { wordCount: essay.essay.split(/\s+/).filter(Boolean).length };
             }
             case "finalize_export": {
@@ -372,10 +398,27 @@ export class GhostwriterOrchestrator {
                     essayDate: String(formatAnswers.essayDate || ""),
                 });
                 const snapshot = await GhostwriterOrchestrator.finalizeDocument();
-                return {
-                    title: snapshot.title,
-                    pageCount: snapshot.pages.length,
-                };
+                return { title: snapshot.title, pageCount: snapshot.pages.length };
+            }
+            case "humanize_essay": {
+                const provider = String(toolCall.args?.provider || "UndetectableAI");
+                const humanized = await GhostwriterOrchestrator.humanizeEssay(provider);
+                return { humanized, provider };
+            }
+            case "finalize_export_humanized": {
+                const humanizedText = String(toolCall.args?.humanized || Organizer.get().generatedEssay || "");
+                const formatAnswers = (toolCall.args?.formatAnswers || {}) as Partial<GhostwriterFormatAnswers>;
+                GhostwriterOrchestrator.applyFormatAnswers({
+                    finalEssayTitle: Organizer.get().finalEssayTitle || Organizer.get().essayTopic || "Ghostwriter Draft",
+                    studentName: String(formatAnswers.studentName || ""),
+                    instructorName: String(formatAnswers.instructorName || ""),
+                    institutionName: String(formatAnswers.institutionName || ""),
+                    courseInfo: String(formatAnswers.courseInfo || ""),
+                    subjectCode: String(formatAnswers.subjectCode || ""),
+                    essayDate: String(formatAnswers.essayDate || ""),
+                });
+                const snapshot = await GhostwriterOrchestrator.finalizeHumanizedDocument(humanizedText);
+                return { title: snapshot.title, pageCount: snapshot.pages.length };
             }
             default:
                 throw new Error(`Unknown Ghostwriter tool: ${toolCall.name}`);

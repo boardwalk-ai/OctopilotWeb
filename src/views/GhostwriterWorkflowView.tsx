@@ -31,27 +31,35 @@ type WorkflowStep = {
 };
 
 const INITIAL_STEPS: WorkflowStep[] = [
-  { id: 1, title: "Analyzing your instruction", detail: "Reading the prompt and locking in the topic.", status: "pending" },
-  { id: 2, title: "Building paragraph outlines", detail: "Structuring the essay section by section.", status: "pending" },
-  { id: 3, title: "Searching for sources", detail: "Looking for relevant, citable sources.", status: "pending" },
-  { id: 4, title: "Populating the sources panel", detail: "Loading search results into the sidebar.", status: "pending" },
-  { id: 5, title: "Gathering data from sources", detail: "Scraping and compacting source content.", status: "pending" },
-  { id: 6, title: "Checking draft settings", detail: "Confirming word count and citation style before writing.", status: "pending" },
-  { id: 7, title: "Writing your essay", detail: "Drafting the full essay from outlines and sources.", status: "pending" },
-  { id: 8, title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.", status: "pending" },
-  { id: 9, title: "Applying citation layout", detail: "Running the citation formatter in the background.", status: "pending" },
-  { id: 10, title: "Preparing your PDF", detail: "Packaging the final document for download.", status: "pending" },
+  { id: 1,  title: "Analyzing your instruction",    detail: "Reading the prompt and locking in the topic.",              status: "pending" },
+  { id: 2,  title: "Building paragraph outlines",   detail: "Structuring the essay section by section.",                 status: "pending" },
+  { id: 3,  title: "Searching for sources",         detail: "Looking for relevant, citable sources.",                    status: "pending" },
+  { id: 4,  title: "Populating the sources panel",  detail: "Loading search results into the sidebar.",                  status: "pending" },
+  { id: 5,  title: "Gathering data from sources",   detail: "Scraping and compacting source content.",                   status: "pending" },
+  { id: 6,  title: "Checking draft settings",       detail: "Confirming word count and citation style before writing.",  status: "pending" },
+  { id: 7,  title: "Writing your essay",            detail: "Drafting the full essay from outlines and sources.",        status: "pending" },
+  { id: 8,  title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.",       status: "pending" },
+  { id: 9,  title: "Applying citation layout",      detail: "Running the citation formatter in the background.",         status: "pending" },
+  { id: 10, title: "Preparing your PDF",            detail: "Packaging the final document for download.",                status: "pending" },
+  { id: 11, title: "Humanizing your essay",         detail: "Processing with AI detection bypass.",                      status: "pending" },
+  { id: 12, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                       status: "pending" },
 ];
 
 const TOOL_LABELS: Record<string, string> = {
   analyze_instruction: "analyze_instruction",
   generate_outlines: "generate_outlines",
-  search_sources: "search_sources",
-  scrape_sources: "scrape_sources",
-  compact_sources: "compact_sources",
+  gather_sources: "gather_sources",
   generate_essay: "generate_essay",
   finalize_export: "finalize_export",
+  humanize_essay: "humanize_essay",
+  finalize_export_humanized: "finalize_export_humanized",
 };
+
+function formatDuration(secs: number) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 function makeFileName(title: string, ext: string) {
   const safe = title
@@ -77,7 +85,8 @@ function getAnswerValue(
 ) {
   if (field === "wordCount") return draftSettings.wordCount;
   if (field === "citationStyle") return draftSettings.citationStyle;
-  return formatAnswers[field];
+  if (field in formatAnswers) return (formatAnswers as Record<string, unknown>)[field] as string;
+  return "";
 }
 
 function SpinnerIcon() {
@@ -133,6 +142,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [chatMessage, setChatMessage] = useState("");
   const [customAnswer, setCustomAnswer] = useState("");
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
+  // Essay streaming
+  const [essayStreamContent, setEssayStreamContent] = useState("");
+  const [editingOpen, setEditingOpen] = useState(true);
+  // Humanized content
+  const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
+  const [humanizedBoxes, setHumanizedBoxes] = useState<Array<{ content: string; provider: string }>>([]);
+  const [retryingHumanize, setRetryingHumanize] = useState(false);
+  // Timer
+  const workflowStartRef = useRef(Date.now());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [finalDuration, setFinalDuration] = useState<number | null>(null);
   // Question fade transition
   const [displayedQuestion, setDisplayedQuestion] = useState(runState?.pendingQuestion ?? null);
   const [questionExiting, setQuestionExiting] = useState(false);
@@ -176,9 +196,25 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     if (!runState?.pendingToolCall || isExecutingTool.current) return;
 
     isExecutingTool.current = true;
+    const isEssayTool = runState.pendingToolCall.name === "generate_essay";
+    if (isEssayTool) {
+      setEssayStreamContent("");
+      setEditingOpen(true);
+    }
+
     void (async () => {
       try {
-        const result = await GhostwriterOrchestrator.executeToolCall(runState.pendingToolCall!, draft);
+        let chunks = "";
+        const result = await GhostwriterOrchestrator.executeToolCall(
+          runState.pendingToolCall!,
+          draft,
+          isEssayTool
+            ? (chunk) => {
+                chunks += chunk;
+                setEssayStreamContent(chunks);
+              }
+            : undefined,
+        );
         const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, runState.pendingToolCall!.name, result);
         setRunState(nextState);
       } catch (error) {
@@ -200,6 +236,33 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     const el = streamRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
+
+  // Timer
+  useEffect(() => {
+    if (runState?.status === "finished" && finalDuration === null) {
+      setFinalDuration(Math.floor((Date.now() - workflowStartRef.current) / 1000));
+      return;
+    }
+    if (runState?.status === "finished") return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - workflowStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [runState?.status, finalDuration]);
+
+  // Capture humanized content when it arrives in run state
+  useEffect(() => {
+    const content = runState?.context.humanizedContent;
+    const provider = runState?.context.humanizeProvider;
+    if (content && provider) {
+      setHumanizedBoxes((prev) => {
+        const alreadyHave = prev.some((b) => b.content === content);
+        if (alreadyHave) return prev;
+        return [...prev, { content, provider }];
+      });
+      setHumanizedBoxOpen(true);
+    }
+  }, [runState?.context.humanizedContent]);
 
   // Question fade transition
   useEffect(() => {
@@ -237,11 +300,25 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const handleChipClick = (chip: string) => {
     if (!runState?.pendingQuestion) return;
     const field = runState.pendingQuestion.field;
-    if (field === "wordCount") {
+    if (field === "wordCount" || field === "outlineCount") {
       void submitCurrentAnswer(Number(chip));
     } else {
       void submitCurrentAnswer(chip);
     }
+  };
+
+  const handleHumanizeRetry = () => {
+    if (!runState) return;
+    setRetryingHumanize(true);
+    // Re-inject the humanizerChoice question into displayed question state
+    setDisplayedQuestion({
+      id: `retry-${Date.now()}`,
+      field: "humanizerChoice",
+      prompt: "Which humanizer should I try this time?",
+      inputType: "text",
+      suggestions: ["UndetectableAI", "StealthGPT"],
+    });
+    setRetryingHumanize(false);
   };
 
   const handlePdfDownload = async () => {
@@ -369,13 +446,62 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                       {isRunning && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
                     </span>
 
-                    {/* Completed step: just detail */}
+                    {/* Completed step: detail + optional essay collapsible for step 7 */}
                     {!isRunning && (
-                      <span className={styles.streamDetail}>{step.detail}</span>
+                      <>
+                        <span className={styles.streamDetail}>{step.detail}</span>
+                        {step.id === 7 && essayStreamContent && (
+                          <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
+                            <button
+                              type="button"
+                              className={styles.thinkingToggle}
+                              onClick={() => setEditingOpen((prev) => !prev)}
+                            >
+                              <span>Editing</span>
+                              <svg
+                                className={`${styles.thinkingChevron} ${editingOpen ? styles.thinkingChevronOpen : ""}`}
+                                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                              >
+                                <path d="m6 9 6 6 6-6" />
+                              </svg>
+                            </button>
+                            {editingOpen && (
+                              <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
+                                {essayStreamContent}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
 
-                    {/* Running step: thinking collapsible + tool call */}
-                    {isRunning && (
+                    {/* Running step: essay step gets "Editing ▾", others get "Thinking ▾" */}
+                    {isRunning && step.id === 7 && (
+                      <div className={styles.thinkingSection}>
+                        <button
+                          type="button"
+                          className={styles.thinkingToggle}
+                          onClick={() => setEditingOpen((prev) => !prev)}
+                        >
+                          <span>Editing</span>
+                          <svg
+                            className={`${styles.thinkingChevron} ${editingOpen ? styles.thinkingChevronOpen : ""}`}
+                            width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          >
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {editingOpen && (
+                          <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
+                            {essayStreamContent || "Starting essay draft…"}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {isRunning && step.id !== 7 && (
                       <div className={styles.thinkingSection}>
                         <button
                           type="button"
@@ -396,13 +522,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                             <path d="m6 9 6 6 6-6" />
                           </svg>
                         </button>
-
                         {thinkingOpen && (
-                          <div className={styles.thinkingBox}>
-                            {step.detail}
-                          </div>
+                          <div className={styles.thinkingBox}>{step.detail}</div>
                         )}
-
                         {isActiveToolStep && (
                           <div className={styles.toolCallLine}>
                             <span className={styles.toolCallLabel}>Calling</span>
@@ -453,12 +575,95 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
+            {/* Humanized content boxes (one per humanize run) */}
+            {humanizedBoxes.map((box, idx) => (
+              <div key={idx} className={styles.humanizedSection}>
+                <div className={styles.humanizedHeader}>
+                  <span className={styles.humanizedLabel}>
+                    Humanized · {box.provider}
+                  </span>
+                  <div className={styles.humanizedActions}>
+                    <button
+                      type="button"
+                      className={styles.humanizedActionBtn}
+                      title="Retry with different humanizer"
+                      onClick={handleHumanizeRetry}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.humanizedActionBtn}
+                      title="Copy to clipboard"
+                      onClick={() => void navigator.clipboard.writeText(box.content)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    </button>
+                    <a
+                      href="https://gptzero.me"
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.humanizedActionBtn}
+                      title="Check on GPTZero"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.humanizedToggle}
+                  onClick={() => setHumanizedBoxOpen((prev) => !prev)}
+                >
+                  <span>{humanizedBoxOpen ? "Collapse" : "Expand"} content</span>
+                  <svg
+                    className={`${styles.thinkingChevron} ${humanizedBoxOpen ? styles.thinkingChevronOpen : ""}`}
+                    width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {humanizedBoxOpen && (
+                  <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
+                    {box.content}
+                  </div>
+                )}
+              </div>
+            ))}
+
             {runError && (
               <div className={styles.errorLine}>
                 <span>{runError}</span>
               </div>
             )}
           </section>
+
+          {/* Timer bar */}
+          <div className={`${styles.timerBar} ${finalDuration !== null ? styles.timerBarDone : ""}`}>
+            {finalDuration !== null ? (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>Completed in {formatDuration(finalDuration)}</span>
+              </>
+            ) : (
+              <>
+                <span className={styles.timerDot} />
+                <span>{formatDuration(elapsedSeconds)}</span>
+              </>
+            )}
+          </div>
 
           {/* Chat bar */}
           <div className={styles.mainChatBar}>
