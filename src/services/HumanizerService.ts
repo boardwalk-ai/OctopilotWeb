@@ -42,7 +42,8 @@ export class HumanizerService {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Undetectable AI failed: ${res.status}`);
+            const detail = err.details ? ` — ${err.details}` : "";
+            throw new Error((err.error || `Undetectable AI failed: ${res.status}`) + detail);
         }
 
         const data = await res.json();
