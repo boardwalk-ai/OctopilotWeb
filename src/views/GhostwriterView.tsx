@@ -19,6 +19,7 @@ const sora = Sora({
 
 type GhostwriterViewProps = {
   onBack: () => void;
+  onStart: (draft: { prompt: string; attachments: File[] }) => void;
 };
 
 type SpeechRecognitionAlternative = {
@@ -134,7 +135,7 @@ async function ensureMicrophoneAccess() {
   stream.getTracks().forEach((track) => track.stop());
 }
 
-export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
+export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
@@ -273,9 +274,11 @@ export default function GhostwriterView({ onBack }: GhostwriterViewProps) {
       return;
     }
 
-    setSubmitMessage(sourceSearchEnabled
-      ? "Ghostwriter draft staged with source search enabled."
-      : "Ghostwriter draft staged with local-only input.");
+    setSubmitMessage("");
+    onStart({
+      prompt,
+      attachments,
+    });
   };
 
   if (accessState === "loading") {

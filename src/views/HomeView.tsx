@@ -24,6 +24,7 @@ import EditorView from "@/views/EditorView";
 import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import GhostwriterView from "@/views/GhostwriterView";
+import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import essayTypeMobileStyles from "./EssayTypeViewMobile.module.css";
@@ -45,7 +46,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -58,6 +59,7 @@ export default function HomeView() {
   const [selectedMajor, setSelectedMajor] = useState(0);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
+  const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
   const stepScrollRef = useRef<HTMLDivElement>(null);
   const org = useOrganizer();
 
@@ -171,7 +173,25 @@ export default function HomeView() {
   if (page === "ghostwriter") {
     return (
       <>
-        <GhostwriterView onBack={() => setPage("methodology")} />
+        <GhostwriterView
+          onBack={() => setPage("methodology")}
+          onStart={(draft) => {
+            setGhostwriterDraft(draft);
+            setPage("ghostwriter-workflow");
+          }}
+        />
+        <OctoAssistant currentPage={page} />
+      </>
+    );
+  }
+
+  if (page === "ghostwriter-workflow") {
+    return (
+      <>
+        <GhostwriterWorkflowView
+          draft={ghostwriterDraft}
+          onBack={() => setPage("ghostwriter")}
+        />
         <OctoAssistant currentPage={page} />
       </>
     );
