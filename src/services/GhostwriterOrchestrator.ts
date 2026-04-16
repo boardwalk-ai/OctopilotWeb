@@ -8,6 +8,8 @@ import { ZulyService } from "./ZulyService";
 import { LucasService } from "./LucasService";
 import { FormatterService } from "./FormatterService";
 import { FormatterPage } from "./FormatterTypes";
+import { fetchWithUserAuthorization } from "./authenticatedFetch";
+import { GhostwriterRunState, GhostwriterToolCall, GhostwriterQuestionField } from "@/lib/ghostwriterTypes";
 
 export type GhostwriterDraftInput = {
     prompt: string;
@@ -271,5 +273,112 @@ export class GhostwriterOrchestrator {
             exportDocument: snapshot,
         });
         return snapshot;
+    }
+
+    static async startRun(prompt: string): Promise<GhostwriterRunState> {
+        const detectedSettings = GhostwriterOrchestrator.detectDraftSettings(prompt);
+        const response = await fetchWithUserAuthorization("/api/ghostwriter/runs/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                prompt,
+                detectedSettings,
+            }),
+        });
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Ghostwriter run failed to start: ${response.status}`);
+        }
+
+        return response.json() as Promise<GhostwriterRunState>;
+    }
+
+    static async submitToolResult(runId: string, toolName: GhostwriterToolCall["name"], result: unknown): Promise<GhostwriterRunState> {
+        const response = await fetchWithUserAuthorization(`/api/ghostwriter/runs/${runId}/tool`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                toolName,
+                result,
+            }),
+        });
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Ghostwriter tool submission failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<GhostwriterRunState>;
+    }
+
+    static async submitAnswer(runId: string, field: GhostwriterQuestionField, value: string | number): Promise<GhostwriterRunState> {
+        const response = await fetchWithUserAuthorization(`/api/ghostwriter/runs/${runId}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                field,
+                value,
+            }),
+        });
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Ghostwriter answer submission failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<GhostwriterRunState>;
+    }
+
+    static async executeToolCall(toolCall: GhostwriterToolCall, draft: GhostwriterDraftInput): Promise<unknown> {
+        switch (toolCall.name) {
+            case "analyze_instruction": {
+                const analysis = await GhostwriterOrchestrator.analyzeInstruction(draft);
+                return analysis;
+            }
+            case "generate_outlines": {
+                const outlines = await GhostwriterOrchestrator.setupOutlines();
+                return { count: outlines.length };
+            }
+            case "search_sources": {
+                const targetCount = Number(toolCall.args?.targetCount || 4);
+                const sources = await GhostwriterOrchestrator.searchSources(targetCount);
+                return { sources };
+            }
+            case "scrape_sources": {
+                const sources = (toolCall.args?.sources || []) as AlvinSearchResult[];
+                const scraped = await GhostwriterOrchestrator.scrapeSources(sources);
+                return { scrapedCount: scraped.length };
+            }
+            case "compact_sources": {
+                const compacted = await GhostwriterOrchestrator.gatherSourceData();
+                return { compactedCount: compacted.length };
+            }
+            case "generate_essay": {
+                const essay = await GhostwriterOrchestrator.sculptEssay(() => {
+                    // Run silently. The orchestrator owns progress now.
+                });
+                return { wordCount: essay.essay.split(/\s+/).filter(Boolean).length };
+            }
+            case "finalize_export": {
+                const formatAnswers = (toolCall.args?.formatAnswers || {}) as Partial<GhostwriterFormatAnswers>;
+                GhostwriterOrchestrator.applyFormatAnswers({
+                    finalEssayTitle: Organizer.get().finalEssayTitle || Organizer.get().essayTopic || "Ghostwriter Draft",
+                    studentName: String(formatAnswers.studentName || ""),
+                    instructorName: String(formatAnswers.instructorName || ""),
+                    institutionName: String(formatAnswers.institutionName || ""),
+                    courseInfo: String(formatAnswers.courseInfo || ""),
+                    subjectCode: String(formatAnswers.subjectCode || ""),
+                    essayDate: String(formatAnswers.essayDate || ""),
+                });
+                const snapshot = await GhostwriterOrchestrator.finalizeDocument();
+                return {
+                    title: snapshot.title,
+                    pageCount: snapshot.pages.length,
+                };
+            }
+            default:
+                throw new Error(`Unknown Ghostwriter tool: ${toolCall.name}`);
+        }
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -12,8 +12,8 @@ import {
   GhostwriterFormatAnswers,
   GhostwriterOrchestrator,
 } from "@/services/GhostwriterOrchestrator";
-import { AlvinSearchResult } from "@/services/AlvinService";
 import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
+import { GhostwriterQuestionField, GhostwriterRunState } from "@/lib/ghostwriterTypes";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -43,40 +43,6 @@ const INITIAL_STEPS: WorkflowStep[] = [
   { id: 10, title: "Finished product", detail: "Prepare the PDF-ready export.", status: "pending" },
 ];
 
-const FORMAT_QUESTION_FIELDS: Array<keyof GhostwriterFormatAnswers> = [
-  "studentName",
-  "instructorName",
-  "institutionName",
-  "courseInfo",
-  "subjectCode",
-  "essayDate",
-];
-
-function getQuestionLabel(field: keyof GhostwriterFormatAnswers | keyof GhostwriterDraftSettings) {
-  switch (field) {
-    case "wordCount":
-      return "What word count should I target?";
-    case "citationStyle":
-      return "Which citation format should I use?";
-    case "studentName":
-      return "What is the student name?";
-    case "instructorName":
-      return "Who is the instructor?";
-    case "institutionName":
-      return "Which institution should I place on the paper?";
-    case "courseInfo":
-      return "What course information should I show?";
-    case "subjectCode":
-      return "What is the subject or course code?";
-    case "essayDate":
-      return "What date should appear on the essay?";
-    case "finalEssayTitle":
-      return "What title should I put on the essay?";
-    default:
-      return "One more detail.";
-  }
-}
-
 function makeFileName(title: string, ext: string) {
   const safe = title
     .trim()
@@ -94,11 +60,19 @@ function defaultDateString() {
   });
 }
 
+function getAnswerValue(
+  field: GhostwriterQuestionField,
+  draftSettings: GhostwriterDraftSettings,
+  formatAnswers: GhostwriterFormatAnswers,
+) {
+  if (field === "wordCount") return draftSettings.wordCount;
+  if (field === "citationStyle") return draftSettings.citationStyle;
+  return formatAnswers[field];
+}
+
 export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
   const org = useOrganizer();
-  const [steps, setSteps] = useState(INITIAL_STEPS);
-  const [phase, setPhase] = useState<"boot" | "needDraftSettings" | "needFormatInfo" | "finished">("boot");
-  const [searchResults, setSearchResults] = useState<AlvinSearchResult[]>([]);
+  const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
   const [draftSettings, setDraftSettings] = useState<GhostwriterDraftSettings>(() => {
     const detected = GhostwriterOrchestrator.detectDraftSettings(draft.prompt);
     return {
@@ -119,18 +93,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [activeDownload, setActiveDownload] = useState(false);
   const [runError, setRunError] = useState("");
   const [showOutlines, setShowOutlines] = useState(false);
-  const [draftQuestionField, setDraftQuestionField] = useState<keyof GhostwriterDraftSettings | null>(null);
-  const [formatQuestionIndex, setFormatQuestionIndex] = useState(0);
   const hasStarted = useRef(false);
+  const isExecutingTool = useRef(false);
   const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
-
-  const updateStep = (id: number, status: StepStatus, detail?: string) => {
-    setSteps((prev) => prev.map((step) => (
-      step.id === id
-        ? { ...step, status, detail: detail || step.detail }
-        : step
-    )));
-  };
 
   const topicSummary = useMemo(() => ({
     topic: org.essayTopic || "Waiting for topic",
@@ -140,27 +105,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   }), [org.analyzedEssayType, org.citationStyle, org.essayTopic, org.essayType, org.wordCount]);
 
   const visibleSteps = useMemo(
-    () => steps.filter((step) => step.status !== "pending"),
-    [steps]
+    () => (runState?.steps || INITIAL_STEPS).filter((step) => step.status !== "pending"),
+    [runState]
   );
-
-  const currentFormatField = FORMAT_QUESTION_FIELDS[formatQuestionIndex] || null;
-
-  const continueAfterDraftSettings = useCallback(async () => {
-    try {
-      updateStep(7, "running");
-      await GhostwriterOrchestrator.sculptEssay(() => {
-        // Keep the workflow clean. No visible token stream here.
-      });
-      updateStep(7, "completed", "Lucas delivered the essay draft.");
-
-      updateStep(8, "blocked");
-      setFormatQuestionIndex(0);
-      setPhase("needFormatInfo");
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : "Lucas generation failed.");
-    }
-  }, []);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -168,97 +115,52 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
     void (async () => {
       try {
-        updateStep(1, "running");
-        const analysis = await GhostwriterOrchestrator.analyzeInstruction(draft);
         setFormatAnswers((prev) => ({
           ...prev,
-          finalEssayTitle: analysis.essayTopic,
+          finalEssayTitle: Organizer.get().essayTopic || prev.finalEssayTitle,
         }));
-        updateStep(1, "completed", `Topic locked: ${analysis.essayTopic}`);
-
-        updateStep(2, "running");
-        const outlines = await GhostwriterOrchestrator.setupOutlines();
-        updateStep(2, "completed", `${outlines.length} outline blocks are ready.`);
-
-        updateStep(3, "running");
-        const sources = await GhostwriterOrchestrator.searchSources(4);
-        setSearchResults(sources);
-        updateStep(3, "completed", `${sources.length} candidate sources found.`);
-
-        updateStep(4, "completed", `${sources.length} sources are visible in the right sidebar.`);
-
-        updateStep(5, "running");
-        await GhostwriterOrchestrator.scrapeSources(sources);
-        const compacted = await GhostwriterOrchestrator.gatherSourceData();
-        updateStep(5, "completed", `${compacted.length} sources compacted for Lucas.`);
-
-        const detected = GhostwriterOrchestrator.detectDraftSettings(draft.prompt);
-        if (!detected.wordCount) {
-          updateStep(6, "blocked");
-          setDraftQuestionField("wordCount");
-          setPhase("needDraftSettings");
-          return;
-        }
-
-        if (!detected.citationStyle) {
-          Organizer.set({
-            wordCount: detected.wordCount,
-          });
-          updateStep(6, "blocked");
-          setDraftQuestionField("citationStyle");
-          setPhase("needDraftSettings");
-          return;
-        }
-
-        GhostwriterOrchestrator.applyDraftSettings({
-          wordCount: detected.wordCount,
-          citationStyle: detected.citationStyle,
-        });
-        updateStep(6, "completed", `Using ${detected.wordCount} words in ${detected.citationStyle}.`);
-
-        await continueAfterDraftSettings();
+        const startedRun = await GhostwriterOrchestrator.startRun(draft.prompt);
+        setRunState(startedRun);
       } catch (error) {
         setRunError(error instanceof Error ? error.message : "Ghostwriter workflow failed.");
       }
     })();
-  }, [continueAfterDraftSettings, draft]);
+  }, [draft]);
 
-  const finishFormatting = async () => {
+  useEffect(() => {
+    if (!runState?.pendingToolCall || isExecutingTool.current) return;
+
+    isExecutingTool.current = true;
+    void (async () => {
+      try {
+        const result = await GhostwriterOrchestrator.executeToolCall(runState.pendingToolCall!, draft);
+        const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, runState.pendingToolCall!.name, result);
+        setRunState(nextState);
+      } catch (error) {
+        setRunError(error instanceof Error ? error.message : "Tool execution failed.");
+      } finally {
+        isExecutingTool.current = false;
+      }
+    })();
+  }, [draft, runState]);
+
+  useEffect(() => {
+    if (runState?.status === "finished") {
+      setExportDocument(Organizer.get().exportDocument);
+    }
+  }, [runState]);
+
+  const submitCurrentAnswer = async () => {
+    if (!runState?.pendingQuestion) return;
+
     try {
-      updateStep(8, "completed", "Formatting details collected.");
-      updateStep(9, "running");
-      GhostwriterOrchestrator.applyFormatAnswers(formatAnswers);
-      const snapshot = await GhostwriterOrchestrator.finalizeDocument();
-      setExportDocument(snapshot);
-      updateStep(9, "completed", "Citation layout applied in the background.");
-
-      updateStep(10, "completed", "PDF-ready file is ready to download.");
-      setPhase("finished");
+      const field = runState.pendingQuestion.field;
+      const value = getAnswerValue(field, draftSettings, formatAnswers);
+      const nextState = await GhostwriterOrchestrator.submitAnswer(runState.runId, field, value);
+      setRunState(nextState);
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : "Formatting failed.");
+      setRunError(error instanceof Error ? error.message : "Question submission failed.");
     }
-  };
-
-  const handleDraftSettingsSubmit = async () => {
-    if (draftQuestionField === "wordCount") {
-      setDraftQuestionField("citationStyle");
-      return;
-    }
-
-    GhostwriterOrchestrator.applyDraftSettings(draftSettings);
-    updateStep(6, "completed", `Using ${draftSettings.wordCount} words in ${draftSettings.citationStyle}.`);
-    setPhase("boot");
-    setDraftQuestionField(null);
-    await continueAfterDraftSettings();
-  };
-
-  const handleFormatQuestionContinue = async () => {
-    if (formatQuestionIndex < FORMAT_QUESTION_FIELDS.length - 1) {
-      setFormatQuestionIndex((prev) => prev + 1);
-      return;
-    }
-
-    await finishFormatting();
   };
 
   const handlePdfDownload = async () => {
@@ -353,7 +255,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             <Image src="/OCTOPILOT.png" alt="Octopilot" width={54} height={54} className={styles.heroLogo} />
             <div>
               <div className={styles.sidebarLabel}>Agentic Workflow</div>
-              <h2 className={styles.mainTitle}>Ghostwriter is moving through the workflow one step at a time.</h2>
+              <h2 className={styles.mainTitle}>{runState?.goal.title || "Ghostwriter is moving through the workflow one step at a time."}</h2>
+              <p className={styles.goalProgress}>
+                {runState?.progress.label || "Starting"} · {runState?.progress.percent || 0}% complete
+              </p>
             </div>
           </div>
 
@@ -369,7 +274,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             ))}
 
-            {phase === "finished" && exportDocument && (
+            {runState?.status === "finished" && exportDocument && (
               <div className={styles.finishedCard}>
                 <h3>Finished product ready.</h3>
                 <p>The export snapshot is complete. Download the PDF directly from here.</p>
@@ -387,12 +292,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </section>
         </main>
 
-        {searchResults.length > 0 && (
+        {(runState?.context.searchResults || []).length > 0 && (
           <aside className={styles.rightSidebar}>
             <div className={styles.sidebarCard}>
               <div className={styles.sidebarLabel}>Sources</div>
               <div className={styles.sourceList}>
-                {searchResults.map((source, index) => (
+                {(runState?.context.searchResults || []).map((source, index) => (
                   <div key={`${source.website_URL}-${index}`} className={styles.sourceItem}>
                     <strong>{source.Title || `Source ${index + 1}`}</strong>
                     <span>{source.Publisher || source.Author || "Search result"}</span>
@@ -422,7 +327,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </aside>
         )}
 
-        {searchResults.length === 0 && (
+        {((runState?.context.searchResults || []).length === 0) && (
           <aside className={styles.rightSidebar}>
             <div className={styles.sidebarCard}>
               <div className={styles.sidebarLabel}>Essay Information</div>
@@ -455,51 +360,48 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         )}
       </div>
 
-      {(phase === "needDraftSettings" && draftQuestionField) ? (
+      {runState?.pendingQuestion ? (
         <div className={styles.bottomQuestionDock}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>Ghostwriter needs one detail</div>
-            <h3>{getQuestionLabel(draftQuestionField)}</h3>
+            <h3>{runState.pendingQuestion.prompt}</h3>
+            {runState.pendingQuestion.helperText ? (
+              <p className={styles.bottomQuestionHelper}>{runState.pendingQuestion.helperText}</p>
+            ) : null}
             <div className={styles.bottomQuestionInput}>
-              {draftQuestionField === "citationStyle" ? (
+              {runState.pendingQuestion.inputType === "select" ? (
                 <select
                   value={draftSettings.citationStyle}
                   onChange={(event) => setDraftSettings((prev) => ({ ...prev, citationStyle: event.target.value }))}
                 >
-                  {["APA", "MLA", "Chicago", "Harvard", "IEEE", "None"].map((style) => (
+                  {(runState.pendingQuestion.options || []).map((style) => (
                     <option key={style} value={style}>{style}</option>
                   ))}
                 </select>
               ) : (
                 <input
-                  type="number"
-                  min={300}
-                  max={4000}
-                  value={draftSettings.wordCount}
-                  onChange={(event) => setDraftSettings((prev) => ({ ...prev, wordCount: Number(event.target.value) || 1200 }))}
+                  type={runState.pendingQuestion.inputType === "number" ? "number" : "text"}
+                  min={runState.pendingQuestion.field === "wordCount" ? 300 : undefined}
+                  max={runState.pendingQuestion.field === "wordCount" ? 4000 : undefined}
+                  value={String(getAnswerValue(runState.pendingQuestion.field, draftSettings, formatAnswers))}
+                  onChange={(event) => {
+                    if (runState.pendingQuestion!.field === "wordCount") {
+                      setDraftSettings((prev) => ({ ...prev, wordCount: Number(event.target.value) || 1200 }));
+                      return;
+                    }
+
+                    if (runState.pendingQuestion!.field === "citationStyle") {
+                      setDraftSettings((prev) => ({ ...prev, citationStyle: event.target.value }));
+                      return;
+                    }
+
+                    const field = runState.pendingQuestion!.field;
+                    setFormatAnswers((prev) => ({ ...prev, [field]: event.target.value }));
+                  }}
                 />
               )}
-              <button type="button" className={styles.primaryButton} onClick={() => void handleDraftSettingsSubmit()}>
+              <button type="button" className={styles.primaryButton} onClick={() => void submitCurrentAnswer()}>
                 Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {(phase === "needFormatInfo" && currentFormatField) ? (
-        <div className={styles.bottomQuestionDock}>
-          <div className={styles.bottomQuestionCard}>
-            <div className={styles.bottomQuestionMeta}>One more formatting detail</div>
-            <h3>{getQuestionLabel(currentFormatField)}</h3>
-            <div className={styles.bottomQuestionInput}>
-              <input
-                type="text"
-                value={formatAnswers[currentFormatField]}
-                onChange={(event) => setFormatAnswers((prev) => ({ ...prev, [currentFormatField]: event.target.value }))}
-              />
-              <button type="button" className={styles.primaryButton} onClick={() => void handleFormatQuestionContinue()}>
-                {formatQuestionIndex === FORMAT_QUESTION_FIELDS.length - 1 ? "Finish" : "Next"}
               </button>
             </div>
           </div>
