@@ -54,6 +54,7 @@ export type GhostwriterQuestion = {
   helperText?: string;
   inputType: "text" | "number" | "select";
   options?: string[];
+  suggestions?: string[];
 };
 
 export type GhostwriterRunContext = {

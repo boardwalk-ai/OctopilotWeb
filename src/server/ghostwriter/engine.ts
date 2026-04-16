@@ -69,6 +69,10 @@ function makeToolCall(name: GhostwriterToolName, args?: Record<string, unknown>)
   };
 }
 
+function todayLabel() {
+  return new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
   switch (field) {
     case "wordCount":
@@ -78,6 +82,7 @@ function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
         prompt: "What word count should I target?",
         helperText: "I need this before Lucas can write.",
         inputType: "number",
+        suggestions: ["500", "800", "1200", "2000"],
       };
     case "citationStyle":
       return {
@@ -87,6 +92,7 @@ function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
         helperText: "Choose the format that should drive the final layout.",
         inputType: "select",
         options: ["APA", "MLA", "Chicago", "Harvard", "IEEE", "None"],
+        suggestions: ["APA", "MLA", "Chicago", "Harvard", "IEEE", "None"],
       };
     case "studentName":
       return { id: randomUUID(), field, prompt: "What is the student name?", inputType: "text" };
@@ -99,7 +105,13 @@ function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
     case "subjectCode":
       return { id: randomUUID(), field, prompt: "What is the subject or course code?", inputType: "text" };
     case "essayDate":
-      return { id: randomUUID(), field, prompt: "What date should appear on the essay?", inputType: "text" };
+      return {
+        id: randomUUID(),
+        field,
+        prompt: "What date should appear on the essay?",
+        inputType: "text",
+        suggestions: [todayLabel()],
+      };
     default:
       return { id: randomUUID(), field, prompt: "One more detail.", inputType: "text" };
   }

@@ -121,6 +121,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [showOutlines, setShowOutlines] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
+  const [customAnswer, setCustomAnswer] = useState("");
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
   const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -185,16 +186,27 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
 
-  const submitCurrentAnswer = async () => {
+  const submitCurrentAnswer = async (overrideValue?: string | number) => {
     if (!runState?.pendingQuestion) return;
 
     try {
       const field = runState.pendingQuestion.field;
-      const value = getAnswerValue(field, draftSettings, formatAnswers);
+      const value = overrideValue !== undefined ? overrideValue : getAnswerValue(field, draftSettings, formatAnswers);
       const nextState = await GhostwriterOrchestrator.submitAnswer(runState.runId, field, value);
       setRunState(nextState);
+      setCustomAnswer("");
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Question submission failed.");
+    }
+  };
+
+  const handleChipClick = (chip: string) => {
+    if (!runState?.pendingQuestion) return;
+    const field = runState.pendingQuestion.field;
+    if (field === "wordCount") {
+      void submitCurrentAnswer(Number(chip));
+    } else {
+      void submitCurrentAnswer(chip);
     }
   };
 
@@ -450,46 +462,70 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>
               <SpinnerIcon />
-              <span>Ghostwriter needs one detail</span>
+              <span>Ghostwriter</span>
             </div>
             <h3>{runState.pendingQuestion.prompt}</h3>
             {runState.pendingQuestion.helperText ? (
               <p className={styles.bottomQuestionHelper}>{runState.pendingQuestion.helperText}</p>
             ) : null}
+
+            {/* Suggestion chips */}
+            {(runState.pendingQuestion.suggestions || []).length > 0 && (
+              <div className={styles.suggestionChips}>
+                {(runState.pendingQuestion.suggestions || []).map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className={styles.suggestionChip}
+                    onClick={() => handleChipClick(chip)}
+                  >
+                    {runState.pendingQuestion!.field === "wordCount" ? `${chip} words` : chip}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Custom answer input */}
             <div className={styles.bottomQuestionInput}>
-              {runState.pendingQuestion.inputType === "select" ? (
-                <select
-                  value={draftSettings.citationStyle}
-                  onChange={(event) => setDraftSettings((prev) => ({ ...prev, citationStyle: event.target.value }))}
-                >
-                  {(runState.pendingQuestion.options || []).map((style) => (
-                    <option key={style} value={style}>{style}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={runState.pendingQuestion.inputType === "number" ? "number" : "text"}
-                  min={runState.pendingQuestion.field === "wordCount" ? 300 : undefined}
-                  max={runState.pendingQuestion.field === "wordCount" ? 4000 : undefined}
-                  value={String(getAnswerValue(runState.pendingQuestion.field, draftSettings, formatAnswers))}
-                  onChange={(event) => {
-                    if (runState.pendingQuestion!.field === "wordCount") {
-                      setDraftSettings((prev) => ({ ...prev, wordCount: Number(event.target.value) || 1200 }));
-                      return;
-                    }
-
-                    if (runState.pendingQuestion!.field === "citationStyle") {
-                      setDraftSettings((prev) => ({ ...prev, citationStyle: event.target.value }));
-                      return;
-                    }
-
-                    const field = runState.pendingQuestion!.field;
-                    setFormatAnswers((prev) => ({ ...prev, [field]: event.target.value }));
-                  }}
-                />
-              )}
-              <button type="button" className={styles.primaryButton} onClick={() => void submitCurrentAnswer()}>
-                Continue
+              <input
+                type={runState.pendingQuestion.inputType === "number" ? "number" : "text"}
+                className={styles.questionCustomInput}
+                placeholder={
+                  runState.pendingQuestion.field === "wordCount"
+                    ? "Or enter a custom count…"
+                    : runState.pendingQuestion.suggestions?.length
+                    ? "Or type a custom answer…"
+                    : "Type your answer…"
+                }
+                value={customAnswer}
+                min={runState.pendingQuestion.field === "wordCount" ? 300 : undefined}
+                max={runState.pendingQuestion.field === "wordCount" ? 4000 : undefined}
+                onChange={(e) => setCustomAnswer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && customAnswer.trim()) {
+                    const val = runState.pendingQuestion!.field === "wordCount"
+                      ? Number(customAnswer) || 1200
+                      : customAnswer;
+                    void submitCurrentAnswer(val);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={styles.questionSendBtn}
+                disabled={!customAnswer.trim()}
+                onClick={() => {
+                  if (!customAnswer.trim()) return;
+                  const val = runState.pendingQuestion!.field === "wordCount"
+                    ? Number(customAnswer) || 1200
+                    : customAnswer;
+                  void submitCurrentAnswer(val);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 2 11 13" />
+                  <path d="M22 2 15 22 11 13 2 9l20-7z" />
+                </svg>
               </button>
             </div>
           </div>
