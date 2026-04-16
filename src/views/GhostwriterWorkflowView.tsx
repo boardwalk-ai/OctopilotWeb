@@ -70,6 +70,32 @@ function getAnswerValue(
   return formatAnswers[field];
 }
 
+function SpinnerIcon() {
+  return (
+    <svg className={styles.spinnerIcon} width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="28 56" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function BlockedIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
+    </svg>
+  );
+}
+
 export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
@@ -93,6 +119,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [activeDownload, setActiveDownload] = useState(false);
   const [runError, setRunError] = useState("");
   const [showOutlines, setShowOutlines] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
   const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -195,6 +222,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     }
   };
 
+  const hasSearchResults = (runState?.context.searchResults || []).length > 0;
+
   return (
     <div className={styles.workflowShell}>
       <AppHeader
@@ -203,7 +232,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         right={<MainHeaderActions />}
       />
 
-      <div className={styles.workflowGrid}>
+      <div className={`${styles.workflowGrid} ${rightCollapsed ? styles.workflowGridCollapsed : ""}`}>
+        {/* Left sidebar */}
         <aside className={styles.leftSidebar}>
           <button type="button" className={styles.newChatButton} onClick={onBack}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -250,11 +280,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
         </aside>
 
+        {/* Main workflow stream */}
         <main className={styles.mainColumn}>
           <div className={styles.mainHero}>
-            <Image src="/OCTOPILOT.png" alt="Octopilot" width={54} height={54} className={styles.heroLogo} />
+            <Image src="/OCTOPILOT.png" alt="Octopilot" width={48} height={48} className={styles.heroLogo} />
             <div>
-              <div className={styles.sidebarLabel}>Agentic Workflow</div>
+              <div className={styles.heroLabel}>Agentic Workflow</div>
               <h2 className={styles.mainTitle}>{runState?.goal.title || "Ghostwriter is moving through the workflow one step at a time."}</h2>
               <p className={styles.goalProgress}>
                 {runState?.progress.label || "Starting"} · {runState?.progress.percent || 0}% complete
@@ -264,106 +295,128 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
           <section className={styles.workflowStream}>
             {visibleSteps.map((step) => (
-              <div key={step.id} className={`${styles.stepCard} ${styles[`step${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""}`}>
-                <div className={styles.stepIndex}>{step.id}</div>
-                <div className={styles.stepCopy}>
-                  <h3>{step.title}</h3>
-                  <p>{step.detail}</p>
+              <div
+                key={step.id}
+                className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""}`}
+              >
+                <div className={styles.streamIconWrap}>
+                  {step.status === "completed" && <CheckIcon />}
+                  {step.status === "running" && <SpinnerIcon />}
+                  {step.status === "blocked" && <BlockedIcon />}
                 </div>
-                <div className={styles.stepStatus}>{step.status}</div>
+                <div className={styles.streamCopy}>
+                  <span className={styles.streamTitle}>{step.title}</span>
+                  <span className={styles.streamDetail}>
+                    {step.detail}
+                    {step.status === "running" && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
+                  </span>
+                </div>
               </div>
             ))}
 
             {runState?.status === "finished" && exportDocument && (
-              <div className={styles.finishedCard}>
-                <h3>Finished product ready.</h3>
-                <p>The export snapshot is complete. Download the PDF directly from here.</p>
+              <div className={styles.finishedLine}>
+                <div className={styles.streamIconWrap} style={{ color: "#22c55e" }}>
+                  <CheckIcon />
+                </div>
+                <div className={styles.streamCopy}>
+                  <span className={styles.streamTitle}>Finished product ready.</span>
+                  <span className={styles.streamDetail}>The export snapshot is complete. Download the PDF directly from here.</span>
+                </div>
                 <button type="button" className={styles.primaryButton} onClick={() => void handlePdfDownload()}>
-                  {activeDownload ? "Preparing PDF..." : "Download PDF"}
+                  {activeDownload ? "Preparing PDF…" : "Download PDF"}
                 </button>
               </div>
             )}
 
             {runError && (
-              <div className={styles.errorCard}>
-                {runError}
+              <div className={styles.errorLine}>
+                <span>{runError}</span>
               </div>
             )}
           </section>
         </main>
 
-        {(runState?.context.searchResults || []).length > 0 && (
-          <aside className={styles.rightSidebar}>
-            <div className={styles.sidebarCard}>
-              <div className={styles.sidebarLabel}>Sources</div>
-              <div className={styles.sourceList}>
-                {(runState?.context.searchResults || []).map((source, index) => (
-                  <div key={`${source.website_URL}-${index}`} className={styles.sourceItem}>
-                    <strong>{source.Title || `Source ${index + 1}`}</strong>
-                    <span>{source.Publisher || source.Author || "Search result"}</span>
-                    <a href={source.website_URL} target="_blank" rel="noreferrer">{source.website_URL}</a>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className={styles.sidebarCard}>
-              <button type="button" className={styles.collapseButton} onClick={() => setShowOutlines((prev) => !prev)}>
-                <span>Outlines</span>
-                <svg className={`${styles.collapseChevron} ${showOutlines ? styles.collapseChevronOpen : ""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {showOutlines ? (
-                <div className={styles.outlineList}>
-                  {org.selectedOutlines.map((outline) => (
-                    <div key={outline.id} className={styles.outlineItem}>
-                      <strong>{outline.title}</strong>
-                      <span>{outline.description}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </aside>
-        )}
+        {/* Right sidebar */}
+        <aside className={`${styles.rightSidebar} ${rightCollapsed ? styles.rightSidebarHidden : ""}`}>
+          <div className={styles.rightSidebarHeader}>
+            <span className={styles.sidebarSectionLabel}>{hasSearchResults ? "Sources" : "Essay Information"}</span>
+            <button
+              type="button"
+              className={styles.collapseRightBtn}
+              onClick={() => setRightCollapsed(true)}
+              title="Collapse sidebar"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18 6-6-6-6" />
+                <path d="M9 18V6" />
+              </svg>
+            </button>
+          </div>
 
-        {((runState?.context.searchResults || []).length === 0) && (
-          <aside className={styles.rightSidebar}>
-            <div className={styles.sidebarCard}>
-              <div className={styles.sidebarLabel}>Essay Information</div>
-              <div className={styles.kvColumn}>
-                <div className={styles.kvStack}><span>Topic</span><strong>{topicSummary.topic}</strong></div>
-                <div className={styles.kvStack}><span>Essay Type</span><strong>{topicSummary.type}</strong></div>
-                <div className={styles.kvStack}><span>Citation</span><strong>{topicSummary.citation || "Pending"}</strong></div>
-                <div className={styles.kvStack}><span>Word Count</span><strong>{topicSummary.words || "Pending"}</strong></div>
-              </div>
-            </div>
-            <div className={styles.sidebarCard}>
-              <button type="button" className={styles.collapseButton} onClick={() => setShowOutlines((prev) => !prev)}>
-                <span>Outlines</span>
-                <svg className={`${styles.collapseChevron} ${showOutlines ? styles.collapseChevronOpen : ""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {showOutlines ? (
-                <div className={styles.outlineList}>
-                  {org.selectedOutlines.length > 0 ? org.selectedOutlines.map((outline) => (
-                    <div key={outline.id} className={styles.outlineItem}>
-                      <strong>{outline.title}</strong>
-                      <span>{outline.description}</span>
-                    </div>
-                  )) : <p className={styles.emptyText}>The outline stack will appear here after analysis.</p>}
+          {hasSearchResults ? (
+            <div className={styles.sourceList}>
+              {(runState?.context.searchResults || []).map((source, index) => (
+                <div key={`${source.website_URL}-${index}`} className={styles.sourceItem}>
+                  <strong>{source.Title || `Source ${index + 1}`}</strong>
+                  <span>{source.Publisher || source.Author || "Search result"}</span>
+                  <a href={source.website_URL} target="_blank" rel="noreferrer">{source.website_URL}</a>
                 </div>
-              ) : null}
+              ))}
             </div>
-          </aside>
+          ) : (
+            <div className={styles.kvColumn}>
+              <div className={styles.kvStack}><span>Topic</span><strong>{topicSummary.topic}</strong></div>
+              <div className={styles.kvStack}><span>Essay Type</span><strong>{topicSummary.type}</strong></div>
+              <div className={styles.kvStack}><span>Citation</span><strong>{topicSummary.citation || "Pending"}</strong></div>
+              <div className={styles.kvStack}><span>Word Count</span><strong>{topicSummary.words || "Pending"}</strong></div>
+            </div>
+          )}
+
+          <div className={styles.outlineSection}>
+            <button type="button" className={styles.collapseButton} onClick={() => setShowOutlines((prev) => !prev)}>
+              <span>Outlines</span>
+              <svg className={`${styles.collapseChevron} ${showOutlines ? styles.collapseChevronOpen : ""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {showOutlines && (
+              <div className={styles.outlineList}>
+                {org.selectedOutlines.length > 0 ? org.selectedOutlines.map((outline) => (
+                  <div key={outline.id} className={styles.outlineItem}>
+                    <strong>{outline.title}</strong>
+                    <span>{outline.description}</span>
+                  </div>
+                )) : <p className={styles.emptyText}>The outline stack will appear here after analysis.</p>}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Right sidebar collapsed tab */}
+        {rightCollapsed && (
+          <button
+            type="button"
+            className={styles.expandRightBtn}
+            onClick={() => setRightCollapsed(false)}
+            title="Expand sidebar"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18-6-6 6-6" />
+              <path d="M15 18V6" />
+            </svg>
+          </button>
         )}
       </div>
 
+      {/* AI question dock — slides up from screen bottom */}
       {runState?.pendingQuestion ? (
         <div className={styles.bottomQuestionDock}>
           <div className={styles.bottomQuestionCard}>
-            <div className={styles.bottomQuestionMeta}>Ghostwriter needs one detail</div>
+            <div className={styles.bottomQuestionMeta}>
+              <SpinnerIcon />
+              <span>Ghostwriter needs one detail</span>
+            </div>
             <h3>{runState.pendingQuestion.prompt}</h3>
             {runState.pendingQuestion.helperText ? (
               <p className={styles.bottomQuestionHelper}>{runState.pendingQuestion.helperText}</p>
