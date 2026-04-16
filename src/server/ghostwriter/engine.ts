@@ -25,16 +25,16 @@ type InternalRun = {
 const runStore = new Map<string, InternalRun>();
 
 const INITIAL_STEPS: GhostwriterWorkflowStep[] = [
-  { id: 1, title: "Analyze the instruction", detail: "Hein reads the prompt and defines the topic.", status: "pending" },
-  { id: 2, title: "Setting up outlines", detail: "Lily prepares the paragraph structure.", status: "pending" },
-  { id: 3, title: "Source search", detail: "Alvin looks for useful sources.", status: "pending" },
-  { id: 4, title: "Sources sidebar", detail: "Source results open in the right column.", status: "pending" },
-  { id: 5, title: "Gathering data from sources", detail: "Scraping and compaction run here.", status: "pending" },
-  { id: 6, title: "Clarify draft settings", detail: "Ask for missing word count and citation style.", status: "pending" },
-  { id: 7, title: "Sculpting the essay", detail: "Lucas writes the draft.", status: "pending" },
-  { id: 8, title: "Collect formatting details", detail: "Ask for student, instructor, and course metadata.", status: "pending" },
-  { id: 9, title: "Formatting in the background", detail: "Apply the final citation layout without showing the intermediate editor step.", status: "pending" },
-  { id: 10, title: "Finished product", detail: "Prepare the PDF-ready export.", status: "pending" },
+  { id: 1, title: "Analyzing your instruction", detail: "Reading the prompt and locking in the topic.", status: "pending" },
+  { id: 2, title: "Building paragraph outlines", detail: "Structuring the essay section by section.", status: "pending" },
+  { id: 3, title: "Searching for sources", detail: "Looking for relevant, citable sources.", status: "pending" },
+  { id: 4, title: "Populating the sources panel", detail: "Loading search results into the sidebar.", status: "pending" },
+  { id: 5, title: "Gathering data from sources", detail: "Scraping and compacting source content.", status: "pending" },
+  { id: 6, title: "Checking draft settings", detail: "Confirming word count and citation style before writing.", status: "pending" },
+  { id: 7, title: "Writing your essay", detail: "Drafting the full essay from outlines and sources.", status: "pending" },
+  { id: 8, title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.", status: "pending" },
+  { id: 9, title: "Applying citation layout", detail: "Running the citation formatter in the background.", status: "pending" },
+  { id: 10, title: "Preparing your PDF", detail: "Packaging the final document for download.", status: "pending" },
 ];
 
 const GOAL: GhostwriterGoal = {
@@ -225,7 +225,7 @@ function askFormatQuestion(run: InternalRun) {
     });
   }
 
-  run.state.steps = setStep(run.state.steps, 8, "completed", "Formatting details collected.");
+  run.state.steps = setStep(run.state.steps, 8, "completed", "All formatting metadata collected.");
   run.state.steps = setStep(run.state.steps, 9, "running");
   return finalizeState(run, {
     status: "running",
@@ -244,7 +244,7 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
     const analysis = (result || {}) as { essayTopic?: string; essayType?: string };
     run.state.context.topic = analysis.essayTopic || "Untitled topic";
     run.state.context.essayType = analysis.essayType || "Essay";
-    run.state.steps = setStep(run.state.steps, 1, "completed", `Topic locked: ${run.state.context.topic}`);
+    run.state.steps = setStep(run.state.steps, 1, "completed", `Topic identified: ${run.state.context.topic}`);
     run.state.steps = setStep(run.state.steps, 2, "running");
     return finalizeState(run, {
       pendingToolCall: makeToolCall("generate_outlines"),
@@ -255,7 +255,7 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
 
   if (toolName === "generate_outlines") {
     const count = Number((result as { count?: number } | undefined)?.count || 0);
-    run.state.steps = setStep(run.state.steps, 2, "completed", `${count} outline blocks are ready.`);
+    run.state.steps = setStep(run.state.steps, 2, "completed", `Built ${count} outline sections.`);
     run.state.steps = setStep(run.state.steps, 3, "running");
     return finalizeState(run, {
       pendingToolCall: makeToolCall("search_sources", { targetCount: 4 }),
@@ -267,8 +267,8 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
   if (toolName === "search_sources") {
     const sources = ((result as { sources?: AlvinSearchResult[] } | undefined)?.sources || []) as AlvinSearchResult[];
     run.state.context.searchResults = sources;
-    run.state.steps = setStep(run.state.steps, 3, "completed", `${sources.length} candidate sources found.`);
-    run.state.steps = setStep(run.state.steps, 4, "completed", `${sources.length} sources are visible in the right sidebar.`);
+    run.state.steps = setStep(run.state.steps, 3, "completed", `Found ${sources.length} candidate sources.`);
+    run.state.steps = setStep(run.state.steps, 4, "completed", `Loaded ${sources.length} sources into the sidebar.`);
     run.state.steps = setStep(run.state.steps, 5, "running");
     return finalizeState(run, {
       pendingToolCall: makeToolCall("scrape_sources", { sources }),
@@ -279,7 +279,7 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
 
   if (toolName === "scrape_sources") {
     const scrapedCount = Number((result as { scrapedCount?: number } | undefined)?.scrapedCount || 0);
-    run.state.steps = setStep(run.state.steps, 5, "running", `${scrapedCount} sources scraped. Compacting now.`);
+    run.state.steps = setStep(run.state.steps, 5, "running", `Scraped ${scrapedCount} sources. Compacting now.`);
     return finalizeState(run, {
       pendingToolCall: makeToolCall("compact_sources"),
       pendingQuestion: null,
@@ -289,18 +289,18 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
 
   if (toolName === "compact_sources") {
     const compactedCount = Number((result as { compactedCount?: number } | undefined)?.compactedCount || 0);
-    run.state.steps = setStep(run.state.steps, 5, "completed", `${compactedCount} sources compacted for Lucas.`);
+    run.state.steps = setStep(run.state.steps, 5, "completed", `Compacted ${compactedCount} sources for the essay draft.`);
     return askDraftQuestion(run);
   }
 
   if (toolName === "generate_essay") {
-    run.state.steps = setStep(run.state.steps, 7, "completed", "Lucas delivered the essay draft.");
+    run.state.steps = setStep(run.state.steps, 7, "completed", "Essay draft written and ready.");
     return askFormatQuestion(run);
   }
 
   if (toolName === "finalize_export") {
-    run.state.steps = setStep(run.state.steps, 9, "completed", "Citation layout applied in the background.");
-    run.state.steps = setStep(run.state.steps, 10, "completed", "PDF-ready file is ready to download.");
+    run.state.steps = setStep(run.state.steps, 9, "completed", "Citation layout applied successfully.");
+    run.state.steps = setStep(run.state.steps, 10, "completed", "Your PDF is packaged and ready to download.");
     return finalizeState(run, {
       status: "finished",
       pendingToolCall: null,

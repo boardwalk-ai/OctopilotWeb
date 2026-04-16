@@ -31,17 +31,27 @@ type WorkflowStep = {
 };
 
 const INITIAL_STEPS: WorkflowStep[] = [
-  { id: 1, title: "Analyze the instruction", detail: "Hein reads the prompt and defines the topic.", status: "pending" },
-  { id: 2, title: "Setting up outlines", detail: "Lily prepares the paragraph structure.", status: "pending" },
-  { id: 3, title: "Source search", detail: "Alvin looks for useful sources.", status: "pending" },
-  { id: 4, title: "Sources sidebar", detail: "Source results open in the right column.", status: "pending" },
-  { id: 5, title: "Gathering data from sources", detail: "Scraping and compaction run here.", status: "pending" },
-  { id: 6, title: "Clarify draft settings", detail: "Ask for missing word count and citation style.", status: "pending" },
-  { id: 7, title: "Sculpting the essay", detail: "Lucas writes the draft.", status: "pending" },
-  { id: 8, title: "Collect formatting details", detail: "Ask for student, instructor, and course metadata.", status: "pending" },
-  { id: 9, title: "Formatting in the background", detail: "Apply the final citation layout without showing the intermediate editor step.", status: "pending" },
-  { id: 10, title: "Finished product", detail: "Prepare the PDF-ready export.", status: "pending" },
+  { id: 1, title: "Analyzing your instruction", detail: "Reading the prompt and locking in the topic.", status: "pending" },
+  { id: 2, title: "Building paragraph outlines", detail: "Structuring the essay section by section.", status: "pending" },
+  { id: 3, title: "Searching for sources", detail: "Looking for relevant, citable sources.", status: "pending" },
+  { id: 4, title: "Populating the sources panel", detail: "Loading search results into the sidebar.", status: "pending" },
+  { id: 5, title: "Gathering data from sources", detail: "Scraping and compacting source content.", status: "pending" },
+  { id: 6, title: "Checking draft settings", detail: "Confirming word count and citation style before writing.", status: "pending" },
+  { id: 7, title: "Writing your essay", detail: "Drafting the full essay from outlines and sources.", status: "pending" },
+  { id: 8, title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.", status: "pending" },
+  { id: 9, title: "Applying citation layout", detail: "Running the citation formatter in the background.", status: "pending" },
+  { id: 10, title: "Preparing your PDF", detail: "Packaging the final document for download.", status: "pending" },
 ];
+
+const TOOL_LABELS: Record<string, string> = {
+  analyze_instruction: "analyze_instruction",
+  generate_outlines: "generate_outlines",
+  search_sources: "search_sources",
+  scrape_sources: "scrape_sources",
+  compact_sources: "compact_sources",
+  generate_essay: "generate_essay",
+  finalize_export: "finalize_export",
+};
 
 function makeFileName(title: string, ext: string) {
   const safe = title
@@ -122,10 +132,15 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [customAnswer, setCustomAnswer] = useState("");
+  const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
+  // Question fade transition
+  const [displayedQuestion, setDisplayedQuestion] = useState(runState?.pendingQuestion ?? null);
+  const [questionExiting, setQuestionExiting] = useState(false);
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
   const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const streamRef = useRef<HTMLElement>(null);
+  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const topicSummary = useMemo(() => ({
     topic: org.essayTopic || "Waiting for topic",
@@ -185,6 +200,25 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     const el = streamRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
+
+  // Question fade transition
+  useEffect(() => {
+    const next = runState?.pendingQuestion ?? null;
+    if (next?.id === displayedQuestion?.id) return;
+
+    if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
+
+    if (displayedQuestion) {
+      setQuestionExiting(true);
+      questionTimerRef.current = setTimeout(() => {
+        setDisplayedQuestion(next);
+        setQuestionExiting(false);
+      }, 210);
+    } else {
+      setDisplayedQuestion(next);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runState?.pendingQuestion?.id]);
 
   const submitCurrentAnswer = async (overrideValue?: string | number) => {
     if (!runState?.pendingQuestion) return;
@@ -314,37 +348,107 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
 
           <section ref={streamRef} className={styles.workflowStream}>
-            {visibleSteps.map((step) => (
-              <div
-                key={step.id}
-                className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""}`}
-              >
-                <div className={styles.streamIconWrap}>
-                  {step.status === "completed" && <CheckIcon />}
-                  {step.status === "running" && <SpinnerIcon />}
-                  {step.status === "blocked" && <BlockedIcon />}
+            {visibleSteps.map((step) => {
+              const isRunning = step.status === "running";
+              const thinkingOpen = openThinkingSteps.has(step.id);
+              const isActiveToolStep = isRunning && runState?.pendingToolCall;
+
+              return (
+                <div
+                  key={step.id}
+                  className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""}`}
+                >
+                  <div className={styles.streamIconWrap}>
+                    {step.status === "completed" && <CheckIcon />}
+                    {step.status === "running" && <SpinnerIcon />}
+                    {step.status === "blocked" && <BlockedIcon />}
+                  </div>
+                  <div className={styles.streamCopy}>
+                    <span className={styles.streamTitle}>
+                      {step.title}
+                      {isRunning && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
+                    </span>
+
+                    {/* Completed step: just detail */}
+                    {!isRunning && (
+                      <span className={styles.streamDetail}>{step.detail}</span>
+                    )}
+
+                    {/* Running step: thinking collapsible + tool call */}
+                    {isRunning && (
+                      <div className={styles.thinkingSection}>
+                        <button
+                          type="button"
+                          className={styles.thinkingToggle}
+                          onClick={() => setOpenThinkingSteps((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(step.id)) next.delete(step.id);
+                            else next.add(step.id);
+                            return next;
+                          })}
+                        >
+                          <span>Thinking</span>
+                          <svg
+                            className={`${styles.thinkingChevron} ${thinkingOpen ? styles.thinkingChevronOpen : ""}`}
+                            width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          >
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+
+                        {thinkingOpen && (
+                          <div className={styles.thinkingBox}>
+                            {step.detail}
+                          </div>
+                        )}
+
+                        {isActiveToolStep && (
+                          <div className={styles.toolCallLine}>
+                            <span className={styles.toolCallLabel}>Calling</span>
+                            <code className={styles.toolCallName}>
+                              {TOOL_LABELS[runState.pendingToolCall!.name] || runState.pendingToolCall!.name}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className={styles.streamCopy}>
-                  <span className={styles.streamTitle}>{step.title}</span>
-                  <span className={styles.streamDetail}>
-                    {step.detail}
-                    {step.status === "running" && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {runState?.status === "finished" && exportDocument && (
-              <div className={styles.finishedLine}>
-                <div className={styles.streamIconWrap} style={{ color: "#22c55e" }}>
-                  <CheckIcon />
+              <div className={styles.finishedCard} onClick={() => void handlePdfDownload()}>
+                <div className={styles.finishedCardIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
                 </div>
-                <div className={styles.streamCopy}>
-                  <span className={styles.streamTitle}>Finished product ready.</span>
-                  <span className={styles.streamDetail}>The export snapshot is complete. Download the PDF directly from here.</span>
+                <div className={styles.finishedCardMeta}>
+                  <span className={styles.finishedCardTitle}>{exportDocument.title || "Your Essay"}</span>
+                  <span className={styles.finishedCardFilename}>{makeFileName(exportDocument.title, "pdf")}</span>
+                  <span className={styles.finishedCardType}>PDF</span>
                 </div>
-                <button type="button" className={styles.primaryButton} onClick={() => void handlePdfDownload()}>
-                  {activeDownload ? "Preparing PDF…" : "Download PDF"}
+                <button
+                  type="button"
+                  className={styles.finishedCardDownloadBtn}
+                  onClick={(e) => { e.stopPropagation(); void handlePdfDownload(); }}
+                  title="Download PDF"
+                >
+                  {activeDownload ? (
+                    <SpinnerIcon />
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  )}
                 </button>
               </div>
             )}
@@ -457,29 +561,29 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       </div>
 
       {/* AI question dock — slides up from screen bottom */}
-      {runState?.pendingQuestion ? (
-        <div className={styles.bottomQuestionDock}>
+      {displayedQuestion ? (
+        <div className={`${styles.bottomQuestionDock} ${questionExiting ? styles.bottomQuestionDockExiting : ""}`}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>
               <SpinnerIcon />
               <span>Ghostwriter</span>
             </div>
-            <h3>{runState.pendingQuestion.prompt}</h3>
-            {runState.pendingQuestion.helperText ? (
-              <p className={styles.bottomQuestionHelper}>{runState.pendingQuestion.helperText}</p>
+            <h3>{displayedQuestion.prompt}</h3>
+            {displayedQuestion.helperText ? (
+              <p className={styles.bottomQuestionHelper}>{displayedQuestion.helperText}</p>
             ) : null}
 
             {/* Suggestion chips */}
-            {(runState.pendingQuestion.suggestions || []).length > 0 && (
+            {(displayedQuestion.suggestions || []).length > 0 && (
               <div className={styles.suggestionChips}>
-                {(runState.pendingQuestion.suggestions || []).map((chip) => (
+                {(displayedQuestion.suggestions || []).map((chip) => (
                   <button
                     key={chip}
                     type="button"
                     className={styles.suggestionChip}
                     onClick={() => handleChipClick(chip)}
                   >
-                    {runState.pendingQuestion!.field === "wordCount" ? `${chip} words` : chip}
+                    {displayedQuestion.field === "wordCount" ? `${chip} words` : chip}
                   </button>
                 ))}
               </div>
@@ -488,22 +592,22 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             {/* Custom answer input */}
             <div className={styles.bottomQuestionInput}>
               <input
-                type={runState.pendingQuestion.inputType === "number" ? "number" : "text"}
+                type={displayedQuestion.inputType === "number" ? "number" : "text"}
                 className={styles.questionCustomInput}
                 placeholder={
-                  runState.pendingQuestion.field === "wordCount"
+                  displayedQuestion.field === "wordCount"
                     ? "Or enter a custom count…"
-                    : runState.pendingQuestion.suggestions?.length
+                    : displayedQuestion.suggestions?.length
                     ? "Or type a custom answer…"
                     : "Type your answer…"
                 }
                 value={customAnswer}
-                min={runState.pendingQuestion.field === "wordCount" ? 300 : undefined}
-                max={runState.pendingQuestion.field === "wordCount" ? 4000 : undefined}
+                min={displayedQuestion.field === "wordCount" ? 300 : undefined}
+                max={displayedQuestion.field === "wordCount" ? 4000 : undefined}
                 onChange={(e) => setCustomAnswer(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && customAnswer.trim()) {
-                    const val = runState.pendingQuestion!.field === "wordCount"
+                    const val = displayedQuestion.field === "wordCount"
                       ? Number(customAnswer) || 1200
                       : customAnswer;
                     void submitCurrentAnswer(val);
@@ -516,7 +620,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 disabled={!customAnswer.trim()}
                 onClick={() => {
                   if (!customAnswer.trim()) return;
-                  const val = runState.pendingQuestion!.field === "wordCount"
+                  const val = displayedQuestion.field === "wordCount"
                     ? Number(customAnswer) || 1200
                     : customAnswer;
                   void submitCurrentAnswer(val);

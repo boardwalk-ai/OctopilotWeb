@@ -326,29 +326,162 @@
 .streamDots span:nth-child(3) { animation-delay: 0.4s; }
 .streamDots span:nth-child(4) { animation-delay: 0.6s; }
 
-/* Finished / error lines */
+/* Thinking collapsible */
 
-.finishedLine {
+.thinkingSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.thinkingToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  transition: color 120ms;
+}
+
+.thinkingToggle:hover {
+  color: rgba(255,255,255,0.6);
+}
+
+.thinkingChevron {
+  transition: transform 160ms ease;
+}
+
+.thinkingChevronOpen {
+  transform: rotate(180deg);
+}
+
+.thinkingBox {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  color: rgba(255,255,255,0.42);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  animation: streamFadeIn 160ms ease-out;
+}
+
+.toolCallLine {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 0;
-  border-top: 1px solid rgba(255,255,255,0.04);
-  animation: streamFadeIn 200ms ease-out;
+  gap: 0.45rem;
+  margin-top: 0.1rem;
 }
 
-.finishedLine .streamCopy {
+.toolCallLabel {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.25);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.toolCallName {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.69rem;
+  color: rgba(239,68,68,0.65);
+  background: rgba(239,68,68,0.07);
+  padding: 0.1rem 0.45rem;
+  border-radius: 5px;
+}
+
+/* Finished product download card */
+
+.finishedCard {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  margin-top: 0.4rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  animation: streamFadeIn 240ms ease-out;
+  transition: background 140ms, border-color 140ms;
+}
+
+.finishedCard:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.13);
+}
+
+.finishedCardIcon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+}
+
+.finishedCardMeta {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
-.finishedLine .streamTitle {
-  font-size: 0.82rem;
+.finishedCardTitle {
+  font-size: 0.84rem;
   font-weight: 700;
-  color: rgba(34,197,94,0.9);
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.finishedLine .streamDetail {
+.finishedCardFilename {
+  font-size: 0.72rem;
   color: rgba(255,255,255,0.38);
+  font-family: "SF Mono", "Fira Code", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finishedCardType {
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(239,68,68,0.7);
+}
+
+.finishedCardDownloadBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.finishedCardDownloadBtn:hover {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.3);
+  color: #ef4444;
 }
 
 .errorLine {
@@ -598,6 +731,10 @@
   animation: questionRiseUp 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.bottomQuestionDockExiting {
+  animation: questionSinkOut 200ms ease-in forwards;
+}
+
 .bottomQuestionCard {
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 20px 20px 16px 16px;
@@ -814,6 +951,17 @@
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes questionSinkOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(24px);
   }
 }
 
