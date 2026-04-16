@@ -134,8 +134,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     subjectCode: "",
     essayDate: defaultDateString(),
   });
-  const [exportDocument, setExportDocument] = useState<ExportDocumentSnapshot | null>(null);
-  const [activeDownload, setActiveDownload] = useState(false);
+  const [originalExportDoc, setOriginalExportDoc] = useState<ExportDocumentSnapshot | null>(null);
+  const [humanizedExportDoc, setHumanizedExportDoc] = useState<ExportDocumentSnapshot | null>(null);
+  const [activeDownload, setActiveDownload] = useState<"original" | "humanized" | null>(null);
   const [runError, setRunError] = useState("");
   const [showOutlines, setShowOutlines] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -158,7 +159,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [questionExiting, setQuestionExiting] = useState(false);
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
-  const hiddenPageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const originalPageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const humanizedPageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const streamRef = useRef<HTMLElement>(null);
   const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -205,6 +207,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     void (async () => {
       try {
         let chunks = "";
+        const toolName = runState.pendingToolCall!.name;
         const result = await GhostwriterOrchestrator.executeToolCall(
           runState.pendingToolCall!,
           draft,
@@ -215,7 +218,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               }
             : undefined,
         );
-        const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, runState.pendingToolCall!.name, result);
+        if (toolName === "finalize_export") {
+          setOriginalExportDoc(Organizer.get().exportDocument);
+        }
+        if (toolName === "finalize_export_humanized") {
+          setHumanizedExportDoc(Organizer.get().exportDocument);
+        }
+        const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, toolName, result);
         setRunState(nextState);
       } catch (error) {
         setRunError(error instanceof Error ? error.message : "Tool execution failed.");
@@ -224,12 +233,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       }
     })();
   }, [draft, runState]);
-
-  useEffect(() => {
-    if (runState?.status === "finished") {
-      setExportDocument(Organizer.get().exportDocument);
-    }
-  }, [runState]);
 
   // Auto-scroll stream to bottom whenever new steps appear
   useEffect(() => {
@@ -315,16 +318,21 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       id: `retry-${Date.now()}`,
       field: "humanizerChoice",
       prompt: "Which humanizer should I try this time?",
+      helperText: "We recommend using StealthGPT for best results.",
       inputType: "text",
-      suggestions: ["UndetectableAI", "StealthGPT"],
+      suggestions: ["StealthGPT", "UndetectableAI"],
     });
     setRetryingHumanize(false);
   };
 
-  const handlePdfDownload = async () => {
-    if (!exportDocument || exportDocument.pages.length === 0) return;
+  const handlePdfDownload = async (
+    snapshot: ExportDocumentSnapshot,
+    pageRefs: Array<HTMLDivElement | null>,
+    type: "original" | "humanized",
+  ) => {
+    if (snapshot.pages.length === 0) return;
 
-    setActiveDownload(true);
+    setActiveDownload(type);
     try {
       const pdf = new jsPDF({
         orientation: "portrait",
@@ -333,8 +341,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         compress: true,
       });
 
-      for (let index = 0; index < exportDocument.pages.length; index += 1) {
-        const node = hiddenPageRefs.current[index];
+      for (let index = 0; index < snapshot.pages.length; index += 1) {
+        const node = pageRefs[index];
         if (!node) throw new Error("Missing export page.");
         const canvas = await html2canvas(node, {
           scale: 2,
@@ -347,9 +355,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         pdf.addImage(image, "PNG", 0, 0, 816, 1056, undefined, "FAST");
       }
 
-      pdf.save(makeFileName(exportDocument.title, "pdf"));
+      pdf.save(makeFileName(snapshot.title, "pdf"));
     } finally {
-      setActiveDownload(false);
+      setActiveDownload(null);
     }
   };
 
@@ -540,8 +548,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               );
             })}
 
-            {runState?.status === "finished" && exportDocument && (
-              <div className={styles.finishedCard} onClick={() => void handlePdfDownload()}>
+            {originalExportDoc && (
+              <div className={styles.finishedCard} onClick={() => void handlePdfDownload(originalExportDoc, originalPageRefs.current, "original")}>
                 <div className={styles.finishedCardIcon}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -552,17 +560,52 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   </svg>
                 </div>
                 <div className={styles.finishedCardMeta}>
-                  <span className={styles.finishedCardTitle}>{exportDocument.title || "Your Essay"}</span>
-                  <span className={styles.finishedCardFilename}>{makeFileName(exportDocument.title, "pdf")}</span>
-                  <span className={styles.finishedCardType}>PDF</span>
+                  <span className={styles.finishedCardTitle}>{originalExportDoc.title || "Your Essay"}</span>
+                  <span className={styles.finishedCardFilename}>{makeFileName(originalExportDoc.title, "pdf")}</span>
+                  <span className={styles.finishedCardType}>PDF · Original</span>
                 </div>
                 <button
                   type="button"
                   className={styles.finishedCardDownloadBtn}
-                  onClick={(e) => { e.stopPropagation(); void handlePdfDownload(); }}
+                  onClick={(e) => { e.stopPropagation(); void handlePdfDownload(originalExportDoc, originalPageRefs.current, "original"); }}
                   title="Download PDF"
                 >
-                  {activeDownload ? (
+                  {activeDownload === "original" ? (
+                    <SpinnerIcon />
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {humanizedExportDoc && (
+              <div className={styles.finishedCard} onClick={() => void handlePdfDownload(humanizedExportDoc, humanizedPageRefs.current, "humanized")}>
+                <div className={styles.finishedCardIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                </div>
+                <div className={styles.finishedCardMeta}>
+                  <span className={styles.finishedCardTitle}>{humanizedExportDoc.title || "Humanized Essay"}</span>
+                  <span className={styles.finishedCardFilename}>{makeFileName(humanizedExportDoc.title, "pdf")}</span>
+                  <span className={styles.finishedCardType}>PDF · Humanized</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.finishedCardDownloadBtn}
+                  onClick={(e) => { e.stopPropagation(); void handlePdfDownload(humanizedExportDoc, humanizedPageRefs.current, "humanized"); }}
+                  title="Download Humanized PDF"
+                >
+                  {activeDownload === "humanized" ? (
                     <SpinnerIcon />
                   ) : (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -841,14 +884,26 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         </div>
       ) : null}
 
-      {exportDocument ? (
+      {originalExportDoc ? (
         <div className={styles.hiddenPreview}>
-          {exportDocument.pages.map((page, index) => (
+          {originalExportDoc.pages.map((page, index) => (
             <div
               key={page.id}
-              ref={(node) => {
-                hiddenPageRefs.current[index] = node;
-              }}
+              ref={(node) => { originalPageRefs.current[index] = node; }}
+              className={styles.hiddenPage}
+            >
+              <div dangerouslySetInnerHTML={{ __html: page.html }} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {humanizedExportDoc ? (
+        <div className={styles.hiddenPreview}>
+          {humanizedExportDoc.pages.map((page, index) => (
+            <div
+              key={page.id}
+              ref={(node) => { humanizedPageRefs.current[index] = node; }}
               className={styles.hiddenPage}
             >
               <div dangerouslySetInnerHTML={{ __html: page.html }} />

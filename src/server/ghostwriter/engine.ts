@@ -132,8 +132,9 @@ function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
         id: randomUUID(),
         field,
         prompt: "Which humanizer should I use?",
+        helperText: "We recommend using StealthGPT for best results.",
         inputType: "text",
-        suggestions: ["UndetectableAI", "StealthGPT"],
+        suggestions: ["StealthGPT", "UndetectableAI"],
       };
     default:
       return { id: randomUUID(), field, prompt: "One more detail.", inputType: "text" };
