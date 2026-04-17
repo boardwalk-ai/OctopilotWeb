@@ -19,6 +19,7 @@ import styles from "./GhostwriterWorkflowView.module.css";
 type GhostwriterWorkflowViewProps = {
   draft: GhostwriterDraftInput;
   onBack: () => void;
+  onOpenEditor?: () => void;
 };
 
 type StepStatus = "pending" | "running" | "completed" | "blocked";
@@ -115,7 +116,7 @@ function BlockedIcon() {
   );
 }
 
-export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
+export default function GhostwriterWorkflowView({ draft, onBack, onOpenEditor }: GhostwriterWorkflowViewProps) {
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
   const [draftSettings, setDraftSettings] = useState<GhostwriterDraftSettings>(() => {
@@ -548,6 +549,24 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               );
             })}
 
+            {originalExportDoc && onOpenEditor && (
+              <div className={styles.editorCard} onClick={onOpenEditor}>
+                <div className={styles.editorCardIcon}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </div>
+                <div className={styles.editorCardMeta}>
+                  <span className={styles.editorCardTitle}>Proceed to Editor</span>
+                  <span className={styles.editorCardSub}>Refine the essay before downloading your final PDF</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                </svg>
+              </div>
+            )}
+
             {originalExportDoc && (
               <div className={styles.finishedCard} onClick={() => void handlePdfDownload(originalExportDoc, originalPageRefs.current, "original")}>
                 <div className={styles.finishedCardIcon}>
@@ -580,6 +599,24 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                     </svg>
                   )}
                 </button>
+              </div>
+            )}
+
+            {humanizedExportDoc && onOpenEditor && (
+              <div className={styles.editorCard} onClick={onOpenEditor}>
+                <div className={styles.editorCardIcon}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </div>
+                <div className={styles.editorCardMeta}>
+                  <span className={styles.editorCardTitle}>Proceed to Editor</span>
+                  <span className={styles.editorCardSub}>Refine the humanized essay before your final download</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                </svg>
               </div>
             )}
 

@@ -11,6 +11,7 @@ import mobileStyles from "./EditorViewMobile.module.css";
 interface EditorViewProps {
     onBack: () => void;
     onNext: (step: AutomationStepId) => void;
+    onFinish?: () => void;
 }
 
 interface DocPage {
@@ -150,7 +151,7 @@ function buildPageOutlineItems(text: string): PageOutlineItem[] {
         }));
 }
 
-export default function EditorView({ onBack, onNext }: EditorViewProps) {
+export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps) {
     const org = useOrganizer();
     const [isMobileLayout, setIsMobileLayout] = useState(false);
     const [mobileViewportWidth, setMobileViewportWidth] = useState(816);
@@ -1089,8 +1090,12 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
             finalEssayTitle: snapshot.title,
             exportDocument: snapshot,
         });
-        onNext("export");
-    }, [buildExportSnapshot, onNext]);
+        if (onFinish) {
+            onFinish();
+        } else {
+            onNext("export");
+        }
+    }, [buildExportSnapshot, onFinish, onNext]);
 
     useEffect(() => {
         updateStats();
@@ -1622,7 +1627,7 @@ export default function EditorView({ onBack, onNext }: EditorViewProps) {
                     className="flex h-9 items-center gap-2 rounded-full bg-[#ea4335] px-5 text-[14px] font-medium text-white shadow-sm transition hover:bg-[#d33426] hover:shadow-md"
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                    Export
+                    {onFinish ? "Finish" : "Export"}
                 </button>
             </div>
 

@@ -60,6 +60,7 @@ export default function HomeView() {
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
+  const [ghostwriterEditorMode, setGhostwriterEditorMode] = useState(false);
   const stepScrollRef = useRef<HTMLDivElement>(null);
   const org = useOrganizer();
 
@@ -191,6 +192,10 @@ export default function HomeView() {
         <GhostwriterWorkflowView
           draft={ghostwriterDraft}
           onBack={() => setPage("ghostwriter")}
+          onOpenEditor={() => {
+            setGhostwriterEditorMode(true);
+            setPage("editor");
+          }}
         />
         <OctoAssistant currentPage={page} />
       </>
@@ -198,8 +203,13 @@ export default function HomeView() {
   }
 
   if (page === "editor") {
-    const goBack = () => setPage("humanizer");
+    const goBack = ghostwriterEditorMode
+      ? () => { setGhostwriterEditorMode(false); setPage("ghostwriter-workflow"); }
+      : () => setPage("humanizer");
     const goNext = (nextPage: AutomationStepId) => setPage(nextPage);
+    const goFinish = ghostwriterEditorMode
+      ? () => { setGhostwriterEditorMode(false); setPage("export"); }
+      : undefined;
 
     return (
       <>
@@ -210,7 +220,7 @@ export default function HomeView() {
             right={<MainHeaderActions />}
           />
 
-          {isWorkspaceTopBarCollapsed ? (
+          {!ghostwriterEditorMode && (isWorkspaceTopBarCollapsed ? (
             <div className="fixed top-0 left-0 right-0 z-40 h-[3px] bg-white/[0.04]">
               <div
                 className="h-full rounded-r-full bg-red-500"
@@ -228,22 +238,24 @@ export default function HomeView() {
               writingMode={org.writingMode}
               className={editorMobileStyles.editorStepper}
             />
+          ))}
+
+          {!ghostwriterEditorMode && (
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
+              className={`${editorMobileStyles.editorCollapseButton} ${isWorkspaceTopBarCollapsed ? editorMobileStyles.editorCollapseButtonCollapsed : editorMobileStyles.editorCollapseButtonExpanded}`}
+              title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                {isWorkspaceTopBarCollapsed ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
+              </svg>
+              {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => setIsWorkspaceTopBarCollapsed((prev) => !prev)}
-            className={`${editorMobileStyles.editorCollapseButton} ${isWorkspaceTopBarCollapsed ? editorMobileStyles.editorCollapseButtonCollapsed : editorMobileStyles.editorCollapseButtonExpanded}`}
-            title={isWorkspaceTopBarCollapsed ? "Expand top bars" : "Collapse top bars"}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              {isWorkspaceTopBarCollapsed ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
-            </svg>
-            {isWorkspaceTopBarCollapsed ? "Expand" : "Collapse"}
-          </button>
-
-          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${isWorkspaceTopBarCollapsed ? editorMobileStyles.editorViewportCollapsed : editorMobileStyles.editorViewportExpanded}`}>
-            <EditorView onBack={goBack} onNext={goNext} />
+          <div className={`flex-1 min-h-0 overflow-hidden transition-[padding-top] duration-300 ease-out ${ghostwriterEditorMode || isWorkspaceTopBarCollapsed ? editorMobileStyles.editorViewportCollapsed : editorMobileStyles.editorViewportExpanded}`}>
+            <EditorView onBack={goBack} onNext={goNext} onFinish={goFinish} />
           </div>
         </div>
         <OctoAssistant currentPage={page} />
