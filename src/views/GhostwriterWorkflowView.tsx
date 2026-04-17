@@ -369,6 +369,82 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   const miniEditorSnapshot = miniEditorType === "original" ? originalExportDoc : humanizedExportDoc;
 
+  // Renders document pages identical to ExportView for accurate PDF capture
+  function renderDocPages(
+    snapshot: ExportDocumentSnapshot,
+    pageRefs: React.MutableRefObject<Array<HTMLDivElement | null>>,
+  ) {
+    const profile = snapshot.profile;
+    const marginPx = Math.round((profile.marginInch || 1) * 96);
+    const hasMlaHead = org.citationStyle.trim().toUpperCase() === "MLA";
+
+    return snapshot.pages.map((page, index) => {
+      const showPageNum = page.showPageNumber ?? profile.showPageNumber;
+      let pageNumLabel = "";
+      if (showPageNum) {
+        const pos = index + 1;
+        const startPage = profile.pageNumberStartPage ?? 1;
+        const startNum = profile.pageNumberStartNumber ?? 1;
+        if (pos >= startPage) {
+          pageNumLabel = String(Math.max(1, startNum + (pos - startPage)));
+        }
+      }
+      const hasHeader = !!(profile.headerText || pageNumLabel);
+
+      return (
+        <div
+          key={page.id}
+          ref={(node) => { pageRefs.current[index] = node; }}
+          style={{
+            width: "816px",
+            height: "1056px",
+            background: "white",
+            color: "#111827",
+            fontFamily: profile.defaultFont || "Arial",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              paddingTop: `${marginPx}px`,
+              paddingRight: `${marginPx}px`,
+              paddingBottom: `${marginPx}px`,
+              paddingLeft: `${marginPx}px`,
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {hasHeader && (
+              <div style={{ marginBottom: "16px" }}>
+                {hasMlaHead ? (
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", padding: "4px 0", textAlign: "right", fontSize: "11pt", color: "#111827" }}>
+                    {profile.headerText ? <span>{profile.headerText}</span> : null}
+                    {pageNumLabel ? <span>{pageNumLabel}</span> : null}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "4px 0", fontSize: "11pt", color: "#111827" }}>
+                    <span>{profile.headerText || ""}</span>
+                    {pageNumLabel ? <span>{pageNumLabel}</span> : null}
+                  </div>
+                )}
+              </div>
+            )}
+            <div
+              data-content="1"
+              style={{
+                textAlign: page.textAlign || "left",
+                lineHeight: String(page.lineHeight || profile.lineHeight || 1.5),
+                ...(page.centerVertically ? { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } : {}),
+              }}
+              dangerouslySetInnerHTML={{ __html: page.html }}
+            />
+          </div>
+        </div>
+      );
+    });
+  }
+
   const closeMiniEditor = () => {
     setMiniEditorExiting(true);
     setTimeout(() => {
@@ -389,13 +465,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     const pageRefs = miniEditorType === "original" ? originalPageRefs : humanizedPageRefs;
     setMiniEditorDownloading(true);
     try {
-      // Sync edited HTML from contentEditable refs into the hidden page refs
+      // Sync edited HTML from contentEditable refs into the hidden page content divs
       miniEditorSnapshot.pages.forEach((_, idx) => {
         const editedNode = miniEditorContentRefs.current[idx];
         const hiddenNode = pageRefs.current[idx];
         if (editedNode && hiddenNode) {
-          const inner = hiddenNode.firstElementChild as HTMLElement | null;
-          if (inner) inner.innerHTML = editedNode.innerHTML;
+          const contentDiv = hiddenNode.querySelector("[data-content]") as HTMLElement | null;
+          if (contentDiv) contentDiv.innerHTML = editedNode.innerHTML;
         }
       });
       // Wait a tick for the DOM to settle before html2canvas
@@ -968,29 +1044,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
       {originalExportDoc ? (
         <div className={styles.hiddenPreview}>
-          {originalExportDoc.pages.map((page, index) => (
-            <div
-              key={page.id}
-              ref={(node) => { originalPageRefs.current[index] = node; }}
-              className={styles.hiddenPage}
-            >
-              <div dangerouslySetInnerHTML={{ __html: page.html }} />
-            </div>
-          ))}
+          {renderDocPages(originalExportDoc, originalPageRefs)}
         </div>
       ) : null}
 
       {humanizedExportDoc ? (
         <div className={styles.hiddenPreview}>
-          {humanizedExportDoc.pages.map((page, index) => (
-            <div
-              key={page.id}
-              ref={(node) => { humanizedPageRefs.current[index] = node; }}
-              className={styles.hiddenPage}
-            >
-              <div dangerouslySetInnerHTML={{ __html: page.html }} />
-            </div>
-          ))}
+          {renderDocPages(humanizedExportDoc, humanizedPageRefs)}
         </div>
       ) : null}
 
