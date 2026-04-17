@@ -1,4 +1,4 @@
-import { Organizer, SourceData, ExportDocumentSnapshot } from "./OrganizerService";
+import { Organizer, SourceData, ExportDocumentSnapshot, CompactedSource } from "./OrganizerService";
 import { FileReadService } from "./FileReadService";
 import { HeinService } from "./HeinService";
 import { LilyService } from "./LilyService";
@@ -56,6 +56,57 @@ function detectWordCount(prompt: string): number | null {
     if (!match) return null;
     const parsed = Number(match[1]);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Fallback bibliography formatter — used when Lucas under-cites the provided
+// sources. Covers the most common academic styles.
+function formatSourceEntry(source: CompactedSource, citationStyle: string): string {
+    const author = (source.author || "").trim() || "Unknown Author";
+    const year = (source.publishedYear || "").trim() || "n.d.";
+    const title = (source.title || "").trim() || "Untitled";
+    const publisher = (source.publisher || "").trim();
+    const url = (source.url || "").trim();
+    const style = (citationStyle || "APA").trim().toLowerCase();
+
+    switch (style) {
+        case "mla":
+            return `${author}. "${title}." ${publisher ? publisher + ", " : ""}${year}${url ? ", " + url : ""}.`;
+        case "chicago":
+            return `${author}. "${title}." ${publisher ? publisher + " " : ""}(${year})${url ? ". " + url : ""}.`;
+        case "harvard":
+            return `${author}, ${year}. ${title}. ${publisher ? publisher + ". " : ""}${url ? "Available at: " + url : ""}`;
+        case "ieee":
+            return `${author}, "${title}," ${publisher}${publisher ? ", " : ""}${year}${url ? ". [Online]. Available: " + url : ""}.`;
+        case "apa":
+        default:
+            return `${author} (${year}). ${title}.${publisher ? " " + publisher + "." : ""}${url ? " " + url : ""}`;
+    }
+}
+
+// Ensures every compacted source shows up in the bibliography even if Lucas
+// missed some. Preserves Lucas's formatted entries and appends any that are
+// missing (matched by URL or title substring).
+function mergeBibliographyCoverage(
+    lucasBibliography: string,
+    sources: CompactedSource[],
+    citationStyle: string,
+): string {
+    const existing = lucasBibliography || "";
+    const lower = existing.toLowerCase();
+
+    const appended: string[] = [];
+    for (const src of sources) {
+        const url = (src.url || "").toLowerCase();
+        const title = (src.title || "").toLowerCase();
+        const hasUrl = url && lower.includes(url);
+        const hasTitle = title && title.length > 6 && lower.includes(title);
+        if (hasUrl || hasTitle) continue;
+        appended.push(formatSourceEntry(src, citationStyle));
+    }
+
+    if (appended.length === 0) return existing;
+    const separator = existing.trim() ? "\n" : "";
+    return `${existing}${separator}${appended.join("\n")}`;
 }
 
 function normalizeHtmlFromContent(content: string) {
@@ -185,9 +236,10 @@ export class GhostwriterOrchestrator {
         const goodSources: SourceData[] = [];
         const allSearchResults: AlvinSearchResult[] = [];
         const MAX_ROUNDS = 4;
+        const TARGET_GOOD = 8;
 
-        for (let round = 0; round < MAX_ROUNDS && goodSources.length < 5; round++) {
-            const targetCount = Math.max(8, (5 - goodSources.length) * 2 + 2);
+        for (let round = 0; round < MAX_ROUNDS && goodSources.length < TARGET_GOOD; round++) {
+            const targetCount = Math.max(10, (TARGET_GOOD - goodSources.length) * 2 + 2);
             const results = await AlvinService.searchSources(targetCount);
 
             // Filter duplicates
@@ -212,7 +264,7 @@ export class GhostwriterOrchestrator {
 
             // Scrape each one individually
             for (const result of newResults) {
-                if (goodSources.length >= 5) break;
+                if (goodSources.length >= TARGET_GOOD) break;
                 try {
                     const scraped = await ScraperService.scrape(result.website_URL);
                     const source: SourceData = {
@@ -257,13 +309,23 @@ export class GhostwriterOrchestrator {
         const raw = await LucasService.generate(onChunk);
         const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
         const parsed = JSON.parse(clean) as { essay_content?: string; bibliography?: string };
+
+        // Merge any compacted sources that Lucas didn't cite so the References
+        // section reflects the full set of sources we actually gathered.
+        const org = Organizer.get();
+        const mergedBibliography = mergeBibliographyCoverage(
+            parsed.bibliography || "",
+            org.compactedSources || [],
+            org.citationStyle || "APA",
+        );
+
         Organizer.set({
             generatedEssay: parsed.essay_content || "",
-            generatedBibliography: parsed.bibliography || "",
+            generatedBibliography: mergedBibliography,
         });
         return {
             essay: parsed.essay_content || "",
-            bibliography: parsed.bibliography || "",
+            bibliography: mergedBibliography,
         };
     }
 

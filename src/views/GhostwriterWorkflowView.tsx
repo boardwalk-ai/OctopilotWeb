@@ -78,6 +78,96 @@ function defaultDateString() {
   });
 }
 
+// Splits a single page's HTML into N sub-pages by measuring paragraph heights
+// against the available body area (1056px − margins − header). Keeps paragraphs
+// intact and flows naturally like MS Word.
+async function paginateSnapshot(snapshot: ExportDocumentSnapshot): Promise<ExportDocumentSnapshot> {
+  if (typeof document === "undefined") return snapshot;
+  const marginPx = Math.round((snapshot.profile.marginInch || 1) * 96);
+  const headerReserve = (snapshot.profile.headerText || snapshot.profile.showPageNumber) ? 40 : 0;
+  const availableHeight = 1056 - marginPx * 2 - headerReserve;
+  const contentWidth = 816 - marginPx * 2;
+
+  const newPages: ExportDocumentSnapshot["pages"] = [];
+
+  for (const page of snapshot.pages) {
+    // Title / centered pages keep as-is
+    if (page.centerVertically) {
+      newPages.push({ ...page, id: newPages.length + 1 });
+      continue;
+    }
+
+    // Parse HTML into paragraph-level blocks
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div id="root">${page.html}</div>`, "text/html");
+    const root = doc.getElementById("root");
+    if (!root || root.children.length === 0) {
+      newPages.push({ ...page, id: newPages.length + 1 });
+      continue;
+    }
+
+    const blocks = Array.from(root.children) as HTMLElement[];
+
+    // Create an offscreen measurer matching the page's content style
+    const measurer = document.createElement("div");
+    measurer.style.cssText = [
+      "position:fixed",
+      "left:-10000px",
+      "top:0",
+      `width:${contentWidth}px`,
+      `font-family:${snapshot.profile.defaultFont || "Times New Roman"}`,
+      `line-height:${String(page.lineHeight || snapshot.profile.lineHeight || 2)}`,
+      `text-align:${page.textAlign || "left"}`,
+      "visibility:hidden",
+      "font-size:11.5pt",
+    ].join(";");
+    document.body.appendChild(measurer);
+
+    try {
+      const pageChunks: HTMLElement[][] = [[]];
+      let currentHeight = 0;
+
+      for (const block of blocks) {
+        const clone = block.cloneNode(true) as HTMLElement;
+        measurer.appendChild(clone);
+        const blockHeight = clone.offsetHeight;
+        measurer.removeChild(clone);
+
+        // If the block alone is taller than a page, place it on its own page
+        if (blockHeight > availableHeight) {
+          if (pageChunks[pageChunks.length - 1].length > 0) {
+            pageChunks.push([]);
+          }
+          pageChunks[pageChunks.length - 1].push(block);
+          pageChunks.push([]);
+          currentHeight = 0;
+          continue;
+        }
+
+        if (currentHeight + blockHeight > availableHeight && pageChunks[pageChunks.length - 1].length > 0) {
+          pageChunks.push([]);
+          currentHeight = 0;
+        }
+        pageChunks[pageChunks.length - 1].push(block);
+        currentHeight += blockHeight;
+      }
+
+      const nonEmpty = pageChunks.filter((c) => c.length > 0);
+      nonEmpty.forEach((chunk) => {
+        newPages.push({
+          ...page,
+          id: newPages.length + 1,
+          html: chunk.map((el) => el.outerHTML).join(""),
+        });
+      });
+    } finally {
+      document.body.removeChild(measurer);
+    }
+  }
+
+  return { ...snapshot, pages: newPages };
+}
+
 function getAnswerValue(
   field: GhostwriterQuestionField,
   draftSettings: GhostwriterDraftSettings,
@@ -225,10 +315,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             : undefined,
         );
         if (toolName === "finalize_export") {
-          setOriginalExportDoc(Organizer.get().exportDocument);
+          const raw = Organizer.get().exportDocument;
+          setOriginalExportDoc(raw ? await paginateSnapshot(raw) : null);
         }
         if (toolName === "finalize_export_humanized") {
-          setHumanizedExportDoc(Organizer.get().exportDocument);
+          const raw = Organizer.get().exportDocument;
+          setHumanizedExportDoc(raw ? await paginateSnapshot(raw) : null);
         }
         const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, toolName, result);
         setRunState(nextState);
