@@ -222,12 +222,18 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 0;
   padding: 0.6rem 2rem 0.4rem;
   /* hide scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* Keep content bottom-anchored while short, but allow natural scrolling once
+   it overflows. Using margin-top:auto on the first child avoids the scroll
+   lock that `justify-content: flex-end` causes on overflow. */
+.workflowStream > :first-child {
+  margin-top: auto;
 }
 
 .workflowStream::-webkit-scrollbar {

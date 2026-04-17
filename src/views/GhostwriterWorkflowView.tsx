@@ -869,7 +869,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               );
             })}
 
-            {originalExportDoc && (
+            {originalExportDoc && !humanizedExportDoc && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>
                 <div className={styles.editorCardIcon}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
