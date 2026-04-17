@@ -11,6 +11,32 @@ export function escapeHtml(text: string): string {
         .replace(/'/g, "&#39;");
 }
 
+// Escapes text while wrapping any http(s) URLs in an <a> tag so reference
+// links render as visible hyperlinks (blue + underline).
+export function escapeAndLinkify(text: string): string {
+    const raw = text || "";
+    const urlRegex = /(https?:\/\/[^\s<>"']+)/g;
+    const out: string[] = [];
+    let last = 0;
+    let match: RegExpExecArray | null;
+    while ((match = urlRegex.exec(raw)) !== null) {
+        if (match.index > last) out.push(escapeHtml(raw.slice(last, match.index)));
+        // Trim common trailing punctuation that shouldn't be part of the URL.
+        let url = match[0];
+        let trail = "";
+        while (url && /[.,;:!?)\]]/.test(url[url.length - 1])) {
+            trail = url[url.length - 1] + trail;
+            url = url.slice(0, -1);
+        }
+        const href = escapeHtml(url);
+        out.push(`<a href="${href}" target="_blank" rel="noreferrer" style="color:#1d4ed8;text-decoration:underline;word-break:break-all;">${href}</a>`);
+        if (trail) out.push(escapeHtml(trail));
+        last = match.index + match[0].length;
+    }
+    if (last < raw.length) out.push(escapeHtml(raw.slice(last)));
+    return out.join("");
+}
+
 export function normalizeText(text: string): string {
     return (text || "").replace(/\r\n?/g, "\n").trim();
 }
@@ -142,7 +168,7 @@ export function referencesHtml(
         .map((entry, index) => {
             const numbered = opts?.numbered ? `[${index + 1}] ${entry.replace(/^\[\d+\]\s*/, "")}` : entry;
             const hanging = opts?.hangingIndent !== false ? "padding-left:0.5in;text-indent:-0.5in;" : "";
-            return `<p style="margin:0 0 1em 0;${hanging}">${escapeHtml(numbered)}</p>`;
+            return `<p style="margin:0 0 1em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
         })
         .join("");
 

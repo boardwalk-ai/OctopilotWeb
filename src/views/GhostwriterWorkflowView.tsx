@@ -78,14 +78,15 @@ function defaultDateString() {
   });
 }
 
-// Splits a single page's HTML into N sub-pages by measuring paragraph heights
-// against the available body area (1056px − margins − header). Keeps paragraphs
-// intact and flows naturally like MS Word.
+// Splits pages naturally like MS Word — paragraphs flow across page boundaries
+// by splitting at word boundaries when they don't fit, so every page is filled
+// before moving to the next one.
 async function paginateSnapshot(snapshot: ExportDocumentSnapshot): Promise<ExportDocumentSnapshot> {
   if (typeof document === "undefined") return snapshot;
   const marginPx = Math.round((snapshot.profile.marginInch || 1) * 96);
   const headerReserve = (snapshot.profile.headerText || snapshot.profile.showPageNumber) ? 40 : 0;
-  const availableHeight = 1056 - marginPx * 2 - headerReserve;
+  // Small safety buffer to avoid the last line clipping when html2canvas rounds.
+  const availableHeight = 1056 - marginPx * 2 - headerReserve - 6;
   const contentWidth = 816 - marginPx * 2;
 
   const newPages: ExportDocumentSnapshot["pages"] = [];
@@ -97,18 +98,7 @@ async function paginateSnapshot(snapshot: ExportDocumentSnapshot): Promise<Expor
       continue;
     }
 
-    // Parse HTML into paragraph-level blocks
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(`<div id="root">${page.html}</div>`, "text/html");
-    const root = doc.getElementById("root");
-    if (!root || root.children.length === 0) {
-      newPages.push({ ...page, id: newPages.length + 1 });
-      continue;
-    }
-
-    const blocks = Array.from(root.children) as HTMLElement[];
-
-    // Create an offscreen measurer matching the page's content style
+    // Measurer mirrors the actual content div's typographic context.
     const measurer = document.createElement("div");
     measurer.style.cssText = [
       "position:fixed",
@@ -118,46 +108,140 @@ async function paginateSnapshot(snapshot: ExportDocumentSnapshot): Promise<Expor
       `font-family:${snapshot.profile.defaultFont || "Times New Roman"}`,
       `line-height:${String(page.lineHeight || snapshot.profile.lineHeight || 2)}`,
       `text-align:${page.textAlign || "left"}`,
+      "color:#111827",
       "visibility:hidden",
-      "font-size:11.5pt",
     ].join(";");
     document.body.appendChild(measurer);
 
     try {
-      const pageChunks: HTMLElement[][] = [[]];
-      let currentHeight = 0;
+      const holder = document.createElement("div");
+      holder.innerHTML = page.html;
+      const sourceBlocks = Array.from(holder.children).filter((el) => {
+        const e = el as HTMLElement;
+        return e.textContent && e.textContent.trim().length > 0;
+      }) as HTMLElement[];
 
-      for (const block of blocks) {
-        const clone = block.cloneNode(true) as HTMLElement;
-        measurer.appendChild(clone);
-        const blockHeight = clone.offsetHeight;
-        measurer.removeChild(clone);
+      if (sourceBlocks.length === 0) {
+        newPages.push({ ...page, id: newPages.length + 1 });
+        continue;
+      }
 
-        // If the block alone is taller than a page, place it on its own page
-        if (blockHeight > availableHeight) {
-          if (pageChunks[pageChunks.length - 1].length > 0) {
-            pageChunks.push([]);
+      const measureHeight = (el: HTMLElement): number => {
+        measurer.appendChild(el);
+        const h = el.offsetHeight;
+        measurer.removeChild(el);
+        return h;
+      };
+
+      const queue: HTMLElement[] = sourceBlocks.map((b) => b.cloneNode(true) as HTMLElement);
+      const allChunks: HTMLElement[][] = [];
+      let chunk: HTMLElement[] = [];
+      let used = 0;
+
+      const flush = () => {
+        if (chunk.length > 0) {
+          allChunks.push(chunk);
+          chunk = [];
+          used = 0;
+        }
+      };
+
+      // Strip `text-indent:` from a continuation block's style so split
+      // paragraphs don't look like brand-new indented paragraphs.
+      const stripIndent = (el: HTMLElement) => {
+        const s = el.getAttribute("style") || "";
+        const next = s.replace(/text-indent\s*:[^;]*;?/gi, "");
+        el.setAttribute("style", next);
+      };
+
+      // Binary-search the max number of words that fit in `space` inside a
+      // clone of `block` (preserves the block's tag/style).
+      const splitBlockByWords = (block: HTMLElement, space: number): [HTMLElement, HTMLElement] | null => {
+        const fullText = block.textContent || "";
+        const words = fullText.split(/\s+/).filter(Boolean);
+        if (words.length <= 1) return null;
+
+        const probe = block.cloneNode(false) as HTMLElement;
+        measurer.appendChild(probe);
+        try {
+          let lo = 1;
+          let hi = words.length - 1;
+          let best = 0;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            probe.textContent = words.slice(0, mid).join(" ");
+            if (probe.offsetHeight <= space) {
+              best = mid;
+              lo = mid + 1;
+            } else {
+              hi = mid - 1;
+            }
           }
-          pageChunks[pageChunks.length - 1].push(block);
-          pageChunks.push([]);
-          currentHeight = 0;
+          if (best === 0) return null;
+
+          const head = block.cloneNode(false) as HTMLElement;
+          head.textContent = words.slice(0, best).join(" ");
+          const tail = block.cloneNode(false) as HTMLElement;
+          tail.textContent = words.slice(best).join(" ");
+          stripIndent(tail);
+          return [head, tail];
+        } finally {
+          measurer.removeChild(probe);
+        }
+      };
+
+      while (queue.length > 0) {
+        const block = queue.shift()!;
+        const blockHeight = measureHeight(block);
+        const remaining = availableHeight - used;
+
+        if (blockHeight <= remaining) {
+          chunk.push(block);
+          used += blockHeight;
           continue;
         }
 
-        if (currentHeight + blockHeight > availableHeight && pageChunks[pageChunks.length - 1].length > 0) {
-          pageChunks.push([]);
-          currentHeight = 0;
+        // Doesn't fit. If current page has content and block contains inline
+        // HTML we shouldn't destroy (e.g., <a> hyperlinks), move to next page.
+        const hasInlineHtml = block.querySelector("a, strong, em, b, i, span") !== null;
+        if (hasInlineHtml && chunk.length > 0) {
+          flush();
+          queue.unshift(block);
+          continue;
         }
-        pageChunks[pageChunks.length - 1].push(block);
-        currentHeight += blockHeight;
+
+        // Try a word-boundary split to fill remaining space.
+        if (remaining > 50) {
+          const split = splitBlockByWords(block, remaining);
+          if (split) {
+            chunk.push(split[0]);
+            flush();
+            queue.unshift(split[1]);
+            continue;
+          }
+        }
+
+        // Remaining space too small to split meaningfully. Start a fresh page
+        // and retry the block there.
+        if (chunk.length > 0) {
+          flush();
+          queue.unshift(block);
+          continue;
+        }
+
+        // Page is empty and block still won't split (single word or inline HTML
+        // heavy). Place as-is; clipping is a last-resort fallback.
+        chunk.push(block);
+        flush();
       }
 
-      const nonEmpty = pageChunks.filter((c) => c.length > 0);
-      nonEmpty.forEach((chunk) => {
+      flush();
+
+      allChunks.forEach((c) => {
         newPages.push({
           ...page,
           id: newPages.length + 1,
-          html: chunk.map((el) => el.outerHTML).join(""),
+          html: c.map((el) => el.outerHTML).join(""),
         });
       });
     } finally {
@@ -442,6 +526,24 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       for (let index = 0; index < snapshot.pages.length; index += 1) {
         const node = pageRefs[index];
         if (!node) throw new Error("Missing export page.");
+
+        // Collect hyperlink positions before rasterizing so we can overlay
+        // real clickable link regions on the PDF page.
+        const pageRect = node.getBoundingClientRect();
+        const anchorRegions = Array.from(node.querySelectorAll("a[href]"))
+          .map((a) => {
+            const r = (a as HTMLElement).getBoundingClientRect();
+            const href = (a as HTMLAnchorElement).href || (a as HTMLElement).getAttribute("href") || "";
+            return {
+              x: r.left - pageRect.left,
+              y: r.top - pageRect.top,
+              w: r.width,
+              h: r.height,
+              href,
+            };
+          })
+          .filter((r) => r.w > 0 && r.h > 0 && /^https?:\/\//i.test(r.href));
+
         const canvas = await html2canvas(node, {
           scale: 2,
           backgroundColor: "#ffffff",
@@ -451,6 +553,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         const image = canvas.toDataURL("image/png");
         if (index > 0) pdf.addPage([816, 1056], "portrait");
         pdf.addImage(image, "PNG", 0, 0, 816, 1056, undefined, "FAST");
+
+        // Overlay clickable link regions on top of the rasterized page.
+        anchorRegions.forEach((region) => {
+          pdf.link(region.x, region.y, region.w, region.h, { url: region.href });
+        });
       }
 
       pdf.save(makeFileName(snapshot.title, "pdf"));
