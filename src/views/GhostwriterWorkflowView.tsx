@@ -14,6 +14,7 @@ import {
 } from "@/services/GhostwriterOrchestrator";
 import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState } from "@/lib/ghostwriterTypes";
+import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -403,6 +404,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [miniEditorDownloading, setMiniEditorDownloading] = useState(false);
   const miniEditorContentRefs = useRef<Array<HTMLDivElement | null>>([]);
 
+  // Play error sound whenever a new step error is recorded
+  const stepErrorsSize = stepErrors.size;
+  useEffect(() => {
+    if (stepErrorsSize > 0) playErrorSound();
+  }, [stepErrorsSize]);
+
   const topicSummary = useMemo(() => ({
     topic: org.essayTopic || "Waiting for topic",
     type: org.analyzedEssayType || org.essayType || "Essay",
@@ -545,6 +552,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   useEffect(() => {
     if (runState?.status === "finished" && finalDuration === null) {
       setFinalDuration(Math.floor((Date.now() - workflowStartRef.current) / 1000));
+      playSuccessSound();
       return;
     }
     if (runState?.status === "finished") return;
@@ -589,6 +597,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   const submitCurrentAnswer = async (overrideValue?: string | number) => {
     if (!runState?.pendingQuestion) return;
+    primeAudioContext(); // unlock audio on first user gesture
 
     try {
       const field = runState.pendingQuestion.field;
@@ -603,6 +612,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   const handleChipClick = (chip: string) => {
     if (!runState?.pendingQuestion) return;
+    primeAudioContext(); // unlock audio on first user gesture
     const field = runState.pendingQuestion.field;
     if (field === "wordCount" || field === "outlineCount") {
       void submitCurrentAnswer(Number(chip));
