@@ -6,11 +6,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #000;
+  background: #080a0e;
+  /* Ambient noise-like radial behind the whole surface */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(239,68,68,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(99,102,241,0.04) 0%, transparent 60%);
 }
 
 .workflowHeader {
-  background: linear-gradient(180deg, rgba(0,0,0,0.98), rgba(0,0,0,0.7), transparent);
+  background: linear-gradient(180deg, rgba(8,10,14,0.98), rgba(8,10,14,0.7), transparent);
 }
 
 /* ─── Grid ───────────────────────────────────────────────────────────────── */
@@ -40,12 +44,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  background: rgba(255,255,255,0.045);
-  border-right: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+  border-right: 1px solid rgba(255,255,255,0.05);
   overflow-y: auto;
   padding: 1rem 0.9rem 1.4rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.02);
 }
 
 .leftSidebar::-webkit-scrollbar {
@@ -59,15 +64,19 @@
   gap: 0.55rem;
   padding: 0 0.9rem;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
   color: rgba(255,255,255,0.85);
   font-size: 0.82rem;
   font-weight: 700;
+  transition: background 160ms, border-color 160ms, box-shadow 160ms;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .newChatButton:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 
 .primaryNav,
@@ -84,16 +93,16 @@
   padding: 0 0.75rem;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.5);
   font-size: 0.78rem;
   font-weight: 600;
   border-radius: 8px;
   text-align: left;
-  transition: background 120ms, color 120ms;
+  transition: background 140ms, color 140ms;
 }
 
 .navItem:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.05);
   color: rgba(255,255,255,0.9);
 }
 
@@ -108,7 +117,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.25);
   padding: 0 0.15rem;
 }
 
@@ -130,7 +139,7 @@
   display: block;
   margin-top: 0.18rem;
   font-size: 0.7rem;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.35);
 }
 
 .threadItem {
@@ -139,12 +148,12 @@
   background: transparent;
   border-radius: 8px;
   text-align: left;
-  transition: background 120ms;
+  transition: background 140ms;
   color: inherit;
 }
 
 .threadItem:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.045);
 }
 
 .threadItem strong {
@@ -157,11 +166,11 @@
   display: block;
   margin-top: 0.18rem;
   font-size: 0.7rem;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.35);
 }
 
 .threadItemActive {
-  background: rgba(239,68,68,0.08);
+  background: rgba(239,68,68,0.07);
 }
 
 .threadItemActive strong {
@@ -183,13 +192,16 @@
   align-items: flex-start;
   gap: 1rem;
   padding: 1.4rem 2rem 1.2rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%);
 }
 
 .heroLogo {
   flex-shrink: 0;
   margin-top: 2px;
-  filter: drop-shadow(0 0 18px rgba(239,68,68,0.18));
+  filter:
+    drop-shadow(0 0 14px rgba(239,68,68,0.38))
+    drop-shadow(0 0 32px rgba(239,68,68,0.14));
 }
 
 .heroLabel {
@@ -197,7 +209,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.28);
 }
 
 .mainTitle {
@@ -210,11 +222,11 @@
 
 .goalProgress {
   margin: 0.3rem 0 0;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.32);
   font-size: 0.72rem;
 }
 
-/* ─── Workflow Stream (spinner lines, no cards) ───────────────────────────── */
+/* ─── Workflow Stream ─────────────────────────────────────────────────────── */
 
 .workflowStream {
   flex: 1;
@@ -223,15 +235,11 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 0.6rem 2rem 0.4rem;
-  /* hide scrollbar */
+  padding: 0.8rem 1.8rem 0.6rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-/* Keep content bottom-anchored while short, but allow natural scrolling once
-   it overflows. Using margin-top:auto on the first child avoids the scroll
-   lock that `justify-content: flex-end` causes on overflow. */
 .workflowStream > :first-child {
   margin-top: auto;
 }
@@ -240,39 +248,81 @@
   display: none;
 }
 
+/* ─── Individual Stream Lines ────────────────────────────────────────────── */
+
 .streamLine {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.7rem 0;
-  animation: streamFadeIn 200ms ease-out;
+  gap: 0.85rem;
+  padding: 0.75rem 0.7rem;
+  margin: 0.15rem 0;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: background 220ms, border-color 220ms, box-shadow 220ms;
+  animation: streamEntrance 380ms cubic-bezier(0.22, 1.2, 0.45, 1) both;
 }
 
-.streamLine + .streamLine {
-  border-top: 1px solid rgba(255,255,255,0.04);
+.streamCompleted {
+  background: transparent;
+  border-color: transparent;
 }
+
+.streamBlocked {
+  background: rgba(251,191,36,0.03);
+  border-color: rgba(251,191,36,0.1);
+}
+
+/* Running step gets an elevated glass card feel */
+.streamRunning {
+  background: rgba(239,68,68,0.04);
+  border-color: rgba(239,68,68,0.14);
+  box-shadow:
+    0 0 0 1px rgba(239,68,68,0.06) inset,
+    0 4px 24px rgba(239,68,68,0.06),
+    0 1px 0 rgba(255,255,255,0.03) inset;
+}
+
+.streamError {
+  background: rgba(239,68,68,0.03);
+  border-color: rgba(239,68,68,0.18);
+}
+
+/* ─── Step Icon ──────────────────────────────────────────────────────────── */
 
 .streamIconWrap {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
+  margin-top: 0;
+  border-radius: 8px;
 }
 
 .streamCompleted .streamIconWrap {
-  color: rgba(34,197,94,0.8);
+  color: #22c55e;
+  filter: drop-shadow(0 0 6px rgba(34,197,94,0.5));
 }
 
 .streamRunning .streamIconWrap {
   color: #ef4444;
+  filter: drop-shadow(0 0 8px rgba(239,68,68,0.7));
+  /* Subtle pulsing glow ring */
+  animation: iconPulseRing 2s ease-in-out infinite;
 }
 
 .streamBlocked .streamIconWrap {
-  color: rgba(251,191,36,0.8);
+  color: #fbbf24;
+  filter: drop-shadow(0 0 6px rgba(251,191,36,0.45));
 }
+
+.streamIconError {
+  color: #ef4444;
+  filter: drop-shadow(0 0 6px rgba(239,68,68,0.5));
+}
+
+/* ─── Step Copy ──────────────────────────────────────────────────────────── */
 
 .streamCopy {
   flex: 1;
@@ -286,23 +336,29 @@
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .streamCompleted .streamTitle {
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.45);
 }
 
 .streamRunning .streamTitle {
   color: white;
+  text-shadow: 0 0 20px rgba(255,255,255,0.15);
 }
 
 .streamBlocked .streamTitle {
   color: rgba(251,191,36,0.9);
 }
 
+.streamError .streamTitle {
+  color: #fca5a5;
+}
+
 .streamDetail {
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.32);
+  color: rgba(255,255,255,0.28);
   line-height: 1.5;
   display: flex;
   align-items: center;
@@ -311,11 +367,10 @@
 }
 
 .streamRunning .streamDetail {
-  color: rgba(255,255,255,0.48);
+  color: rgba(255,255,255,0.44);
 }
 
-/* Animated dots for running steps */
-
+/* Animated dots */
 .streamDots {
   display: inline-flex;
   gap: 1px;
@@ -324,7 +379,7 @@
 
 .streamDots span {
   display: inline-block;
-  color: rgba(255,255,255,0.4);
+  color: rgba(239,68,68,0.6);
   animation: dotPulse 1.4s infinite;
 }
 
@@ -332,13 +387,13 @@
 .streamDots span:nth-child(3) { animation-delay: 0.4s; }
 .streamDots span:nth-child(4) { animation-delay: 0.6s; }
 
-/* Thinking collapsible */
+/* ─── Thinking / Editing collapsible ─────────────────────────────────────── */
 
 .thinkingSection {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  margin-top: 0.3rem;
+  margin-top: 0.25rem;
 }
 
 .thinkingToggle {
@@ -347,20 +402,20 @@
   gap: 0.3rem;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.27);
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0;
   cursor: pointer;
-  transition: color 120ms;
+  transition: color 140ms;
 }
 
 .thinkingToggle:hover {
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.58);
 }
 
 .thinkingChevron {
-  transition: transform 160ms ease;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .thinkingChevronOpen {
@@ -368,164 +423,165 @@
 }
 
 .thinkingBox {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 0.6rem 0.75rem;
-  color: rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.055);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  color: rgba(255,255,255,0.38);
   font-size: 0.72rem;
-  line-height: 1.6;
-  animation: streamFadeIn 160ms ease-out;
+  line-height: 1.65;
+  animation: expandDown 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .toolCallLine {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.1rem;
+  margin-top: 0.15rem;
 }
 
 .toolCallLabel {
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.25);
-  font-weight: 600;
+  font-size: 0.66rem;
+  color: rgba(255,255,255,0.22);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.11em;
 }
 
 .toolCallName {
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 0.69rem;
-  color: rgba(239,68,68,0.65);
-  background: rgba(239,68,68,0.07);
-  padding: 0.1rem 0.45rem;
+  color: rgba(239,68,68,0.75);
+  background: rgba(239,68,68,0.08);
+  padding: 0.12rem 0.48rem;
   border-radius: 5px;
+  border: 1px solid rgba(239,68,68,0.14);
+  box-shadow: 0 0 8px rgba(239,68,68,0.06);
 }
 
-/* Finished product download card */
+/* ─── Finished / Editor Cards ─────────────────────────────────────────────── */
 
-.finishedCard {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.85rem 1rem;
-  margin-top: 0.4rem;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  cursor: pointer;
-  animation: streamFadeIn 240ms ease-out;
-  transition: background 140ms, border-color 140ms;
-}
-
-.finishedCard:hover {
-  background: rgba(255,255,255,0.07);
-  border-color: rgba(255,255,255,0.13);
-}
-
-.finishedCardIcon {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ef4444;
-}
-
-.finishedCardMeta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.finishedCardTitle {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: white;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.finishedCardFilename {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.38);
-  font-family: "SF Mono", "Fira Code", monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.finishedCardType {
-  font-size: 0.63rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(239,68,68,0.7);
-}
-
-.finishedCardDownloadBtn {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: rgba(255,255,255,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 120ms, color 120ms, border-color 120ms;
-}
-
-.finishedCardDownloadBtn:hover {
-  background: rgba(239,68,68,0.12);
-  border-color: rgba(239,68,68,0.3);
-  color: #ef4444;
-}
-
-/* ─── Proceed to Editor card ─────────────────────────────────────────────── */
-
+/* Shared 3D glass base */
+.finishedCard,
 .editorCard {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.85rem 1rem;
-  margin-top: 0.4rem;
-  background: rgba(99,102,241,0.06);
-  border: 1px solid rgba(99,102,241,0.18);
-  border-radius: 14px;
+  gap: 1rem;
+  padding: 0.9rem 1.05rem;
+  margin-top: 0.5rem;
+  border-radius: 16px;
   cursor: pointer;
-  animation: streamFadeIn 240ms ease-out;
-  transition: background 140ms, border-color 140ms;
-  color: rgba(255,255,255,0.7);
+  animation: cardRise 420ms cubic-bezier(0.22, 1.2, 0.45, 1) both;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.45, 1), box-shadow 180ms, background 160ms, border-color 160ms;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle shimmer overlay on hover */
+.finishedCard::after,
+.editorCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 240ms;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.finishedCard:hover::after,
+.editorCard:hover::after {
+  opacity: 1;
+}
+
+.finishedCard:hover,
+.editorCard:hover {
+  transform: translateY(-2px);
+}
+
+.finishedCard:active,
+.editorCard:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Red / PDF card */
+.finishedCard {
+  background: rgba(239,68,68,0.05);
+  border: 1px solid rgba(239,68,68,0.14);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 8px 32px rgba(0,0,0,0.5),
+    0 2px 8px rgba(239,68,68,0.08);
+}
+
+.finishedCard:hover {
+  background: rgba(239,68,68,0.09);
+  border-color: rgba(239,68,68,0.26);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 16px 48px rgba(0,0,0,0.55),
+    0 4px 16px rgba(239,68,68,0.14);
+}
+
+/* Indigo / Editor card */
+.editorCard {
+  background: rgba(99,102,241,0.06);
+  border: 1px solid rgba(99,102,241,0.16);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 8px 32px rgba(0,0,0,0.5),
+    0 2px 8px rgba(99,102,241,0.07);
+  color: rgba(255,255,255,0.72);
 }
 
 .editorCard:hover {
   background: rgba(99,102,241,0.11);
-  border-color: rgba(99,102,241,0.32);
+  border-color: rgba(99,102,241,0.3);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 16px 48px rgba(0,0,0,0.55),
+    0 4px 16px rgba(99,102,241,0.12);
   color: white;
 }
 
+/* Card icon badges */
+.finishedCardIcon,
 .editorCardIcon {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgba(99,102,241,0.12);
-  border: 1px solid rgba(99,102,241,0.22);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #818cf8;
+  transition: box-shadow 200ms;
 }
 
+.finishedCardIcon {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.2);
+  color: #ef4444;
+  box-shadow: 0 0 16px rgba(239,68,68,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.finishedCard:hover .finishedCardIcon {
+  box-shadow: 0 0 24px rgba(239,68,68,0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.editorCardIcon {
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.22);
+  color: #818cf8;
+  box-shadow: 0 0 16px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.editorCard:hover .editorCardIcon {
+  box-shadow: 0 0 24px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.finishedCardMeta,
 .editorCardMeta {
   flex: 1;
   min-width: 0;
@@ -534,46 +590,97 @@
   gap: 0.15rem;
 }
 
+.finishedCardTitle,
 .editorCardTitle {
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.finishedCardFilename {
+  font-size: 0.71rem;
+  color: rgba(255,255,255,0.34);
+  font-family: "SF Mono", "Fira Code", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finishedCardType {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: rgba(239,68,68,0.65);
 }
 
 .editorCardSub {
   font-size: 0.73rem;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.36);
 }
+
+.finishedCardDownloadBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms, color 140ms, border-color 140ms, box-shadow 140ms, transform 100ms;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.finishedCardDownloadBtn:hover {
+  background: rgba(239,68,68,0.14);
+  border-color: rgba(239,68,68,0.32);
+  color: #ef4444;
+  box-shadow: 0 0 14px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+}
+
+.finishedCardDownloadBtn:active {
+  transform: translateY(0);
+}
+
+/* ─── Error line ─────────────────────────────────────────────────────────── */
 
 .errorLine {
   padding: 0.7rem 0 0.7rem 2.1rem;
   color: #fca5a5;
   font-size: 0.78rem;
   border-top: 1px solid rgba(255,255,255,0.04);
-  animation: streamFadeIn 200ms ease-out;
+  animation: streamEntrance 200ms ease-out;
 }
 
-/* ─── Spinner icon animation ─────────────────────────────────────────────── */
+/* ─── Spinner ─────────────────────────────────────────────────────────────── */
 
 .spinnerIcon {
-  animation: spinRotate 0.9s linear infinite;
+  animation: spinRotate 0.85s linear infinite;
   color: inherit;
 }
 
 /* ─── Right Sidebar ──────────────────────────────────────────────────────── */
 
 .rightSidebar {
-  background: rgba(255,255,255,0.045);
-  border-left: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.022);
+  border-left: 1px solid rgba(255,255,255,0.05);
   overflow-y: auto;
   padding: 1rem 0.9rem 1.4rem;
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
   transition: opacity 180ms ease;
-  /* hide scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
+  box-shadow: inset 1px 0 0 rgba(255,255,255,0.02);
 }
 
 .rightSidebar::-webkit-scrollbar {
@@ -602,13 +709,13 @@
   height: 28px;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.3);
   border-radius: 6px;
   transition: background 120ms, color 120ms;
 }
 
 .collapseRightBtn:hover {
-  background: rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.75);
 }
 
@@ -622,17 +729,18 @@
   justify-content: center;
   width: 22px;
   height: 52px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.07);
   border-right: 0;
-  background: rgba(255,255,255,0.045);
-  color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.4);
   border-radius: 8px 0 0 8px;
   z-index: 10;
   transition: background 120ms, color 120ms;
+  box-shadow: -2px 0 12px rgba(0,0,0,0.3);
 }
 
 .expandRightBtn:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.07);
   color: rgba(255,255,255,0.85);
 }
 
@@ -645,7 +753,7 @@
 
 .sourceItem {
   padding: 0.65rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
 .sourceItem:last-child {
@@ -654,14 +762,14 @@
 
 .sourceItem strong {
   display: block;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255,255,255,0.82);
   font-size: 0.78rem;
 }
 
 .sourceItem span {
   display: block;
   margin-top: 0.22rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.36);
   font-size: 0.7rem;
 }
 
@@ -685,7 +793,7 @@
   font-size: 0.63rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.27);
 }
 
 .kvStack strong {
@@ -711,7 +819,7 @@
   padding: 0 0.1rem;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.55);
   font-size: 0.76rem;
   font-weight: 700;
   text-align: left;
@@ -723,7 +831,7 @@
 }
 
 .collapseChevron {
-  transition: transform 160ms ease;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .collapseChevronOpen {
@@ -732,7 +840,7 @@
 
 .outlineItem {
   padding: 0.55rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
 .outlineItem:last-child {
@@ -748,14 +856,14 @@
 .outlineItem span {
   display: block;
   margin-top: 0.22rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.38);
   font-size: 0.7rem;
   line-height: 1.45;
 }
 
 .emptyText {
   margin: 0;
-  color: rgba(255,255,255,0.36);
+  color: rgba(255,255,255,0.33);
   font-size: 0.72rem;
   line-height: 1.55;
 }
@@ -764,19 +872,27 @@
 
 .primaryButton {
   min-height: 2.45rem;
-  padding: 0 1rem;
+  padding: 0 1.1rem;
   border-radius: 999px;
   border: 0;
-  background: #ef4444;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
   font-weight: 700;
   font-size: 0.78rem;
   white-space: nowrap;
-  transition: background 120ms;
+  transition: box-shadow 160ms, transform 120ms, background 160ms;
+  box-shadow: 0 4px 16px rgba(239,68,68,0.32), 0 1px 0 rgba(255,255,255,0.15) inset;
 }
 
 .primaryButton:hover {
-  background: #dc2626;
+  background: linear-gradient(135deg, #f05252 0%, #e02424 100%);
+  box-shadow: 0 6px 22px rgba(239,68,68,0.44), 0 1px 0 rgba(255,255,255,0.15) inset;
+  transform: translateY(-1px);
+}
+
+.primaryButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.28);
 }
 
 /* ─── Bottom Question Dock ───────────────────────────────────────────────── */
@@ -788,21 +904,26 @@
   transform: translateX(-50%);
   width: min(100%, 720px);
   z-index: 50;
-  padding: 0 1rem 1.2rem;
-  animation: questionRiseUp 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 0 1rem 1.4rem;
+  animation: questionRiseUp 380ms cubic-bezier(0.22, 1.15, 0.36, 1);
 }
 
 .bottomQuestionDockExiting {
-  animation: questionSinkOut 200ms ease-in forwards;
+  animation: questionSinkOut 210ms ease-in forwards;
 }
 
 .bottomQuestionCard {
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 20px 20px 16px 16px;
-  background: rgba(14,14,16,0.97);
-  box-shadow: 0 -8px 60px rgba(0,0,0,0.55), 0 40px 80px rgba(0,0,0,0.4);
-  padding: 1.1rem 1.2rem 1rem;
-  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 22px 22px 18px 18px;
+  background: rgba(12,14,20,0.97);
+  box-shadow:
+    0 -2px 0 rgba(255,255,255,0.04) inset,
+    0 -24px 80px rgba(0,0,0,0.7),
+    0 40px 80px rgba(0,0,0,0.4),
+    0 0 0 1px rgba(239,68,68,0.06);
+  padding: 1.2rem 1.3rem 1.1rem;
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
 }
 
 .bottomQuestionMeta {
@@ -813,11 +934,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.3);
 }
 
 .bottomQuestionMeta svg {
   color: #ef4444;
+  filter: drop-shadow(0 0 4px rgba(239,68,68,0.6));
 }
 
 .bottomQuestionCard h3 {
@@ -826,11 +948,12 @@
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.35;
+  letter-spacing: -0.02em;
 }
 
 .bottomQuestionHelper {
   margin: 0.35rem 0 0;
-  color: rgba(255,255,255,0.44);
+  color: rgba(255,255,255,0.4);
   font-size: 0.74rem;
   line-height: 1.55;
 }
@@ -845,21 +968,29 @@
 }
 
 .suggestionChip {
-  padding: 0.45rem 0.9rem;
+  padding: 0.46rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.82);
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.78);
   font-size: 0.8rem;
   font-weight: 500;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition: background 160ms, border-color 160ms, color 160ms, box-shadow 160ms, transform 120ms;
   white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .suggestionChip:hover {
-  background: rgba(239,68,68,0.14);
-  border-color: rgba(239,68,68,0.4);
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.36);
   color: white;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.18), inset 0 1px 0 rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
+.suggestionChip:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
 /* Custom answer row */
@@ -867,52 +998,62 @@
 .bottomQuestionInput {
   display: flex;
   gap: 0.55rem;
-  margin-top: 0.75rem;
+  margin-top: 0.8rem;
 }
 
 .questionCustomInput {
   flex: 1;
-  min-height: 2.55rem;
-  border-radius: 12px;
+  min-height: 2.6rem;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
   color: white;
   padding: 0 0.9rem;
   outline: none;
   font-size: 0.82rem;
-  transition: border-color 140ms;
+  transition: border-color 160ms, box-shadow 160ms;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .questionCustomInput::placeholder {
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.22);
 }
 
 .questionCustomInput:focus {
-  border-color: rgba(239,68,68,0.38);
+  border-color: rgba(239,68,68,0.42);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 3px rgba(239,68,68,0.08);
 }
 
 .questionSendBtn {
   flex-shrink: 0;
-  width: 2.55rem;
-  height: 2.55rem;
-  border-radius: 12px;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 13px;
   border: 0;
-  background: #ef4444;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 120ms, opacity 120ms;
+  transition: box-shadow 160ms, transform 120ms, opacity 140ms;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.36), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 .questionSendBtn:hover:not(:disabled) {
-  background: #dc2626;
+  box-shadow: 0 6px 20px rgba(239,68,68,0.48), inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+
+.questionSendBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.28);
 }
 
 .questionSendBtn:disabled {
   background: rgba(239,68,68,0.2);
   opacity: 0.45;
   cursor: default;
+  box-shadow: none;
 }
 
 /* ─── Timer Bar ──────────────────────────────────────────────────────────── */
@@ -924,12 +1065,13 @@
   padding: 0.45rem 2rem;
   font-size: 0.7rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.32);
+  color: rgba(255,255,255,0.28);
   border-top: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
 }
 
 .timerBarDone {
-  color: rgba(34,197,94,0.65);
+  color: rgba(34,197,94,0.6);
 }
 
 .timerDot {
@@ -937,16 +1079,17 @@
   height: 6px;
   border-radius: 50%;
   background: #ef4444;
-  animation: timerPulse 1.2s ease-in-out infinite;
+  animation: timerPulse 1.4s ease-in-out infinite;
   flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(239,68,68,0.6);
 }
 
 @keyframes timerPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(0.75); }
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(239,68,68,0.6); }
+  50%       { opacity: 0.35; transform: scale(0.65); box-shadow: 0 0 2px rgba(239,68,68,0.3); }
 }
 
-/* ─── Editing box (essay stream) ─────────────────────────────────────────── */
+/* ─── Editing box ────────────────────────────────────────────────────────── */
 
 .editingBox {
   white-space: pre-wrap;
@@ -954,7 +1097,7 @@
   overflow-y: auto;
   font-size: 0.71rem;
   line-height: 1.65;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.46);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -963,7 +1106,7 @@
   display: none;
 }
 
-/* ─── Humanized content section ──────────────────────────────────────────── */
+/* ─── Humanized section ──────────────────────────────────────────────────── */
 
 .humanizedSection {
   display: flex;
@@ -971,7 +1114,7 @@
   gap: 0.4rem;
   padding: 0.7rem 0;
   border-top: 1px solid rgba(255,255,255,0.04);
-  animation: streamFadeIn 200ms ease-out;
+  animation: streamEntrance 220ms ease-out;
 }
 
 .humanizedHeader {
@@ -985,7 +1128,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.27);
 }
 
 .humanizedActions {
@@ -1000,18 +1143,19 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 8px;
   background: transparent;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.35);
   text-decoration: none;
-  transition: background 120ms, color 120ms, border-color 120ms;
+  transition: background 120ms, color 120ms, border-color 120ms, box-shadow 120ms;
 }
 
 .humanizedActionBtn:hover {
   background: rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.8);
-  border-color: rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.82);
+  border-color: rgba(255,255,255,0.13);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .humanizedToggle {
@@ -1020,12 +1164,12 @@
   gap: 0.3rem;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.28);
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0;
   cursor: pointer;
-  transition: color 120ms;
+  transition: color 140ms;
 }
 
 .humanizedToggle:hover {
@@ -1039,53 +1183,63 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.8rem 2rem 1rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  background: #000;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(0deg, rgba(8,10,14,1) 0%, rgba(8,10,14,0.8) 100%);
 }
 
 .chatInput {
   flex: 1;
   min-height: 2.6rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.09);
-  background: rgba(255,255,255,0.04);
+  border-radius: 13px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
   color: white;
   padding: 0 0.9rem;
   outline: none;
   font-size: 0.83rem;
-  transition: border-color 140ms;
+  transition: border-color 160ms, box-shadow 160ms;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);
 }
 
 .chatInput::placeholder {
-  color: rgba(255,255,255,0.28);
+  color: rgba(255,255,255,0.24);
 }
 
 .chatInput:focus {
-  border-color: rgba(239,68,68,0.4);
+  border-color: rgba(239,68,68,0.38);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25), 0 0 0 3px rgba(239,68,68,0.07);
 }
 
 .chatSendBtn {
   flex-shrink: 0;
   width: 2.6rem;
   height: 2.6rem;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 0;
-  background: #ef4444;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 120ms, opacity 120ms;
+  transition: box-shadow 160ms, transform 120ms, opacity 140ms;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 .chatSendBtn:hover:not(:disabled) {
-  background: #dc2626;
+  box-shadow: 0 6px 20px rgba(239,68,68,0.44), inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+
+.chatSendBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.25);
 }
 
 .chatSendBtn:disabled {
-  background: rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.22);
   opacity: 0.5;
   cursor: default;
+  box-shadow: none;
 }
 
 /* ─── Hidden PDF Preview ─────────────────────────────────────────────────── */
@@ -1107,8 +1261,21 @@
 
 /* ─── Keyframes ──────────────────────────────────────────────────────────── */
 
-@keyframes streamFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+/* Stream items: spring slide-up */
+@keyframes streamEntrance {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Cards: spring pop up */
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Thinking box expand */
+@keyframes expandDown {
+  from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -1117,8 +1284,14 @@
 }
 
 @keyframes dotPulse {
-  0%, 80%, 100% { opacity: 0.2; }
+  0%, 80%, 100% { opacity: 0.15; }
   40%           { opacity: 1; }
+}
+
+/* Running step icon: slow breathing glow */
+@keyframes iconPulseRing {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(239,68,68,0.6)); }
+  50%       { filter: drop-shadow(0 0 12px rgba(239,68,68,0.9)) drop-shadow(0 0 4px rgba(239,68,68,0.5)); }
 }
 
 @keyframes questionRiseUp {
@@ -1139,7 +1312,7 @@
   }
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(24px);
+    transform: translateX(-50%) translateY(20px);
   }
 }
 
@@ -1154,13 +1327,13 @@
   .rightSidebar {
     order: 3;
     border-left: 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.05);
   }
 
   .leftSidebar {
     order: 2;
     border-right: 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.05);
   }
 
   .mainColumn {
@@ -1191,7 +1364,7 @@
 
   .bottomQuestionDock {
     width: 100%;
-    padding: 0 0.7rem 0.8rem;
+    padding: 0 0.7rem 0.9rem;
   }
 
   .bottomQuestionInput {
@@ -1208,14 +1381,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: miniOverlayIn 280ms ease forwards;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: miniOverlayIn 300ms ease forwards;
 }
 
 .miniEditorOverlayExiting {
-  animation: miniOverlayOut 210ms ease forwards;
+  animation: miniOverlayOut 220ms ease forwards;
 }
 
 @keyframes miniOverlayIn {
@@ -1231,28 +1404,34 @@
 .miniEditorPanel {
   width: min(740px, 92vw);
   height: min(84vh, 880px);
-  background: #0d1017;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 22px;
+  background: linear-gradient(160deg, #0e1118 0%, #080a0e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  animation: miniPanelIn 400ms cubic-bezier(0.22, 1.2, 0.56, 1) forwards;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.03) inset,
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 48px 140px rgba(0, 0, 0, 0.95),
+    0 0 80px rgba(99,102,241,0.05);
+  animation: miniPanelIn 440ms cubic-bezier(0.22, 1.2, 0.56, 1) forwards;
 }
 
 .miniEditorPanelExiting {
-  animation: miniPanelOut 210ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: miniPanelOut 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 @keyframes miniPanelIn {
   from {
     opacity: 0;
-    transform: translateY(56px) scale(0.94);
+    transform: translateY(60px) scale(0.93);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -1260,10 +1439,12 @@
   from {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
   to {
     opacity: 0;
-    transform: translateY(28px) scale(0.97);
+    transform: translateY(24px) scale(0.97);
+    filter: blur(2px);
   }
 }
 
@@ -1273,8 +1454,9 @@
   justify-content: space-between;
   padding: 0.85rem 1.2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(255, 255, 255, 0.02);
   flex-shrink: 0;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .miniEditorHeaderLeft {
@@ -1293,22 +1475,23 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  background: rgba(99, 102, 241, 0.14);
-  border: 1px solid rgba(99, 102, 241, 0.24);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.22);
   color: #818cf8;
+  box-shadow: 0 0 10px rgba(99,102,241,0.08);
 }
 
 .miniEditorClose {
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.42);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255, 255, 255, 0.38);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 120ms, color 120ms, border-color 120ms;
+  transition: background 140ms, color 140ms, border-color 140ms, box-shadow 140ms, transform 100ms;
   cursor: pointer;
 }
 
@@ -1316,17 +1499,21 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.14);
   color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transform: scale(1.05);
 }
 
 .miniEditorBody {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.8rem 1.4rem;
+  padding: 2rem 1.6rem;
   display: flex;
   flex-direction: column;
-  gap: 1.6rem;
+  gap: 1.8rem;
   scrollbar-width: none;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(99,102,241,0.04) 0%, transparent 70%);
 }
 
 .miniEditorBody::-webkit-scrollbar {
@@ -1344,27 +1531,33 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.11em;
-  color: rgba(255, 255, 255, 0.2);
-  margin-bottom: 0.55rem;
+  color: rgba(255, 255, 255, 0.18);
+  margin-bottom: 0.6rem;
 }
 
 .miniEditorPageContent {
   background: #fff;
   color: #1a1a1a;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 2.8rem 3.2rem;
   font-family: "Times New Roman", Times, serif;
   font-size: 11.5pt;
   line-height: 1.85;
   min-height: 560px;
   outline: none;
-  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(0, 0, 0, 0.08);
-  transition: box-shadow 160ms;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(0,0,0,0.08);
+  transition: box-shadow 200ms;
   cursor: text;
 }
 
 .miniEditorPageContent:focus {
-  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.5), 0 0 0 2.5px rgba(99, 102, 241, 0.45);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 3px rgba(99, 102, 241, 0.4);
 }
 
 .miniEditorFooter {
@@ -1374,13 +1567,14 @@
   gap: 0.7rem;
   padding: 0.9rem 1.2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.018);
   flex-shrink: 0;
+  box-shadow: 0 -1px 0 rgba(0,0,0,0.2);
 }
 
 .miniEditorHint {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.18);
 }
 
 .miniEditorFooterActions {
@@ -1391,18 +1585,19 @@
 
 .miniEditorCancelBtn {
   padding: 0.48rem 0.95rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.46);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255, 255, 255, 0.42);
   font-size: 0.81rem;
-  transition: background 120ms, color 120ms;
+  transition: background 140ms, color 140ms, border-color 140ms;
   cursor: pointer;
 }
 
 .miniEditorCancelBtn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+  border-color: rgba(255,255,255,0.13);
 }
 
 .miniEditorFinishBtn {
@@ -1410,48 +1605,52 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.48rem 1.1rem;
-  border-radius: 8px;
+  border-radius: 9px;
   border: none;
-  background: #6366f1;
+  background: linear-gradient(135deg, #6366f1 0%, #4f52cc 100%);
   color: white;
   font-size: 0.81rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms, opacity 120ms, transform 80ms;
+  transition: box-shadow 160ms, transform 120ms, opacity 140ms;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.36), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 .miniEditorFinishBtn:hover {
-  background: #5254cc;
+  box-shadow: 0 6px 22px rgba(99,102,241,0.48), inset 0 1px 0 rgba(255,255,255,0.22);
   transform: translateY(-1px);
 }
 
 .miniEditorFinishBtn:active {
   transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.28);
 }
 
 .miniEditorFinishBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-.streamError .streamTitle {
-  color: #b91c1c;
-}
+/* ─── Error Recovery ─────────────────────────────────────────────────────── */
 
 .streamIconError {
-  color: #dc2626;
+  color: #ef4444;
+  filter: drop-shadow(0 0 6px rgba(239,68,68,0.55));
 }
 
 .errorRecovery {
   margin-top: 0.55rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(254,242,242,0.97);
+  border: 1px solid rgba(254,202,202,0.8);
+  box-shadow: 0 4px 20px rgba(239,68,68,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.6rem;
+  animation: expandDown 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .errorRecoveryMsg {
@@ -1465,40 +1664,45 @@
 .errorRecoveryActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
 .errorRecoveryBtn {
   appearance: none;
-  border: 1px solid #fca5a5;
+  border: 1px solid rgba(252,165,165,0.7);
   background: white;
   color: #991b1b;
-  border-radius: 7px;
-  padding: 0.38rem 0.78rem;
+  border-radius: 8px;
+  padding: 0.4rem 0.82rem;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms, transform 80ms;
+  transition: background 140ms, border-color 140ms, color 140ms, box-shadow 140ms, transform 100ms;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
 .errorRecoveryBtn:hover {
-  background: #fee2e2;
+  background: #fef2f2;
   border-color: #f87171;
+  box-shadow: 0 4px 12px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.9);
   transform: translateY(-1px);
 }
 
 .errorRecoveryBtn:active {
   transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .errorRecoveryBtnPrimary {
-  background: #dc2626;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border-color: #dc2626;
   color: white;
+  box-shadow: 0 3px 10px rgba(239,68,68,0.32), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 .errorRecoveryBtnPrimary:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: linear-gradient(135deg, #f05252 0%, #e02424 100%);
+  border-color: #e02424;
   color: white;
+  box-shadow: 0 5px 16px rgba(239,68,68,0.44), inset 0 1px 0 rgba(255,255,255,0.18);
 }
