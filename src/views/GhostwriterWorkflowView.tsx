@@ -78,6 +78,51 @@ function defaultDateString() {
   });
 }
 
+// ─── Error handling ──────────────────────────────────────────────────────
+// Classify whether an error is worth auto-retrying. Credits/auth/400 errors
+// are surfaced immediately since no amount of retrying fixes them.
+function isRetryableError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err || "")).toLowerCase();
+  if (!msg) return true;
+  if (msg.includes("credit") || msg.includes("insufficient")) return false;
+  if (msg.includes("401") || msg.includes("unauthorized")) return false;
+  if (msg.includes("403") || msg.includes("forbidden")) return false;
+  // 400 (bad request) is not retryable — except the 429 edge case which is rate limit
+  if (msg.includes("400") && !msg.includes("429")) return false;
+  return true;
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type RecoveryAction =
+  | { kind: "retry"; label: string }
+  | { kind: "swap_humanizer"; label: string; provider: string }
+  | { kind: "skip_humanize"; label: string }
+  | { kind: "restart"; label: string };
+
+type StepError = {
+  stepId: number;
+  toolName: string;
+  message: string;
+  recovery: RecoveryAction[];
+};
+
+function getRecoveryActions(toolName: string, args?: Record<string, unknown>): RecoveryAction[] {
+  const actions: RecoveryAction[] = [{ kind: "retry", label: "Retry" }];
+
+  if (toolName === "humanize_essay") {
+    const current = String(args?.provider || "");
+    const other = current === "StealthGPT" ? "UndetectableAI" : "StealthGPT";
+    actions.push({ kind: "swap_humanizer", label: `Try ${other}`, provider: other });
+    actions.push({ kind: "skip_humanize", label: "Skip & finish" });
+  }
+
+  actions.push({ kind: "restart", label: "Start over" });
+  return actions;
+}
+
 // Splits pages naturally like MS Word — paragraphs flow across page boundaries
 // by splitting at word boundaries when they don't fit, so every page is filled
 // before moving to the next one.
@@ -289,6 +334,16 @@ function BlockedIcon() {
   );
 }
 
+function ErrorIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
@@ -331,6 +386,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   // Question fade transition
   const [displayedQuestion, setDisplayedQuestion] = useState(runState?.pendingQuestion ?? null);
   const [questionExiting, setQuestionExiting] = useState(false);
+  // Error recovery
+  const [stepErrors, setStepErrors] = useState<Map<number, StepError>>(new Map());
+  const [retryTrigger, setRetryTrigger] = useState(0);
+  const [retryingStep, setRetryingStep] = useState<{ stepId: number; attempt: number; max: number } | null>(null);
   const hasStarted = useRef(false);
   const isExecutingTool = useRef(false);
   const originalPageRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -377,6 +436,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   useEffect(() => {
     if (!runState?.pendingToolCall || isExecutingTool.current) return;
 
+    const runningStepId = runState.steps.find(
+      (s) => s.status === "running" || s.status === "blocked"
+    )?.id ?? 0;
+
+    // If this step already has a pending error, wait for user recovery action.
+    if (runningStepId !== 0 && stepErrors.has(runningStepId)) return;
+
     isExecutingTool.current = true;
     const isEssayTool = runState.pendingToolCall.name === "generate_essay";
     if (isEssayTool) {
@@ -385,19 +451,42 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     }
 
     void (async () => {
+      const toolName = runState.pendingToolCall!.name;
+      const MAX_ATTEMPTS = 3;
+      let result: unknown = null;
+      let lastError: Error | null = null;
+
       try {
-        let chunks = "";
-        const toolName = runState.pendingToolCall!.name;
-        const result = await GhostwriterOrchestrator.executeToolCall(
-          runState.pendingToolCall!,
-          draft,
-          isEssayTool
-            ? (chunk) => {
-                chunks += chunk;
-                setEssayStreamContent(chunks);
-              }
-            : undefined,
-        );
+        // ─── Auto-retry loop for tool execution ──────────────────────────
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+          try {
+            if (attempt > 1) {
+              setRetryingStep({ stepId: runningStepId, attempt, max: MAX_ATTEMPTS });
+              const backoffMs = Math.min(500 * Math.pow(2, attempt - 2), 3000);
+              await sleepMs(backoffMs);
+            }
+            let chunks = "";
+            result = await GhostwriterOrchestrator.executeToolCall(
+              runState.pendingToolCall!,
+              draft,
+              isEssayTool
+                ? (chunk) => {
+                    chunks += chunk;
+                    setEssayStreamContent(chunks);
+                  }
+                : undefined,
+            );
+            lastError = null;
+            break;
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            if (!isRetryableError(lastError)) break;
+          }
+        }
+        setRetryingStep(null);
+        if (lastError) throw lastError;
+
+        // ─── Success side-effects ────────────────────────────────────────
         if (toolName === "finalize_export") {
           const raw = Organizer.get().exportDocument;
           setOriginalExportDoc(raw ? await paginateSnapshot(raw) : null);
@@ -406,15 +495,45 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           const raw = Organizer.get().exportDocument;
           setHumanizedExportDoc(raw ? await paginateSnapshot(raw) : null);
         }
-        const nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, toolName, result);
-        setRunState(nextState);
+
+        // ─── Submit result to engine (also retry on network blips) ───────
+        let nextState: GhostwriterRunState | null = null;
+        let submitError: Error | null = null;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+          try {
+            if (attempt > 1) await sleepMs(400 * attempt);
+            nextState = await GhostwriterOrchestrator.submitToolResult(runState.runId, toolName, result);
+            submitError = null;
+            break;
+          } catch (err) {
+            submitError = err instanceof Error ? err : new Error(String(err));
+            if (!isRetryableError(submitError)) break;
+          }
+        }
+        if (submitError) throw submitError;
+        if (nextState) setRunState(nextState);
       } catch (error) {
-        setRunError(error instanceof Error ? error.message : "Tool execution failed.");
+        setRetryingStep(null);
+        const message = error instanceof Error ? error.message : "Tool execution failed.";
+        if (runningStepId !== 0) {
+          setStepErrors((prev) => {
+            const next = new Map(prev);
+            next.set(runningStepId, {
+              stepId: runningStepId,
+              toolName,
+              message,
+              recovery: getRecoveryActions(toolName, runState!.pendingToolCall?.args),
+            });
+            return next;
+          });
+        } else {
+          setRunError(message);
+        }
       } finally {
         isExecutingTool.current = false;
       }
     })();
-  }, [draft, runState]);
+  }, [draft, runState, retryTrigger, stepErrors]);
 
   // Auto-scroll stream to bottom whenever new steps appear
   useEffect(() => {
@@ -489,6 +608,62 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       void submitCurrentAnswer(Number(chip));
     } else {
       void submitCurrentAnswer(chip);
+    }
+  };
+
+  const handleRecovery = (action: RecoveryAction, stepId: number) => {
+    const clearError = () => {
+      setStepErrors((prev) => {
+        const next = new Map(prev);
+        next.delete(stepId);
+        return next;
+      });
+    };
+
+    switch (action.kind) {
+      case "retry": {
+        clearError();
+        setRetryTrigger((c) => c + 1);
+        break;
+      }
+      case "swap_humanizer": {
+        clearError();
+        setRunState((prev) => {
+          if (!prev || !prev.pendingToolCall) return prev;
+          return {
+            ...prev,
+            pendingToolCall: {
+              ...prev.pendingToolCall,
+              args: { ...(prev.pendingToolCall.args || {}), provider: action.provider },
+            },
+          };
+        });
+        setRetryTrigger((c) => c + 1);
+        break;
+      }
+      case "skip_humanize": {
+        clearError();
+        setRunState((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: "finished",
+            pendingToolCall: null,
+            pendingQuestion: null,
+            steps: prev.steps.map((s) => {
+              if (s.id === 11) return { ...s, status: "completed", detail: "Humanization skipped." };
+              if (s.id === 12) return { ...s, status: "completed", detail: "Original document kept." };
+              return s;
+            }),
+            progress: { ...prev.progress, percent: 100, label: "Finished" },
+          };
+        });
+        break;
+      }
+      case "restart": {
+        onBack();
+        break;
+      }
     }
   };
 
@@ -758,16 +933,19 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               const isRunning = step.status === "running";
               const thinkingOpen = openThinkingSteps.has(step.id);
               const isActiveToolStep = isRunning && runState?.pendingToolCall;
+              const stepError = stepErrors.get(step.id);
+              const isRetrying = retryingStep?.stepId === step.id;
 
               return (
                 <div
                   key={step.id}
-                  className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""}`}
+                  className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""} ${stepError ? styles.streamError || "" : ""}`}
                 >
-                  <div className={styles.streamIconWrap}>
-                    {step.status === "completed" && <CheckIcon />}
-                    {step.status === "running" && <SpinnerIcon />}
-                    {step.status === "blocked" && <BlockedIcon />}
+                  <div className={`${styles.streamIconWrap} ${stepError ? styles.streamIconError || "" : ""}`}>
+                    {stepError && <ErrorIcon />}
+                    {!stepError && step.status === "completed" && <CheckIcon />}
+                    {!stepError && step.status === "running" && <SpinnerIcon />}
+                    {!stepError && step.status === "blocked" && <BlockedIcon />}
                   </div>
                   <div className={styles.streamCopy}>
                     <span className={styles.streamTitle}>
@@ -862,6 +1040,30 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                             </code>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {isRetrying && !stepError && (
+                      <span className={styles.streamDetail}>
+                        Retrying ({retryingStep!.attempt} of {retryingStep!.max})…
+                      </span>
+                    )}
+
+                    {stepError && (
+                      <div className={styles.errorRecovery}>
+                        <div className={styles.errorRecoveryMsg}>{stepError.message}</div>
+                        <div className={styles.errorRecoveryActions}>
+                          {stepError.recovery.map((action, idx) => (
+                            <button
+                              key={`${action.kind}-${idx}`}
+                              type="button"
+                              className={`${styles.errorRecoveryBtn} ${action.kind === "retry" ? styles.errorRecoveryBtnPrimary || "" : ""}`}
+                              onClick={() => handleRecovery(action, step.id)}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

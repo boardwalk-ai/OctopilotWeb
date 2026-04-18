@@ -22,7 +22,7 @@ export type GhostwriterQuestionField =
   | "humanizeChoice"
   | "humanizerChoice";
 
-export type GhostwriterStepStatus = "pending" | "running" | "completed" | "blocked";
+export type GhostwriterStepStatus = "pending" | "running" | "completed" | "blocked" | "error";
 
 export type GhostwriterWorkflowStep = {
   id: number;

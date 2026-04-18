@@ -1434,3 +1434,71 @@
   cursor: not-allowed;
   transform: none;
 }
+
+.streamError .streamTitle {
+  color: #b91c1c;
+}
+
+.streamIconError {
+  color: #dc2626;
+}
+
+.errorRecovery {
+  margin-top: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.errorRecoveryMsg {
+  font-size: 0.82rem;
+  color: #7f1d1d;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.errorRecoveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.errorRecoveryBtn {
+  appearance: none;
+  border: 1px solid #fca5a5;
+  background: white;
+  color: #991b1b;
+  border-radius: 7px;
+  padding: 0.38rem 0.78rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms, transform 80ms;
+}
+
+.errorRecoveryBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  transform: translateY(-1px);
+}
+
+.errorRecoveryBtn:active {
+  transform: translateY(0);
+}
+
+.errorRecoveryBtnPrimary {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: white;
+}
+
+.errorRecoveryBtnPrimary:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: white;
+}
