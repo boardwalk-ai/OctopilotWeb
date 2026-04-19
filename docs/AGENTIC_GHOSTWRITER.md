@@ -22,6 +22,30 @@ We want to move to a true agent loop while keeping UX predictable (step tracker,
 
 ---
 
+## 2a. Boundary: what runs where
+
+The legacy Ghostwriter runs tool execution on the **client** (via
+`Organizer` singleton + `*Service.ts` classes in `src/services/`) with a
+thin server state machine (`engine.ts`). The agentic rewrite inverts this:
+the **orchestrator loop runs on the server**, but not every legacy service
+can follow. Explicit division:
+
+| Concern | Owner | Why |
+|---|---|---|
+| Agent loop (OpenRouter chat with tools) | Server | Single source of truth, hidden API keys. |
+| LLM-backed tools (plan, outlines, search, scrape, compact, write, critique, revise, split, humanize) | Server | Every one already has an internal `/api/...` route that the client was wrapping. Server can hit those directly. |
+| File attachment parsing (docx/pdf/txt → text) | Client, **pre-run** | The File API is browser-only. Client extracts text before calling `/api/ghostwriter/start` and passes clean prompt + extracted text as the draft. |
+| PDF rendering, mini-editor, export snapshot packaging | Client, **post-run** | `html2canvas` + `jsPDF` are DOM-dependent. Server's `done` event ships the final text + bibliography + metadata; client assembles `ExportDocumentSnapshot` the same way it does today. |
+| Run-local state (outlines, sources, essay, settings) | Server `AgentContext` | Replaces `Organizer` for the run's duration. |
+| Browser-wide state (user session, saved drafts) | Client `Organizer` | Unchanged. Client mirrors relevant bits of `AgentContext` via `context_update` events for live UI. |
+
+**Consequence:** `FormatterService` and `FileReadService` stay client-side and
+are **not** ported to tools. `HumanizerService`, `AlvinService`,
+`ScraperService`, `ZulyService`, `LucasService`, `LilyService`, `HeinService`,
+`SpoonieService` all become *server-side tool implementations* that hit the
+existing internal routes directly via `fetch` (same-origin, bearer token
+threaded through).
+
 ## 2. Target architecture
 
 ```
@@ -310,7 +334,12 @@ Concrete commit-sized milestones. Each one should leave `main` green.
 
 1. **Types + routes scaffolding.** `AgentEvent`, empty `start` / `run` / `answer` routes, dummy SSE stream. No LLM yet.
 2. **Agent loop skeleton.** OpenRouter tool-use call wired; one dummy tool (`echo`) proves round-trip streaming of `thought` + `step_*` events.
-3. **Port legacy tools** (no new critic tools yet). One-to-one behavior parity with the 13-step pipeline: plan → outlines → search → scrape → write → humanize → split → finalize + ask_user. Gate behind `GHOSTWRITER_MODE=agentic`.
+3. **Port legacy tools** (no new critic tools yet). One-to-one behavior parity with the 13-step pipeline. Broken into sub-milestones so each lands in a bounded commit:
+   - **3a.** `AgentContext` + `plan_essay` + `generate_outlines` + updated orchestrator prompt. Proves context flow and real sub-agent calls.
+   - **3b.** `search_sources` + `scrape_sources` + `compact_sources` (wraps Alvin/Scraper/Zuly).
+   - **3c.** `write_essay` streamer (wraps Lucas) + `finalize_export` signal — server emits final text/bibliography/metadata, client assembles `ExportDocumentSnapshot`.
+   - **3d.** `humanize_essay` + `split_paragraphs` (already a route).
+   Gate the whole agentic path behind `GHOSTWRITER_MODE=agentic`.
 4. **Client rewrite.** New `GhostwriterAgentClient`, dynamic timeline, thinking panel. Legacy view stays for `legacy` mode.
 5. **Add critic tools.** `evaluate_sources`, `critique_essay`, `revise_paragraph`. This is where agentic starts beating legacy.
 6. **Prompt tuning + real-run iteration.** Collect transcripts, tweak system prompt.

@@ -14,6 +14,7 @@
 
 import { randomUUID } from "crypto";
 import type { AgentEvent } from "./events";
+import { createAgentContext, type AgentContext } from "./context";
 
 // Draft shape — intentionally untyped at this layer. Milestone 3 will plug in
 // the real `GhostwriterDraftInput` once tools are ported.
@@ -27,6 +28,9 @@ type PendingAnswer = {
 export type AgentRun = {
   id: string;
   draft: AgentDraftInput;
+  // Run-local agentic state. Tools mutate this; the loop emits
+  // `context_update` events when meaningful slices change.
+  context: AgentContext;
   createdAt: number;
   status: "pending" | "running" | "waiting_for_user" | "finished" | "error" | "cancelled";
 
@@ -61,9 +65,17 @@ function gc() {
 
 export function createRun(draft: AgentDraftInput): AgentRun {
   gc();
+  // `instruction` is the verbatim user prompt (optionally bundled with
+  // client-extracted file text). Agentic drivers require it; dummy runs
+  // don't consult it, so defaulting to "" is safe.
+  const instruction =
+    typeof (draft as { instruction?: unknown }).instruction === "string"
+      ? ((draft as { instruction: string }).instruction)
+      : "";
   const run: AgentRun = {
     id: randomUUID(),
     draft,
+    context: createAgentContext(instruction),
     createdAt: Date.now(),
     status: "pending",
     buffered: [],
