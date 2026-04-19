@@ -32,9 +32,12 @@ import {
   waitForAnswer,
 } from "@/server/ghostwriter/agent/runs";
 import { askUserTool } from "@/server/ghostwriter/tools/ask";
+import { compactSourcesTool } from "@/server/ghostwriter/tools/compact";
 import { echoTool } from "@/server/ghostwriter/tools/echo";
 import { generateOutlinesTool } from "@/server/ghostwriter/tools/outlines";
 import { planEssayTool } from "@/server/ghostwriter/tools/plan";
+import { scrapeSourcesTool } from "@/server/ghostwriter/tools/scrape";
+import { searchSourcesTool } from "@/server/ghostwriter/tools/search";
 
 type StartMode = "dummy" | "agentic";
 
@@ -99,7 +102,15 @@ async function runAgenticDriver(run: AgentRun): Promise<void> {
   try {
     await runAgent({
       run,
-      tools: [planEssayTool, generateOutlinesTool, askUserTool, echoTool],
+      tools: [
+        planEssayTool,
+        generateOutlinesTool,
+        searchSourcesTool,
+        scrapeSourcesTool,
+        compactSourcesTool,
+        askUserTool,
+        echoTool,
+      ],
       systemPrompt: buildSystemPrompt(),
       userBrief: buildUserBrief(run.draft),
     });

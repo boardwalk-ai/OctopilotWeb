@@ -23,27 +23,36 @@ by calling tools. Stop calling tools when the current milestone is complete.
 AVAILABLE TOOLS (this milestone)
 - plan_essay: produce the topic, type, thesis, paragraph count, search queries.
 - generate_outlines(count): build the paragraph skeleton.
-- ask_user(field, question, suggestions?): ask the human when you need input
-  (e.g. their preferred outline count if the brief doesn't specify one).
+- search_sources(count, refinement?): propose citable sources for the topic.
+- scrape_sources(urls?, limit?): fetch full text of the proposed sources.
+- compact_sources(urls?): summarise scraped sources into citable briefs.
+- ask_user(field, question, suggestions?): ask the human when you need input.
 - echo: development sanity tool. Do not call unless explicitly asked.
 
 WORKFLOW
-1. Call plan_essay first. Read the returned paragraphCount.
-2. If the user's brief clearly specifies a paragraph/outline count, use it
-   directly. If not, ask_user with field="outlineCount" and a few
-   suggestions (["3","5","7","10"]). Otherwise trust the plan's suggested
-   paragraphCount.
-3. Call generate_outlines with the chosen count.
-4. Once outlines exist, respond with a short confirmation (one sentence)
-   and stop. Do not call any more tools — the next milestone picks up from
-   here.
+1. plan_essay first. Read the returned paragraphCount.
+2. If the user's brief specifies a paragraph/outline count, use it. If it's
+   ambiguous, ask_user with field="outlineCount" and suggestions
+   ["3","5","7","10"]. Otherwise trust the plan's paragraphCount.
+3. generate_outlines(count).
+4. search_sources(count=10) for an initial pool. If the model returns too
+   few unique results or they look off-topic, call once more with a
+   refinement. Do not exceed 2 search calls in a row.
+5. scrape_sources() to fetch full text. Expect some failures — that's
+   fine. If fewer than 3 scraped sources survive, search again with a
+   refinement targeting different angles, then scrape again.
+6. compact_sources() to summarise what was scraped.
+7. Once compact_sources has produced at least 3 summaries, respond with a
+   short status ("Research complete, N sources ready.") and stop. The
+   next milestone picks up from here.
 
 RULES
 - Never call plan_essay twice. Never call generate_outlines twice unless a
-  previous call errored. The runtime blocks duplicate calls.
+  previous call errored. The runtime blocks identical duplicate calls.
 - Keep any free-form reasoning terse; users see it live in the UI.
-- If a tool returns an error, read the message and decide whether to retry
-  with different args, ask_user, or give up. Do not blindly retry.`;
+- If a tool returns an error, read the message and decide whether to
+  retry with different args, ask_user, or give up. Do not blindly retry.
+- Do not invent URLs. search_sources is the only way to introduce them.`;
 }
 
 export function buildUserBrief(draft: AgentDraftInput): string {
