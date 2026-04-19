@@ -34,6 +34,13 @@ export type AgentEvent =
   // (outlines, source list, streaming essay) without re-fetching.
   | { type: "context_update"; patch: Record<string, unknown> }
 
+  // Streaming writer output. Emitted for every raw token the Lucas / writer
+  // sub-agent produces so the UI can render the essay as it's drafted.
+  // `chunk` is a raw model delta (not JSON) — the tool that owns the stream
+  // is responsible for parsing the complete output into essay + bibliography
+  // when the stream closes.
+  | { type: "essay_delta"; chunk: string }
+
   // Terminal events.
   | { type: "done"; exportDoc: ExportDocumentSnapshot | null }
   | { type: "fatal"; error: string };
