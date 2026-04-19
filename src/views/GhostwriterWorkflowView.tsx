@@ -167,6 +167,11 @@ type StepError = {
   recovery: RecoveryAction[];
 };
 
+type ActivityEntry =
+  | { id: string; kind: "thought"; text: string }
+  | { id: string; kind: "tool"; tool: string; title: string; status: "running" | "completed" | "error"; detail?: string }
+  | { id: string; kind: "question"; field: string; text: string };
+
 function getRecoveryActions(toolName: string, args?: Record<string, unknown>): RecoveryAction[] {
   const actions: RecoveryAction[] = [{ kind: "retry", label: "Retry" }];
 
@@ -439,6 +444,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
   const [thinkingEntries, setThinkingEntries] = useState<string[]>([]);
   const [thinkingPanelOpen, setThinkingPanelOpen] = useState(true);
+  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
   const [editingOpen, setEditingOpen] = useState(true);
@@ -511,6 +517,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
           agentStepIdsRef.current = new Map();
           agentStepCountRef.current = 0;
+          setActivityEntries([]);
+          setThinkingEntries([]);
           setRunState(buildAgenticRunState(startedRun.runId));
 
           agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
@@ -557,6 +565,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                       if (prevThoughts[prevThoughts.length - 1] === nextThought) return prevThoughts;
                       return [...prevThoughts.slice(-11), nextThought];
                     });
+                    setActivityEntries((prevEntries) => [
+                      ...prevEntries.slice(-23),
+                      { id: `thought-${Date.now()}`, kind: "thought", text: nextThought },
+                    ]);
                   }
                   const active = next.steps.find((step) => step.status === "running");
                   if (active) active.detail = event.text;
@@ -572,6 +584,16 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                     detail: "Working...",
                     status: "running",
                   });
+                  setActivityEntries((prevEntries) => [
+                    ...prevEntries.slice(-23),
+                    {
+                      id: event.id,
+                      kind: "tool",
+                      tool: event.tool,
+                      title: event.title,
+                      status: "running",
+                    },
+                  ]);
                   next.pendingToolCall = {
                     id: event.id,
                     name: event.tool as GhostwriterToolCall["name"],
@@ -588,6 +610,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   const stepId = agentStepIdsRef.current.get(event.id);
                   const step = next.steps.find((item) => item.id === stepId);
                   if (step) step.detail = event.detail;
+                  setActivityEntries((prevEntries) =>
+                    prevEntries.map((entry) =>
+                      entry.kind === "tool" && entry.id === event.id
+                        ? { ...entry, detail: event.detail }
+                        : entry,
+                    ),
+                  );
                   break;
                 }
                 case "step_done": {
@@ -600,6 +629,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   next.pendingToolCall = null;
                   next.pendingQuestion = null;
                   next.status = "running";
+                  setActivityEntries((prevEntries) =>
+                    prevEntries.map((entry) =>
+                      entry.kind === "tool" && entry.id === event.id
+                        ? {
+                            ...entry,
+                            status: "completed",
+                            detail: event.summary || entry.detail,
+                          }
+                        : entry,
+                    ),
+                  );
                   break;
                 }
                 case "step_error": {
@@ -608,11 +648,27 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   if (step) step.detail = event.error;
                   next.pendingToolCall = null;
                   next.status = "error";
+                  setActivityEntries((prevEntries) =>
+                    prevEntries.map((entry) =>
+                      entry.kind === "tool" && entry.id === event.id
+                        ? { ...entry, status: "error", detail: event.error }
+                        : entry,
+                    ),
+                  );
                   break;
                 }
                 case "question": {
                   const active = next.steps.find((step) => step.status === "running");
                   if (active) active.status = "blocked";
+                  setActivityEntries((prevEntries) => [
+                    ...prevEntries.slice(-23),
+                    {
+                      id: `question-${event.field}-${Date.now()}`,
+                      kind: "question",
+                      field: event.field,
+                      text: event.question,
+                    },
+                  ]);
                   next.pendingQuestion = normalizeAgentQuestion(event);
                   next.pendingToolCall = null;
                   next.status = "waiting_for_user";
@@ -1219,6 +1275,59 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   )}
                 </div>
               )}
+            </section>
+          )}
+
+          {isAgenticMode && (
+            <section className={styles.activityPanel}>
+              <div className={styles.activityHeader}>
+                <div>
+                  <strong>Live Activity</strong>
+                  <span>Thoughts, tool calls, and questions as they happen</span>
+                </div>
+              </div>
+              <div className={styles.activityBody}>
+                {activityEntries.length > 0 ? (
+                  activityEntries.map((entry) => {
+                    if (entry.kind === "thought") {
+                      return (
+                        <div key={entry.id} className={`${styles.activityCard} ${styles.activityThought}`}>
+                          <span className={styles.activityBadge}>Thought</span>
+                          <p>{entry.text}</p>
+                        </div>
+                      );
+                    }
+
+                    if (entry.kind === "question") {
+                      return (
+                        <div key={entry.id} className={`${styles.activityCard} ${styles.activityQuestion}`}>
+                          <div className={styles.activityToolMeta}>
+                            <span className={styles.activityBadge}>Question</span>
+                            <span className={styles.activityField}>{entry.field}</span>
+                          </div>
+                          <p>{entry.text}</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={entry.id} className={`${styles.activityCard} ${styles.activityTool}`}>
+                        <div className={styles.activityToolMeta}>
+                          <span className={styles.activityBadge}>Tool</span>
+                          <code>{TOOL_LABELS[entry.tool] || entry.tool}</code>
+                          <span className={`${styles.activityStatus} ${styles[`activityStatus${entry.status[0].toUpperCase()}${entry.status.slice(1)}` as keyof typeof styles] || ""}`}>
+                            {entry.status}
+                          </span>
+                        </div>
+                        <strong>{entry.title}</strong>
+                        {entry.detail ? <p>{entry.detail}</p> : null}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className={styles.activityEmpty}>The transcript will populate once the agent begins reasoning and calling tools.</div>
+                )}
+              </div>
             </section>
           )}
 

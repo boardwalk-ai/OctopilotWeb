@@ -335,6 +335,140 @@
   line-height: 1.6;
 }
 
+.activityPanel {
+  margin: 0.9rem 1.8rem 0;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  background: rgba(9,11,16,0.9);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+
+.activityHeader {
+  padding: 0.9rem 1rem 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.activityHeader strong {
+  display: block;
+  color: white;
+  font-size: 0.82rem;
+}
+
+.activityHeader span {
+  display: block;
+  margin-top: 0.12rem;
+  color: rgba(255,255,255,0.38);
+  font-size: 0.68rem;
+}
+
+.activityBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem 1rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.activityCard {
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+  padding: 0.8rem 0.9rem;
+}
+
+.activityThought {
+  border-color: rgba(239,68,68,0.1);
+  background: rgba(239,68,68,0.03);
+}
+
+.activityTool {
+  border-color: rgba(99,102,241,0.1);
+  background: rgba(99,102,241,0.03);
+}
+
+.activityQuestion {
+  border-color: rgba(251,191,36,0.12);
+  background: rgba(251,191,36,0.03);
+}
+
+.activityBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.3rem;
+  padding: 0 0.42rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.72);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.activityToolMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.activityToolMeta code {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.78);
+}
+
+.activityStatus {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.activityStatusRunning {
+  color: #fca5a5;
+}
+
+.activityStatusCompleted {
+  color: #86efac;
+}
+
+.activityStatusError {
+  color: #fca5a5;
+}
+
+.activityField {
+  color: rgba(251,191,36,0.8);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.activityCard strong {
+  display: block;
+  margin-top: 0.45rem;
+  color: white;
+  font-size: 0.78rem;
+}
+
+.activityCard p {
+  margin: 0.4rem 0 0;
+  color: rgba(255,255,255,0.62);
+  font-size: 0.73rem;
+  line-height: 1.6;
+}
+
+.activityEmpty {
+  color: rgba(255,255,255,0.38);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
 /* ─── Workflow Stream ─────────────────────────────────────────────────────── */
 
 .workflowStream {
