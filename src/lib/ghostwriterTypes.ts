@@ -1,6 +1,14 @@
 import type { AlvinSearchResult } from "@/services/AlvinService";
+import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 
 export type GhostwriterToolName =
+  | "plan_essay"
+  | "search_sources"
+  | "scrape_sources"
+  | "compact_sources"
+  | "write_essay"
+  | "ask_user"
+  | "echo"
   | "analyze_instruction"
   | "generate_outlines"
   | "gather_sources"
@@ -67,7 +75,32 @@ export type GhostwriterRunContext = {
   essayType?: string;
   wordCount?: number;
   citationStyle?: string;
+  essayTopic?: string;
+  plan?: {
+    thesis: string;
+    paragraphCount: number;
+    searchQueries: string[];
+    notes?: string;
+  };
+  outlines?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+  }>;
   searchResults?: AlvinSearchResult[];
+  compactedSources?: Array<{
+    url: string;
+    title?: string;
+    author?: string;
+    publishedYear?: string;
+    publisher?: string;
+    summary: string;
+  }>;
+  essay?: string;
+  bibliography?: string;
+  exportReady?: boolean;
+  exportDoc?: ExportDocumentSnapshot | null;
   humanizedContent?: string;
   humanizeProvider?: string;
 };

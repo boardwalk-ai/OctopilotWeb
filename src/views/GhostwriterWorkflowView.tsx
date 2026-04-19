@@ -12,9 +12,11 @@ import {
   GhostwriterFormatAnswers,
   GhostwriterOrchestrator,
 } from "@/services/GhostwriterOrchestrator";
+import { GhostwriterAgentClient } from "@/services/GhostwriterAgentClient";
 import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
-import { GhostwriterQuestionField, GhostwriterRunState } from "@/lib/ghostwriterTypes";
+import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
+import type { AgentEvent } from "@/server/ghostwriter/agent/events";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -22,7 +24,7 @@ type GhostwriterWorkflowViewProps = {
   onBack: () => void;
 };
 
-type StepStatus = "pending" | "running" | "completed" | "blocked";
+type StepStatus = "pending" | "running" | "completed" | "blocked" | "error";
 
 type WorkflowStep = {
   id: number;
@@ -48,6 +50,12 @@ const INITIAL_STEPS: WorkflowStep[] = [
 ];
 
 const TOOL_LABELS: Record<string, string> = {
+  plan_essay: "plan_essay",
+  search_sources: "search_sources",
+  scrape_sources: "scrape_sources",
+  compact_sources: "compact_sources",
+  write_essay: "write_essay",
+  ask_user: "ask_user",
   analyze_instruction: "analyze_instruction",
   generate_outlines: "generate_outlines",
   gather_sources: "gather_sources",
@@ -57,6 +65,53 @@ const TOOL_LABELS: Record<string, string> = {
   split_paragraphs: "split_paragraphs",
   finalize_export_humanized: "finalize_export_humanized",
 };
+
+const AGENT_GOAL = {
+  title: "Ghostwriter is drafting and packaging your essay.",
+  description: "Agentic Ghostwriter is planning, researching, drafting, and formatting the essay.",
+  successCriteria: [
+    "Outlines are generated",
+    "Sources are compacted",
+    "Essay is drafted",
+    "Export snapshot is ready",
+  ],
+};
+
+function buildAgenticRunState(runId: string): GhostwriterRunState {
+  return {
+    runId,
+    status: "running",
+    goal: AGENT_GOAL,
+    progress: { completed: 0, total: 1, percent: 0, label: "Starting" },
+    steps: [],
+    context: {},
+    pendingToolCall: null,
+    pendingQuestion: null,
+  };
+}
+
+function buildDynamicProgress(steps: WorkflowStep[]) {
+  const completed = steps.filter((step) => step.status === "completed").length;
+  const running = steps.find((step) => step.status === "running" || step.status === "blocked");
+  const total = Math.max(steps.length, 1);
+
+  return {
+    completed,
+    total,
+    percent: Math.round((completed / total) * 100),
+    label: running ? running.title : completed >= steps.length && steps.length > 0 ? "Finished" : "Starting",
+  };
+}
+
+function normalizeAgentQuestion(event: Extract<AgentEvent, { type: "question" }>) {
+  return {
+    id: `${event.field}-${Date.now()}`,
+    field: event.field as GhostwriterQuestionField,
+    prompt: event.question,
+    inputType: event.inputType || "text",
+    suggestions: event.suggestions,
+  };
+}
 
 function formatDuration(secs: number) {
   const m = Math.floor(secs / 60);
@@ -348,6 +403,12 @@ function ErrorIcon() {
 }
 
 export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
+  const configuredMode = (process.env.NEXT_PUBLIC_GHOSTWRITER_MODE || "legacy").toLowerCase();
+  const streamMode: "agentic" | "dummy" | null =
+    configuredMode === "agentic" || configuredMode === "dummy"
+      ? (configuredMode as "agentic" | "dummy")
+      : null;
+  const isAgenticMode = streamMode !== null;
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
   const [draftSettings, setDraftSettings] = useState<GhostwriterDraftSettings>(() => {
@@ -400,6 +461,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const humanizedPageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const streamRef = useRef<HTMLElement>(null);
   const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentDisconnectRef = useRef<(() => void) | null>(null);
+  const agentStepIdsRef = useRef<Map<string, number>>(new Map());
+  const agentStepCountRef = useRef(0);
   // Mini editor
   const [miniEditorOpen, setMiniEditorOpen] = useState(false);
   const [miniEditorExiting, setMiniEditorExiting] = useState(false);
@@ -414,11 +478,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   }, [stepErrorsSize]);
 
   const topicSummary = useMemo(() => ({
-    topic: org.essayTopic || "Waiting for topic",
-    type: org.analyzedEssayType || org.essayType || "Essay",
-    citation: org.citationStyle || "Pending",
-    words: typeof org.wordCount === "number" ? org.wordCount : 0,
-  }), [org.analyzedEssayType, org.citationStyle, org.essayTopic, org.essayType, org.wordCount]);
+    topic: runState?.context.topic || runState?.context.essayTopic || org.essayTopic || "Waiting for topic",
+    type: runState?.context.essayType || org.analyzedEssayType || org.essayType || "Essay",
+    citation: runState?.context.citationStyle || org.citationStyle || "Pending",
+    words: runState?.context.wordCount || (typeof org.wordCount === "number" ? org.wordCount : 0),
+  }), [org.analyzedEssayType, org.citationStyle, org.essayTopic, org.essayType, org.wordCount, runState?.context.citationStyle, runState?.context.essayTopic, runState?.context.essayType, runState?.context.topic, runState?.context.wordCount]);
 
   const visibleSteps = useMemo(
     () => (runState?.steps || INITIAL_STEPS).filter((step) => step.status !== "pending"),
@@ -435,15 +499,164 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           ...prev,
           finalEssayTitle: Organizer.get().essayTopic || prev.finalEssayTitle,
         }));
-        const startedRun = await GhostwriterOrchestrator.startRun(draft.prompt);
-        setRunState(startedRun);
+        if (isAgenticMode) {
+          const instruction = await GhostwriterOrchestrator.prepareInstructionBundle(draft);
+          const detectedSettings = GhostwriterOrchestrator.detectDraftSettings(draft.prompt);
+          const startedRun = await GhostwriterAgentClient.start(
+            { instruction, detectedSettings },
+            streamMode || undefined,
+          );
+
+          agentStepIdsRef.current = new Map();
+          agentStepCountRef.current = 0;
+          setRunState(buildAgenticRunState(startedRun.runId));
+
+          agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
+            if (event.type === "essay_delta") {
+              setEssayStreamContent((prev) => prev + event.chunk);
+              return;
+            }
+
+            if (event.type === "done" && event.exportDoc) {
+              void paginateSnapshot(event.exportDoc).then((snapshot) => {
+                setOriginalExportDoc(snapshot);
+              });
+            }
+
+            if (event.type === "fatal") {
+              setRunError(event.error);
+            }
+
+            if (event.type === "step_error") {
+              const stepId = agentStepIdsRef.current.get(event.id);
+              if (stepId) {
+                setStepErrors((prev) => {
+                  const next = new Map(prev);
+                  next.set(stepId, {
+                    stepId,
+                    toolName: "",
+                    message: event.error,
+                    recovery: [{ kind: "restart", label: "Start over" }],
+                  });
+                  return next;
+                });
+              }
+            }
+
+            setRunState((prev) => {
+              const current = prev || buildAgenticRunState(startedRun.runId);
+              const next = { ...current, context: { ...current.context }, steps: [...current.steps] };
+
+              switch (event.type) {
+                case "thought": {
+                  const active = next.steps.find((step) => step.status === "running");
+                  if (active) active.detail = event.text;
+                  break;
+                }
+                case "step_start": {
+                  agentStepCountRef.current += 1;
+                  const stepId = agentStepCountRef.current;
+                  agentStepIdsRef.current.set(event.id, stepId);
+                  next.steps.push({
+                    id: stepId,
+                    title: event.title,
+                    detail: "Working...",
+                    status: "running",
+                  });
+                  next.pendingToolCall = {
+                    id: event.id,
+                    name: event.tool as GhostwriterToolCall["name"],
+                    args: (event.args as Record<string, unknown> | undefined) || undefined,
+                  };
+                  next.status = "running";
+                  if (event.tool === "write_essay") {
+                    setEssayStreamContent("");
+                    setEditingOpen(true);
+                  }
+                  break;
+                }
+                case "step_progress": {
+                  const stepId = agentStepIdsRef.current.get(event.id);
+                  const step = next.steps.find((item) => item.id === stepId);
+                  if (step) step.detail = event.detail;
+                  break;
+                }
+                case "step_done": {
+                  const stepId = agentStepIdsRef.current.get(event.id);
+                  const step = next.steps.find((item) => item.id === stepId);
+                  if (step) {
+                    step.status = "completed";
+                    if (event.summary) step.detail = event.summary;
+                  }
+                  next.pendingToolCall = null;
+                  next.pendingQuestion = null;
+                  next.status = "running";
+                  break;
+                }
+                case "step_error": {
+                  const stepId = agentStepIdsRef.current.get(event.id);
+                  const step = next.steps.find((item) => item.id === stepId);
+                  if (step) step.detail = event.error;
+                  next.pendingToolCall = null;
+                  next.status = "error";
+                  break;
+                }
+                case "question": {
+                  const active = next.steps.find((step) => step.status === "running");
+                  if (active) active.status = "blocked";
+                  next.pendingQuestion = normalizeAgentQuestion(event);
+                  next.pendingToolCall = null;
+                  next.status = "waiting_for_user";
+                  break;
+                }
+                case "context_update": {
+                  const patch = event.patch as Partial<GhostwriterRunState["context"]>;
+                  next.context = { ...next.context, ...patch };
+                  if (typeof patch.essayTopic === "string" && !next.context.topic) {
+                    next.context.topic = patch.essayTopic;
+                  }
+                  if (patch.exportDoc) {
+                    void paginateSnapshot(patch.exportDoc).then((snapshot) => {
+                      setOriginalExportDoc(snapshot);
+                    });
+                  }
+                  break;
+                }
+                case "done": {
+                  next.status = "finished";
+                  next.pendingToolCall = null;
+                  next.pendingQuestion = null;
+                  break;
+                }
+                case "fatal": {
+                  next.status = "error";
+                  next.error = event.error;
+                  break;
+                }
+                default:
+                  break;
+              }
+
+              next.progress = buildDynamicProgress(next.steps);
+              return next;
+            });
+          });
+        } else {
+          const startedRun = await GhostwriterOrchestrator.startRun(draft.prompt);
+          setRunState(startedRun);
+        }
       } catch (error) {
         setRunError(error instanceof Error ? error.message : "Ghostwriter workflow failed.");
       }
     })();
-  }, [draft]);
+    return () => {
+      agentDisconnectRef.current?.();
+      agentDisconnectRef.current = null;
+    };
+  }, [draft, isAgenticMode, streamMode]);
 
   useEffect(() => {
+    if (isAgenticMode) return;
     if (!runState?.pendingToolCall || isExecutingTool.current) return;
 
     const runningStepId = runState.steps.find(
@@ -543,7 +756,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         isExecutingTool.current = false;
       }
     })();
-  }, [draft, runState, retryTrigger, stepErrors]);
+  }, [draft, isAgenticMode, runState, retryTrigger, stepErrors]);
 
   // Auto-scroll stream to bottom whenever new steps appear
   useEffect(() => {
@@ -605,8 +818,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     try {
       const field = runState.pendingQuestion.field;
       const value = overrideValue !== undefined ? overrideValue : getAnswerValue(field, draftSettings, formatAnswers);
-      const nextState = await GhostwriterOrchestrator.submitAnswer(runState.runId, field, value);
-      setRunState(nextState);
+      if (isAgenticMode) {
+        await GhostwriterAgentClient.answer(runState.runId, field, value);
+        setRunState((prev) => prev ? { ...prev, pendingQuestion: null, status: "running" } : prev);
+      } else {
+        const nextState = await GhostwriterOrchestrator.submitAnswer(runState.runId, field, value);
+        setRunState(nextState);
+      }
       setCustomAnswer("");
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Question submission failed.");
@@ -755,6 +973,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   };
 
   const miniEditorSnapshot = miniEditorType === "original" ? originalExportDoc : humanizedExportDoc;
+  const outlineItems = runState?.context.outlines || org.selectedOutlines;
 
   // Renders document pages identical to ExportView for accurate PDF capture
   function renderDocPages(
@@ -763,7 +982,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   ) {
     const profile = snapshot.profile;
     const marginPx = Math.round((profile.marginInch || 1) * 96);
-    const hasMlaHead = org.citationStyle.trim().toUpperCase() === "MLA";
+    const hasMlaHead = (runState?.context.citationStyle || org.citationStyle).trim().toUpperCase() === "MLA";
 
     return snapshot.pages.map((page, index) => {
       const showPageNum = page.showPageNumber ?? profile.showPageNumber;
@@ -1360,7 +1579,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             </button>
             {showOutlines && (
               <div className={styles.outlineList}>
-                {org.selectedOutlines.length > 0 ? org.selectedOutlines.map((outline) => (
+                {outlineItems.length > 0 ? outlineItems.map((outline) => (
                   <div key={outline.id} className={styles.outlineItem}>
                     <strong>{outline.title}</strong>
                     <span>{outline.description}</span>
