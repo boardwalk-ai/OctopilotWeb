@@ -22,7 +22,8 @@ export class LilyService {
     static async generate(
         mode: GenerateMode,
         requestedType?: string,
-        customTitle?: string
+        customTitle?: string,
+        count?: number
     ): Promise<OutlineItem[]> {
         if (TestService.isActive) {
             const mocks = await TestService.getOutlines();
@@ -46,6 +47,7 @@ export class LilyService {
                 mode,
                 requestedType,
                 customTitle,
+                count,
             }),
         });
 

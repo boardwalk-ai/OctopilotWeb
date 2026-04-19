@@ -4,7 +4,7 @@ import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-function getSystemPrompt(mode: string, requestedType?: string, customTitle?: string): string {
+function getSystemPrompt(mode: string, requestedType?: string, customTitle?: string, count?: number): string {
     const basePrompt = `You are Lily, an academic outline generation agent for OctoPilot AI.
 You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
 
@@ -21,12 +21,16 @@ Respond in exactly this JSON format:
 }`;
 
     if (mode === "auto") {
+        const total = Math.max(3, Math.min(20, Number(count) || 5));
+        const bodyCount = Math.max(1, total - 2);
         return `${basePrompt}
 
-Generate exactly 5 outline items in this order:
+Generate exactly ${total} outline items in this order:
 1. One Introduction
-2. Three Body Paragraphs (each covering a distinct aspect)
-3. One Conclusion
+2. ${bodyCount} Body Paragraph${bodyCount === 1 ? "" : "s"} (each covering a distinct aspect)
+${total}. One Conclusion
+
+The ${total} items must consist of exactly 1 Introduction, ${bodyCount} Body Paragraph${bodyCount === 1 ? "" : "s"}, and 1 Conclusion — in that order.
 
 Make each section specific, detailed, and directly related to the assignment.`;
     }
@@ -57,10 +61,10 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle } = body;
+        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle, count } = body;
         const { apiKey, model } = await getOpenRouterConfig("secondary");
 
-        const systemPrompt = getSystemPrompt(mode, requestedType, customTitle);
+        const systemPrompt = getSystemPrompt(mode, requestedType, customTitle, count);
 
         const userMessage = `
 Essay Topic: ${essayTopic || "Not specified"}

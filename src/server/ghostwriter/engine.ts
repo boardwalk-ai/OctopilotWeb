@@ -36,7 +36,8 @@ const INITIAL_STEPS: GhostwriterWorkflowStep[] = [
   { id: 9,  title: "Applying citation layout",        detail: "Running the citation formatter in the background.",         status: "pending" },
   { id: 10, title: "Preparing your PDF",              detail: "Packaging the final document for download.",                status: "pending" },
   { id: 11, title: "Humanizing your essay",           detail: "Processing with AI detection bypass.",                      status: "pending" },
-  { id: 12, title: "Packaging humanized document",    detail: "Building the final cleaned-up PDF.",                        status: "pending" },
+  { id: 12, title: "Splitting paragraphs",            detail: "Restoring paragraph breaks in the humanized text.",         status: "pending" },
+  { id: 13, title: "Packaging humanized document",    detail: "Building the final cleaned-up PDF.",                        status: "pending" },
 ];
 
 const GOAL: GhostwriterGoal = {
@@ -135,6 +136,15 @@ function makeQuestion(field: GhostwriterQuestionField): GhostwriterQuestion {
         helperText: "We recommend using StealthGPT for best results.",
         inputType: "text",
         suggestions: ["StealthGPT", "UndetectableAI"],
+      };
+    case "paragraphSplitChoice":
+      return {
+        id: randomUUID(),
+        field,
+        prompt: "StealthGPT merged your essay into a single paragraph. How should I restore the paragraph breaks?",
+        helperText: "Pick “AI split” to let me re-break the paragraphs automatically using your outline, or “Manual” to split them yourself in the editor.",
+        inputType: "text",
+        suggestions: ["AI split", "Manual"],
       };
     default:
       return { id: randomUUID(), field, prompt: "One more detail.", inputType: "text" };
@@ -305,22 +315,54 @@ export function advanceGhostwriterRunWithTool(runId: string, payload: { toolName
 
   if (toolName === "humanize_essay") {
     const r = (result || {}) as { humanized?: string; provider?: string };
-    run.state.context.humanizedContent = r.humanized || "";
-    run.state.context.humanizeProvider = r.provider || "";
-    run.state.steps = setStep(run.state.steps, 11, "completed", `Humanized with ${r.provider || "AI"}.`);
-    run.state.steps = setStep(run.state.steps, 12, "running");
+    const provider = r.provider || "";
+    const humanized = r.humanized || "";
+    run.state.context.humanizedContent = humanized;
+    run.state.context.humanizeProvider = provider;
+    run.state.steps = setStep(run.state.steps, 11, "completed", `Humanized with ${provider || "AI"}.`);
+
+    // StealthGPT merges paragraphs into one block. Ask the user whether we
+    // should re-break them with AI, or let them do it manually in the editor.
+    if (provider === "StealthGPT") {
+      run.state.steps = setStep(run.state.steps, 12, "blocked");
+      return finalizeState(run, {
+        status: "waiting_for_user",
+        pendingToolCall: null,
+        pendingQuestion: makeQuestion("paragraphSplitChoice"),
+      });
+    }
+
+    // UndetectableAI preserves paragraph breaks — skip splitting and package directly.
+    run.state.steps = setStep(run.state.steps, 12, "completed", "Paragraph structure preserved by humanizer.");
+    run.state.steps = setStep(run.state.steps, 13, "running");
     return finalizeState(run, {
       status: "running",
       pendingToolCall: makeToolCall("finalize_export_humanized", {
         formatAnswers: run.answers,
-        humanized: r.humanized || "",
+        humanized,
+      }),
+      pendingQuestion: null,
+    });
+  }
+
+  if (toolName === "split_paragraphs") {
+    const r = (result || {}) as { humanized?: string };
+    const split = r.humanized || run.state.context.humanizedContent || "";
+    run.state.context.humanizedContent = split;
+    run.state.steps = setStep(run.state.steps, 12, "completed", "AI restored paragraph breaks.");
+    run.state.steps = setStep(run.state.steps, 13, "running");
+    return finalizeState(run, {
+      status: "running",
+      pendingToolCall: makeToolCall("finalize_export_humanized", {
+        formatAnswers: run.answers,
+        humanized: split,
       }),
       pendingQuestion: null,
     });
   }
 
   if (toolName === "finalize_export_humanized") {
-    run.state.steps = setStep(run.state.steps, 12, "completed", "Humanized PDF ready to download.");
+    run.state.steps = setStep(run.state.steps, 13, "completed", "Humanized PDF ready to download.");
     return finalizeState(run, { status: "finished", pendingToolCall: null, pendingQuestion: null });
   }
 
@@ -367,6 +409,33 @@ export function answerGhostwriterRun(runId: string, answer: { field: Ghostwriter
       status: "running",
       pendingQuestion: null,
       pendingToolCall: makeToolCall("humanize_essay", { provider: String(answer.value) }),
+    });
+  }
+
+  if (answer.field === "paragraphSplitChoice") {
+    const choice = String(answer.value).toLowerCase();
+    const humanized = run.state.context.humanizedContent || "";
+    // "Manual" → skip the AI split entirely, let the user re-break paragraphs
+    // themselves in the editor. The split step stays marked as completed
+    // (skipped) so it doesn't show as running forever.
+    if (choice.startsWith("manual")) {
+      run.state.steps = setStep(run.state.steps, 12, "completed", "Skipped — you'll split paragraphs in the editor.");
+      run.state.steps = setStep(run.state.steps, 13, "running");
+      return finalizeState(run, {
+        status: "running",
+        pendingQuestion: null,
+        pendingToolCall: makeToolCall("finalize_export_humanized", {
+          formatAnswers: run.answers,
+          humanized,
+        }),
+      });
+    }
+    // Default / "AI split" → run the splitter tool.
+    run.state.steps = setStep(run.state.steps, 12, "running");
+    return finalizeState(run, {
+      status: "running",
+      pendingQuestion: null,
+      pendingToolCall: makeToolCall("split_paragraphs", { humanized }),
     });
   }
 

@@ -197,9 +197,9 @@ export class GhostwriterOrchestrator {
     }
 
     static async setupOutlines(targetCount?: number) {
-        const generated = await LilyService.generate("auto");
-        const sliced = targetCount ? generated.slice(0, targetCount) : generated;
-        const cards = sliced.map((item, index) => ({
+        // Lily now generates the exact count requested (1 intro + N-2 body + 1 conclusion).
+        const generated = await LilyService.generate("auto", undefined, undefined, targetCount);
+        const cards = generated.map((item, index) => ({
             id: `ghostwriter-outline-${index + 1}`,
             type: item.type,
             title: item.title,
@@ -327,6 +327,37 @@ export class GhostwriterOrchestrator {
             essay: parsed.essay_content || "",
             bibliography: mergedBibliography,
         };
+    }
+
+    /**
+     * Use an LLM to split a merged humanized text into the original paragraph
+     * structure (1 Introduction, N Body, 1 Conclusion).
+     */
+    static async splitHumanizedParagraphs(humanizedText: string): Promise<string> {
+        const org = Organizer.get();
+        const outlines = (org.selectedOutlines || org.outlines || []).map((o) => ({
+            type: o.type,
+            title: o.title,
+        }));
+        if (!humanizedText.trim()) return humanizedText;
+        if (outlines.length < 2) return humanizedText;
+
+        const res = await fetchWithUserAuthorization("/api/ghostwriter/split-paragraphs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ humanizedText, outlines }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Paragraph split failed: ${res.status}`);
+        }
+        const data = await res.json();
+        const paragraphs = Array.isArray(data.paragraphs) ? data.paragraphs : [];
+        if (!paragraphs.length) return humanizedText;
+        return paragraphs
+            .map((p: { text?: string }) => String(p.text || "").trim())
+            .filter(Boolean)
+            .join("\n\n");
     }
 
     static async humanizeEssay(provider: string): Promise<string> {
@@ -466,6 +497,11 @@ export class GhostwriterOrchestrator {
                 const provider = String(toolCall.args?.provider || "UndetectableAI");
                 const humanized = await GhostwriterOrchestrator.humanizeEssay(provider);
                 return { humanized, provider };
+            }
+            case "split_paragraphs": {
+                const humanizedText = String(toolCall.args?.humanized || "");
+                const split = await GhostwriterOrchestrator.splitHumanizedParagraphs(humanizedText);
+                return { humanized: split };
             }
             case "finalize_export_humanized": {
                 const humanizedText = String(toolCall.args?.humanized || Organizer.get().generatedEssay || "");

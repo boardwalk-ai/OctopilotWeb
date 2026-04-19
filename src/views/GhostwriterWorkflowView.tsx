@@ -43,7 +43,8 @@ const INITIAL_STEPS: WorkflowStep[] = [
   { id: 9,  title: "Applying citation layout",      detail: "Running the citation formatter in the background.",         status: "pending" },
   { id: 10, title: "Preparing your PDF",            detail: "Packaging the final document for download.",                status: "pending" },
   { id: 11, title: "Humanizing your essay",         detail: "Processing with AI detection bypass.",                      status: "pending" },
-  { id: 12, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                       status: "pending" },
+  { id: 12, title: "Splitting paragraphs",          detail: "Restoring paragraph breaks in the humanized text.",         status: "pending" },
+  { id: 13, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                       status: "pending" },
 ];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -53,6 +54,7 @@ const TOOL_LABELS: Record<string, string> = {
   generate_essay: "generate_essay",
   finalize_export: "finalize_export",
   humanize_essay: "humanize_essay",
+  split_paragraphs: "split_paragraphs",
   finalize_export_humanized: "finalize_export_humanized",
 };
 
@@ -367,6 +369,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [originalExportDoc, setOriginalExportDoc] = useState<ExportDocumentSnapshot | null>(null);
   const [humanizedExportDoc, setHumanizedExportDoc] = useState<ExportDocumentSnapshot | null>(null);
   const [activeDownload, setActiveDownload] = useState<"original" | "humanized" | null>(null);
+  const [editorConfirmed, setEditorConfirmed] = useState<Set<"original" | "humanized">>(new Set());
   const [runError, setRunError] = useState("");
   const [showOutlines, setShowOutlines] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -858,9 +861,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           if (contentDiv) contentDiv.innerHTML = editedNode.innerHTML;
         }
       });
-      // Wait a tick for the DOM to settle before html2canvas
-      await new Promise<void>((resolve) => setTimeout(resolve, 60));
-      await handlePdfDownload(miniEditorSnapshot, pageRefs.current, miniEditorType);
+      // Mark this document as confirmed so the download card replaces the editor card
+      const confirmedType = miniEditorType;
+      setEditorConfirmed((prev) => {
+        const next = new Set(prev);
+        next.add(confirmedType);
+        return next;
+      });
       closeMiniEditor();
     } finally {
       setMiniEditorDownloading(false);
@@ -868,6 +875,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   };
 
   const hasSearchResults = (runState?.context.searchResults || []).length > 0;
+  // If humanization is in-flight or done, hide the original editor/download cards —
+  // the user only cares about the humanized output at that point.
+  const isHumanizing = (runState?.steps.find((s) => s.id === 11)?.status ?? "pending") !== "pending";
 
   return (
     <div className={styles.workflowShell}>
@@ -1081,7 +1091,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               );
             })}
 
-            {originalExportDoc && !humanizedExportDoc && (
+            {originalExportDoc && !isHumanizing && !editorConfirmed.has("original") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>
                 <div className={styles.editorCardIcon}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1099,7 +1109,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
-            {originalExportDoc && (
+            {originalExportDoc && !isHumanizing && editorConfirmed.has("original") && (
               <div className={styles.finishedCard} onClick={() => void handlePdfDownload(originalExportDoc, originalPageRefs.current, "original")}>
                 <div className={styles.finishedCardIcon}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1134,7 +1144,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
-            {humanizedExportDoc && (
+            {humanizedExportDoc && !editorConfirmed.has("humanized") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("humanized")}>
                 <div className={styles.editorCardIcon}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1152,7 +1162,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
-            {humanizedExportDoc && (
+            {humanizedExportDoc && editorConfirmed.has("humanized") && (
               <div className={styles.finishedCard} onClick={() => void handlePdfDownload(humanizedExportDoc, humanizedPageRefs.current, "humanized")}>
                 <div className={styles.finishedCardIcon}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1526,12 +1536,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                     <SpinnerIcon />
                   ) : (
                     <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      Finish &amp; Download
+                      Confirm
                     </>
                   )}
                 </button>

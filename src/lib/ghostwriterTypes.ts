@@ -7,6 +7,7 @@ export type GhostwriterToolName =
   | "generate_essay"
   | "finalize_export"
   | "humanize_essay"
+  | "split_paragraphs"
   | "finalize_export_humanized";
 
 export type GhostwriterQuestionField =
@@ -20,7 +21,8 @@ export type GhostwriterQuestionField =
   | "subjectCode"
   | "essayDate"
   | "humanizeChoice"
-  | "humanizerChoice";
+  | "humanizerChoice"
+  | "paragraphSplitChoice";
 
 export type GhostwriterStepStatus = "pending" | "running" | "completed" | "blocked" | "error";
 
