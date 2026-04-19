@@ -12,7 +12,13 @@
 
 import { getOpenRouterConfig } from "@/server/backendConfig";
 import type { AgentEvent } from "./events";
-import type { AgentContext, AgentDraftSettings, AgentFormatAnswers } from "./context";
+import type {
+  AgentContext,
+  AgentDraftSettings,
+  AgentFormatAnswers,
+  HumanizeChoice,
+  ParagraphSplitChoice,
+} from "./context";
 import { AGENT_LIMITS } from "./limits";
 import { emit, finishRun, waitForAnswer, type AgentRun } from "./runs";
 import { toOpenRouterToolSpec, type AnyTool } from "./tools";
@@ -132,7 +138,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       // failure). Nudge it once with an explicit "continue" turn; if it still
       // produces no tools after the nudge, surface a fatal error instead of
       // silently completing a half-built essay.
-      if (run.context.exportDoc) {
+      if (run.context.humanizedExportDoc) {
+        emit(run, { type: "done", exportDoc: null });
+        finishRun(run, "finished");
+        return;
+      }
+
+      if (run.context.exportDoc && run.context.humanizeChoice === "Skip") {
         emit(run, { type: "done", exportDoc: run.context.exportDoc });
         finishRun(run, "finished");
         return;
@@ -277,11 +289,12 @@ async function dispatchToolCall(args: {
   // ── regular tool path ────────────────────────────────────────────────────
   const timeoutMs = tool.timeoutMs ?? AGENT_LIMITS.DEFAULT_TOOL_TIMEOUT_MS;
   try {
-    const result = await withTimeout(
+    let result = await withTimeout(
       tool.execute(parsedArgs, { run }),
       timeoutMs,
       `${tool.name} exceeded ${timeoutMs}ms`,
     );
+    result = await maybeCollectFollowUpAnswer(run, stepId, tool.name, result);
     emit(run, { type: "step_done", id: stepId, summary: extractSummary(result) });
     return toolResultFrame(tc.id, result);
   } catch (err) {
@@ -314,8 +327,77 @@ function extractSummary(result: unknown): string | undefined {
     return `Quality ${r.overallScore}/10 · ${r.issueCount ?? 0} issues`;
   if (typeof r.outputLength === "number") return `${r.outputLength} chars`;
   if (typeof r.provider === "string") return `Humanized with ${r.provider}`;
+  if (typeof r.humanizeChoice === "string") return `Humanizer: ${r.humanizeChoice}`;
+  if (typeof r.paragraphSplitChoice === "string") return `Split: ${r.paragraphSplitChoice}`;
   if (typeof r.revisionRounds === "number") return `Revision round ${r.revisionRounds}`;
   return undefined;
+}
+
+async function maybeCollectFollowUpAnswer(
+  run: AgentRun,
+  stepId: string,
+  toolName: string,
+  result: unknown,
+): Promise<unknown> {
+  if (!result || typeof result !== "object") return result;
+  const payload = { ...(result as Record<string, unknown>) };
+
+  if (toolName === "finalize_export" && !run.context.humanizeChoice) {
+    const answer = await askFollowUpQuestion(run, stepId, {
+      field: "humanizerChoice",
+      question: "Would you like to humanize your essay to bypass AI detectors?",
+      suggestions: ["StealthGPT", "UndetectableAI", "Skip"],
+      inputType: "text",
+    });
+    payload.humanizeChoice = answer;
+  }
+
+  if (
+    toolName === "humanize_essay" &&
+    String(payload.provider || "") === "StealthGPT" &&
+    !run.context.paragraphSplitChoice
+  ) {
+    const answer = await askFollowUpQuestion(run, stepId, {
+      field: "paragraphSplitChoice",
+      question: "StealthGPT merged the essay into one block. How should I handle paragraph breaks?",
+      suggestions: ["AI split", "Manual", "Skip split"],
+      inputType: "text",
+    });
+    payload.paragraphSplitChoice = answer;
+  }
+
+  return payload;
+}
+
+async function askFollowUpQuestion(
+  run: AgentRun,
+  stepId: string,
+  args: {
+    field: "humanizerChoice" | "paragraphSplitChoice";
+    question: string;
+    suggestions: string[];
+    inputType: "text";
+  },
+): Promise<string> {
+  run.status = "waiting_for_user";
+  emit(run, {
+    type: "question",
+    field: args.field,
+    question: args.question,
+    suggestions: args.suggestions,
+    inputType: args.inputType,
+  });
+
+  try {
+    const answer = await waitForAnswer(run, args.field, AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
+    run.status = "running";
+    applyAnswerToContext(run.context, args.field, answer);
+    emit(run, { type: "step_progress", id: stepId, detail: `${args.field}: ${String(answer)}` });
+    return String(answer);
+  } catch (err) {
+    run.status = "running";
+    throw err;
+  }
 }
 
 function toolResultFrame(toolCallId: string, payload: unknown): ChatMessage {
@@ -427,6 +509,20 @@ function applyAnswerToContext(ctx: AgentContext, field: string, value: unknown):
 
   if (isDraftSettingsField(field)) {
     ctx.draftSettings[field] = stringValue;
+    return;
+  }
+
+  if (field === "humanizerChoice") {
+    if (stringValue === "StealthGPT" || stringValue === "UndetectableAI" || stringValue === "Skip") {
+      ctx.humanizeChoice = stringValue as HumanizeChoice;
+    }
+    return;
+  }
+
+  if (field === "paragraphSplitChoice") {
+    if (stringValue === "AI split" || stringValue === "Manual" || stringValue === "Skip split") {
+      ctx.paragraphSplitChoice = stringValue as ParagraphSplitChoice;
+    }
     return;
   }
 

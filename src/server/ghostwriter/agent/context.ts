@@ -86,6 +86,9 @@ export type AgentFormatAnswers = {
   essayDate?: string;
 };
 
+export type HumanizeChoice = "StealthGPT" | "UndetectableAI" | "Skip";
+export type ParagraphSplitChoice = "AI split" | "Manual" | "Skip split";
+
 // The full run-local state. Every field is optional until the tool that
 // populates it runs — tools should treat missing fields as "call the
 // prerequisite first" rather than crashing. The orchestrator's system
@@ -121,6 +124,8 @@ export type AgentContext = {
   revisionHistory: RevisionRecord[];
 
   // Humanization layer (populated by 3d tools).
+  humanizeChoice?: HumanizeChoice;
+  paragraphSplitChoice?: ParagraphSplitChoice;
   humanizedContent?: string;
   humanizerProvider?: "StealthGPT" | "UndetectableAI";
   humanizedExportDoc?: ExportDocumentSnapshot;

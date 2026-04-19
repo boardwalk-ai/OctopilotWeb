@@ -12,6 +12,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: 187.124.92.119
+      DEPLOY_USER: root
 
     steps:
       - name: Checkout
@@ -26,14 +29,14 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           for attempt in 1 2 3; do
-            if ssh-keyscan -T 15 -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null; then
+            if ssh-keyscan -T 15 -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts 2>/dev/null; then
               exit 0
             fi
             sleep 5
           done
-          echo "Failed to fetch SSH host key for ${{ secrets.DEPLOY_HOST }}" >&2
+          echo "Failed to fetch SSH host key for ${DEPLOY_HOST}" >&2
           exit 1
 
       - name: Deploy on VPS
         run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "cd /opt/octopilot-web && bash scripts/deploy-web.sh"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd /opt/octopilot-web && bash scripts/deploy-web.sh"
