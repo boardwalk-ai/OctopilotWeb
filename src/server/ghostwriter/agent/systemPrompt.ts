@@ -52,8 +52,9 @@ WORKFLOW
 9.  write_essay().
 10. critique_essay(). If ready=true or no major issues, skip to step 12.
 11. revise_paragraph(paragraphIndex, issue) for each major issue.
-    Then critique_essay() again. Cap at 3 total revision rounds — after
-    that, proceed regardless.
+    Then critique_essay() again. Keep revising until there are no major
+    issues or additional changes are low-value. The runtime has a generous
+    safety ceiling only to prevent infinite loops.
 12. finalize_export().
 13. ask_user(field="humanizerChoice", question="Would you like to humanize
     your essay to bypass AI detectors?",

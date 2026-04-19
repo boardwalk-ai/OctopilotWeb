@@ -25,7 +25,14 @@ jobs:
       - name: Add server to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          for attempt in 1 2 3; do
+            if ssh-keyscan -T 15 -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Failed to fetch SSH host key for ${{ secrets.DEPLOY_HOST }}" >&2
+          exit 1
 
       - name: Deploy on VPS
         run: |

@@ -5,9 +5,8 @@ export const AGENT_LIMITS = {
   // Hard ceiling on tool-call iterations per run. Trips → `fatal`.
   MAX_STEPS: 40,
 
-  // Stop the run when estimated cost exceeds this threshold.
-  // Conservative blended rate; real cost may be lower depending on model.
-  MAX_COST_USD: 0.75,
+  // Cost guard disabled for Ghostwriter runs at the user's request.
+  MAX_COST_USD: Number.POSITIVE_INFINITY,
 
   // Approximate OpenRouter pricing for cost estimation. These are conservative
   // Sonnet-class rates. If the actual model is cheaper, we just stop sooner
@@ -15,9 +14,9 @@ export const AGENT_LIMITS = {
   COST_PER_1M_INPUT_TOKENS: 3.0,   // USD
   COST_PER_1M_OUTPUT_TOKENS: 15.0, // USD
 
-  // Critic loop cap — after this many revision rounds the orchestrator must
-  // accept the essay as-is to prevent an infinite critique → revise cycle.
-  MAX_REVISION_ROUNDS: 3,
+  // Generous safety ceiling for critique → revise loops. The prompt tells the
+  // model to stop based on quality, not a visible fixed number.
+  MAX_REVISION_ROUNDS: 8,
 
   // Default per-tool timeout. Tools can override via `timeoutMs`.
   DEFAULT_TOOL_TIMEOUT_MS: 60_000,
