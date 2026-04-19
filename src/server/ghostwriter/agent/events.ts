@@ -41,6 +41,10 @@ export type AgentEvent =
   // when the stream closes.
   | { type: "essay_delta"; chunk: string }
 
+  // Cumulative token usage from an orchestrator → OpenRouter round-trip.
+  // The UI accumulates these to display a running "X tok" counter.
+  | { type: "token_usage"; promptTokens: number; completionTokens: number; totalTokens: number }
+
   // Terminal events.
   | { type: "done"; exportDoc: ExportDocumentSnapshot | null }
   | { type: "fatal"; error: string };

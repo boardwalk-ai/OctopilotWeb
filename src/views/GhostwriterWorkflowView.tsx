@@ -119,6 +119,12 @@ function formatDuration(secs: number) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M tok`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k tok`;
+  return `${n} tok`;
+}
+
 function makeFileName(title: string, ext: string) {
   const safe = title
     .trim()
@@ -452,10 +458,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
   const [humanizedBoxes, setHumanizedBoxes] = useState<Array<{ content: string; provider: string }>>([]);
   const [retryingHumanize, setRetryingHumanize] = useState(false);
-  // Timer
+  // Timer + token counter
   const workflowStartRef = useRef(Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
+  const [totalTokensUsed, setTotalTokensUsed] = useState(0);
   // Question fade transition
   const [displayedQuestion, setDisplayedQuestion] = useState(runState?.pendingQuestion ?? null);
   const [questionExiting, setQuestionExiting] = useState(false);
@@ -524,6 +531,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
             if (event.type === "essay_delta") {
               setEssayStreamContent((prev) => prev + event.chunk);
+              return;
+            }
+
+            if (event.type === "token_usage") {
+              setTotalTokensUsed((prev) => prev + event.totalTokens);
               return;
             }
 
@@ -1667,6 +1679,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 <span className={styles.timerDot} />
                 <span>{formatDuration(elapsedSeconds)}</span>
               </>
+            )}
+            {totalTokensUsed > 0 && (
+              <span className={styles.timerTokens}>{formatTokens(totalTokensUsed)}</span>
             )}
           </div>
 

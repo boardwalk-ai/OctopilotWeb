@@ -35,10 +35,12 @@ import { askUserTool } from "@/server/ghostwriter/tools/ask";
 import { compactSourcesTool } from "@/server/ghostwriter/tools/compact";
 import { echoTool } from "@/server/ghostwriter/tools/echo";
 import { finalizeExportTool } from "@/server/ghostwriter/tools/finalize";
+import { humanizeEssayTool } from "@/server/ghostwriter/tools/humanize";
 import { generateOutlinesTool } from "@/server/ghostwriter/tools/outlines";
 import { planEssayTool } from "@/server/ghostwriter/tools/plan";
 import { scrapeSourcesTool } from "@/server/ghostwriter/tools/scrape";
 import { searchSourcesTool } from "@/server/ghostwriter/tools/search";
+import { splitParagraphsTool } from "@/server/ghostwriter/tools/splitParagraphs";
 import { writeEssayTool } from "@/server/ghostwriter/tools/write";
 
 type StartMode = "dummy" | "agentic";
@@ -112,6 +114,8 @@ async function runAgenticDriver(run: AgentRun): Promise<void> {
         compactSourcesTool,
         writeEssayTool,
         finalizeExportTool,
+        humanizeEssayTool,
+        splitParagraphsTool,
         askUserTool,
         echoTool,
       ],

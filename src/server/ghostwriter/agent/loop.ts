@@ -45,6 +45,11 @@ type OpenRouterResponse = {
       tool_calls?: AssistantToolCall[];
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
   error?: { message?: string };
 };
 
@@ -79,6 +84,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       messages,
       toolSpecs,
     });
+
+    // Surface token usage so the client can display a running counter.
+    if (assistant.usage) {
+      emit(run, {
+        type: "token_usage",
+        promptTokens: assistant.usage.prompt_tokens ?? 0,
+        completionTokens: assistant.usage.completion_tokens ?? 0,
+        totalTokens: assistant.usage.total_tokens ?? 0,
+      });
+    }
 
     // Surface any free-form reasoning the model produced before/alongside its
     // tool calls. The UI appends these to its live "thinking" panel.
@@ -274,7 +289,7 @@ async function callOpenRouter(args: {
   model: string;
   messages: ChatMessage[];
   toolSpecs: ReturnType<typeof toOpenRouterToolSpec>[];
-}): Promise<{ content: string | null; tool_calls?: AssistantToolCall[] }> {
+}): Promise<{ content: string | null; tool_calls?: AssistantToolCall[]; usage?: OpenRouterResponse["usage"] }> {
   const { apiKey, model, messages, toolSpecs } = args;
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -312,6 +327,7 @@ async function callOpenRouter(args: {
   return {
     content: msg.content ?? null,
     tool_calls: msg.tool_calls,
+    usage: data.usage,
   };
 }
 
