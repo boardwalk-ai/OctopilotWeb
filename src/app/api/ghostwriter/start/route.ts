@@ -1,17 +1,29 @@
 // POST /api/ghostwriter/start
 //
-// Milestone 1: accepts a draft payload, allocates an AgentRun, and kicks off a
-// dummy background "agent" that emits a small scripted sequence of events.
-// The point of this milestone is to prove that start → SSE stream → answer →
-// done round-trips cleanly before we wire in OpenRouter tool-use in milestone
-// 2. See docs/AGENTIC_GHOSTWRITER.md §12.
+// Allocates an AgentRun and kicks off a background driver. Two drivers exist:
 //
-// Response: `{ runId: string }`. The client then opens an EventSource against
-// `/api/ghostwriter/run?runId=...` and POSTs answers to
-// `/api/ghostwriter/answer`.
+//   - `dummy`   (default until milestone 3 lands real tools): emits a scripted
+//               sequence of events to exercise the SSE + answer round-trip
+//               without touching OpenRouter.
+//   - `agentic` (milestone 2+): runs the real OpenRouter tool-use loop with
+//               the current tool registry. In milestone 2 the registry is
+//               just `echo` + `ask_user`, which is enough to prove that
+//               thoughts and tool calls stream end-to-end.
+//
+// Selection rules:
+//   1. `?mode=agentic|dummy` query param wins (easy per-request toggle in dev).
+//   2. Otherwise `process.env.GHOSTWRITER_MODE` ("agentic" or "legacy"/"dummy").
+//   3. Otherwise `dummy`.
+//
+// Response: `{ runId: string, mode: "dummy" | "agentic" }`.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/server/routeAuth";
+import { runAgent } from "@/server/ghostwriter/agent/loop";
+import {
+  buildSystemPrompt,
+  buildUserBrief,
+} from "@/server/ghostwriter/agent/systemPrompt";
 import {
   AgentRun,
   createRun,
@@ -19,15 +31,25 @@ import {
   finishRun,
   waitForAnswer,
 } from "@/server/ghostwriter/agent/runs";
+import { askUserTool } from "@/server/ghostwriter/tools/ask";
+import { echoTool } from "@/server/ghostwriter/tools/echo";
 
-// Scripted stand-in for the real agent loop. Emits a few step_* events, asks
-// one question, then finishes. Runs after the POST response returns so the
-// client has time to open the SSE stream; the runs store buffers anything
-// that's emitted before the subscriber connects.
+type StartMode = "dummy" | "agentic";
+
+function resolveMode(request: NextRequest): StartMode {
+  const queryMode = request.nextUrl.searchParams.get("mode");
+  if (queryMode === "agentic") return "agentic";
+  if (queryMode === "dummy") return "dummy";
+
+  const envMode = (process.env.GHOSTWRITER_MODE || "").toLowerCase();
+  if (envMode === "agentic") return "agentic";
+  return "dummy";
+}
+
+// ────────────────── dummy driver (milestone 1) ──────────────────────────────
 async function runDummyAgent(run: AgentRun): Promise<void> {
   try {
     run.status = "running";
-
     emit(run, { type: "thought", text: "Spinning up dummy agent loop..." });
     emit(run, {
       type: "step_start",
@@ -70,6 +92,26 @@ async function runDummyAgent(run: AgentRun): Promise<void> {
   }
 }
 
+// ────────────────── agentic driver (milestone 2) ────────────────────────────
+async function runAgenticDriver(run: AgentRun): Promise<void> {
+  try {
+    await runAgent({
+      run,
+      tools: [echoTool, askUserTool],
+      systemPrompt: buildSystemPrompt(),
+      userBrief: buildUserBrief(run.draft),
+    });
+    // `runAgent` emits its own terminal event (`done` or `fatal`) and calls
+    // `finishRun`, so we don't duplicate here.
+  } catch (err) {
+    emit(run, {
+      type: "fatal",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    finishRun(run, "error");
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -90,12 +132,17 @@ export async function POST(request: NextRequest) {
       ? ((body as { draft: unknown }).draft as Record<string, unknown>)
       : {};
 
+  const mode = resolveMode(request);
   const run = createRun(draft);
 
-  // Fire and forget — the agent drives itself via the runs event bus. Using
-  // `void` here is deliberate: we don't want to block the HTTP response on the
-  // full agent execution. Unhandled rejections are caught inside the runner.
-  void runDummyAgent(run);
+  // Fire and forget — the driver pushes events through the runs bus and the
+  // SSE route relays them to the client. Unhandled rejections are trapped
+  // inside each driver so an error never tears down the request handler.
+  if (mode === "agentic") {
+    void runAgenticDriver(run);
+  } else {
+    void runDummyAgent(run);
+  }
 
-  return NextResponse.json({ runId: run.id });
+  return NextResponse.json({ runId: run.id, mode });
 }
