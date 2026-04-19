@@ -437,6 +437,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [chatMessage, setChatMessage] = useState("");
   const [customAnswer, setCustomAnswer] = useState("");
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
+  const [thinkingEntries, setThinkingEntries] = useState<string[]>([]);
+  const [thinkingPanelOpen, setThinkingPanelOpen] = useState(true);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
   const [editingOpen, setEditingOpen] = useState(true);
@@ -549,6 +551,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
               switch (event.type) {
                 case "thought": {
+                  const nextThought = event.text.trim();
+                  if (nextThought) {
+                    setThinkingEntries((prevThoughts) => {
+                      if (prevThoughts[prevThoughts.length - 1] === nextThought) return prevThoughts;
+                      return [...prevThoughts.slice(-11), nextThought];
+                    });
+                  }
                   const active = next.steps.find((step) => step.status === "running");
                   if (active) active.detail = event.text;
                   break;
@@ -1166,6 +1175,52 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </p>
             </div>
           </div>
+
+          {isAgenticMode && (
+            <section className={styles.agentThinkingPanel}>
+              <button
+                type="button"
+                className={styles.agentThinkingHeader}
+                onClick={() => setThinkingPanelOpen((prev) => !prev)}
+              >
+                <div className={styles.agentThinkingTitleWrap}>
+                  <span className={styles.agentThinkingPulse} />
+                  <div>
+                    <strong>Reasoning</strong>
+                    <span>{thinkingEntries.length > 0 ? "Live model thoughts" : "Waiting for the first thought"}</span>
+                  </div>
+                </div>
+                <svg
+                  className={`${styles.thinkingChevron} ${thinkingPanelOpen ? styles.thinkingChevronOpen : ""}`}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {thinkingPanelOpen && (
+                <div className={styles.agentThinkingBody}>
+                  {thinkingEntries.length > 0 ? (
+                    thinkingEntries.map((entry, index) => (
+                      <div key={`${index}-${entry.slice(0, 24)}`} className={styles.agentThoughtLine}>
+                        <span className={styles.agentThoughtBullet} />
+                        <p>{entry}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.agentThinkingEmpty}>Ghostwriter will surface its reasoning here as it plans and writes.</div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
 
           <section ref={streamRef} className={styles.workflowStream}>
             {visibleSteps.map((step) => {
