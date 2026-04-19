@@ -450,7 +450,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [customAnswer, setCustomAnswer] = useState("");
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
   const [thinkingEntries, setThinkingEntries] = useState<string[]>([]);
-  const [thinkingPanelOpen, setThinkingPanelOpen] = useState(true);
+  const [thinkingPanelOpen, setThinkingPanelOpen] = useState(false);
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
@@ -704,6 +705,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   next.status = "finished";
                   next.pendingToolCall = null;
                   next.pendingQuestion = null;
+                  // Mark any steps still showing "running" as completed so
+                  // the stream doesn't keep a stale spinner after the run ends.
+                  next.steps = next.steps.map((s) =>
+                    s.status === "running" ? { ...s, status: "completed" } : s,
+                  );
                   break;
                 }
                 case "fatal": {
@@ -843,14 +849,15 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
 
-  // Timer
+  // Timer — stops on both "finished" (success) and "error" (stuck/fatal).
   useEffect(() => {
-    if (runState?.status === "finished" && finalDuration === null) {
+    const isTerminal = runState?.status === "finished" || runState?.status === "error";
+    if (isTerminal && finalDuration === null) {
       setFinalDuration(Math.floor((Date.now() - workflowStartRef.current) / 1000));
-      playSuccessSound();
+      if (runState?.status === "finished") playSuccessSound();
       return;
     }
-    if (runState?.status === "finished") return;
+    if (isTerminal) return;
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - workflowStartRef.current) / 1000));
     }, 1000);
@@ -1291,13 +1298,33 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </section>
 
           <section className={styles.activityPanel}>
-              <div className={styles.activityHeader}>
-                <div>
-                  <strong>Live Activity</strong>
-                  <span>Thoughts, tool calls, and questions as they happen</span>
+              <button
+                type="button"
+                className={styles.agentThinkingHeader}
+                onClick={() => setActivityPanelOpen((prev) => !prev)}
+              >
+                <div className={styles.agentThinkingTitleWrap}>
+                  <span className={styles.agentThinkingPulse} style={{ background: "rgba(99,102,241,0.9)", boxShadow: "0 0 0 0 rgba(99,102,241,0.5)", animationName: activityEntries.length > 0 ? "thoughtPulse" : "none" }} />
+                  <div>
+                    <strong>Live Activity</strong>
+                    <span>{activityEntries.length > 0 ? `${activityEntries.length} events` : "Waiting for first tool call"}</span>
+                  </div>
                 </div>
-              </div>
-              <div className={styles.activityBody}>
+                <svg
+                  className={`${styles.thinkingChevron} ${activityPanelOpen ? styles.thinkingChevronOpen : ""}`}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {activityPanelOpen && <div className={styles.activityBody}>
                 {activityEntries.length > 0 ? (
                   activityEntries.map((entry) => {
                     if (entry.kind === "thought") {
@@ -1338,7 +1365,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 ) : (
                   <div className={styles.activityEmpty}>The transcript will populate once the agent begins reasoning and calling tools.</div>
                 )}
-              </div>
+              </div>}
             </section>
 
           <section ref={streamRef} className={styles.workflowStream}>
@@ -1664,14 +1691,24 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </section>
 
           {/* Timer bar */}
-          <div className={`${styles.timerBar} ${finalDuration !== null ? styles.timerBarDone : ""}`}>
+          <div className={`${styles.timerBar} ${finalDuration !== null ? (runState?.status === "error" ? styles.timerBarError || styles.timerBarDone : styles.timerBarDone) : ""}`}>
             {finalDuration !== null ? (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-                <span>Completed in {formatDuration(finalDuration)}</span>
-              </>
+              runState?.status === "error" ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "rgba(239,68,68,0.8)" }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" />
+                  </svg>
+                  <span style={{ color: "rgba(239,68,68,0.7)" }}>Stopped · {formatDuration(finalDuration)}</span>
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span>Completed in {formatDuration(finalDuration)}</span>
+                </>
+              )
             ) : (
               <>
                 <span className={styles.timerDot} />

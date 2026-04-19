@@ -56,7 +56,7 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
         minimum: 1,
         maximum: 30,
         description:
-          "Maximum number of URLs to scrape in this call. Default 15.",
+          "Maximum number of URLs to scrape in this call. Default 5.",
       },
     },
   },
@@ -69,7 +69,7 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
   async execute(args, { run }) {
     const ctx = run.context;
     const alreadyScraped = new Set(ctx.scrapedSources.map((s) => s.url.toLowerCase()));
-    const limit = Math.max(1, Math.min(30, Number(args.limit) || 15));
+    const limit = Math.max(1, Math.min(30, Number(args.limit) || 5));
 
     // Decide which URLs to process.
     const explicitUrls = Array.isArray(args.urls)

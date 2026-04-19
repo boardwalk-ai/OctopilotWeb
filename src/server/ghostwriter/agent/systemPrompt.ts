@@ -35,13 +35,15 @@ AVAILABLE TOOLS
 
 WORKFLOW
 1.  plan_essay.
-2.  ask_user(field="outlineCount") only if the brief is ambiguous about
-    paragraph count; otherwise use plan's paragraphCount.
+2.  Always ask_user(field="outlineCount",
+    question="How many paragraphs/sections would you like?",
+    suggestions=["5","6","7","8"]).
+    Use the answer as the count for step 3.
 3.  generate_outlines(count).
-4.  search_sources(count=10). If results look weak, search once more with
+4.  search_sources(count=5). If results look weak, search once more with
     a refinement. Do not exceed 2 search calls without scraping.
-5.  scrape_sources(). If fewer than 3 sources survive, search again with
-    a different angle, then scrape again.
+5.  scrape_sources(limit=5). If fewer than 3 sources survive, search again
+    with a different angle, then scrape again (limit=5).
 6.  compact_sources().
 7.  evaluate_sources(). If not sufficient, run one more search+scrape+compact
     cycle targeting the reported gaps, then evaluate again.
@@ -62,6 +64,9 @@ RULES
   errored. The runtime blocks identical duplicate calls.
 - After step 14 (or "Skip"), stop. Never call finalize_export twice.
 - Keep reasoning terse — users see it live.
+- ALWAYS use ask_user to gather required input. NEVER write a question
+  in your reasoning text; that is invisible to the user. Only ask_user
+  produces a visible question the user can answer.
 - If a tool errors: read the message, retry with different args once, then
   ask_user or give up. Never blindly retry the same call.
 - Do not invent URLs. search_sources is the only way to introduce them.`;

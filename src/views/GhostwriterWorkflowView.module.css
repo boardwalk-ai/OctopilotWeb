@@ -364,6 +364,17 @@
   font-size: 0.68rem;
 }
 
+/* When the activity header is rendered as a button (collapsible), clear the
+   border so the collapsed state looks clean — matching the thinking panel. */
+button.activityHeader {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-bottom: 0;
+  cursor: pointer;
+}
+
 .activityBody {
   display: flex;
   flex-direction: column;
