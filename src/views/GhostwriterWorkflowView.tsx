@@ -988,8 +988,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             pendingToolCall: null,
             pendingQuestion: null,
             steps: prev.steps.map((s) => {
-              if (s.id === 11) return { ...s, status: "completed", detail: "Humanization skipped." };
-              if (s.id === 12) return { ...s, status: "completed", detail: "Original document kept." };
+              if (s.toolName === "humanize_essay") return { ...s, status: "completed", detail: "Humanization skipped." };
+              if (s.toolName === "split_paragraphs" || s.toolName === "finalize_export_humanized") {
+                return { ...s, status: "completed", detail: "Original document kept." };
+              }
               return s;
             }),
             progress: { ...prev.progress, percent: 100, label: "Finished" },
@@ -1198,9 +1200,14 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   };
 
   const hasSearchResults = sourceItems.length > 0;
-  // If humanization is in-flight or done, hide the original editor/download cards —
-  // the user only cares about the humanized output at that point.
-  const isHumanizing = (runState?.steps.find((s) => s.id === 11)?.status ?? "pending") !== "pending";
+  const humanizeInFlight = (runState?.steps || []).some((step) =>
+    ["humanize_essay", "split_paragraphs", "finalize_export_humanized"].includes(step.toolName) &&
+    (step.status === "running" || step.status === "blocked"),
+  );
+  // Hide the original editor only when a humanized document already exists or
+  // the humanization branch is actively running. Choosing "Skip" leaves the
+  // original editor visible.
+  const isHumanizing = humanizeInFlight || Boolean(humanizedExportDoc);
 
   return (
     <div className={styles.workflowShell}>

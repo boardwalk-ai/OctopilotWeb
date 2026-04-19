@@ -24,6 +24,7 @@ type HumanizeArgs = {
 type HumanizeResult = {
   provider: string;
   outputLength: number;
+  nextRecommendedAction: string;
 };
 
 export const humanizeEssayTool: Tool<HumanizeArgs, HumanizeResult> = {
@@ -89,7 +90,14 @@ export const humanizeEssayTool: Tool<HumanizeArgs, HumanizeResult> = {
       });
     }
 
-    return { provider, outputLength: humanized.length };
+    return {
+      provider,
+      outputLength: humanized.length,
+      nextRecommendedAction:
+        provider === "StealthGPT"
+          ? "ask_user(paragraphSplitChoice)"
+          : "finalize_export_humanized",
+    };
   },
 };
 

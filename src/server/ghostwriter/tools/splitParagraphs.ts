@@ -16,6 +16,7 @@ type SplitArgs = Record<string, never>;
 
 type SplitResult = {
   paragraphCount: number;
+  nextRecommendedAction: string;
 };
 
 type ParagraphItem = {
@@ -109,7 +110,9 @@ export const splitParagraphsTool: Tool<SplitArgs, SplitResult> = {
       patch: { humanizedContent: rejoined },
     });
 
-    return { paragraphCount: paragraphs.length };
+    return {
+      paragraphCount: paragraphs.length,
+      nextRecommendedAction: "finalize_export_humanized",
+    };
   },
 };
-

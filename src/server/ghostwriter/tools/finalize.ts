@@ -15,6 +15,7 @@ type FinalizeArgs = {
 type FinalizeResult = {
   title: string;
   pageCount: number;
+  nextRecommendedAction: string;
 };
 
 export const finalizeExportTool: Tool<FinalizeArgs, FinalizeResult> = {
@@ -64,6 +65,7 @@ export const finalizeExportTool: Tool<FinalizeArgs, FinalizeResult> = {
     return {
       title: exportDoc.title,
       pageCount: exportDoc.pages.length,
+      nextRecommendedAction: "ask_user(humanizerChoice)",
     };
   },
 };
