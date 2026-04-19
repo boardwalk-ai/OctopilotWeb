@@ -31,10 +31,31 @@ type ScrapeResult = {
   totalInContext: number;
 };
 
-type UpstreamScrape = {
+// Shape of each item inside the API's `references` array (v2.0 format).
+type UpstreamReference = {
+  title?: string;
+  source?: string;       // domain / publisher
+  authors?: string[];
+  publicationYear?: number | null;
+  rawContent?: string;   // full scraped text (v2.0 renamed from fullContent)
+  fullContent?: string;  // kept for back-compat in case old endpoints still use it
+  publisher?: string;    // v1 field, may still appear
+};
+
+// Top-level response wrapper returned by the v2.0 scraper.
+type UpstreamScrapeResponse = {
+  references?: UpstreamReference[];
+  // v1 shape — flat object with content at top level
   title?: string;
   publisher?: string;
   fullContent?: string;
+};
+
+// Normalised output consumed by the execute() function.
+type UpstreamScrape = {
+  title?: string;
+  publisher?: string;
+  fullContent?: string;  // always populated from rawContent or fullContent
 };
 
 export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
@@ -171,7 +192,27 @@ async function fetchScrape(url: string): Promise<UpstreamScrape> {
       const body = await response.text().catch(() => "");
       throw new Error(`scrape upstream ${response.status}: ${body.slice(0, 120)}`);
     }
-    return (await response.json()) as UpstreamScrape;
+
+    const raw = (await response.json()) as UpstreamScrapeResponse;
+
+    // v2.0 API wraps results inside a `references` array.
+    // Normalise to the flat shape the rest of the tool expects.
+    if (Array.isArray(raw.references) && raw.references.length > 0) {
+      const ref = raw.references[0];
+      return {
+        title: ref.title,
+        publisher: ref.publisher || ref.source,
+        // v2.0 uses `rawContent`; fall back to `fullContent` for old endpoints.
+        fullContent: ref.rawContent || ref.fullContent,
+      };
+    }
+
+    // v1 flat response — use as-is.
+    return {
+      title: raw.title,
+      publisher: raw.publisher,
+      fullContent: raw.fullContent,
+    };
   } finally {
     clearTimeout(timer);
   }
