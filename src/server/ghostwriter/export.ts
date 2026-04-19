@@ -15,12 +15,12 @@ function normalizeHtmlFromContent(content: string): string {
     .join("");
 }
 
-function buildFormatterInput(ctx: AgentContext): FormatterInput {
+function buildFormatterInput(ctx: AgentContext, essayOverride?: string): FormatterInput {
   const finalEssayTitle =
     ctx.formatAnswers.finalEssayTitle?.trim() || ctx.essayTopic || "Ghostwriter Draft";
 
   return {
-    essay: ctx.essay || "",
+    essay: essayOverride ?? ctx.essay ?? "",
     bibliography: ctx.bibliography || "",
     finalEssayTitle,
     studentName: ctx.formatAnswers.studentName || "",
@@ -53,9 +53,9 @@ function toPages(formatted: FormatterOutput, citationStyle: string): ExportPageS
   }));
 }
 
-export function buildExportDocumentSnapshot(ctx: AgentContext): ExportDocumentSnapshot {
+export function buildExportDocumentSnapshot(ctx: AgentContext, essayOverride?: string): ExportDocumentSnapshot {
   const citationStyle = ctx.draftSettings.citationStyle || "None";
-  const formatted = FormatterService.getFormatter(citationStyle).format(buildFormatterInput(ctx));
+  const formatted = FormatterService.getFormatter(citationStyle).format(buildFormatterInput(ctx, essayOverride));
   const finalEssayTitle =
     ctx.formatAnswers.finalEssayTitle?.trim() || ctx.essayTopic || "Ghostwriter Draft";
 

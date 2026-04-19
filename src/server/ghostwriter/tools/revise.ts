@@ -9,6 +9,7 @@
 // Writes: ctx.essay (patches one paragraph), ctx.revisionRounds++
 
 import { getOpenRouterConfig } from "@/server/backendConfig";
+import type { RevisionRecord } from "@/server/ghostwriter/agent/context";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
 import { callJson } from "@/server/ghostwriter/shared/openrouter";
@@ -22,6 +23,9 @@ type ReviseArgs = {
 type ReviseResult = {
   paragraphIndex: number;
   revisionRounds: number;
+  capped?: boolean;
+  beforePreview?: string;
+  afterPreview?: string;
 };
 
 export const reviseParagraphTool: Tool<ReviseArgs, ReviseResult> = {
@@ -52,9 +56,9 @@ export const reviseParagraphTool: Tool<ReviseArgs, ReviseResult> = {
       throw new Error("revise_paragraph: essay is missing — run write_essay first.");
     }
     if (ctx.revisionRounds >= AGENT_LIMITS.MAX_REVISION_ROUNDS) {
-      throw new Error(
-        `revise_paragraph: revision cap reached (${AGENT_LIMITS.MAX_REVISION_ROUNDS} rounds). Accept the current draft.`,
-      );
+      // Return gracefully so the model proceeds to finalize_export rather than
+      // treating this as an error that needs retrying.
+      return { paragraphIndex: args.paragraphIndex, revisionRounds: ctx.revisionRounds, capped: true };
     }
 
     const paragraphs = ctx.essay.split(/\n{2,}/);
@@ -65,6 +69,9 @@ export const reviseParagraphTool: Tool<ReviseArgs, ReviseResult> = {
         `revise_paragraph: paragraphIndex ${paragraphIndex} is out of range (essay has ${paragraphs.length} paragraphs).`,
       );
     }
+
+    // Capture the original for the before/after summary shown in the UI.
+    const before = paragraphs[paragraphIndex].trim();
 
     const outline = ctx.outlines[paragraphIndex];
     const sourceBriefs = ctx.compactedSources
@@ -111,6 +118,14 @@ Rules:
     paragraphs[paragraphIndex] = revisedText;
     ctx.essay = paragraphs.join("\n\n");
     ctx.revisionRounds += 1;
+    const revisionRecord: RevisionRecord = {
+      paragraphIndex,
+      issue: args.issue,
+      before,
+      after: revisedText,
+      revisionRound: ctx.revisionRounds,
+    };
+    ctx.revisionHistory.push(revisionRecord);
 
     // Clear the resolved critique issue from the list
     ctx.critiqueIssues = ctx.critiqueIssues.filter(
@@ -123,9 +138,15 @@ Rules:
         essay: ctx.essay,
         revisionRounds: ctx.revisionRounds,
         critiqueIssues: ctx.critiqueIssues,
+        revisionHistory: ctx.revisionHistory,
       },
     });
 
-    return { paragraphIndex, revisionRounds: ctx.revisionRounds };
+    return {
+      paragraphIndex,
+      revisionRounds: ctx.revisionRounds,
+      beforePreview: before.slice(0, 180),
+      afterPreview: revisedText.slice(0, 180),
+    };
   },
 };

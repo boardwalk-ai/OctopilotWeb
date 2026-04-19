@@ -912,6 +912,129 @@ button.activityHeader {
   animation: streamEntrance 200ms ease-out;
 }
 
+.reviewPanel {
+  margin: 0.9rem 0 0.2rem 2.2rem;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  overflow: hidden;
+}
+
+.reviewPanelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.reviewPanelHeader strong {
+  color: white;
+  font-size: 0.8rem;
+}
+
+.reviewPanelHeader span {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.68rem;
+}
+
+.reviewIssueList,
+.revisionHistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.reviewIssueCard,
+.revisionCard {
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  padding: 0.8rem 0.9rem;
+}
+
+.reviewIssueMeta,
+.revisionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.reviewSeverityBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.3rem;
+  padding: 0 0.42rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.reviewSeverityMajor {
+  color: #fecaca;
+  background: rgba(239,68,68,0.14);
+}
+
+.reviewSeverityMinor {
+  color: #fde68a;
+  background: rgba(251,191,36,0.12);
+}
+
+.reviewIssueLocation,
+.revisionHeader span {
+  color: rgba(255,255,255,0.44);
+  font-size: 0.68rem;
+}
+
+.reviewIssueCard p,
+.revisionIssueText,
+.revisionCompareBlock p,
+.reviewEmptyState {
+  margin: 0.45rem 0 0;
+  color: rgba(255,255,255,0.62);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.reviewEmptyState {
+  padding: 0.9rem 1rem 1rem;
+}
+
+.revisionHeader strong {
+  color: white;
+  font-size: 0.76rem;
+}
+
+.revisionIssueText {
+  margin-top: 0.35rem;
+}
+
+.revisionCompareGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.7rem;
+}
+
+.revisionCompareBlock {
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  background: rgba(8,10,14,0.5);
+  padding: 0.7rem 0.75rem;
+}
+
+.revisionCompareBlock span {
+  color: rgba(255,255,255,0.38);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 /* ─── Spinner ─────────────────────────────────────────────────────────────── */
 
 .spinnerIcon {
@@ -1031,6 +1154,31 @@ button.activityHeader {
   font-size: 0.7rem;
   text-decoration: none;
   word-break: break-all;
+}
+
+.sourceSummary {
+  margin-top: 0.45rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 0.45rem;
+}
+
+.sourceSummary summary {
+  cursor: pointer;
+  color: rgba(255,255,255,0.58);
+  font-size: 0.68rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.sourceSummary summary::-webkit-details-marker {
+  display: none;
+}
+
+.sourceSummary p {
+  margin: 0.45rem 0 0;
+  color: rgba(255,255,255,0.48);
+  font-size: 0.7rem;
+  line-height: 1.55;
 }
 
 .kvColumn {

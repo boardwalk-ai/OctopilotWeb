@@ -36,6 +36,16 @@ type WorkflowStep = {
   toolArgs?: Record<string, unknown>;
 };
 
+type CritiqueIssueView = NonNullable<GhostwriterRunState["context"]["critiqueIssues"]>[number];
+type RevisionHistoryItem = NonNullable<GhostwriterRunState["context"]["revisionHistory"]>[number];
+type SourceSidebarItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  url: string;
+  summary?: string;
+};
+
 const EMPTY_STEP_EXTRAS = { thoughts: [] as string[], toolName: "", toolArgs: undefined };
 
 const INITIAL_STEPS: WorkflowStep[] = [
@@ -53,23 +63,6 @@ const INITIAL_STEPS: WorkflowStep[] = [
   { id: 12, title: "Splitting paragraphs",          detail: "Restoring paragraph breaks in the humanized text.",        status: "pending", ...EMPTY_STEP_EXTRAS },
   { id: 13, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                      status: "pending", ...EMPTY_STEP_EXTRAS },
 ];
-
-const TOOL_LABELS: Record<string, string> = {
-  plan_essay: "plan_essay",
-  search_sources: "search_sources",
-  scrape_sources: "scrape_sources",
-  compact_sources: "compact_sources",
-  write_essay: "write_essay",
-  ask_user: "ask_user",
-  analyze_instruction: "analyze_instruction",
-  generate_outlines: "generate_outlines",
-  gather_sources: "gather_sources",
-  generate_essay: "generate_essay",
-  finalize_export: "finalize_export",
-  humanize_essay: "humanize_essay",
-  split_paragraphs: "split_paragraphs",
-  finalize_export_humanized: "finalize_export_humanized",
-};
 
 const AGENT_GOAL = {
   title: "Ghostwriter is drafting and packaging your essay.",
@@ -161,6 +154,12 @@ function formatToolArgs(args: Record<string, unknown>): string {
     }
   }
   return parts.slice(0, 3).join(" · ");
+}
+
+function truncateText(value: string, max = 220): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max).trimEnd()}…`;
 }
 
 // ─── Error handling ──────────────────────────────────────────────────────
@@ -439,7 +438,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     configuredMode === "dummy" ? "dummy" : undefined;
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
-  const [draftSettings, setDraftSettings] = useState<GhostwriterDraftSettings>(() => {
+  const [draftSettings] = useState<GhostwriterDraftSettings>(() => {
     const detected = GhostwriterOrchestrator.detectDraftSettings(draft.prompt);
     return {
       wordCount: detected.wordCount || 1200,
@@ -473,7 +472,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
   const [humanizedBoxes, setHumanizedBoxes] = useState<Array<{ content: string; provider: string }>>([]);
-  const [retryingHumanize, setRetryingHumanize] = useState(false);
   // Timer + token counter
   const workflowStartRef = useRef(Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -519,6 +517,49 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     () => (runState?.steps || INITIAL_STEPS).filter((step) => step.status !== "pending"),
     [runState]
   );
+
+  const critiqueIssues = (runState?.context.critiqueIssues || []) as CritiqueIssueView[];
+  const revisionHistory = (runState?.context.revisionHistory || []) as RevisionHistoryItem[];
+  const sourceItems = useMemo<SourceSidebarItem[]>(() => {
+    const compacted = runState?.context.compactedSources || [];
+    const searchResults = runState?.context.searchResults || [];
+
+    const mappedSearch = searchResults
+      .map((raw, index) => {
+        const source = raw as unknown as Record<string, unknown>;
+        const url = String(source.website_URL || source.url || compacted[index]?.url || "");
+        const compactedMatch = compacted.find((item) => item.url === url) || compacted[index];
+        const title = String(source.Title || source.title || compactedMatch?.title || `Source ${index + 1}`);
+        const subtitle = String(
+          source.Publisher ||
+          source.publisher ||
+          source.Author ||
+          source.author ||
+          compactedMatch?.publisher ||
+          compactedMatch?.author ||
+          "Source",
+        );
+
+        return {
+          id: `${url || title}-${index}`,
+          title,
+          subtitle,
+          url,
+          summary: compactedMatch?.summary,
+        };
+      })
+      .filter((item) => item.url || item.title);
+
+    if (mappedSearch.length > 0) return mappedSearch;
+
+    return compacted.map((source, index) => ({
+      id: `${source.url || source.title || `source-${index}`}-${index}`,
+      title: source.title || `Source ${index + 1}`,
+      subtitle: source.publisher || source.author || "Source",
+      url: source.url,
+      summary: source.summary,
+    }));
+  }, [runState?.context.compactedSources, runState?.context.searchResults]);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -671,6 +712,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   if (patch.exportDoc) {
                     void paginateSnapshot(patch.exportDoc).then((snapshot) => {
                       setOriginalExportDoc(snapshot);
+                    });
+                  }
+                  if (patch.humanizedExportDoc) {
+                    void paginateSnapshot(patch.humanizedExportDoc).then((snapshot) => {
+                      setHumanizedExportDoc(snapshot);
                     });
                   }
                   break;
@@ -850,7 +896,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       });
       setHumanizedBoxOpen(true);
     }
-  }, [runState?.context.humanizedContent]);
+  }, [runState?.context.humanizedContent, runState?.context.humanizeProvider]);
 
   // Question fade transition
   useEffect(() => {
@@ -960,7 +1006,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   const handleHumanizeRetry = () => {
     if (!runState) return;
-    setRetryingHumanize(true);
     // Re-inject the humanizerChoice question into displayed question state
     setDisplayedQuestion({
       id: `retry-${Date.now()}`,
@@ -970,7 +1015,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       inputType: "text",
       suggestions: ["StealthGPT", "UndetectableAI"],
     });
-    setRetryingHumanize(false);
   };
 
   const handlePdfDownload = async (
@@ -1153,7 +1197,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     }
   };
 
-  const hasSearchResults = (runState?.context.searchResults || []).length > 0;
+  const hasSearchResults = sourceItems.length > 0;
   // If humanization is in-flight or done, hide the original editor/download cards —
   // the user only cares about the humanized output at that point.
   const isHumanizing = (runState?.steps.find((s) => s.id === 11)?.status ?? "pending") !== "pending";
@@ -1262,7 +1306,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                           className={styles.inlineThoughtToggle}
                           onClick={() => setOpenThinkingSteps((prev) => {
                             const n = new Set(prev);
-                            n.has(step.id) ? n.delete(step.id) : n.add(step.id);
+                            if (n.has(step.id)) n.delete(step.id);
+                            else n.add(step.id);
                             return n;
                           })}
                         >
@@ -1528,6 +1573,57 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             ))}
 
+            {(critiqueIssues.length > 0 || revisionHistory.length > 0 || (runState?.context.revisionRounds || 0) > 0) && (
+              <section className={styles.reviewPanel}>
+                <div className={styles.reviewPanelHeader}>
+                  <strong>Critique and revisions</strong>
+                  <span>
+                    {critiqueIssues.length} issue{critiqueIssues.length === 1 ? "" : "s"} · {runState?.context.revisionRounds || 0} revision{(runState?.context.revisionRounds || 0) === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                {critiqueIssues.length > 0 ? (
+                  <div className={styles.reviewIssueList}>
+                    {critiqueIssues.map((issue, index) => (
+                      <div key={`${issue.paragraphIndex}-${issue.type}-${index}`} className={styles.reviewIssueCard}>
+                        <div className={styles.reviewIssueMeta}>
+                          <span className={`${styles.reviewSeverityBadge} ${issue.severity === "major" ? styles.reviewSeverityMajor : styles.reviewSeverityMinor}`}>{issue.severity}</span>
+                          <span className={styles.reviewIssueLocation}>Paragraph {issue.paragraphIndex + 1} · {issue.type}</span>
+                        </div>
+                        <p>{issue.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={styles.reviewEmptyState}>No unresolved critique issues remain.</div>
+                )}
+
+                {revisionHistory.length > 0 ? (
+                  <div className={styles.revisionHistoryList}>
+                    {revisionHistory.map((revision, index) => (
+                      <div key={`${revision.paragraphIndex}-${revision.revisionRound}-${index}`} className={styles.revisionCard}>
+                        <div className={styles.revisionHeader}>
+                          <strong>Revision {revision.revisionRound}</strong>
+                          <span>Paragraph {revision.paragraphIndex + 1}</span>
+                        </div>
+                        <p className={styles.revisionIssueText}>{revision.issue}</p>
+                        <div className={styles.revisionCompareGrid}>
+                          <div className={styles.revisionCompareBlock}>
+                            <span>Before</span>
+                            <p>{truncateText(revision.before)}</p>
+                          </div>
+                          <div className={styles.revisionCompareBlock}>
+                            <span>After</span>
+                            <p>{truncateText(revision.after)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            )}
+
             {runError && (
               <div className={styles.errorLine}>
                 <span>{runError}</span>
@@ -1612,11 +1708,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
           {hasSearchResults ? (
             <div className={styles.sourceList}>
-              {(runState?.context.searchResults || []).map((source, index) => (
-                <div key={`${source.website_URL}-${index}`} className={styles.sourceItem}>
-                  <strong>{source.Title || `Source ${index + 1}`}</strong>
-                  <span>{source.Publisher || source.Author || "Search result"}</span>
-                  <a href={source.website_URL} target="_blank" rel="noreferrer">{source.website_URL}</a>
+              {sourceItems.map((source) => (
+                <div key={source.id} className={styles.sourceItem}>
+                  <strong>{source.title}</strong>
+                  <span>{source.subtitle}</span>
+                  <a href={source.url} target="_blank" rel="noreferrer">{source.url}</a>
+                  {source.summary ? (
+                    <details className={styles.sourceSummary}>
+                      <summary>Collapsed content</summary>
+                      <p>{source.summary}</p>
+                    </details>
+                  ) : null}
                 </div>
               ))}
             </div>

@@ -61,6 +61,14 @@ export type CritiqueIssue = {
   severity: "major" | "minor";
 };
 
+export type RevisionRecord = {
+  paragraphIndex: number;
+  issue: string;
+  before: string;
+  after: string;
+  revisionRound: number;
+};
+
 export type AgentDraftSettings = {
   wordCount?: number;
   citationStyle?: string;
@@ -110,10 +118,12 @@ export type AgentContext = {
   // Critique + revision layer (populated by 5 tools).
   critiqueIssues: CritiqueIssue[];
   revisionRounds: number;
+  revisionHistory: RevisionRecord[];
 
   // Humanization layer (populated by 3d tools).
   humanizedContent?: string;
   humanizerProvider?: "StealthGPT" | "UndetectableAI";
+  humanizedExportDoc?: ExportDocumentSnapshot;
 
   // User-supplied bits.
   draftSettings: AgentDraftSettings;
@@ -136,6 +146,7 @@ export function createAgentContext(instruction: string): AgentContext {
     paragraphs: [],
     critiqueIssues: [],
     revisionRounds: 0,
+    revisionHistory: [],
     draftSettings: {},
     formatAnswers: {},
     exportReady: false,

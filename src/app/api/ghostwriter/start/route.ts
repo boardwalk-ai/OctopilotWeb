@@ -37,6 +37,7 @@ import { critiqueEssayTool } from "@/server/ghostwriter/tools/critique";
 import { echoTool } from "@/server/ghostwriter/tools/echo";
 import { evaluateSourcesTool } from "@/server/ghostwriter/tools/evaluate";
 import { finalizeExportTool } from "@/server/ghostwriter/tools/finalize";
+import { finalizeExportHumanizedTool } from "@/server/ghostwriter/tools/finalizeHumanized";
 import { humanizeEssayTool } from "@/server/ghostwriter/tools/humanize";
 import { generateOutlinesTool } from "@/server/ghostwriter/tools/outlines";
 import { planEssayTool } from "@/server/ghostwriter/tools/plan";
@@ -121,6 +122,7 @@ async function runAgenticDriver(run: AgentRun): Promise<void> {
         critiqueEssayTool,
         reviseParagraphTool,
         finalizeExportTool,
+        finalizeExportHumanizedTool,
         humanizeEssayTool,
         splitParagraphsTool,
         askUserTool,

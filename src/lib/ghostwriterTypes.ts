@@ -6,7 +6,10 @@ export type GhostwriterToolName =
   | "search_sources"
   | "scrape_sources"
   | "compact_sources"
+  | "evaluate_sources"
   | "write_essay"
+  | "critique_essay"
+  | "revise_paragraph"
   | "ask_user"
   | "echo"
   | "analyze_instruction"
@@ -106,6 +109,21 @@ export type GhostwriterRunContext = {
   exportDoc?: ExportDocumentSnapshot | null;
   humanizedContent?: string;
   humanizeProvider?: string;
+  humanizedExportDoc?: ExportDocumentSnapshot | null;
+  critiqueIssues?: Array<{
+    paragraphIndex: number;
+    type: string;
+    description: string;
+    severity: "major" | "minor";
+  }>;
+  revisionRounds?: number;
+  revisionHistory?: Array<{
+    paragraphIndex: number;
+    issue: string;
+    before: string;
+    after: string;
+    revisionRound: number;
+  }>;
 };
 
 export type GhostwriterRunState = {
