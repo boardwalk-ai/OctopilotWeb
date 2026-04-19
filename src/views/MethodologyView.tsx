@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import type { User } from "firebase/auth";
 import { useOrganizer } from "@/hooks/useOrganizer";
+import { AuthService } from "@/services/AuthService";
 import {
   AppHeader,
   LogoNav,
@@ -146,6 +148,13 @@ const ghostwriterFeatures = [
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
   const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter">(org.writingMode || "automation");
+  const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
+  const canSeeGhostwriter = user?.email?.trim().toLowerCase() === "dev.trhein@gmail.com";
+  const effectiveSelected = !canSeeGhostwriter && selected === "ghostwriter" ? "automation" : selected;
+
+  useEffect(() => {
+    return AuthService.subscribe(setUser);
+  }, []);
 
   return (
     <div className={`fixed inset-0 flex flex-col overflow-hidden bg-black ${styles.methodologyShell}`}>
@@ -178,7 +187,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
             {/* Automation Card */}
             <button
               onClick={() => setSelected("automation")}
-              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "automation"
+              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "automation"
                 ? "border-red-500/40 bg-red-500/[0.04]"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
                 }`}
@@ -197,9 +206,9 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   </p>
                 </div>
                 {/* Radio indicator */}
-                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "automation" ? "border-red-500" : "border-white/20"
+                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "automation" ? "border-red-500" : "border-white/20"
                   }`}>
-                  {selected === "automation" && <div className="h-3 w-3 rounded-full bg-red-500" />}
+                  {effectiveSelected === "automation" && <div className="h-3 w-3 rounded-full bg-red-500" />}
                 </div>
               </div>
 
@@ -222,7 +231,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
             {/* Manual Writing Card */}
             <button
               onClick={() => setSelected("manual")}
-              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "manual"
+              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "manual"
                 ? "border-red-500/40 bg-red-500/[0.04]"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
                 }`}
@@ -241,9 +250,9 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   </p>
                 </div>
                 {/* Radio indicator */}
-                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "manual" ? "border-red-500" : "border-white/20"
+                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "manual" ? "border-red-500" : "border-white/20"
                   }`}>
-                  {selected === "manual" && <div className="h-3 w-3 rounded-full bg-red-500" />}
+                  {effectiveSelected === "manual" && <div className="h-3 w-3 rounded-full bg-red-500" />}
                 </div>
               </div>
 
@@ -263,64 +272,65 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
               </div>
             </button>
 
-            {/* Ghostwriter Card */}
-            <button
-              onClick={() => {
-                setSelected("ghostwriter");
-                onSelect("ghostwriter");
-              }}
-              className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${selected === "ghostwriter"
-                ? "border-red-500/40 bg-red-500/[0.04]"
-                : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
-                }`}
-            >
-              <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m4 20 4.5-1 9.7-9.7a2.1 2.1 0 1 0-3-3L5.5 16 4 20Z" />
-                    <path d="m13.5 6.5 4 4" />
-                  </svg>
-                </div>
-                <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
-                  <div className="mb-2 flex items-center gap-2">
-                    <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Ghostwriter</h2>
-                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300">
-                      Beta
-                    </span>
+            {canSeeGhostwriter ? (
+              <button
+                onClick={() => {
+                  setSelected("ghostwriter");
+                  onSelect("ghostwriter");
+                }}
+                className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "ghostwriter"
+                  ? "border-red-500/40 bg-red-500/[0.04]"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
+                  }`}
+              >
+                <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500/10 ${styles.methodologyIconBox}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m4 20 4.5-1 9.7-9.7a2.1 2.1 0 1 0-3-3L5.5 16 4 20Z" />
+                      <path d="m13.5 6.5 4 4" />
+                    </svg>
                   </div>
-                  <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>You steer the idea. AI sharpens the prose.</p>
-                  <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
-                    A revision-first writing mode for reshaping drafts, tightening tone, and polishing sections with guided AI help.
-                  </p>
+                  <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Ghostwriter</h2>
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300">
+                        Beta
+                      </span>
+                    </div>
+                    <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>You steer the idea. AI sharpens the prose.</p>
+                    <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
+                      A revision-first writing mode for reshaping drafts, tightening tone, and polishing sections with guided AI help.
+                    </p>
+                  </div>
+                  <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "ghostwriter" ? "border-red-500" : "border-white/20"
+                    }`}>
+                    {effectiveSelected === "ghostwriter" && <div className="h-3 w-3 rounded-full bg-red-500" />}
+                  </div>
                 </div>
-                <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${selected === "ghostwriter" ? "border-red-500" : "border-white/20"
-                  }`}>
-                  {selected === "ghostwriter" && <div className="h-3 w-3 rounded-full bg-red-500" />}
+
+                <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
+                  {ghostwriterFeatures.map((f) => (
+                    <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                      <span className={`text-red-500 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                      <span>{f.label}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                  <span className={`rounded-full bg-emerald-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ${styles.methodologyBadge}`}>
+                    Beta
+                  </span>
                 </div>
-              </div>
-
-              <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
-                {ghostwriterFeatures.map((f) => (
-                  <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
-                    <span className={`text-red-500 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
-                    <span>{f.label}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
-                <span className={`rounded-full bg-emerald-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ${styles.methodologyBadge}`}>
-                  Beta
-                </span>
-              </div>
-            </button>
+              </button>
+            ) : null}
           </div>
         </div>
 
         {/* Get Started */}
         <div className={`pb-6 ${styles.methodologyFooter}`}>
           <button
-            onClick={() => onSelect(selected)}
+            onClick={() => onSelect(effectiveSelected)}
             className={`flex items-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[15px] font-bold tracking-wide text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition hover:bg-red-400 ${styles.methodologyCta}`}
           >
             Get Started
