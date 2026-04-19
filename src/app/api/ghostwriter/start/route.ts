@@ -161,7 +161,10 @@ export async function POST(request: NextRequest) {
       : {};
 
   const mode = resolveMode(request);
-  const run = createRun(draft);
+  // Forward the validated Bearer token so server-side tools (credit
+  // deduction, etc.) can call the Octopilot API on behalf of this user.
+  const authToken = "authorization" in auth ? auth.authorization : "";
+  const run = createRun(draft, authToken);
 
   // Fire and forget — the driver pushes events through the runs bus and the
   // SSE route relays them to the client. Unhandled rejections are trapped

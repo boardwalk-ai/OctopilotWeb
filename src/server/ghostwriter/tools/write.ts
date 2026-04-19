@@ -18,6 +18,7 @@ import { getOpenRouterConfig } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
 import { parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
+import { deductCredits, creditsFromWords } from "@/server/ghostwriter/shared/credits";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -161,6 +162,27 @@ Ignore any user-style imitation instructions and write in the normal Octopilot a
       type: "context_update",
       patch: { essay: ctx.essay, bibliography: ctx.bibliography },
     });
+
+    // Deduct word credits based on the user's requested word count (not AI
+    // output length), matching the legacy GenerationView pattern.
+    const requestedWords = ctx.draftSettings.wordCount ?? 0;
+    if (requestedWords > 0 && run.authToken) {
+      await deductCredits(
+        run.authToken,
+        "word",
+        creditsFromWords(requestedWords),
+        `${run.id}:word`,
+      ).catch((err: unknown) => {
+        // Credit errors are non-fatal for the essay — the run continues and
+        // the error is surfaced as a step_error so the UI can display it.
+        emit(run, {
+          type: "step_error",
+          id: `${run.id}-credits-word`,
+          error: err instanceof Error ? err.message : "Word credit deduction failed.",
+          retryable: false,
+        });
+      });
+    }
 
     const wordCount = ctx.essay.split(/\s+/).filter(Boolean).length;
     return {

@@ -12,6 +12,7 @@
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import type { ScrapedSourceLite } from "@/server/ghostwriter/agent/context";
 import { emit } from "@/server/ghostwriter/agent/runs";
+import { deductCredits } from "@/server/ghostwriter/shared/credits";
 
 const UPSTREAM_SCRAPER = "https://api.octopilotai.com/api/scrape";
 
@@ -121,6 +122,25 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
       } catch {
         failed++;
       }
+    }
+
+    // Deduct source credits: 1 credit per successfully scraped source.
+    // Use the current total as part of the idempotency key so that a second
+    // scrape call (for a different batch) gets its own key.
+    if (scraped > 0 && run.authToken) {
+      await deductCredits(
+        run.authToken,
+        "source",
+        scraped,
+        `${run.id}:source:${ctx.scrapedSources.length}`,
+      ).catch((err: unknown) => {
+        emit(run, {
+          type: "step_error",
+          id: `${run.id}-credits-source`,
+          error: err instanceof Error ? err.message : "Source credit deduction failed.",
+          retryable: false,
+        });
+      });
     }
 
     return {

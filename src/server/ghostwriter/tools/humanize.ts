@@ -11,6 +11,7 @@
 import { getHumanizerApiKey } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
+import { deductCredits, creditsFromWords, countWords } from "@/server/ghostwriter/shared/credits";
 
 const STEALTHGPT_URL = "https://www.stealthgpt.ai/api/stealthify";
 const UNDETECTABLE_SUBMIT_URL = "https://humanize.undetectable.ai/submit";
@@ -68,6 +69,25 @@ export const humanizeEssayTool: Tool<HumanizeArgs, HumanizeResult> = {
         humanizerProvider: provider,
       },
     });
+
+    // Deduct humanizer credits based on the source essay word count —
+    // matches HumanizerView's pattern of using the target/input word count.
+    const essayWords = countWords(ctx.essay ?? "");
+    if (essayWords > 0 && run.authToken) {
+      await deductCredits(
+        run.authToken,
+        "humanizer",
+        creditsFromWords(essayWords),
+        `${run.id}:humanizer`,
+      ).catch((err: unknown) => {
+        emit(run, {
+          type: "step_error",
+          id: `${run.id}-credits-humanizer`,
+          error: err instanceof Error ? err.message : "Humanizer credit deduction failed.",
+          retryable: false,
+        });
+      });
+    }
 
     return { provider, outputLength: humanized.length };
   },

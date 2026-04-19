@@ -31,6 +31,10 @@ export type AgentRun = {
   // Run-local agentic state. Tools mutate this; the loop emits
   // `context_update` events when meaningful slices change.
   context: AgentContext;
+  // The user's Bearer token, forwarded from the /start request so that
+  // server-side tools can call the Octopilot API (e.g. credit deduction)
+  // without a browser session.
+  authToken: string;
   createdAt: number;
   status: "pending" | "running" | "waiting_for_user" | "finished" | "error" | "cancelled";
 
@@ -63,7 +67,7 @@ function gc() {
   }
 }
 
-export function createRun(draft: AgentDraftInput): AgentRun {
+export function createRun(draft: AgentDraftInput, authToken = ""): AgentRun {
   gc();
   // `instruction` is the verbatim user prompt (optionally bundled with
   // client-extracted file text). Agentic drivers require it; dummy runs
@@ -75,6 +79,7 @@ export function createRun(draft: AgentDraftInput): AgentRun {
   const run: AgentRun = {
     id: randomUUID(),
     draft,
+    authToken,
     context: createAgentContext(instruction),
     createdAt: Date.now(),
     status: "pending",
