@@ -98,6 +98,7 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
       try {
         const data = await fetchScrape(target.url);
         if (!data.fullContent || !data.fullContent.trim()) {
+          console.warn(`[scrape_sources] Empty content for ${target.url}`);
           failed++;
           continue;
         }
@@ -119,7 +120,11 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
           type: "context_update",
           patch: { scrapedSources: ctx.scrapedSources },
         });
-      } catch {
+      } catch (err) {
+        console.error(
+          `[scrape_sources] Failed to scrape ${target.url}:`,
+          err instanceof Error ? err.message : String(err),
+        );
         failed++;
       }
     }
@@ -152,12 +157,22 @@ export const scrapeSourcesTool: Tool<ScrapeArgs, ScrapeResult> = {
 };
 
 async function fetchScrape(url: string): Promise<UpstreamScrape> {
-  const response = await fetch(`${UPSTREAM_SCRAPER}?url=${encodeURIComponent(url)}`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`scrape upstream ${response.status}`);
+  // 15-second hard timeout per URL — prevents a single hung page from
+  // consuming the entire tool budget.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(`${UPSTREAM_SCRAPER}?url=${encodeURIComponent(url)}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`scrape upstream ${response.status}: ${body.slice(0, 120)}`);
+    }
+    return (await response.json()) as UpstreamScrape;
+  } finally {
+    clearTimeout(timer);
   }
-  return (await response.json()) as UpstreamScrape;
 }

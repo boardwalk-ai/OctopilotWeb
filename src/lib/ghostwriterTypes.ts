@@ -39,6 +39,9 @@ export type GhostwriterWorkflowStep = {
   title: string;
   detail: string;
   status: GhostwriterStepStatus;
+  thoughts: string[];
+  toolName: string;
+  toolArgs?: Record<string, unknown>;
 };
 
 export type GhostwriterGoal = {

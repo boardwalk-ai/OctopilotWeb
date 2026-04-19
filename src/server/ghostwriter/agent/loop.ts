@@ -79,6 +79,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
   // Running cost estimate — accumulated across all orchestrator round-trips.
   let cumulativeCostUsd = 0;
+  // How many consecutive text-only (no tool call) responses we've seen
+  // mid-workflow. We nudge the model once before giving up.
+  let textOnlyStreak = 0;
 
   for (let step = 0; step < AGENT_LIMITS.MAX_STEPS; step++) {
     // Honour a cancellation that arrived while a tool was executing.
@@ -113,18 +116,51 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     // Surface any free-form reasoning the model produced before/alongside its
-    // tool calls. The UI appends these to its live "thinking" panel.
+    // tool calls. The UI displays these inline with each workflow step.
     if (assistant.content && assistant.content.trim().length > 0) {
       emit(run, { type: "thought", text: assistant.content });
     }
 
     const toolCalls = assistant.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      // Model chose to stop calling tools. That's our terminal signal.
-      emit(run, { type: "done", exportDoc: run.context.exportDoc ?? null });
-      finishRun(run, "finished");
+      // The model gave a text-only response (no tool calls).
+      //
+      // If finalize_export already ran and the export doc is ready, the agent
+      // legitimately finished — emit done.
+      //
+      // Otherwise it stopped mid-workflow (e.g., gave up after a scraper
+      // failure). Nudge it once with an explicit "continue" turn; if it still
+      // produces no tools after the nudge, surface a fatal error instead of
+      // silently completing a half-built essay.
+      if (run.context.exportDoc) {
+        emit(run, { type: "done", exportDoc: run.context.exportDoc });
+        finishRun(run, "finished");
+        return;
+      }
+
+      textOnlyStreak += 1;
+      if (textOnlyStreak <= 2) {
+        // Push the model's reasoning as an assistant turn, then inject a
+        // user nudge so it doesn't see an abrupt bare user message.
+        messages.push({ role: "assistant", content: assistant.content ?? "" });
+        messages.push({
+          role: "user",
+          content:
+            "Continue the workflow — call the next required tool. Do not respond with text only.",
+        });
+        continue;
+      }
+
+      // Three consecutive text-only turns without completing → fatal.
+      const stuckError =
+        "Agent stopped mid-workflow after multiple attempts. Please try again.";
+      emit(run, { type: "fatal", error: stuckError });
+      finishRun(run, "error");
       return;
     }
+
+    // Reset streak whenever the model actually calls a tool.
+    textOnlyStreak = 0;
 
     messages.push({
       role: "assistant",
@@ -229,7 +265,7 @@ async function dispatchToolCall(args: {
       const answer = await waitForAnswer(run, field, AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
       run.status = "running";
       applyAnswerToContext(run.context, field, answer);
-      emit(run, { type: "step_done", id: stepId });
+      emit(run, { type: "step_done", id: stepId, summary: `${String(answer)}` });
       return toolResultFrame(tc.id, { answer });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -246,7 +282,7 @@ async function dispatchToolCall(args: {
       timeoutMs,
       `${tool.name} exceeded ${timeoutMs}ms`,
     );
-    emit(run, { type: "step_done", id: stepId });
+    emit(run, { type: "step_done", id: stepId, summary: extractSummary(result) });
     return toolResultFrame(tc.id, result);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -256,6 +292,31 @@ async function dispatchToolCall(args: {
 }
 
 // ────────────────── helpers ─────────────────────────────────────────────────
+
+// Build a short human-readable summary from a tool's return value.
+// Used to populate the step card's result line in the UI.
+function extractSummary(result: unknown): string | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const r = result as Record<string, unknown>;
+  if (typeof r.wordCount === "number") return `${r.wordCount} words drafted`;
+  if (typeof r.scraped === "number") return `${r.scraped} scraped · ${r.failed ?? 0} failed`;
+  if (typeof r.compacted === "number") return `${r.compacted} sources compacted`;
+  if (typeof r.totalResults === "number") return `${r.totalResults} results found`;
+  if (typeof r.totalInContext === "number" && typeof r.compacted !== "number")
+    return `${r.totalInContext} in context`;
+  if (typeof r.paragraphCount === "number") return `${r.paragraphCount} paragraphs`;
+  if (typeof r.count === "number") return `${r.count} outlines`;
+  if (typeof r.sufficient === "boolean")
+    return r.sufficient
+      ? "Sources sufficient"
+      : String(r.recommendation ?? "Insufficient coverage");
+  if (typeof r.overallScore === "number")
+    return `Quality ${r.overallScore}/10 · ${r.issueCount ?? 0} issues`;
+  if (typeof r.outputLength === "number") return `${r.outputLength} chars`;
+  if (typeof r.provider === "string") return `Humanized with ${r.provider}`;
+  if (typeof r.revisionRounds === "number") return `Revision round ${r.revisionRounds}`;
+  return undefined;
+}
 
 function toolResultFrame(toolCallId: string, payload: unknown): ChatMessage {
   return {

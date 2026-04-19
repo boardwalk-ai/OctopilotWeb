@@ -24,20 +24,24 @@ type InternalRun = {
 
 const runStore = new Map<string, InternalRun>();
 
+const S: Omit<GhostwriterWorkflowStep, "id" | "title" | "detail"> = {
+  status: "pending", thoughts: [], toolName: "",
+};
+
 const INITIAL_STEPS: GhostwriterWorkflowStep[] = [
-  { id: 1,  title: "Analyzing your instruction",      detail: "Reading the prompt and locking in the topic.",              status: "pending" },
-  { id: 2,  title: "Building paragraph outlines",     detail: "Structuring the essay section by section.",                 status: "pending" },
-  { id: 3,  title: "Searching for sources",           detail: "Looking for relevant, citable sources.",                    status: "pending" },
-  { id: 4,  title: "Populating the sources panel",    detail: "Loading search results into the sidebar.",                  status: "pending" },
-  { id: 5,  title: "Gathering data from sources",     detail: "Scraping and compacting source content.",                   status: "pending" },
-  { id: 6,  title: "Checking draft settings",         detail: "Confirming word count and citation style before writing.",  status: "pending" },
-  { id: 7,  title: "Writing your essay",              detail: "Drafting the full essay from outlines and sources.",        status: "pending" },
-  { id: 8,  title: "Collecting formatting details",   detail: "Gathering student, instructor, and course metadata.",       status: "pending" },
-  { id: 9,  title: "Applying citation layout",        detail: "Running the citation formatter in the background.",         status: "pending" },
-  { id: 10, title: "Preparing your PDF",              detail: "Packaging the final document for download.",                status: "pending" },
-  { id: 11, title: "Humanizing your essay",           detail: "Processing with AI detection bypass.",                      status: "pending" },
-  { id: 12, title: "Splitting paragraphs",            detail: "Restoring paragraph breaks in the humanized text.",         status: "pending" },
-  { id: 13, title: "Packaging humanized document",    detail: "Building the final cleaned-up PDF.",                        status: "pending" },
+  { id: 1,  title: "Analyzing your instruction",      detail: "Reading the prompt and locking in the topic.",              ...S },
+  { id: 2,  title: "Building paragraph outlines",     detail: "Structuring the essay section by section.",                 ...S },
+  { id: 3,  title: "Searching for sources",           detail: "Looking for relevant, citable sources.",                    ...S },
+  { id: 4,  title: "Populating the sources panel",    detail: "Loading search results into the sidebar.",                  ...S },
+  { id: 5,  title: "Gathering data from sources",     detail: "Scraping and compacting source content.",                   ...S },
+  { id: 6,  title: "Checking draft settings",         detail: "Confirming word count and citation style before writing.",  ...S },
+  { id: 7,  title: "Writing your essay",              detail: "Drafting the full essay from outlines and sources.",        ...S },
+  { id: 8,  title: "Collecting formatting details",   detail: "Gathering student, instructor, and course metadata.",       ...S },
+  { id: 9,  title: "Applying citation layout",        detail: "Running the citation formatter in the background.",         ...S },
+  { id: 10, title: "Preparing your PDF",              detail: "Packaging the final document for download.",                ...S },
+  { id: 11, title: "Humanizing your essay",           detail: "Processing with AI detection bypass.",                      ...S },
+  { id: 12, title: "Splitting paragraphs",            detail: "Restoring paragraph breaks in the humanized text.",         ...S },
+  { id: 13, title: "Packaging humanized document",    detail: "Building the final cleaned-up PDF.",                        ...S },
 ];
 
 const GOAL: GhostwriterGoal = {

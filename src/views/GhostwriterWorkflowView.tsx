@@ -31,22 +31,27 @@ type WorkflowStep = {
   title: string;
   detail: string;
   status: StepStatus;
+  thoughts: string[];
+  toolName: string;
+  toolArgs?: Record<string, unknown>;
 };
 
+const EMPTY_STEP_EXTRAS = { thoughts: [] as string[], toolName: "", toolArgs: undefined };
+
 const INITIAL_STEPS: WorkflowStep[] = [
-  { id: 1,  title: "Analyzing your instruction",    detail: "Reading the prompt and locking in the topic.",              status: "pending" },
-  { id: 2,  title: "Building paragraph outlines",   detail: "Structuring the essay section by section.",                 status: "pending" },
-  { id: 3,  title: "Searching for sources",         detail: "Looking for relevant, citable sources.",                    status: "pending" },
-  { id: 4,  title: "Populating the sources panel",  detail: "Loading search results into the sidebar.",                  status: "pending" },
-  { id: 5,  title: "Gathering data from sources",   detail: "Scraping and compacting source content.",                   status: "pending" },
-  { id: 6,  title: "Checking draft settings",       detail: "Confirming word count and citation style before writing.",  status: "pending" },
-  { id: 7,  title: "Writing your essay",            detail: "Drafting the full essay from outlines and sources.",        status: "pending" },
-  { id: 8,  title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.",       status: "pending" },
-  { id: 9,  title: "Applying citation layout",      detail: "Running the citation formatter in the background.",         status: "pending" },
-  { id: 10, title: "Preparing your PDF",            detail: "Packaging the final document for download.",                status: "pending" },
-  { id: 11, title: "Humanizing your essay",         detail: "Processing with AI detection bypass.",                      status: "pending" },
-  { id: 12, title: "Splitting paragraphs",          detail: "Restoring paragraph breaks in the humanized text.",         status: "pending" },
-  { id: 13, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                       status: "pending" },
+  { id: 1,  title: "Analyzing your instruction",    detail: "Reading the prompt and locking in the topic.",             status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 2,  title: "Building paragraph outlines",   detail: "Structuring the essay section by section.",                status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 3,  title: "Searching for sources",         detail: "Looking for relevant, citable sources.",                   status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 4,  title: "Populating the sources panel",  detail: "Loading search results into the sidebar.",                 status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 5,  title: "Gathering data from sources",   detail: "Scraping and compacting source content.",                  status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 6,  title: "Checking draft settings",       detail: "Confirming word count and citation style before writing.", status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 7,  title: "Writing your essay",            detail: "Drafting the full essay from outlines and sources.",       status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 8,  title: "Collecting formatting details", detail: "Gathering student, instructor, and course metadata.",      status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 9,  title: "Applying citation layout",      detail: "Running the citation formatter in the background.",        status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 10, title: "Preparing your PDF",            detail: "Packaging the final document for download.",               status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 11, title: "Humanizing your essay",         detail: "Processing with AI detection bypass.",                     status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 12, title: "Splitting paragraphs",          detail: "Restoring paragraph breaks in the humanized text.",        status: "pending", ...EMPTY_STEP_EXTRAS },
+  { id: 13, title: "Packaging humanized document",  detail: "Building the final cleaned-up PDF.",                      status: "pending", ...EMPTY_STEP_EXTRAS },
 ];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -142,6 +147,22 @@ function defaultDateString() {
   });
 }
 
+function formatToolArgs(args: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(args)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === "string") {
+      const s = v.length > 35 ? `${v.slice(0, 35)}…` : v;
+      parts.push(s);
+    } else if (typeof v === "number" || typeof v === "boolean") {
+      parts.push(`${k}=${v}`);
+    } else if (Array.isArray(v)) {
+      parts.push(`${k}=[${(v as unknown[]).length}]`);
+    }
+  }
+  return parts.slice(0, 3).join(" · ");
+}
+
 // ─── Error handling ──────────────────────────────────────────────────────
 // Classify whether an error is worth auto-retrying. Credits/auth/400 errors
 // are surfaced immediately since no amount of retrying fixes them.
@@ -172,11 +193,6 @@ type StepError = {
   message: string;
   recovery: RecoveryAction[];
 };
-
-type ActivityEntry =
-  | { id: string; kind: "thought"; text: string }
-  | { id: string; kind: "tool"; tool: string; title: string; status: "running" | "completed" | "error"; detail?: string }
-  | { id: string; kind: "question"; field: string; text: string };
 
 function getRecoveryActions(toolName: string, args?: Record<string, unknown>): RecoveryAction[] {
   const actions: RecoveryAction[] = [{ kind: "retry", label: "Retry" }];
@@ -449,10 +465,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [chatMessage, setChatMessage] = useState("");
   const [customAnswer, setCustomAnswer] = useState("");
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<number>>(new Set());
-  const [thinkingEntries, setThinkingEntries] = useState<string[]>([]);
-  const [thinkingPanelOpen, setThinkingPanelOpen] = useState(false);
-  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
-  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
+  // Thoughts that arrived before the next step_start — flushed into that step on start.
+  const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
   const [editingOpen, setEditingOpen] = useState(true);
@@ -526,8 +540,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
           agentStepIdsRef.current = new Map();
           agentStepCountRef.current = 0;
-          setActivityEntries([]);
-          setThinkingEntries([]);
+          pendingThoughtsRef.current = [];
           setRunState(buildAgenticRunState(startedRun.runId));
 
           agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
@@ -574,40 +587,35 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               switch (event.type) {
                 case "thought": {
                   const nextThought = event.text.trim();
-                  if (nextThought) {
-                    setThinkingEntries((prevThoughts) => {
-                      if (prevThoughts[prevThoughts.length - 1] === nextThought) return prevThoughts;
-                      return [...prevThoughts.slice(-11), nextThought];
-                    });
-                    setActivityEntries((prevEntries) => [
-                      ...prevEntries.slice(-23),
-                      { id: `thought-${Date.now()}`, kind: "thought", text: nextThought },
-                    ]);
+                  if (!nextThought) break;
+                  // Attach to the currently-running step, or buffer for the next step_start.
+                  const runningStep = next.steps.find((s) => s.status === "running");
+                  if (runningStep) {
+                    runningStep.thoughts = [...(runningStep.thoughts ?? []).slice(-7), nextThought];
+                  } else {
+                    pendingThoughtsRef.current = [
+                      ...pendingThoughtsRef.current.slice(-7),
+                      nextThought,
+                    ];
                   }
-                  const active = next.steps.find((step) => step.status === "running");
-                  if (active) active.detail = event.text;
                   break;
                 }
                 case "step_start": {
                   agentStepCountRef.current += 1;
                   const stepId = agentStepCountRef.current;
                   agentStepIdsRef.current.set(event.id, stepId);
+                  // Flush buffered thoughts into this step.
+                  const capturedThoughts = pendingThoughtsRef.current.slice();
+                  pendingThoughtsRef.current = [];
                   next.steps.push({
                     id: stepId,
                     title: event.title,
-                    detail: "Working...",
+                    detail: "",
                     status: "running",
+                    thoughts: capturedThoughts,
+                    toolName: event.tool,
+                    toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
                   });
-                  setActivityEntries((prevEntries) => [
-                    ...prevEntries.slice(-23),
-                    {
-                      id: event.id,
-                      kind: "tool",
-                      tool: event.tool,
-                      title: event.title,
-                      status: "running",
-                    },
-                  ]);
                   next.pendingToolCall = {
                     id: event.id,
                     name: event.tool as GhostwriterToolCall["name"],
@@ -624,13 +632,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   const stepId = agentStepIdsRef.current.get(event.id);
                   const step = next.steps.find((item) => item.id === stepId);
                   if (step) step.detail = event.detail;
-                  setActivityEntries((prevEntries) =>
-                    prevEntries.map((entry) =>
-                      entry.kind === "tool" && entry.id === event.id
-                        ? { ...entry, detail: event.detail }
-                        : entry,
-                    ),
-                  );
                   break;
                 }
                 case "step_done": {
@@ -638,22 +639,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   const step = next.steps.find((item) => item.id === stepId);
                   if (step) {
                     step.status = "completed";
-                    if (event.summary) step.detail = event.summary;
+                    step.detail = event.summary ?? "";
                   }
                   next.pendingToolCall = null;
                   next.pendingQuestion = null;
                   next.status = "running";
-                  setActivityEntries((prevEntries) =>
-                    prevEntries.map((entry) =>
-                      entry.kind === "tool" && entry.id === event.id
-                        ? {
-                            ...entry,
-                            status: "completed",
-                            detail: event.summary || entry.detail,
-                          }
-                        : entry,
-                    ),
-                  );
                   break;
                 }
                 case "step_error": {
@@ -662,27 +652,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   if (step) step.detail = event.error;
                   next.pendingToolCall = null;
                   next.status = "error";
-                  setActivityEntries((prevEntries) =>
-                    prevEntries.map((entry) =>
-                      entry.kind === "tool" && entry.id === event.id
-                        ? { ...entry, status: "error", detail: event.error }
-                        : entry,
-                    ),
-                  );
                   break;
                 }
                 case "question": {
                   const active = next.steps.find((step) => step.status === "running");
                   if (active) active.status = "blocked";
-                  setActivityEntries((prevEntries) => [
-                    ...prevEntries.slice(-23),
-                    {
-                      id: `question-${event.field}-${Date.now()}`,
-                      kind: "question",
-                      field: event.field,
-                      text: event.question,
-                    },
-                  ]);
                   next.pendingQuestion = normalizeAgentQuestion(event);
                   next.pendingToolCall = null;
                   next.status = "waiting_for_user";
@@ -1253,128 +1227,14 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             </div>
           </div>
 
-          <section className={styles.agentThinkingPanel}>
-              <button
-                type="button"
-                className={styles.agentThinkingHeader}
-                onClick={() => setThinkingPanelOpen((prev) => !prev)}
-              >
-                <div className={styles.agentThinkingTitleWrap}>
-                  <span className={styles.agentThinkingPulse} />
-                  <div>
-                    <strong>Reasoning</strong>
-                    <span>{thinkingEntries.length > 0 ? "Live model thoughts" : "Waiting for the first thought"}</span>
-                  </div>
-                </div>
-                <svg
-                  className={`${styles.thinkingChevron} ${thinkingPanelOpen ? styles.thinkingChevronOpen : ""}`}
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-
-              {thinkingPanelOpen && (
-                <div className={styles.agentThinkingBody}>
-                  {thinkingEntries.length > 0 ? (
-                    thinkingEntries.map((entry, index) => (
-                      <div key={`${index}-${entry.slice(0, 24)}`} className={styles.agentThoughtLine}>
-                        <span className={styles.agentThoughtBullet} />
-                        <p>{entry}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={styles.agentThinkingEmpty}>Ghostwriter will surface its reasoning here as it plans and writes.</div>
-                  )}
-                </div>
-              )}
-          </section>
-
-          <section className={styles.activityPanel}>
-              <button
-                type="button"
-                className={styles.agentThinkingHeader}
-                onClick={() => setActivityPanelOpen((prev) => !prev)}
-              >
-                <div className={styles.agentThinkingTitleWrap}>
-                  <span className={styles.agentThinkingPulse} style={{ background: "rgba(99,102,241,0.9)", boxShadow: "0 0 0 0 rgba(99,102,241,0.5)", animationName: activityEntries.length > 0 ? "thoughtPulse" : "none" }} />
-                  <div>
-                    <strong>Live Activity</strong>
-                    <span>{activityEntries.length > 0 ? `${activityEntries.length} events` : "Waiting for first tool call"}</span>
-                  </div>
-                </div>
-                <svg
-                  className={`${styles.thinkingChevron} ${activityPanelOpen ? styles.thinkingChevronOpen : ""}`}
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {activityPanelOpen && <div className={styles.activityBody}>
-                {activityEntries.length > 0 ? (
-                  activityEntries.map((entry) => {
-                    if (entry.kind === "thought") {
-                      return (
-                        <div key={entry.id} className={`${styles.activityCard} ${styles.activityThought}`}>
-                          <span className={styles.activityBadge}>Thought</span>
-                          <p>{entry.text}</p>
-                        </div>
-                      );
-                    }
-
-                    if (entry.kind === "question") {
-                      return (
-                        <div key={entry.id} className={`${styles.activityCard} ${styles.activityQuestion}`}>
-                          <div className={styles.activityToolMeta}>
-                            <span className={styles.activityBadge}>Question</span>
-                            <span className={styles.activityField}>{entry.field}</span>
-                          </div>
-                          <p>{entry.text}</p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={entry.id} className={`${styles.activityCard} ${styles.activityTool}`}>
-                        <div className={styles.activityToolMeta}>
-                          <span className={styles.activityBadge}>Tool</span>
-                          <code>{TOOL_LABELS[entry.tool] || entry.tool}</code>
-                          <span className={`${styles.activityStatus} ${styles[`activityStatus${entry.status[0].toUpperCase()}${entry.status.slice(1)}` as keyof typeof styles] || ""}`}>
-                            {entry.status}
-                          </span>
-                        </div>
-                        <strong>{entry.title}</strong>
-                        {entry.detail ? <p>{entry.detail}</p> : null}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className={styles.activityEmpty}>The transcript will populate once the agent begins reasoning and calling tools.</div>
-                )}
-              </div>}
-            </section>
-
           <section ref={streamRef} className={styles.workflowStream}>
             {visibleSteps.map((step) => {
               const isRunning = step.status === "running";
-              const thinkingOpen = openThinkingSteps.has(step.id);
-              const isActiveToolStep = isRunning && runState?.pendingToolCall;
+              const thoughtsOpen = openThinkingSteps.has(step.id);
               const stepError = stepErrors.get(step.id);
               const isRetrying = retryingStep?.stepId === step.id;
+              const hasThoughts = (step.thoughts?.length ?? 0) > 0;
+              const isEssayStep = step.toolName === "write_essay";
 
               return (
                 <div
@@ -1388,50 +1248,75 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                     {!stepError && step.status === "blocked" && <BlockedIcon />}
                   </div>
                   <div className={styles.streamCopy}>
+                    {/* Step title */}
                     <span className={styles.streamTitle}>
                       {step.title}
                       {isRunning && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
                     </span>
 
-                    {/* Completed step: detail + optional essay collapsible for step 7 */}
-                    {!isRunning && (
-                      <>
-                        <span className={styles.streamDetail}>{step.detail}</span>
-                        {step.id === 7 && essayStreamContent && (
-                          <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
-                            <button
-                              type="button"
-                              className={styles.thinkingToggle}
-                              onClick={() => setEditingOpen((prev) => !prev)}
-                            >
-                              <span>Editing</span>
-                              <svg
-                                className={`${styles.thinkingChevron} ${editingOpen ? styles.thinkingChevronOpen : ""}`}
-                                width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                              >
-                                <path d="m6 9 6 6 6-6" />
-                              </svg>
-                            </button>
-                            {editingOpen && (
-                              <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
-                                {essayStreamContent}
-                              </div>
-                            )}
+                    {/* Inline thought — collapsible, shown for all steps that have reasoning */}
+                    {hasThoughts && (
+                      <div className={styles.inlineThoughtWrap}>
+                        <button
+                          type="button"
+                          className={styles.inlineThoughtToggle}
+                          onClick={() => setOpenThinkingSteps((prev) => {
+                            const n = new Set(prev);
+                            n.has(step.id) ? n.delete(step.id) : n.add(step.id);
+                            return n;
+                          })}
+                        >
+                          <span className={styles.inlineThoughtDot} />
+                          <span>Thought</span>
+                          <svg
+                            className={`${styles.thinkingChevron} ${thoughtsOpen ? styles.thinkingChevronOpen : ""}`}
+                            width="11" height="11" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          >
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {thoughtsOpen && (
+                          <div className={styles.inlineThoughtBody}>
+                            {step.thoughts.map((t, i) => (
+                              <p key={i} className={styles.inlineThoughtText}>{t}</p>
+                            ))}
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
 
-                    {/* Running step: essay step gets "Editing ▾", others get "Thinking ▾" */}
-                    {isRunning && step.id === 7 && (
-                      <div className={styles.thinkingSection}>
+                    {/* Tool call line — shown for every non-ask_user step */}
+                    {step.toolName && step.toolName !== "ask_user" && (
+                      <div className={styles.inlineToolCall}>
+                        <code className={styles.inlineToolName}>{step.toolName}</code>
+                        {step.toolArgs && Object.keys(step.toolArgs).length > 0 && (
+                          <span className={styles.inlineToolArgs}>{formatToolArgs(step.toolArgs)}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Result / detail */}
+                    {step.detail && (
+                      <span className={styles.streamDetail}>{step.detail}</span>
+                    )}
+
+                    {/* Retrying indicator (legacy mode only) */}
+                    {isRetrying && !stepError && (
+                      <span className={styles.streamDetail}>
+                        Retrying ({retryingStep!.attempt} of {retryingStep!.max})…
+                      </span>
+                    )}
+
+                    {/* Essay draft box — visible while write_essay is running or completed */}
+                    {isEssayStep && (isRunning || step.status === "completed") && (
+                      <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
                         <button
                           type="button"
                           className={styles.thinkingToggle}
                           onClick={() => setEditingOpen((prev) => !prev)}
                         >
-                          <span>Editing</span>
+                          <span>Draft</span>
                           <svg
                             className={`${styles.thinkingChevron} ${editingOpen ? styles.thinkingChevronOpen : ""}`}
                             width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -1442,53 +1327,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                         </button>
                         {editingOpen && (
                           <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
-                            {essayStreamContent || "Starting essay draft…"}
+                            {essayStreamContent || (isRunning ? "Starting essay draft…" : "")}
                           </div>
                         )}
                       </div>
                     )}
 
-                    {isRunning && step.id !== 7 && (
-                      <div className={styles.thinkingSection}>
-                        <button
-                          type="button"
-                          className={styles.thinkingToggle}
-                          onClick={() => setOpenThinkingSteps((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(step.id)) next.delete(step.id);
-                            else next.add(step.id);
-                            return next;
-                          })}
-                        >
-                          <span>Thinking</span>
-                          <svg
-                            className={`${styles.thinkingChevron} ${thinkingOpen ? styles.thinkingChevronOpen : ""}`}
-                            width="12" height="12" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          >
-                            <path d="m6 9 6 6 6-6" />
-                          </svg>
-                        </button>
-                        {thinkingOpen && (
-                          <div className={styles.thinkingBox}>{step.detail}</div>
-                        )}
-                        {isActiveToolStep && (
-                          <div className={styles.toolCallLine}>
-                            <span className={styles.toolCallLabel}>Calling</span>
-                            <code className={styles.toolCallName}>
-                              {TOOL_LABELS[runState.pendingToolCall!.name] || runState.pendingToolCall!.name}
-                            </code>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {isRetrying && !stepError && (
-                      <span className={styles.streamDetail}>
-                        Retrying ({retryingStep!.attempt} of {retryingStep!.max})…
-                      </span>
-                    )}
-
+                    {/* Error recovery */}
                     {stepError && (
                       <div className={styles.errorRecovery}>
                         <div className={styles.errorRecoveryMsg}>{stepError.message}</div>
