@@ -8,6 +8,8 @@
 // Lifetime: one instance per `AgentRun`. Attached to the run in `runs.ts`.
 // Persistence: in-memory only (see milestone 1/6 notes on the runs store).
 
+import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
+
 export type OutlineType = "Introduction" | "Body Paragraph" | "Conclusion";
 
 export type OutlineItem = {
@@ -54,6 +56,8 @@ export type DraftedParagraph = {
 export type AgentDraftSettings = {
   wordCount?: number;
   citationStyle?: string;
+  tone?: string;
+  keywords?: string;
 };
 
 export type AgentFormatAnswers = {
@@ -107,6 +111,7 @@ export type AgentContext = {
   // a server-built object or, for client-rendered PDFs, a signal that the
   // client should assemble one from the current context).
   exportReady: boolean;
+  exportDoc?: ExportDocumentSnapshot;
 };
 
 export function createAgentContext(instruction: string): AgentContext {

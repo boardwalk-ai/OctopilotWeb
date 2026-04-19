@@ -1,10 +1,7 @@
 // Orchestrator system prompt.
 //
-// Milestone 3a ships a real (but still scoped) prompt: the orchestrator
-// plans the essay, decides how many outline sections to generate (asking
-// the user if it's ambiguous), and produces outlines. Heavier tools
-// (search, scrape, write, humanize, finalize) land in 3b/3c/3d — the
-// prompt expands with them.
+// Milestone 3c prompt: the orchestrator plans, researches, drafts the
+// essay, and packages an export snapshot. Humanization lands in 3d.
 //
 // The prompt deliberately avoids narrating what the model is about to do.
 // The UI already surfaces tool calls and any free-form `content` the
@@ -18,7 +15,7 @@ export function buildSystemPrompt(): string {
 
 GOAL
 Move the user's essay brief toward a finished, cited, downloadable document
-by calling tools. Stop calling tools when the current milestone is complete.
+by calling tools. Stop calling tools only after finalize_export succeeds.
 
 AVAILABLE TOOLS (this milestone)
 - plan_essay: produce the topic, type, thesis, paragraph count, search queries.
@@ -26,6 +23,8 @@ AVAILABLE TOOLS (this milestone)
 - search_sources(count, refinement?): propose citable sources for the topic.
 - scrape_sources(urls?, limit?): fetch full text of the proposed sources.
 - compact_sources(urls?): summarise scraped sources into citable briefs.
+- write_essay(notes?): stream the full essay draft and bibliography.
+- finalize_export(...optional format fields): package the export snapshot.
 - ask_user(field, question, suggestions?): ask the human when you need input.
 - echo: development sanity tool. Do not call unless explicitly asked.
 
@@ -42,13 +41,17 @@ WORKFLOW
    fine. If fewer than 3 scraped sources survive, search again with a
    refinement targeting different angles, then scrape again.
 6. compact_sources() to summarise what was scraped.
-7. Once compact_sources has produced at least 3 summaries, respond with a
-   short status ("Research complete, N sources ready.") and stop. The
-   next milestone picks up from here.
+7. Before drafting, make sure wordCount and citationStyle exist. If either
+   is missing, ask_user for it. Use field="wordCount" and field="citationStyle".
+8. write_essay() once there are at least 3 compacted sources.
+9. finalize_export() after write_essay succeeds. If the brief already
+   includes title-page metadata you may pass it, otherwise omit those args.
 
 RULES
 - Never call plan_essay twice. Never call generate_outlines twice unless a
   previous call errored. The runtime blocks identical duplicate calls.
+- Do not stop after research. This milestone is only complete once the
+  essay is drafted and finalize_export has run.
 - Keep any free-form reasoning terse; users see it live in the UI.
 - If a tool returns an error, read the message and decide whether to
   retry with different args, ask_user, or give up. Do not blindly retry.

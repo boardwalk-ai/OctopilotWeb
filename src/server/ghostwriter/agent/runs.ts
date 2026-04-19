@@ -83,6 +83,7 @@ export function createRun(draft: AgentDraftInput): AgentRun {
     pendingAnswers: new Map(),
     finished: false,
   };
+  seedContextFromDraft(run.context, draft);
   RUNS.set(run.id, run);
   return run;
 }
@@ -156,4 +157,34 @@ export function finishRun(run: AgentRun, status: "finished" | "error" | "cancell
     pending.reject(new Error(`Run ${status} before "${field}" was answered`));
   }
   run.pendingAnswers.clear();
+}
+
+function seedContextFromDraft(context: AgentContext, draft: AgentDraftInput): void {
+  const detectedSettings = readObject(draft.detectedSettings);
+  const draftSettings = readObject(draft.draftSettings);
+  const formatAnswers = readObject(draft.formatAnswers);
+
+  const mergedSettings = { ...detectedSettings, ...draftSettings };
+  if (typeof mergedSettings.wordCount === "number" && Number.isFinite(mergedSettings.wordCount)) {
+    context.draftSettings.wordCount = Math.round(mergedSettings.wordCount);
+  }
+  if (typeof mergedSettings.citationStyle === "string" && mergedSettings.citationStyle.trim()) {
+    context.draftSettings.citationStyle = mergedSettings.citationStyle.trim();
+  }
+  if (typeof mergedSettings.tone === "string" && mergedSettings.tone.trim()) {
+    context.draftSettings.tone = mergedSettings.tone.trim();
+  }
+  if (typeof mergedSettings.keywords === "string" && mergedSettings.keywords.trim()) {
+    context.draftSettings.keywords = mergedSettings.keywords.trim();
+  }
+
+  for (const [key, value] of Object.entries(formatAnswers)) {
+    if (typeof value === "string" && value.trim()) {
+      context.formatAnswers[key as keyof typeof context.formatAnswers] = value.trim();
+    }
+  }
+}
+
+function readObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }

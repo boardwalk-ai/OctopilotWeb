@@ -12,6 +12,7 @@
 
 import { getOpenRouterConfig } from "@/server/backendConfig";
 import type { AgentEvent } from "./events";
+import type { AgentContext, AgentDraftSettings, AgentFormatAnswers } from "./context";
 import { AGENT_LIMITS } from "./limits";
 import { emit, finishRun, waitForAnswer, type AgentRun } from "./runs";
 import { toOpenRouterToolSpec, type AnyTool } from "./tools";
@@ -88,7 +89,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     const toolCalls = assistant.tool_calls ?? [];
     if (toolCalls.length === 0) {
       // Model chose to stop calling tools. That's our terminal signal.
-      emit(run, { type: "done", exportDoc: null });
+      emit(run, { type: "done", exportDoc: run.context.exportDoc ?? null });
       finishRun(run, "finished");
       return;
     }
@@ -195,6 +196,7 @@ async function dispatchToolCall(args: {
     try {
       const answer = await waitForAnswer(run, field, AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
       run.status = "running";
+      applyAnswerToContext(run.context, field, answer);
       emit(run, { type: "step_done", id: stepId });
       return toolResultFrame(tc.id, { answer });
     } catch (err) {
@@ -316,3 +318,41 @@ async function callOpenRouter(args: {
 // Silence unused-import lint on AgentEvent — it's the contract this module
 // produces, even though we don't construct the union directly here.
 export type { AgentEvent };
+
+function applyAnswerToContext(ctx: AgentContext, field: string, value: unknown): void {
+  const stringValue = typeof value === "string" ? value.trim() : String(value ?? "").trim();
+  if (!stringValue) return;
+
+  if (field === "wordCount") {
+    const parsed = Number(stringValue);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      ctx.draftSettings.wordCount = Math.round(parsed);
+      return;
+    }
+  }
+
+  if (isDraftSettingsField(field)) {
+    ctx.draftSettings[field] = stringValue;
+    return;
+  }
+
+  if (isFormatAnswersField(field)) {
+    ctx.formatAnswers[field] = stringValue;
+  }
+}
+
+function isDraftSettingsField(field: string): field is Exclude<keyof AgentDraftSettings, "wordCount"> {
+  return field === "citationStyle" || field === "tone" || field === "keywords";
+}
+
+function isFormatAnswersField(field: string): field is keyof AgentFormatAnswers {
+  return (
+    field === "finalEssayTitle" ||
+    field === "studentName" ||
+    field === "instructorName" ||
+    field === "institutionName" ||
+    field === "courseInfo" ||
+    field === "subjectCode" ||
+    field === "essayDate"
+  );
+}
