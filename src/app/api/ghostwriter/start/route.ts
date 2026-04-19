@@ -33,11 +33,14 @@ import {
 } from "@/server/ghostwriter/agent/runs";
 import { askUserTool } from "@/server/ghostwriter/tools/ask";
 import { compactSourcesTool } from "@/server/ghostwriter/tools/compact";
+import { critiqueEssayTool } from "@/server/ghostwriter/tools/critique";
 import { echoTool } from "@/server/ghostwriter/tools/echo";
+import { evaluateSourcesTool } from "@/server/ghostwriter/tools/evaluate";
 import { finalizeExportTool } from "@/server/ghostwriter/tools/finalize";
 import { humanizeEssayTool } from "@/server/ghostwriter/tools/humanize";
 import { generateOutlinesTool } from "@/server/ghostwriter/tools/outlines";
 import { planEssayTool } from "@/server/ghostwriter/tools/plan";
+import { reviseParagraphTool } from "@/server/ghostwriter/tools/revise";
 import { scrapeSourcesTool } from "@/server/ghostwriter/tools/scrape";
 import { searchSourcesTool } from "@/server/ghostwriter/tools/search";
 import { splitParagraphsTool } from "@/server/ghostwriter/tools/splitParagraphs";
@@ -51,8 +54,9 @@ function resolveMode(request: NextRequest): StartMode {
   if (queryMode === "dummy") return "dummy";
 
   const envMode = (process.env.GHOSTWRITER_MODE || "").toLowerCase();
-  if (envMode === "agentic") return "agentic";
-  return "dummy";
+  if (envMode === "dummy") return "dummy";
+  // Default: agentic. Set GHOSTWRITER_MODE=dummy to revert to scripted demo.
+  return "agentic";
 }
 
 // ────────────────── dummy driver (milestone 1) ──────────────────────────────
@@ -112,7 +116,10 @@ async function runAgenticDriver(run: AgentRun): Promise<void> {
         searchSourcesTool,
         scrapeSourcesTool,
         compactSourcesTool,
+        evaluateSourcesTool,
         writeEssayTool,
+        critiqueEssayTool,
+        reviseParagraphTool,
         finalizeExportTool,
         humanizeEssayTool,
         splitParagraphsTool,

@@ -77,7 +77,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
   run.status = "running";
 
+  // Running cost estimate — accumulated across all orchestrator round-trips.
+  let cumulativeCostUsd = 0;
+
   for (let step = 0; step < AGENT_LIMITS.MAX_STEPS; step++) {
+    // Honour a cancellation that arrived while a tool was executing.
+    if (run.finished) return;
+
     const assistant = await callOpenRouter({
       apiKey,
       model,
@@ -85,14 +91,25 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       toolSpecs,
     });
 
-    // Surface token usage so the client can display a running counter.
+    // Surface token usage and check the cost cap.
     if (assistant.usage) {
-      emit(run, {
-        type: "token_usage",
-        promptTokens: assistant.usage.prompt_tokens ?? 0,
-        completionTokens: assistant.usage.completion_tokens ?? 0,
-        totalTokens: assistant.usage.total_tokens ?? 0,
-      });
+      const promptTokens = assistant.usage.prompt_tokens ?? 0;
+      const completionTokens = assistant.usage.completion_tokens ?? 0;
+      const totalTokens = assistant.usage.total_tokens ?? 0;
+
+      cumulativeCostUsd +=
+        (promptTokens * AGENT_LIMITS.COST_PER_1M_INPUT_TOKENS +
+          completionTokens * AGENT_LIMITS.COST_PER_1M_OUTPUT_TOKENS) /
+        1_000_000;
+
+      emit(run, { type: "token_usage", promptTokens, completionTokens, totalTokens });
+
+      if (cumulativeCostUsd > AGENT_LIMITS.MAX_COST_USD) {
+        const costError = `Run stopped: estimated cost ($${cumulativeCostUsd.toFixed(3)}) exceeded cap ($${AGENT_LIMITS.MAX_COST_USD}).`;
+        emit(run, { type: "fatal", error: costError });
+        finishRun(run, "error");
+        return;
+      }
     }
 
     // Surface any free-form reasoning the model produced before/alongside its

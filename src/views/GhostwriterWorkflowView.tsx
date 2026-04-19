@@ -414,12 +414,13 @@ function ErrorIcon() {
 }
 
 export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
-  const configuredMode = (process.env.NEXT_PUBLIC_GHOSTWRITER_MODE || "legacy").toLowerCase();
-  const streamMode: "agentic" | "dummy" | null =
-    configuredMode === "agentic" || configuredMode === "dummy"
-      ? (configuredMode as "agentic" | "dummy")
-      : null;
-  const isAgenticMode = streamMode !== null;
+  // M8: agentic is now the default. Set NEXT_PUBLIC_GHOSTWRITER_MODE=legacy
+  // to fall back to the legacy GhostwriterOrchestrator path during rollback.
+  const configuredMode = (process.env.NEXT_PUBLIC_GHOSTWRITER_MODE || "agentic").toLowerCase();
+  const isLegacyMode = configuredMode === "legacy";
+  // Pass an explicit mode param only when overriding to "dummy" for dev testing.
+  const streamModeOverride: "dummy" | undefined =
+    configuredMode === "dummy" ? "dummy" : undefined;
   const org = useOrganizer();
   const [runState, setRunState] = useState<GhostwriterRunState | null>(null);
   const [draftSettings, setDraftSettings] = useState<GhostwriterDraftSettings>(() => {
@@ -514,12 +515,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           ...prev,
           finalEssayTitle: Organizer.get().essayTopic || prev.finalEssayTitle,
         }));
-        if (isAgenticMode) {
+        if (!isLegacyMode) {
           const instruction = await GhostwriterOrchestrator.prepareInstructionBundle(draft);
           const detectedSettings = GhostwriterOrchestrator.detectDraftSettings(draft.prompt);
           const startedRun = await GhostwriterAgentClient.start(
             { instruction, detectedSettings },
-            streamMode || undefined,
+            streamModeOverride,
           );
 
           agentStepIdsRef.current = new Map();
@@ -719,6 +720,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             });
           });
         } else {
+          // Legacy fallback (NEXT_PUBLIC_GHOSTWRITER_MODE=legacy)
           const startedRun = await GhostwriterOrchestrator.startRun(draft.prompt);
           setRunState(startedRun);
         }
@@ -730,10 +732,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       agentDisconnectRef.current?.();
       agentDisconnectRef.current = null;
     };
-  }, [draft, isAgenticMode, streamMode]);
+  }, [draft, isLegacyMode, streamModeOverride]);
 
   useEffect(() => {
-    if (isAgenticMode) return;
+    if (!isLegacyMode) return;
     if (!runState?.pendingToolCall || isExecutingTool.current) return;
 
     const runningStepId = runState.steps.find(
@@ -833,7 +835,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         isExecutingTool.current = false;
       }
     })();
-  }, [draft, isAgenticMode, runState, retryTrigger, stepErrors]);
+  }, [draft, isLegacyMode, runState, retryTrigger, stepErrors]);
 
   // Auto-scroll stream to bottom whenever new steps appear
   useEffect(() => {
@@ -895,7 +897,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     try {
       const field = runState.pendingQuestion.field;
       const value = overrideValue !== undefined ? overrideValue : getAnswerValue(field, draftSettings, formatAnswers);
-      if (isAgenticMode) {
+      if (!isLegacyMode) {
         await GhostwriterAgentClient.answer(runState.runId, field, value);
         setRunState((prev) => prev ? { ...prev, pendingQuestion: null, status: "running" } : prev);
       } else {
@@ -1244,8 +1246,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             </div>
           </div>
 
-          {isAgenticMode && (
-            <section className={styles.agentThinkingPanel}>
+          <section className={styles.agentThinkingPanel}>
               <button
                 type="button"
                 className={styles.agentThinkingHeader}
@@ -1287,11 +1288,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   )}
                 </div>
               )}
-            </section>
-          )}
+          </section>
 
-          {isAgenticMode && (
-            <section className={styles.activityPanel}>
+          <section className={styles.activityPanel}>
               <div className={styles.activityHeader}>
                 <div>
                   <strong>Live Activity</strong>
@@ -1341,7 +1340,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 )}
               </div>
             </section>
-          )}
 
           <section ref={streamRef} className={styles.workflowStream}>
             {visibleSteps.map((step) => {

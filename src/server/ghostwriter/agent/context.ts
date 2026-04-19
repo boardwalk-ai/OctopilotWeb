@@ -53,6 +53,14 @@ export type DraftedParagraph = {
   text: string;
 };
 
+export type CritiqueIssue = {
+  // 0-based index into the essay's paragraph array (split by \n\n)
+  paragraphIndex: number;
+  type: "thesis" | "evidence" | "clarity" | "citations" | "length" | "structure";
+  description: string;
+  severity: "major" | "minor";
+};
+
 export type AgentDraftSettings = {
   wordCount?: number;
   citationStyle?: string;
@@ -99,6 +107,10 @@ export type AgentContext = {
   essay?: string;
   bibliography?: string;
 
+  // Critique + revision layer (populated by 5 tools).
+  critiqueIssues: CritiqueIssue[];
+  revisionRounds: number;
+
   // Humanization layer (populated by 3d tools).
   humanizedContent?: string;
   humanizerProvider?: "StealthGPT" | "UndetectableAI";
@@ -122,6 +134,8 @@ export function createAgentContext(instruction: string): AgentContext {
     scrapedSources: [],
     compactedSources: [],
     paragraphs: [],
+    critiqueIssues: [],
+    revisionRounds: 0,
     draftSettings: {},
     formatAnswers: {},
     exportReady: false,
