@@ -107,7 +107,7 @@ export interface WritingStyleProfile {
 }
 
 export interface OrganizerState {
-    writingMode: "automation" | "manual" | "ghostwriter";
+    writingMode: "automation" | "manual" | "ghostwriter" | "octopilotslides";
     majorIndex: number | null;
     majorName: string;
     essayType: string;

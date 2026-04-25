@@ -13,7 +13,7 @@ import {
 import styles from "./MethodologyViewMobile.module.css";
 
 interface MethodologyViewProps {
-  onSelect: (method: "automation" | "manual" | "ghostwriter") => void;
+  onSelect: (method: "automation" | "manual" | "ghostwriter" | "octopilotslides") => void;
 }
 
 const automationFeatures = [
@@ -102,6 +102,49 @@ const manualFeatures = [
   },
 ];
 
+const octopilotSlidesFeatures = [
+  {
+    label: "AI-powered slides",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Outline to deck",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="2" width="6" height="4" rx="1" /><path d="M9 12h6" /><path d="M9 16h6" />
+      </svg>
+    ),
+  },
+  {
+    label: "Built-in research",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+      </svg>
+    ),
+  },
+  {
+    label: "Speaker notes",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Export ready",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    ),
+  },
+];
+
 const ghostwriterFeatures = [
   {
     label: "Human-sounding output",
@@ -147,10 +190,15 @@ const ghostwriterFeatures = [
 
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
-  const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter">(org.writingMode || "automation");
+  const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides">(org.writingMode || "automation");
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const canSeeGhostwriter = user?.email?.trim().toLowerCase() === "dev.trhein@gmail.com";
-  const effectiveSelected = !canSeeGhostwriter && selected === "ghostwriter" ? "automation" : selected;
+  const canSeeOctopilotSlides = user?.email?.trim().toLowerCase() === "dev.trhein@gmail.com";
+  const effectiveSelected = (() => {
+    if (!canSeeGhostwriter && selected === "ghostwriter") return "automation" as const;
+    if (!canSeeOctopilotSlides && selected === "octopilotslides") return "automation" as const;
+    return selected;
+  })();
 
   useEffect(() => {
     return AuthService.subscribe(setUser);
@@ -183,7 +231,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
 
         {/* Two Column Cards Container */}
         <div className={`w-full flex-1 mt-4 ${styles.methodologySelection}`}>
-          <div className={`grid w-full grid-cols-1 gap-6 md:grid-cols-3 ${styles.methodologyGrid}`}>
+          <div className={`grid w-full grid-cols-1 gap-6 ${canSeeOctopilotSlides ? "md:grid-cols-2" : "md:grid-cols-3"} ${styles.methodologyGrid}`}>
             {/* Automation Card */}
             <button
               onClick={() => setSelected("automation")}
@@ -272,6 +320,55 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
               </div>
             </button>
 
+            {canSeeOctopilotSlides ? (
+              <button
+                onClick={() => setSelected("octopilotslides")}
+                className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "octopilotslides"
+                  ? "border-violet-500/40 bg-violet-500/[0.04]"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
+                  }`}
+              >
+                <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 ${styles.methodologyIconBox}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" />
+                    </svg>
+                  </div>
+                  <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>OctopilotSlides</h2>
+                      <span className="rounded-full border border-violet-500/30 bg-violet-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-300">
+                        Beta
+                      </span>
+                    </div>
+                    <p className={`text-[13px] font-medium text-violet-400 mb-2 ${styles.methodologyLead}`}>Your ideas. Beautifully presented.</p>
+                    <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
+                      Turn your research and outlines into polished slide decks — with speaker notes, citations, and export-ready formatting.
+                    </p>
+                  </div>
+                  <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "octopilotslides" ? "border-violet-500" : "border-white/20"
+                    }`}>
+                    {effectiveSelected === "octopilotslides" && <div className="h-3 w-3 rounded-full bg-violet-500" />}
+                  </div>
+                </div>
+
+                <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
+                  {octopilotSlidesFeatures.map((f) => (
+                    <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                      <span className={`text-violet-400 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                      <span>{f.label}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                  <span className={`rounded-full bg-violet-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-300 ${styles.methodologyBadge}`}>
+                    Beta
+                  </span>
+                </div>
+              </button>
+            ) : null}
+
             {canSeeGhostwriter ? (
               <button
                 onClick={() => {
@@ -331,7 +428,11 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
         <div className={`pb-6 ${styles.methodologyFooter}`}>
           <button
             onClick={() => onSelect(effectiveSelected)}
-            className={`flex items-center gap-2.5 rounded-full bg-red-500 px-8 py-3.5 text-[15px] font-bold tracking-wide text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition hover:bg-red-400 ${styles.methodologyCta}`}
+            className={`flex items-center gap-2.5 rounded-full px-8 py-3.5 text-[15px] font-bold tracking-wide text-white transition ${styles.methodologyCta} ${
+              effectiveSelected === "octopilotslides"
+                ? "bg-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.4)] hover:bg-violet-400"
+                : "bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:bg-red-400"
+            }`}
           >
             Get Started
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

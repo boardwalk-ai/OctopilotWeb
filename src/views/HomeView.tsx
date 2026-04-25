@@ -46,7 +46,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -150,6 +150,11 @@ export default function HomeView() {
               return;
             }
 
+            if (method === "octopilotslides") {
+              setPage("octopilotslides");
+              return;
+            }
+
             const canUseWritingStyle = await resolveWritingStyleAccess();
 
             if (!canUseWritingStyle) {
@@ -194,6 +199,26 @@ export default function HomeView() {
         />
         <OctoAssistant currentPage={page} />
       </>
+    );
+  }
+
+  if (page === "octopilotslides") {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-black gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/10">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-white">OctopilotSlides</h2>
+        <p className="text-sm text-white/40">Coming soon — this mode is in active development.</p>
+        <button
+          onClick={() => setPage("methodology")}
+          className="mt-4 rounded-full border border-white/10 px-6 py-2.5 text-sm font-medium text-white/60 transition hover:border-white/20 hover:text-white/90"
+        >
+          ← Back to Methodology
+        </button>
+      </div>
     );
   }
 
