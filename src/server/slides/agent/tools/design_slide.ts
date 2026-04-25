@@ -1,7 +1,7 @@
 import { getOpenRouterConfig } from "@/server/backendConfig";
 import { callJson, parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
 import type { DeckTheme, DesignArchetype, DesignVoice, SlideSpec, SlideElement } from "@/types/slides";
-import { applySlideUpsert } from "@/types/slides";
+import { applySlideUpsert, normalizeSlideSpec } from "@/types/slides";
 import type { Tool } from "../tools";
 import { emit } from "../runs";
 
@@ -93,7 +93,7 @@ export const design_slide: Tool<{
 
       const parsed = parseJsonLoose(raw);
       if (parsed && typeof parsed === "object") {
-        spec = coerceSlideSpec(parsed as Record<string, unknown>, args.id, args.position);
+        spec = normalizeSlideSpec(parsed, { id: args.id, position: args.position }, { theme });
       }
     } catch {
       // fallback below
@@ -176,22 +176,4 @@ export const design_slide: Tool<{
   },
   stepTitle: (args) => `Design ${args.id}`,
 };
-
-function coerceSlideSpec(raw: Record<string, unknown>, slideId: string, position: number): SlideSpec {
-  const safeId = typeof raw.id === "string" ? raw.id : slideId;
-  const safePos = typeof raw.position === "number" ? raw.position : position;
-  const elements = Array.isArray(raw.elements) ? (raw.elements as unknown[]) : [];
-
-  return {
-    id: safeId,
-    position: safePos,
-    layout: (raw.layout as SlideSpec["layout"]) ?? "free",
-    archetype: (raw.archetype as SlideSpec["archetype"]) ?? "THE_HERO",
-    designIntent: typeof raw.designIntent === "string" ? raw.designIntent : "Designed slide.",
-    background: (raw.background as SlideSpec["background"]) ?? { type: "solid", color: "#0a0f1e" },
-    elements: elements as SlideSpec["elements"],
-    transition: raw.transition as SlideSpec["transition"],
-    speakerNotes: typeof raw.speakerNotes === "string" ? raw.speakerNotes : undefined,
-  };
-}
 

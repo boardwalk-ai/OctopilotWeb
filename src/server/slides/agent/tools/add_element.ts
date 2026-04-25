@@ -1,5 +1,5 @@
 import type { SlideElement } from "@/types/slides";
-import { applyElementAdd } from "@/types/slides";
+import { applyElementAdd, normalizeSlideElement } from "@/types/slides";
 import type { Tool } from "../tools";
 import { emit } from "../runs";
 
@@ -19,11 +19,17 @@ export const add_element: Tool<{
     },
   },
   async execute(args, ctx) {
-    ctx.run.state = applyElementAdd(ctx.run.state, args.slideId, args.element);
-    // Emit a slide_designed upsert-like event so the client re-renders.
+    const normalized = normalizeSlideElement(args.element, {
+      theme: ctx.run.state.theme ?? null,
+      idPrefix: args.slideId,
+    });
+    if (!normalized) {
+      return { ok: false, error: "Invalid element payload (missing or unknown type)." };
+    }
+    ctx.run.state = applyElementAdd(ctx.run.state, args.slideId, normalized);
     const slide = ctx.run.state.slides.find((s) => s.id === args.slideId);
     if (slide) emit(ctx.run, { type: "slide_designed", id: slide.id, spec: slide });
-    return { ok: true };
+    return { ok: true, element: normalized };
   },
   stepTitle: () => "Add element",
 };

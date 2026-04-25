@@ -28,7 +28,14 @@ export default function TextEl({
   onEditCancel,
 }: Props) {
   const pos = toPx(el.position);
-  const s = el.style;
+  const s = el.style ?? ({
+    fontSize: 24,
+    fontWeight: 400,
+    fontFamily: "Inter",
+    color: "#ffffff",
+    align: "left",
+    opacity: 1,
+  } as TextElement["style"]);
   const editRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

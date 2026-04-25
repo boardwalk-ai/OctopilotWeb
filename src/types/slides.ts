@@ -554,3 +554,212 @@ export function applyElementAdd(
     ),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Slide / Element Normalization (for LLM and external inputs)
+// ---------------------------------------------------------------------------
+// LLMs frequently produce partial elements (missing `style`, malformed
+// `position`, etc.). These helpers fill in safe defaults so the renderer
+// never crashes on `el.style.fontFamily` and similar reads.
+
+const ALLOWED_TEXT_VARIANTS = new Set<TextVariant>([
+  "title", "subtitle", "body", "caption", "quote", "label", "stat",
+]);
+const ALLOWED_SHAPES = new Set<ShapeType>([
+  "rectangle", "circle", "oval", "triangle", "arrow",
+  "diamond", "hexagon", "parallelogram", "speechBubble", "star", "line",
+]);
+const ALLOWED_IMG_FITS = new Set<ImageStyle["objectFit"]>(["cover", "contain", "fill"]);
+const ALLOWED_ALIGN = new Set<TextStyle["align"]>(["left", "center", "right", "justify"]);
+const ALLOWED_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 900]);
+
+function clampNum(n: unknown, min: number, max: number, fallback: number): number {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : Number(n);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.max(min, Math.min(max, v));
+}
+
+function safeStr(v: unknown, fallback: string): string {
+  return typeof v === "string" && v.length > 0 ? v : fallback;
+}
+
+function safeRect(input: unknown, fallback: Rect = { x: 8, y: 8, w: 40, h: 20 }): Rect {
+  const r = (input ?? {}) as Partial<Rect>;
+  return {
+    x: clampNum(r.x, -100, 200, fallback.x),
+    y: clampNum(r.y, -100, 200, fallback.y),
+    w: clampNum(r.w, 0.1, 200, fallback.w),
+    h: clampNum(r.h, 0.1, 200, fallback.h),
+  };
+}
+
+function normalizeWeight(input: unknown, fallback: TextStyle["fontWeight"] = 400): TextStyle["fontWeight"] {
+  const n = typeof input === "number" ? input : Number(input);
+  if (Number.isFinite(n) && ALLOWED_WEIGHTS.has(n)) return n as TextStyle["fontWeight"];
+  return fallback;
+}
+
+function normalizeTextStyle(input: unknown, theme?: DeckTheme | null): TextStyle {
+  const s = (input ?? {}) as Partial<TextStyle>;
+  return {
+    fontSize: clampNum(s.fontSize, 4, 600, 24),
+    fontWeight: normalizeWeight(s.fontWeight, 400),
+    fontFamily: safeStr(s.fontFamily, theme?.typography?.body?.web ?? "Inter"),
+    color: safeStr(s.color, theme?.palette?.text ?? "#ffffff"),
+    align: ALLOWED_ALIGN.has(s.align as TextStyle["align"]) ? (s.align as TextStyle["align"]) : "left",
+    italic: s.italic === true,
+    underline: s.underline === true,
+    strikethrough: s.strikethrough === true,
+    lineHeight: typeof s.lineHeight === "number" ? clampNum(s.lineHeight, 0.5, 4, 1.3) : 1.3,
+    letterSpacing: typeof s.letterSpacing === "number" ? clampNum(s.letterSpacing, -0.5, 1, 0) : undefined,
+    opacity: typeof s.opacity === "number" ? clampNum(s.opacity, 0, 1, 1) : 1,
+  };
+}
+
+function normalizeShapeStyle(input: unknown, theme?: DeckTheme | null): ShapeStyle {
+  const s = (input ?? {}) as Partial<ShapeStyle>;
+  return {
+    fill: safeStr(s.fill, theme?.palette?.primary ?? "#3b82f6"),
+    stroke: typeof s.stroke === "string" ? s.stroke : undefined,
+    strokeWidth: typeof s.strokeWidth === "number" ? clampNum(s.strokeWidth, 0, 64, 0) : undefined,
+    opacity: typeof s.opacity === "number" ? clampNum(s.opacity, 0, 1, 1) : 1,
+    cornerRadius: typeof s.cornerRadius === "number" ? clampNum(s.cornerRadius, 0, 256, 0) : undefined,
+    rotation: typeof s.rotation === "number" ? s.rotation : undefined,
+  };
+}
+
+function normalizeImageStyle(input: unknown): ImageStyle {
+  const s = (input ?? {}) as Partial<ImageStyle>;
+  return {
+    objectFit: ALLOWED_IMG_FITS.has(s.objectFit as ImageStyle["objectFit"])
+      ? (s.objectFit as ImageStyle["objectFit"])
+      : "cover",
+    borderRadius: typeof s.borderRadius === "number" ? clampNum(s.borderRadius, 0, 1024, 0) : undefined,
+    opacity: typeof s.opacity === "number" ? clampNum(s.opacity, 0, 1, 1) : 1,
+    rotation: typeof s.rotation === "number" ? s.rotation : undefined,
+  };
+}
+
+function normalizeIconStyle(input: unknown, theme?: DeckTheme | null): IconStyle {
+  const s = (input ?? {}) as Partial<IconStyle>;
+  return {
+    color: safeStr(s.color, theme?.palette?.primary ?? "#ffffff"),
+    size: clampNum(s.size, 4, 256, 24),
+    opacity: typeof s.opacity === "number" ? clampNum(s.opacity, 0, 1, 1) : 1,
+  };
+}
+
+let _autoElId = 0;
+function autoElId(slidePrefix: string, kind: string): string {
+  _autoElId += 1;
+  return `${slidePrefix || "el"}_${kind}_${_autoElId}`;
+}
+
+/** Coerce arbitrary LLM-shaped element JSON into a valid SlideElement, or null
+ *  if the type is unrecognizable. Always returns a complete `style`. */
+export function normalizeSlideElement(
+  input: unknown,
+  opts?: { theme?: DeckTheme | null; idPrefix?: string },
+): SlideElement | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as Record<string, unknown>;
+  const theme = opts?.theme ?? null;
+  const prefix = opts?.idPrefix ?? "el";
+
+  const type = raw.type;
+  const position = safeRect(raw.position);
+  const animation = (raw.animation ?? undefined) as AnimationSpec | undefined;
+
+  if (type === "text") {
+    const variant = ALLOWED_TEXT_VARIANTS.has(raw.variant as TextVariant)
+      ? (raw.variant as TextVariant)
+      : "body";
+    return {
+      id: safeStr(raw.id, autoElId(prefix, "text")),
+      type: "text",
+      variant,
+      content: safeStr(raw.content, ""),
+      position,
+      style: normalizeTextStyle(raw.style, theme),
+      animation,
+    };
+  }
+  if (type === "shape") {
+    const shape = ALLOWED_SHAPES.has(raw.shape as ShapeType)
+      ? (raw.shape as ShapeType)
+      : "rectangle";
+    return {
+      id: safeStr(raw.id, autoElId(prefix, "shape")),
+      type: "shape",
+      shape,
+      position,
+      style: normalizeShapeStyle(raw.style, theme),
+      animation,
+    };
+  }
+  if (type === "image") {
+    return {
+      id: safeStr(raw.id, autoElId(prefix, "image")),
+      type: "image",
+      src: safeStr(raw.src, ""),
+      sourceType: (typeof raw.sourceType === "string" ? raw.sourceType : "url") as ImageSourceType,
+      position,
+      style: normalizeImageStyle(raw.style),
+      animation,
+    };
+  }
+  if (type === "icon") {
+    return {
+      id: safeStr(raw.id, autoElId(prefix, "icon")),
+      type: "icon",
+      name: safeStr(raw.name, "Square"),
+      position,
+      style: normalizeIconStyle(raw.style, theme),
+      animation,
+    };
+  }
+  return null;
+}
+
+/** Coerce a list of LLM elements, skipping ones that can't be normalized. */
+export function normalizeSlideElements(
+  input: unknown,
+  opts?: { theme?: DeckTheme | null; idPrefix?: string },
+): SlideElement[] {
+  if (!Array.isArray(input)) return [];
+  const out: SlideElement[] = [];
+  for (const raw of input) {
+    const el = normalizeSlideElement(raw, opts);
+    if (el) out.push(el);
+  }
+  return out;
+}
+
+/** Coerce arbitrary LLM-shaped slide JSON into a valid SlideSpec. */
+export function normalizeSlideSpec(
+  input: unknown,
+  fallback: { id: string; position: number },
+  opts?: { theme?: DeckTheme | null },
+): SlideSpec {
+  const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const theme = opts?.theme ?? null;
+  const id = safeStr(raw.id, fallback.id);
+  const position = typeof raw.position === "number" ? raw.position : fallback.position;
+  const elements = normalizeSlideElements(raw.elements, { theme, idPrefix: id });
+  const background: Background =
+    (raw.background as Background | undefined) ?? {
+      type: "solid",
+      color: theme?.palette?.background ?? "#0a0f1e",
+    };
+  return {
+    id,
+    position,
+    layout: (raw.layout as SlideSpec["layout"]) ?? "free",
+    archetype: (raw.archetype as SlideSpec["archetype"]) ?? "THE_HERO",
+    designIntent: typeof raw.designIntent === "string" ? raw.designIntent : "Designed slide.",
+    background,
+    elements,
+    transition: raw.transition as TransitionSpec | undefined,
+    speakerNotes: typeof raw.speakerNotes === "string" ? raw.speakerNotes : undefined,
+  };
+}

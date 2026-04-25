@@ -11,6 +11,7 @@ import { SlideCanvas, SlideThumbnail, PropertyPanel, GoogleFontsLink } from "@/c
 import {
   getThemeByName,
   normalizeDeckTheme,
+  normalizeSlideSpec,
   THEME_NAMES,
   type SlideSpec,
   type DeckTheme,
@@ -504,8 +505,15 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
 
       if (ev.type === "slide_designed") {
         setSlides((prev) => {
+          const fallback = {
+            id: ev.id,
+            position:
+              prev.find((s) => s.id === ev.id)?.position ??
+              (ev.spec?.position ?? prev.length + 1),
+          };
+          const safeSpec = normalizeSlideSpec(ev.spec, fallback, { theme });
           const exists = prev.some((s) => s.id === ev.id);
-          const next = exists ? prev.map((s) => (s.id === ev.id ? ev.spec : s)) : [...prev, ev.spec];
+          const next = exists ? prev.map((s) => (s.id === ev.id ? safeSpec : s)) : [...prev, safeSpec];
           return next.sort((a, b) => a.position - b.position);
         });
       }
