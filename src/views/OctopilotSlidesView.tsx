@@ -6,6 +6,8 @@ import {
 } from "react";
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
+import { SlideCanvas, SlideThumbnail } from "@/components/slides";
+import { getThemeByName, type SlideSpec, type DeckTheme } from "@/types/slides";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,105 +28,217 @@ type ChatMessage = {
   text: string;
 };
 
-type Slide = {
-  id: number;
-  title: string;
-  body: string;
-  layout: "title" | "content" | "two-col" | "blank";
-};
-
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-// Intrinsic slide dimensions on the canvas (before zoom)
 const SLIDE_W = 880;
-const SLIDE_H = 495; // 16:9
+const SLIDE_H = 495;
 const SLIDE_GAP = 72;
 
 const INITIAL_STEPS: WorkflowStep[] = [
-  { id: 1, title: "Analyze topic",     detail: "Parsing the brief and locking in scope.",       status: "pending" },
-  { id: 2, title: "Build outline",     detail: "Structuring slides section by section.",         status: "pending" },
-  { id: 3, title: "Research sources",  detail: "Searching for relevant, citable content.",       status: "pending" },
-  { id: 4, title: "Generate slides",   detail: "Writing content for each slide.",                status: "pending" },
-  { id: 5, title: "Speaker notes",     detail: "Drafting presenter notes per slide.",            status: "pending" },
-  { id: 6, title: "Apply theme",       detail: "Styling slides with the selected theme.",        status: "pending" },
-  { id: 7, title: "Export deck",       detail: "Packaging the final PPTX / PDF.",               status: "pending" },
-];
-
-const PLACEHOLDER_SLIDES: Slide[] = [
-  { id: 1, layout: "title",   title: "Your Presentation Title",  body: "Subtitle · Author Name · Date" },
-  { id: 2, layout: "content", title: "Introduction",             body: "Overview of the topic and key talking points. This slide sets context for the audience and frames the narrative." },
-  { id: 3, layout: "content", title: "Key Finding #1",           body: "First major insight with supporting evidence. Place your strongest data point or quote here to anchor the argument." },
-  { id: 4, layout: "two-col", title: "Compare & Contrast",       body: "Left column argument|Right column counter-argument" },
-  { id: 5, layout: "content", title: "Key Finding #2",           body: "Second major insight. Build on slide 3 — connect the dots for your audience and show the implication." },
-  { id: 6, layout: "content", title: "Conclusion",               body: "Summary of takeaways and a clear call to action. Leave the audience with one memorable sentence." },
-  { id: 7, layout: "blank",   title: "Q & A",                   body: "Thank you. Questions welcome." },
+  { id: 1, title: "Analyze topic",    detail: "Parsing the brief and locking in scope.",      status: "pending" },
+  { id: 2, title: "Choose theme",     detail: "Picking the best color voice for your deck.",  status: "pending" },
+  { id: 3, title: "Build outline",    detail: "Structuring slides section by section.",        status: "pending" },
+  { id: 4, title: "Research sources", detail: "Searching for relevant, citable content.",      status: "pending" },
+  { id: 5, title: "Generate slides",  detail: "Writing and designing each slide.",             status: "pending" },
+  { id: 6, title: "Speaker notes",    detail: "Drafting presenter notes per slide.",           status: "pending" },
+  { id: 7, title: "Export deck",      detail: "Packaging the final PPTX.",                    status: "pending" },
 ];
 
 const WELCOME: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  text: "Hi! Tell me your topic, target audience, and how many slides you need — I'll handle the rest.",
+  text: "Hi! Tell me your topic, target audience, and tone — I'll design the rest.",
 };
 
-// ─── Slide renderers ───────────────────────────────────────────────────────────
+// ─── Demo slides (real SlideSpec — showcasing the renderer) ───────────────────
 
-function SlideCanvas({ slide }: { slide: Slide }) {
-  const base = "w-full h-full flex flex-col overflow-hidden";
+const DEMO_THEME: DeckTheme = getThemeByName("ember + charcoal + black")!;
 
-  if (slide.layout === "title") {
-    return (
-      <div className={`${base} items-center justify-center gap-3 bg-black`}>
-        <div className="h-0.5 w-20 bg-red-500 mb-2" />
-        <h2 className="text-center text-4xl font-bold text-white px-16 leading-snug">{slide.title}</h2>
-        <p className="text-center text-base text-white/40 mt-1">{slide.body}</p>
-      </div>
-    );
-  }
+const DEMO_SLIDES: SlideSpec[] = [
+  // 1 — THE_HERO (Title)
+  {
+    id: "slide_001", position: 1, layout: "hero",
+    archetype: "THE_HERO",
+    designIntent: "First impression — bold, confident, dark-studio feel",
+    background: { type: "solid", color: "#0f0f0f" },
+    speakerNotes: "Opening slide — set the tone.",
+    elements: [
+      { id: "slide_001_shape_accent", type: "shape", shape: "rectangle",
+        position: { x: 6, y: 38, w: 0.5, h: 20 },
+        style: { fill: "#f97316", opacity: 1 } },
+      { id: "slide_001_title", type: "text", variant: "title",
+        content: "OctopilotSlides",
+        position: { x: 9, y: 36, w: 72, h: 24 },
+        style: { fontSize: 64, fontWeight: 800, fontFamily: "Inter", color: "#ffffff", align: "left" } },
+      { id: "slide_001_subtitle", type: "text", variant: "subtitle",
+        content: "AI-Designed Presentations",
+        position: { x: 9, y: 62, w: 55, h: 12 },
+        style: { fontSize: 20, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "left", opacity: 0.45 } },
+      { id: "slide_001_caption", type: "text", variant: "caption",
+        content: "Everything customizable · AI assist",
+        position: { x: 9, y: 78, w: 45, h: 8 },
+        style: { fontSize: 13, fontWeight: 400, fontFamily: "Inter", color: "#f97316", align: "left", opacity: 0.8 } },
+    ],
+  },
 
-  if (slide.layout === "two-col") {
-    const [left, right] = slide.body.split("|");
-    return (
-      <div className={`${base} p-12 bg-white`}>
-        <div className="flex items-center gap-3 mb-8">
-          <div className="h-6 w-1 rounded-full bg-red-500" />
-          <h3 className="text-2xl font-bold text-black">{slide.title}</h3>
-        </div>
-        <div className="flex flex-1 gap-6">
-          <div className="flex-1 rounded-xl bg-black/[0.04] border border-black/[0.07] p-6 text-sm text-black/60 leading-relaxed">{left?.trim()}</div>
-          <div className="flex-1 rounded-xl bg-red-500/[0.05] border border-red-500/20 p-6 text-sm text-black/60 leading-relaxed">{right?.trim()}</div>
-        </div>
-      </div>
-    );
-  }
+  // 2 — THE_DATA_HERO (Stat)
+  {
+    id: "slide_002", position: 2, layout: "hero",
+    archetype: "THE_DATA_HERO",
+    designIntent: "Let the number own the slide — make the viewer feel the scale",
+    background: { type: "solid", color: "#0f0f0f" },
+    elements: [
+      { id: "slide_002_shape_bg", type: "shape", shape: "circle",
+        position: { x: 20, y: -15, w: 80, h: 130 },
+        style: { fill: "#ffffff", opacity: 0.025 } },
+      { id: "slide_002_stat_1", type: "text", variant: "stat",
+        content: "73%",
+        position: { x: 5, y: 15, w: 90, h: 50 },
+        style: { fontSize: 108, fontWeight: 900, fontFamily: "Inter", color: "#f97316", align: "center" } },
+      { id: "slide_002_body_1", type: "text", variant: "body",
+        content: "of presentations built with AI get redesigned by users within 48 hours",
+        position: { x: 12, y: 63, w: 76, h: 18 },
+        style: { fontSize: 17, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "center", opacity: 0.5, lineHeight: 1.5 } },
+      { id: "slide_002_caption", type: "text", variant: "caption",
+        content: "Based on 2,400 OctopilotSlides beta users · 2026",
+        position: { x: 20, y: 83, w: 60, h: 8 },
+        style: { fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "center", opacity: 0.25 } },
+    ],
+  },
 
-  if (slide.layout === "blank") {
-    return (
-      <div className={`${base} items-center justify-center bg-black`}>
-        <p className="text-5xl font-bold text-white">{slide.title}</p>
-        <p className="text-lg text-white/30 mt-3">{slide.body}</p>
-      </div>
-    );
-  }
+  // 3 — THE_EDITORIAL (Content + bleed)
+  {
+    id: "slide_003", position: 3, layout: "split",
+    archetype: "THE_EDITORIAL",
+    designIntent: "Design intelligence — show the AI thinks, it doesn't just fill",
+    background: { type: "solid", color: "#111111" },
+    elements: [
+      { id: "slide_003_shape_image", type: "shape", shape: "rectangle",
+        position: { x: 52, y: 0, w: 52, h: 100 },
+        style: { fill: "#1a2233", opacity: 1 } },
+      { id: "slide_003_shape_overlay", type: "shape", shape: "rectangle",
+        position: { x: 52, y: 0, w: 52, h: 100 },
+        style: { fill: "#f97316", opacity: 0.06 } },
+      { id: "slide_003_shape_accent", type: "shape", shape: "rectangle",
+        position: { x: 6, y: 20, w: 0.45, h: 22 },
+        style: { fill: "#f97316", opacity: 1 } },
+      { id: "slide_003_title", type: "text", variant: "title",
+        content: "Design\nIntelligence",
+        position: { x: 8, y: 18, w: 42, h: 28 },
+        style: { fontSize: 42, fontWeight: 800, fontFamily: "Inter", color: "#ffffff", align: "left", lineHeight: 1.15 } },
+      { id: "slide_003_body_1", type: "text", variant: "body",
+        content: "The AI picks archetypes, applies visual hierarchy, and makes bold choices — not safe ones.\n\nEvery slide earns its place or gets cut.",
+        position: { x: 8, y: 52, w: 41, h: 34 },
+        style: { fontSize: 15, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "left", opacity: 0.55, lineHeight: 1.65 } },
+    ],
+  },
 
-  // content
-  return (
-    <div className={`${base} p-12 bg-white`}>
-      <div className="flex items-center gap-3 mb-8">
-        <div className="h-6 w-1 rounded-full bg-red-500" />
-        <h3 className="text-2xl font-bold text-black">{slide.title}</h3>
-      </div>
-      <p className="text-base text-black/55 leading-relaxed mb-8">{slide.body}</p>
-      <div className="flex flex-col gap-3.5 mt-auto">
-        {[75, 90, 55].map((w, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
-            <div className="h-2 rounded-full bg-black/[0.07]" style={{ width: `${w}%` }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  // 4 — THE_BREATH (Quote)
+  {
+    id: "slide_004", position: 4, layout: "blank",
+    archetype: "THE_BREATH",
+    designIntent: "Pause — let the quote land. Maximum weight through emptiness.",
+    background: { type: "solid", color: "#0f0f0f" },
+    elements: [
+      { id: "slide_004_shape_bg", type: "shape", shape: "circle",
+        position: { x: 15, y: -30, w: 70, h: 160 },
+        style: { fill: "#ffffff", opacity: 0.02 } },
+      { id: "slide_004_shape_bar", type: "shape", shape: "rectangle",
+        position: { x: 48.7, y: 28, w: 0.45, h: 44 },
+        style: { fill: "#f97316", opacity: 1 } },
+      { id: "slide_004_quote", type: "text", variant: "quote",
+        content: "Flashy doesn't mean busy.\nIt means intentional drama.",
+        position: { x: 15, y: 28, w: 70, h: 44 },
+        style: { fontSize: 30, fontWeight: 600, fontFamily: "Inter", color: "#ffffff", align: "center", lineHeight: 1.45, italic: true } },
+    ],
+  },
+
+  // 5 — THE_GRID (Features)
+  {
+    id: "slide_005", position: 5, layout: "columns",
+    archetype: "THE_GRID",
+    designIntent: "3 features — systematic, confident, credible",
+    background: { type: "solid", color: "#0f0f0f" },
+    elements: [
+      { id: "slide_005_title", type: "text", variant: "title",
+        content: "What makes it frontier",
+        position: { x: 8, y: 9, w: 84, h: 13 },
+        style: { fontSize: 32, fontWeight: 700, fontFamily: "Inter", color: "#ffffff", align: "left" } },
+      { id: "slide_005_shape_div", type: "shape", shape: "line",
+        position: { x: 8, y: 24, w: 84, h: 0.3 },
+        style: { fill: "#ffffff", stroke: "#ffffff", strokeWidth: 1, opacity: 0.08 } },
+      // Column 1
+      { id: "slide_005_shape_1", type: "shape", shape: "rectangle",
+        position: { x: 8, y: 32, w: 25, h: 42 },
+        style: { fill: "#1a1a1a", cornerRadius: 8 } },
+      { id: "slide_005_label_1", type: "text", variant: "label",
+        content: "01",
+        position: { x: 11, y: 34, w: 19, h: 10 },
+        style: { fontSize: 20, fontWeight: 800, fontFamily: "Inter", color: "#f97316", align: "left" } },
+      { id: "slide_005_body_1", type: "text", variant: "body",
+        content: "Agentic AI\nDesigner",
+        position: { x: 11, y: 47, w: 20, h: 12 },
+        style: { fontSize: 16, fontWeight: 700, fontFamily: "Inter", color: "#ffffff", align: "left", lineHeight: 1.3 } },
+      { id: "slide_005_caption_1", type: "text", variant: "caption",
+        content: "Plans, researches, designs every slide from scratch",
+        position: { x: 11, y: 62, w: 20, h: 10 },
+        style: { fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "left", opacity: 0.4, lineHeight: 1.5 } },
+      // Column 2
+      { id: "slide_005_shape_2", type: "shape", shape: "rectangle",
+        position: { x: 37.5, y: 32, w: 25, h: 42 },
+        style: { fill: "#1a1a1a", cornerRadius: 8 } },
+      { id: "slide_005_label_2", type: "text", variant: "label",
+        content: "02",
+        position: { x: 40.5, y: 34, w: 19, h: 10 },
+        style: { fontSize: 20, fontWeight: 800, fontFamily: "Inter", color: "#f97316", align: "left" } },
+      { id: "slide_005_body_2", type: "text", variant: "body",
+        content: "Morph\nNarrative",
+        position: { x: 40.5, y: 47, w: 20, h: 12 },
+        style: { fontSize: 16, fontWeight: 700, fontFamily: "Inter", color: "#ffffff", align: "left", lineHeight: 1.3 } },
+      { id: "slide_005_caption_2", type: "text", variant: "caption",
+        content: "Shapes morph across slides — visual story without extra work",
+        position: { x: 40.5, y: 62, w: 20, h: 10 },
+        style: { fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "left", opacity: 0.4, lineHeight: 1.5 } },
+      // Column 3
+      { id: "slide_005_shape_3", type: "shape", shape: "rectangle",
+        position: { x: 67, y: 32, w: 25, h: 42 },
+        style: { fill: "#1a1a1a", cornerRadius: 8 } },
+      { id: "slide_005_label_3", type: "text", variant: "label",
+        content: "03",
+        position: { x: 70, y: 34, w: 19, h: 10 },
+        style: { fontSize: 20, fontWeight: 800, fontFamily: "Inter", color: "#f97316", align: "left" } },
+      { id: "slide_005_body_3", type: "text", variant: "body",
+        content: "Full PPTX\nFidelity",
+        position: { x: 70, y: 47, w: 20, h: 12 },
+        style: { fontSize: 16, fontWeight: 700, fontFamily: "Inter", color: "#ffffff", align: "left", lineHeight: 1.3 } },
+      { id: "slide_005_caption_3", type: "text", variant: "caption",
+        content: "Animations, Morph, transitions — all intact in PowerPoint",
+        position: { x: 70, y: 62, w: 20, h: 10 },
+        style: { fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#ffffff", align: "left", opacity: 0.4, lineHeight: 1.5 } },
+    ],
+  },
+
+  // 6 — THE_TYPOGRAPHIC (CTA close)
+  {
+    id: "slide_006", position: 6, layout: "blank",
+    archetype: "THE_TYPOGRAPHIC",
+    designIntent: "Close with conviction — type as design, one message",
+    background: { type: "solid", color: "#0f0f0f" },
+    elements: [
+      { id: "slide_006_shape_accent", type: "shape", shape: "rectangle",
+        position: { x: 8, y: 34, w: 0.45, h: 32 },
+        style: { fill: "#f97316", opacity: 1 } },
+      { id: "slide_006_title", type: "text", variant: "title",
+        content: "Build something\nworth watching.",
+        position: { x: 11, y: 30, w: 78, h: 40 },
+        style: { fontSize: 52, fontWeight: 800, fontFamily: "Inter", color: "#ffffff", align: "left", lineHeight: 1.2 } },
+      { id: "slide_006_caption", type: "text", variant: "caption",
+        content: "OctopilotSlides · octopilotai.com",
+        position: { x: 11, y: 76, w: 50, h: 8 },
+        style: { fontSize: 13, fontWeight: 400, fontFamily: "Inter", color: "#f97316", align: "left", opacity: 0.7 } },
+    ],
+  },
+];
 
 // ─── Step icon ─────────────────────────────────────────────────────────────────
 
@@ -155,9 +269,12 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
-  const [slides] = useState<Slide[]>(PLACEHOLDER_SLIDES);
+  const [slides] = useState<SlideSpec[]>(DEMO_SLIDES);
+  const [theme] = useState<DeckTheme>(DEMO_THEME);
   const [isRunning, setIsRunning] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"workflow" | "sources">("workflow");
+  const [canvasMode, setCanvasMode] = useState<"h" | "v">("h");
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
   // ── Canvas pan / zoom state ──
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -178,11 +295,9 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        // Pinch / ctrl-scroll → zoom centered on cursor
         const rect = el.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
@@ -196,24 +311,21 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
           return nz;
         });
       } else {
-        // Two-finger trackpad scroll → pan
         setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
       }
     };
-
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Mouse drag handlers
+  // Mouse drag — only in H mode
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    // Only drag on canvas background, not on slides
+    if (e.button !== 0 || canvasMode !== "h") return;
     const target = e.target as HTMLElement;
-    if (target.closest("[data-slide]")) return;
+    if (target.closest("[data-slide-canvas]")) return;
     dragging.current = true;
     lastMouse.current = { x: e.clientX, y: e.clientY };
-  }, []);
+  }, [canvasMode]);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging.current) return;
@@ -239,12 +351,11 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     setPan({ x: (cw - scaledW) / 2, y: (ch - scaledH) / 2 });
   }, [slides.length]);
 
-  // Initial fit
   useEffect(() => { fitView(); }, [fitView]);
 
-  // Focus active slide
-  const focusSlide = (index: number) => {
+  const focusSlide = useCallback((index: number) => {
     setActiveSlide(index);
+    setSelectedElementId(null);
     const el = canvasRef.current;
     if (!el) return;
     const cw = el.clientWidth;
@@ -256,7 +367,27 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       x: cw / 2 - (targetX + SLIDE_W / 2) * targetZoom,
       y: ch / 2 - (SLIDE_H / 2) * targetZoom,
     });
-  };
+  }, []);
+
+  // ── Canvas mode toggle ──
+  const toggleCanvasMode = useCallback(() => {
+    setCanvasMode((m) => {
+      if (m === "v") setSelectedElementId(null);
+      return m === "h" ? "v" : "h";
+    });
+  }, []);
+
+  // Keyboard shortcut H / V
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === "TEXTAREA") return;
+      if (e.key === "h" || e.key === "H") { setCanvasMode("h"); setSelectedElementId(null); }
+      if (e.key === "v" || e.key === "V") setCanvasMode("v");
+      if (e.key === "Escape") { setCanvasMode("h"); setSelectedElementId(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // ── Chat / send ──
   const handleInputChange = (v: string) => {
@@ -295,11 +426,11 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       }, d);
     });
     const aiMsgs = [
-      { d: 700,  t: `Got it — analyzing your brief and locking in the structure.` },
-      { d: 2000, t: "Outline ready. 7 slides: title, 4 content, comparison, and Q&A." },
-      { d: 3600, t: "3 sources found and compacted for slide generation." },
-      { d: 5000, t: "Slides drafted and speaker notes added." },
-      { d: 7200, t: "Your deck is ready. Export as PPTX or PDF whenever you like." },
+      { d: 700,  t: "Got it — analyzing your brief and locking in scope." },
+      { d: 2000, t: "Theme selected: ember + charcoal + black. Bold, cinematic voice." },
+      { d: 3600, t: "3 sources found and synthesized." },
+      { d: 5000, t: "Slides designed. Speaker notes added." },
+      { d: 7200, t: "Your deck is ready. Export as .pptx whenever you like." },
     ];
     aiMsgs.forEach(({ d, t }) => {
       setTimeout(() => {
@@ -315,6 +446,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const completedCount = steps.filter((s) => s.status === "completed").length;
   const progressPct = Math.round((completedCount / steps.length) * 100);
   const runningStep = steps.find((s) => s.status === "running");
+  const activeSpec = slides[activeSlide];
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
@@ -325,15 +457,13 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         right={<MainHeaderActions />}
       />
 
-      {/* ─ Body — sits below header (min-h-16 = 64px) ─ */}
-      <div className="flex overflow-hidden" style={{ marginTop: 64 + "px", height: "calc(100vh - 64px)" }}>
+      {/* ─ Body ─ */}
+      <div className="flex overflow-hidden" style={{ marginTop: 64, height: "calc(100vh - 64px)" }}>
 
-        {/* ══════════════════════════════
-            SIDEBAR
-        ══════════════════════════════ */}
+        {/* ══ SIDEBAR ══ */}
         <aside className="flex w-[320px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0f0f0f]">
 
-          {/* Sidebar head */}
+          {/* Head */}
           <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-4 py-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -350,7 +480,6 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                   : "Ready to build your deck"}
               </p>
             </div>
-            {/* Progress ring */}
             {(isRunning || completedCount > 0) && (
               <div className="relative h-8 w-8 shrink-0">
                 <svg className="h-8 w-8 -rotate-90" viewBox="0 0 32 32">
@@ -361,9 +490,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                     className="transition-all duration-500"
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-red-400">
-                  {progressPct}
-                </span>
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-red-400">{progressPct}</span>
               </div>
             )}
           </div>
@@ -371,38 +498,26 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
           {/* Tabs */}
           <div className="flex border-b border-white/[0.06] px-4 shrink-0">
             {(["workflow", "sources"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSidebarTab(tab)}
-                className={`relative pb-2 pt-2.5 text-[12px] font-medium capitalize mr-5 transition-colors ${sidebarTab === tab ? "text-white" : "text-white/30 hover:text-white/60"}`}
-              >
+              <button key={tab} onClick={() => setSidebarTab(tab)}
+                className={`relative pb-2 pt-2.5 text-[12px] font-medium capitalize mr-5 transition-colors ${sidebarTab === tab ? "text-white" : "text-white/30 hover:text-white/60"}`}>
                 {tab}
                 {sidebarTab === tab && <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-red-500" />}
               </button>
             ))}
           </div>
 
-          {/* Workflow tab */}
+          {/* Workflow */}
           {sidebarTab === "workflow" && (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
               {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className={`flex items-start gap-3 rounded-lg px-2.5 py-2.5 transition-all ${
-                    step.status === "running"
-                      ? "bg-red-500/[0.06]"
-                      : step.status === "completed"
-                      ? "opacity-60"
-                      : "opacity-30"
-                  }`}
-                >
+                <div key={step.id} className={`flex items-start gap-3 rounded-lg px-2.5 py-2.5 transition-all ${
+                  step.status === "running" ? "bg-red-500/[0.06]" : step.status === "completed" ? "opacity-60" : "opacity-30"
+                }`}>
                   <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
                     <StepIcon status={step.status} />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-[12.5px] font-medium leading-snug ${
-                      step.status === "running" ? "text-white" : "text-white/70"
-                    }`}>
+                    <p className={`text-[12.5px] font-medium leading-snug ${step.status === "running" ? "text-white" : "text-white/70"}`}>
                       {step.title}
                     </p>
                     {(step.status === "running" || step.status === "completed") && (
@@ -414,15 +529,15 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             </div>
           )}
 
-          {/* Sources tab */}
+          {/* Sources */}
           {sidebarTab === "sources" && (
             <div className="flex-1 overflow-y-auto px-3 py-2.5">
-              {completedCount >= 3 ? (
+              {completedCount >= 4 ? (
                 <div className="space-y-2">
                   {[
                     { title: "Wikipedia", sub: "Background & overview", url: "en.wikipedia.org" },
-                    { title: "Britannica", sub: "Encyclopedia entry",   url: "britannica.com" },
-                    { title: "Academic Journal", sub: "Peer-reviewed",  url: "scholar.google.com" },
+                    { title: "Britannica", sub: "Encyclopedia entry", url: "britannica.com" },
+                    { title: "Academic Journal", sub: "Peer-reviewed", url: "scholar.google.com" },
                   ].map((src, i) => (
                     <div key={i} className="rounded-lg border border-white/[0.07] p-3 hover:border-white/15 transition-colors">
                       <p className="text-[12.5px] font-medium text-white/80">{src.title}</p>
@@ -444,16 +559,12 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             </div>
           )}
 
-          {/* ── Chat ── */}
+          {/* Chat */}
           <div className="border-t border-white/[0.06] flex flex-col shrink-0">
-            {/* Messages */}
             <div className="flex max-h-48 flex-col gap-2 overflow-y-auto px-3 py-3">
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-2 text-[12.5px] leading-relaxed ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                  style={{ animation: "slideUp 0.2s ease-out" }}
-                >
+                <div key={msg.id} className={`flex gap-2 text-[12.5px] leading-relaxed ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                  style={{ animation: "slideUp 0.2s ease-out" }}>
                   {msg.role === "assistant" && (
                     <div className="h-5 w-5 shrink-0 rounded-full bg-red-500/15 flex items-center justify-center mt-0.5">
                       <Image src="/OCTOPILOT.png" alt="AI" width={11} height={11} className="opacity-80" />
@@ -471,7 +582,6 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <form onSubmit={sendMessage} className="px-3 pb-3">
               <div className="flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 focus-within:border-red-500/30 transition-colors">
                 <textarea
@@ -484,11 +594,8 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                   rows={1}
                   className="flex-1 resize-none bg-transparent text-[13px] text-white placeholder-white/20 outline-none min-h-[22px] max-h-[140px] disabled:opacity-40 leading-relaxed"
                 />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isRunning}
-                  className="mb-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 transition-all hover:bg-red-400 disabled:opacity-25 disabled:cursor-not-allowed"
-                >
+                <button type="submit" disabled={!input.trim() || isRunning}
+                  className="mb-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 transition-all hover:bg-red-400 disabled:opacity-25 disabled:cursor-not-allowed">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
                   </svg>
@@ -499,51 +606,53 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
           </div>
         </aside>
 
-        {/* ══════════════════════════════
-            MAIN CANVAS
-        ══════════════════════════════ */}
+        {/* ══ MAIN CANVAS ══ */}
         <div className="flex flex-1 flex-col overflow-hidden">
 
-          {/* Canvas toolbar */}
+          {/* Toolbar */}
           <div className="flex items-center justify-between border-b border-white/[0.06] bg-[#0a0a0a] px-4 py-2 shrink-0">
             <div className="flex items-center gap-3">
-              <span className="text-[11.5px] text-white/25 font-mono tabular-nums">
-                Slide {activeSlide + 1} / {slides.length}
-              </span>
+              {/* H / V mode toggle */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-0.5">
+                {(["h", "v"] as const).map((m) => (
+                  <button key={m} onClick={() => { setCanvasMode(m); if (m === "h") setSelectedElementId(null); }}
+                    title={m === "h" ? "Hand / Navigate (H)" : "Select / Edit (V)"}
+                    className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold transition-all ${
+                      canvasMode === m ? "bg-white/10 text-white" : "text-white/25 hover:text-white/50"
+                    }`}>
+                    {m.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
               <div className="h-3 w-px bg-white/[0.06]" />
-              <span className="text-[12px] text-white/50 font-medium truncate max-w-[200px]">
-                {slides[activeSlide]?.title ?? "—"}
+
+              <span className="text-[11.5px] text-white/25 font-mono tabular-nums">
+                {activeSlide + 1} / {slides.length}
+              </span>
+              <span className="text-[12px] text-white/40 font-medium truncate max-w-[200px]">
+                {activeSpec?.archetype.replace("THE_", "").replace("_", " ") ?? "—"}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Zoom controls */}
+              {/* Zoom */}
               <div className="flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2 py-1">
                 <button onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
-                  className="h-5 w-5 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors text-base leading-none">
-                  −
-                </button>
-                <span className="text-[11px] text-white/40 font-mono w-9 text-center tabular-nums">
-                  {Math.round(zoom * 100)}%
-                </span>
+                  className="h-5 w-5 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors text-base leading-none">−</button>
+                <span className="text-[11px] text-white/40 font-mono w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
                 <button onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
-                  className="h-5 w-5 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors text-base leading-none">
-                  +
-                </button>
+                  className="h-5 w-5 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors text-base leading-none">+</button>
               </div>
-
               <button onClick={fitView}
                 className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-1 text-[11.5px] text-white/40 hover:text-white/70 hover:border-white/15 transition-all">
                 Fit
               </button>
 
-              {/* Theme */}
+              {/* Theme swatch */}
               <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-1 cursor-default select-none">
-                <div className="h-2.5 w-2.5 rounded-sm bg-gradient-to-br from-black to-red-900 shrink-0" />
-                <span className="text-[11.5px] text-white/35">Red Dark</span>
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/20 ml-0.5">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+                <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: theme.palette.primary }} />
+                <span className="text-[11.5px] text-white/35 truncate max-w-[100px]">{theme.name}</span>
               </div>
 
               {/* Export */}
@@ -551,70 +660,74 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Export
+                Export .pptx
               </button>
             </div>
           </div>
 
-          {/* ── Infinite canvas ── */}
+          {/* Infinite canvas */}
           <div
             ref={canvasRef}
             className="flex-1 overflow-hidden relative select-none"
-            style={{ cursor: dragging.current ? "grabbing" : "grab" }}
+            style={{ cursor: canvasMode === "h" ? (dragging.current ? "grabbing" : "grab") : "default" }}
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseUp}
           >
-            {/* Dot-grid background */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)`,
-                backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
-                backgroundPosition: `${pan.x % (28 * zoom)}px ${pan.y % (28 * zoom)}px`,
-              }}
-            />
+            {/* Dot-grid */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)`,
+              backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
+              backgroundPosition: `${pan.x % (28 * zoom)}px ${pan.y % (28 * zoom)}px`,
+            }} />
 
             {/* Transform layer */}
-            <div
-              className="absolute top-0 left-0"
-              style={{
-                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                transformOrigin: "0 0",
-                willChange: "transform",
-              }}
-            >
-              {slides.map((slide, i) => {
+            <div className="absolute top-0 left-0" style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "0 0",
+              willChange: "transform",
+            }}>
+              {slides.map((spec, i) => {
                 const x = i * (SLIDE_W + SLIDE_GAP);
                 const isActive = activeSlide === i;
                 return (
-                  <div
-                    key={slide.id}
-                    data-slide="true"
-                    className="absolute cursor-pointer"
-                    style={{ left: x, top: 0, width: SLIDE_W, height: SLIDE_H }}
-                    onClick={(e) => { e.stopPropagation(); focusSlide(i); }}
-                  >
-                    {/* Slide frame */}
-                    <div
-                      className="w-full h-full overflow-hidden transition-[box-shadow] duration-200"
-                      style={{
-                        boxShadow: isActive
-                          ? "0 0 0 3px #ef4444, 0 24px 80px rgba(0,0,0,0.8)"
-                          : "0 0 0 1px rgba(255,255,255,0.08), 0 12px 48px rgba(0,0,0,0.7)",
-                        borderRadius: 6,
+                  <div key={spec.id} className="absolute" style={{ left: x, top: 0, width: SLIDE_W, height: SLIDE_H }}>
+                    {/* Shadow + border ring */}
+                    <div className="absolute inset-0 rounded-[6px] transition-[box-shadow] duration-200" style={{
+                      boxShadow: isActive
+                        ? "0 0 0 3px #ef4444, 0 24px 80px rgba(0,0,0,0.8)"
+                        : "0 0 0 1px rgba(255,255,255,0.08), 0 12px 48px rgba(0,0,0,0.7)",
+                    }} />
+
+                    {/* Real slide render */}
+                    <SlideCanvas
+                      spec={spec}
+                      theme={theme}
+                      width={SLIDE_W}
+                      mode={isActive ? canvasMode : "h"}
+                      selectedElementId={isActive ? selectedElementId : null}
+                      onElementSelect={(id) => {
+                        focusSlide(i);
+                        setSelectedElementId(id);
                       }}
-                    >
-                      <SlideCanvas slide={slide} />
-                    </div>
+                      onBackgroundClick={() => {
+                        focusSlide(i);
+                        setSelectedElementId(null);
+                      }}
+                      style={{ borderRadius: 6, cursor: canvasMode === "h" ? "pointer" : "default" }}
+                    />
 
-                    {/* Slide number label */}
-                    <div className="absolute -bottom-8 left-0 text-[11px] font-mono text-white/25 select-none">
-                      {i + 1}
-                    </div>
+                    {/* Click to focus (H mode) */}
+                    {canvasMode === "h" && (
+                      <div className="absolute inset-0 rounded-[6px]"
+                        onClick={(e) => { e.stopPropagation(); focusSlide(i); }} />
+                    )}
 
-                    {/* Active indicator */}
+                    {/* Slide number */}
+                    <div className="absolute -bottom-8 left-0 text-[11px] font-mono text-white/25 select-none">{i + 1}</div>
+
+                    {/* Active top indicator */}
                     {isActive && (
                       <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 h-1 w-12 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                     )}
@@ -626,60 +739,29 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             {/* Canvas hint */}
             <div className="absolute bottom-4 right-4 pointer-events-none">
               <p className="text-[10.5px] text-white/15 text-right">
-                Scroll to pan · Ctrl + scroll to zoom · Click slide to focus
+                {canvasMode === "h"
+                  ? "Drag to pan · Ctrl+scroll to zoom · H/V to switch mode"
+                  : "Click element to select · V mode · Press H or Esc to exit"}
               </p>
             </div>
           </div>
 
-          {/* ── Thumbnail strip ── */}
+          {/* Thumbnail strip */}
           <div className="shrink-0 border-t border-white/[0.06] bg-[#0a0a0a]">
             <div className="flex items-center gap-2.5 overflow-x-auto px-4 py-2.5">
-              {slides.map((slide, i) => {
-                const isActive = activeSlide === i;
-                return (
-                  <button
-                    key={slide.id}
-                    onClick={() => focusSlide(i)}
-                    className="group relative shrink-0 flex flex-col items-start gap-1 transition-all"
-                  >
-                    <div
-                      className="relative overflow-hidden transition-all duration-200"
-                      style={{
-                        width: 96,
-                        height: 54,
-                        borderRadius: 4,
-                        boxShadow: isActive
-                          ? "0 0 0 2px #ef4444"
-                          : "0 0 0 1px rgba(255,255,255,0.07)",
-                        opacity: isActive ? 1 : 0.45,
-                      }}
-                    >
-                      {/* Scaled mini preview */}
-                      <div
-                        className="absolute top-0 left-0 pointer-events-none"
-                        style={{
-                          width: SLIDE_W,
-                          height: SLIDE_H,
-                          transform: `scale(${96 / SLIDE_W})`,
-                          transformOrigin: "0 0",
-                        }}
-                      >
-                        <SlideCanvas slide={slide} />
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-mono pl-0.5 ${isActive ? "text-red-400" : "text-white/20"}`}>
-                      {i + 1}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Add slide */}
-              <button className="shrink-0 flex flex-col items-center justify-center gap-1" style={{ width: 96, height: 54 }}>
-                <div
-                  className="flex items-center justify-center text-white/20 hover:text-white/40 border border-dashed border-white/[0.09] hover:border-white/20 transition-all"
-                  style={{ width: 96, height: 54, borderRadius: 4 }}
-                >
+              {slides.map((spec, i) => (
+                <SlideThumbnail
+                  key={spec.id}
+                  spec={spec}
+                  theme={theme}
+                  width={96}
+                  isActive={activeSlide === i}
+                  onClick={() => focusSlide(i)}
+                />
+              ))}
+              {/* Add slide button */}
+              <button className="shrink-0" style={{ width: 96, height: 54 }}>
+                <div className="flex h-full w-full items-center justify-center rounded text-white/20 hover:text-white/40 border border-dashed border-white/[0.09] hover:border-white/20 transition-all">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M12 5v14" /><path d="M5 12h14" />
                   </svg>
