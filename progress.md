@@ -8,7 +8,7 @@
 ## Overall Status
 
 ```
-Phase 1 (MVP)     ████████████░░░░░░░░  6 / 18 done   ~33%
+Phase 1 (MVP)     ████████████████░░░░  8 / 18 done   ~44%
 Phase 2 (Power)   ░░░░░░░░░░░░░░░░░░░░  0 / 21 done
 Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  0 / 9 done
 ```
@@ -102,6 +102,28 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 - [x] `src/app/api/slides/answer/route.ts` — reply to ask_user question
 - [x] `src/services/SlidesAgentClient.ts` — browser client for SSE + answer
 
+### Chunk D — Property Panel ✅
+
+- [x] `src/components/slides/PropertyPanel.tsx` — right sidebar property panel
+- [x] Text properties: font family, size, weight, color, align, opacity, lineHeight
+- [x] Shape properties: fill, stroke, strokeWidth, opacity, cornerRadius, rotation
+- [x] Image properties: objectFit, opacity, borderRadius, rotation
+- [x] Icon properties: color, opacity, size
+- [x] Position/size panel: X, Y, W, H (all %)
+- [x] Wire `onChange` → live re-render on canvas
+
+### Chunk E — Export ✅
+
+- [x] `pptxgenjs` installed
+- [x] `src/server/slides/export/pptxRenderer.ts` — `SlideSpec[]` → `.pptx` buffer
+  - [x] Text rendering (FONT_MAP via `toPptxFont()`)
+  - [x] Shape rendering (basic shapes; best-effort mapping)
+  - [x] Image rendering (server-side fetch → base64 embed)
+  - [x] Speaker notes
+  - [ ] Slide transitions (skipped for now; depends on exact PptxGenJS API surface)
+- [x] `src/app/api/slides/export/route.ts` — POST: return .pptx download
+- [x] Export button wired in `OctopilotSlidesView.tsx`
+
 ---
 
 ## 🔄 In Progress
@@ -111,29 +133,6 @@ Nothing currently in progress.
 ---
 
 ## ⏳ Phase 1 — Remaining
-
-### Chunk D — Property Panel (V mode editing)
-
-- [ ] Property panel component (right sidebar, appears on element select)
-  - [ ] Text properties: font family, size, weight, color, align, italic, underline
-  - [ ] Shape properties: fill, stroke, strokeWidth, opacity, cornerRadius, rotation
-  - [ ] Image properties: objectFit, opacity, borderRadius
-  - [ ] Position/size panel: X, Y, W, H (all %)
-  - [ ] Animation panel: trigger, type, direction, duration, delay
-- [ ] Font dropdown with Google Fonts list
-- [ ] Color picker (hex input + swatch)
-- [ ] Wire `onChange` → `applyElementPatch()` → re-render
-
-### Chunk E — Export
-
-- [ ] `npm install pptxgenjs`
-- [ ] `src/server/slides/export/pptxRenderer.ts` — `SlideSpec[]` → `.pptx` buffer
-  - [ ] Text rendering (with FONT_MAP substitution)
-  - [ ] Shape rendering (basic shapes)
-  - [ ] Image rendering (server-side fetch → base64 embed)
-  - [ ] Slide transitions: fade, push
-  - [ ] Speaker notes
-- [ ] `src/app/api/slides/export/route.ts` — GET: return .pptx download
 
 ### Remaining Phase 1 items
 
@@ -194,6 +193,7 @@ src/
 │       ├── index.ts                 ✅ barrel
 │       ├── SlideCanvas.tsx          ✅ complete
 │       ├── SlideThumbnail.tsx       ✅ complete
+│       ├── PropertyPanel.tsx        ✅ complete
 │       └── elements/
 │           ├── TextEl.tsx           ✅ complete
 │           ├── ShapeEl.tsx          ✅ complete
@@ -205,20 +205,20 @@ src/
 │   └── MethodologyView.tsx          ✅ updated
 │
 └── server/
-    └── slides/                      ✅ agent started (export pending)
+    └── slides/                      ✅ agent started (export done)
         ├── agent/
         │   ├── loop.ts              ✅
         │   ├── runs.ts              ✅
         │   ├── systemPrompt.ts      ✅
         │   └── tools/               ✅ (Phase 1 subset)
         └── export/
-            └── pptxRenderer.ts      ⏳
+            └── pptxRenderer.ts      ✅
 
 src/app/api/
-    └── slides/                      ✅ start + answer routes
+    └── slides/                      ✅ start + answer + export routes
         ├── start/route.ts           ✅
         ├── answer/route.ts          ✅
-        └── export/route.ts          ⏳
+        └── export/route.ts          ✅
 ```
 
 ---
@@ -236,18 +236,18 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 - ✅ Theme name + color swatch in toolbar
 - ✅ Sidebar with workflow steps + sources + chat
 - ✅ Real AI agent run via SSE (slides stream in live)
-- ❌ No export yet — PptxGenJS not integrated
-- ❌ No property panel yet — element editing not wired
+- ✅ Export `.pptx` (text/shapes/images/notes) via PptxGenJS
+- ✅ Property panel (V mode) — edit element styles + position locally
 
 ---
 
 ## Next Session Starts Here
 
-**Chunk D: Property Panel**
+**Next up (Phase 1 polish)**
 
-1. Build right-side property panel component (appears on element select)
-2. Wire controls to `applyElementPatch()` for local edits
-3. (Phase 1) Keep edits local; (Phase 2) mirror to server with `update_element`
+1. Add basic slide transitions (fade/push) in both web + PPTX export
+2. Add Google Fonts CSS import for theme fonts (web renderer)
+3. Export icons as SVG→PNG instead of placeholder glyph
 ```
 
 ---

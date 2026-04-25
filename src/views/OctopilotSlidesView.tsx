@@ -6,9 +6,10 @@ import {
 } from "react";
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
-import { SlideCanvas, SlideThumbnail } from "@/components/slides";
+import { SlideCanvas, SlideThumbnail, PropertyPanel } from "@/components/slides";
 import { getThemeByName, type SlideSpec, type DeckTheme, type AgentQuestion, type SlidesSSEEvent } from "@/types/slides";
 import { SlidesAgentClient } from "@/services/SlidesAgentClient";
+import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -530,6 +531,89 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const progressPct = Math.round((completedCount / steps.length) * 100);
   const runningStep = steps.find((s) => s.status === "running");
   const activeSpec = slides[activeSlide];
+  const selectedElement =
+    activeSpec && selectedElementId
+      ? activeSpec.elements.find((el) => el.id === selectedElementId) ?? null
+      : null;
+
+  const patchSelectedElementStyle = useCallback(
+    (changes: Record<string, unknown>) => {
+      if (!activeSpec || !selectedElementId) return;
+      const slideId = activeSpec.id;
+      const patch = changes && typeof changes === "object" ? changes : {};
+      setSlides((prev) =>
+        prev.map((s) => {
+          if (s.id !== slideId) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) =>
+              el.id !== selectedElementId
+                ? el
+                : ({ ...el, style: { ...el.style, ...(patch as Record<string, unknown>) } } as typeof el)
+            ),
+          };
+        }),
+      );
+    },
+    [activeSpec, selectedElementId],
+  );
+
+  const patchSelectedElementPosition = useCallback(
+    (changes: Partial<Pick<NonNullable<typeof selectedElement>["position"], "x" | "y" | "w" | "h">>) => {
+      if (!activeSpec || !selectedElementId) return;
+      const slideId = activeSpec.id;
+      setSlides((prev) =>
+        prev.map((s) => {
+          if (s.id !== slideId) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) =>
+              el.id !== selectedElementId ? el : { ...el, position: { ...el.position, ...changes } }
+            ),
+          };
+        }),
+      );
+    },
+    [activeSpec, selectedElementId],
+  );
+
+  const exportPptx = useCallback(async () => {
+    if (!slides.length) {
+      setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: "No slides to export yet." }]);
+      return;
+    }
+
+    try {
+      const response = await fetchWithUserAuthorization("/api/slides/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deckTitle: "octopilotslides",
+          slides,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Export failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "octopilotslides.pptx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setMessages((p) => [
+        ...p,
+        { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Export failed." },
+      ]);
+    }
+  }, [slides]);
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
@@ -690,7 +774,8 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         </aside>
 
         {/* ══ MAIN CANVAS ══ */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden">
 
           {/* Toolbar */}
           <div className="flex items-center justify-between border-b border-white/[0.06] bg-[#0a0a0a] px-4 py-2 shrink-0">
@@ -739,7 +824,10 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               </div>
 
               {/* Export */}
-              <button className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-red-400 shadow-[0_0_16px_rgba(239,68,68,0.3)]">
+              <button
+                onClick={() => void exportPptx()}
+                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-red-400 shadow-[0_0_16px_rgba(239,68,68,0.3)]"
+              >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
@@ -852,6 +940,18 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               </button>
             </div>
           </div>
+          </div>
+
+          {/* Property panel (V mode only) */}
+          {canvasMode === "v" && activeSpec && selectedElement && (
+            <PropertyPanel
+              slideId={activeSpec.id}
+              element={selectedElement}
+              onClose={() => setSelectedElementId(null)}
+              onStyleChange={(changes) => patchSelectedElementStyle(changes)}
+              onPositionChange={(changes) => patchSelectedElementPosition(changes)}
+            />
+          )}
         </div>
       </div>
 
