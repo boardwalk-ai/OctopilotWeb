@@ -2,7 +2,10 @@ import type { DeckTheme, SlideSpec } from "@/types/slides";
 
 const IGNORE = new Set(["system-ui", "sans-serif", "serif", "monospace", "inherit", "initial"]);
 
-export function collectSlideFontWeights(theme: DeckTheme, slides: SlideSpec[]): Map<string, Set<number>> {
+export function collectSlideFontWeights(
+  theme: DeckTheme | null | undefined,
+  slides: SlideSpec[],
+): Map<string, Set<number>> {
   const map = new Map<string, Set<number>>();
   const add = (family: string | undefined, weight: number) => {
     if (!family) return;
@@ -12,8 +15,10 @@ export function collectSlideFontWeights(theme: DeckTheme, slides: SlideSpec[]): 
     map.get(key)!.add(weight);
   };
 
-  add(theme.typography.heading.web, theme.typography.heading.weight);
-  add(theme.typography.body.web, theme.typography.body.weight);
+  const heading = theme?.typography?.heading;
+  const body = theme?.typography?.body;
+  if (heading) add(heading.web, heading.weight);
+  if (body) add(body.web, body.weight);
 
   for (const slide of slides) {
     for (const el of slide.elements) {
@@ -26,7 +31,10 @@ export function collectSlideFontWeights(theme: DeckTheme, slides: SlideSpec[]): 
 }
 
 /** Google Fonts CSS2 URL for all theme + slide text families (weights union). */
-export function buildGoogleFontsCssHref(theme: DeckTheme, slides: SlideSpec[]): string | null {
+export function buildGoogleFontsCssHref(
+  theme: DeckTheme | null | undefined,
+  slides: SlideSpec[],
+): string | null {
   const map = collectSlideFontWeights(theme, slides);
   if (map.size === 0) return null;
 

@@ -15,12 +15,17 @@ function ShapeSVG({
   stroke,
   strokeWidth,
   cornerRadius,
+  boxW,
+  boxH,
 }: {
   shape: ShapeElement["shape"];
   fill: string;
   stroke?: string;
   strokeWidth?: number;
   cornerRadius?: number;
+  /** Pixel width/height of the SVG viewport (no viewBox for rect/circle/oval/line). */
+  boxW: number;
+  boxH: number;
 }) {
   const sw = strokeWidth ?? 0;
   const half = sw / 2;
@@ -32,33 +37,48 @@ function ShapeSVG({
   };
 
   switch (shape) {
-    case "rectangle":
+    case "rectangle": {
+      const iw = Math.max(0, boxW - sw);
+      const ih = Math.max(0, boxH - sw);
+      const rx = Math.min(cornerRadius ?? 0, iw / 2, ih / 2);
       return (
         <rect
-          x={half} y={half}
-          width={`calc(100% - ${sw}px)`} height={`calc(100% - ${sw}px)`}
-          rx={cornerRadius ?? 0}
+          x={half}
+          y={half}
+          width={iw}
+          height={ih}
+          rx={rx}
           {...sharedProps}
         />
       );
+    }
 
-    case "circle":
+    case "circle": {
+      const r = Math.max(0, Math.min(boxW, boxH) / 2 - half);
       return (
         <ellipse
-          cx="50%" cy="50%"
-          rx={`calc(50% - ${half}px)`} ry={`calc(50% - ${half}px)`}
+          cx={boxW / 2}
+          cy={boxH / 2}
+          rx={r}
+          ry={r}
           {...sharedProps}
         />
       );
+    }
 
-    case "oval":
+    case "oval": {
+      const rx = Math.max(0, boxW / 2 - half);
+      const ry = Math.max(0, boxH * 0.35 - half);
       return (
         <ellipse
-          cx="50%" cy="50%"
-          rx={`calc(50% - ${half}px)`} ry={`calc(35% - ${half}px)`}
+          cx={boxW / 2}
+          cy={boxH / 2}
+          rx={rx}
+          ry={ry}
           {...sharedProps}
         />
       );
+    }
 
     case "triangle":
       return (
@@ -80,8 +100,10 @@ function ShapeSVG({
     case "line":
       return (
         <line
-          x1="0%" y1="50%"
-          x2="100%" y2="50%"
+          x1={0}
+          y1={boxH / 2}
+          x2={boxW}
+          y2={boxH / 2}
           stroke={stroke ?? fill}
           strokeWidth={sw || 2}
         />
@@ -128,7 +150,7 @@ function ShapeSVG({
       );
 
     default:
-      return <rect width="100%" height="100%" {...sharedProps} />;
+      return <rect x={0} y={0} width={boxW} height={boxH} {...sharedProps} />;
   }
 }
 
@@ -169,6 +191,8 @@ export default function ShapeEl({ el, toPx, isSelected, onClick }: Props) {
           stroke={s.stroke}
           strokeWidth={s.strokeWidth}
           cornerRadius={s.cornerRadius}
+          boxW={Math.max(1, pos.width)}
+          boxH={Math.max(1, pos.height)}
         />
       </svg>
     </div>
