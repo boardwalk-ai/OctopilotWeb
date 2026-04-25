@@ -483,7 +483,153 @@ SSE event → frontend re-renders live
 
 ---
 
-## 9. Agentic Workflow
+## 9. Color Theme System
+
+Every deck gets a **DeckTheme** — a named palette with semantic color roles.  
+The AI knows each theme by name, understands its mood, and applies it consistently across all slides.  
+Users can also change the theme after generation.
+
+### Why Semantic Roles (Not Raw Hex)
+
+The AI doesn't say "use #f43f5e on the title". It says "use `theme.primary` on the accent bar".  
+This means:
+- Swap the theme → entire deck recolors instantly
+- PPTX export respects the same values (same hex → same color in PowerPoint)
+- AI and user edits both reference the same token names
+
+### DeckTheme Type
+
+```typescript
+type DeckTheme = {
+  name: string              // "rose + cream + black"
+  palette: {
+    background: string      // main slide background
+    surface: string         // card / panel / callout background
+    primary: string         // main accent — shapes, highlights, CTAs
+    secondary: string       // supporting accent — secondary elements
+    text: string            // primary text color
+    textMuted: string       // secondary / caption text
+    border: string          // subtle dividers and borders
+  }
+  typography: {
+    heading: FontChoice     // used for titles + subtitles
+    body: FontChoice        // used for body + captions
+  }
+}
+
+type FontChoice = {
+  web: string               // Google Font name (web renderer)
+  pptx: string              // System font fallback (PPTX export)
+  weight: number            // default weight for this role
+}
+```
+
+The `DeckTheme` is stored at the deck level and passed to every `design_slide` call.
+
+### Built-in Theme Library
+
+```
+Theme Name                 Background    Primary      Secondary    Feel
+─────────────────────────────────────────────────────────────────────────────────
+rose + cream + black       #0a0a0a       #f43f5e      #fef3c7      Romantic, bold
+matcha + cream + black     #0a0a0a       #6b8f5e      #fef3c7      Calm, natural
+ocean + white + navy       #0f2744       #0ea5e9      #ffffff      Corporate, clean
+ember + charcoal + black   #0f0f0f       #f97316      #d4d4d4      Energetic, dark
+forest + ivory + dark      #111a14       #4a7c59      #f5f0e8      Grounded, premium
+slate + gold + midnight    #0f172a       #f59e0b      #94a3b8      Luxury, bold
+lavender + white + violet  #1e1b4b       #a78bfa      #ffffff      Creative, dreamy
+arctic + silver + midnight #0a0f1e       #38bdf8      #e2e8f0      Tech, minimal
+crimson + bone + black     #0c0a09       #dc2626      #fafaf9      Dramatic, serious
+sage + linen + walnut      #2d2a24       #84a98c      #f8f4ee      Refined, organic
+```
+
+### ask_user — Theme Selection
+
+At the start of every deck generation, the AI asks the user for their preferred theme using `ask_user` with `inputType: "choice"`:
+
+```typescript
+ask_user({
+  question: "What color theme should this deck use?",
+  field: "deckTheme",
+  inputType: "choice",
+  suggestions: [
+    "rose + cream + black",
+    "matcha + cream + black",
+    "ocean + white + navy",
+    "ember + charcoal + black",
+    "forest + ivory + dark",
+    "slate + gold + midnight",
+    "custom — I'll describe it"
+  ]
+})
+```
+
+If the user picks **"custom — I'll describe it"**, the AI asks a follow-up:
+
+```typescript
+ask_user({
+  question: "Describe your preferred colors. Example: 'dark navy background, gold accents, white text' or 'light beige, terracotta, deep brown'",
+  field: "customThemeDescription",
+  inputType: "text"
+})
+```
+
+The AI then synthesizes a `DeckTheme` from the description — mapping the described colors to the semantic palette roles.
+
+### How design_slide Uses the Theme
+
+The `design_slide` tool receives the full `DeckTheme` in every call.  
+The AI applies semantic roles, never hardcoded colors:
+
+```
+background.type: "solid", color: theme.palette.background
+accent bar shape: fill = theme.palette.primary
+title text: color = theme.palette.text
+caption text: color = theme.palette.textMuted
+callout card: fill = theme.palette.surface, stroke = theme.palette.border
+highlight shape: fill = theme.palette.secondary
+```
+
+### Theme Switching (Post-Generation)
+
+A new tool `update_deck_theme` allows changing the theme after generation:
+
+```typescript
+update_deck_theme({
+  deckId: "deck_abc",
+  theme: "lavender + white + violet"
+})
+```
+
+This triggers a re-render of all slides with the new palette.  
+No content changes — only colors and backgrounds update.  
+Frontend: theme picker in the toolbar. AI: can also suggest a theme change ("This data-heavy deck might read better in arctic + silver").
+
+### AI Color Rules (System Prompt)
+
+The AI internalizesthese rules when applying colors from the theme:
+
+```
+• Never use more than 3 colors on one slide (bg + text + primary accent)
+• primary  → use sparingly: one key shape or bar per slide
+• secondary → supporting elements (icon bg, light callouts)
+• surface  → inset sections, code blocks, callout boxes
+• textMuted → captions, footnotes, metadata — never body text
+• Dark bg: text must be theme.text (near-white) — never dark on dark
+• Light bg: text must be near-black — never light on light
+• Shapes as emphasis, not decoration — if a shape doesn't serve content, remove it
+• Consistency > creativity — same element type = same color across slides
+```
+
+### Color in PPTX Export
+
+No special handling needed — the DeckTheme hex values ARE the exported values.  
+`theme.palette.primary = "#f43f5e"` → that exact hex is written to DrawingML.  
+Theme switching before export = different colors in the .pptx. ✅
+
+---
+
+## 10. Agentic Workflow
 
 ### Agent Architecture
 
@@ -563,7 +709,7 @@ Cost cap, max steps, dedup guard — same as Ghostwriter loop.ts.
 
 ---
 
-## 10. Complete Tool List (15 tools)
+## 11. Complete Tool List (16 tools)
 
 ### Generation tools
 
@@ -589,10 +735,11 @@ Cost cap, max steps, dedup guard — same as Ghostwriter loop.ts.
 | `remove_element` | `{ slideId, elementId }` | confirmation | Delete an element |
 | `reorder_slides` | `{ slideId, newPosition }` | updated deck order | Move slides |
 | `update_slide_background` | `{ slideId, background: Background }` | updated slide | Change bg color/gradient/image |
+| `update_deck_theme` | `{ deckId, theme: string \| DeckTheme }` | rerendered deck | Swap full color palette on all slides |
 
 ---
 
-## 11. Workflow Sequence
+## 12. Workflow Sequence
 
 ```
 User types: "Climate change impacts on SE Asia, board presentation, professional"
@@ -600,36 +747,41 @@ User types: "Climate change impacts on SE Asia, board presentation, professional
 Step 1 — analyze_instruction
   → { topic, audience:"board", tone:"professional", complexity:"medium" }
 
-Step 2 — ask_user
+Step 2 — ask_user (theme)
+  → "What color theme should this deck use?"
+  → suggestions: [rose + cream + black, ocean + white + navy, slate + gold + midnight …]
+  User: "ocean + white + navy"
+
+Step 3 — ask_user (slide count)
   → "How many slides would you like? (Recommended: 8–10 for a board deck)"
   User: "9"
 
-Step 3 — create_slides (count: 9)
+Step 4 — create_slides (count: 9)
   → slide_001 … slide_009 (blank, IDs assigned)
   → Frontend: 9 blank frames appear on canvas immediately
 
-Step 4 — search_source (2–3 queries)
+Step 5 — search_source (2–3 queries)
   → web results
 
-Step 5 — analyze_source (per result)
+Step 6 — analyze_source (per result)
   → structured facts, data, quotes
 
-Step 6 — write_slide (per slide, sequential)
+Step 7 — write_slide (per slide, sequential)
   → slide_001: { title, bullets, speakerNotes }
   → Frontend: slide text appears live
 
-Step 7 — fetch_image + design_slide (per slide)
-  → slide_001: full SlideSpec (layout, bg, elements, animations, !! IDs)
+Step 8 — fetch_image + design_slide (per slide, with DeckTheme: "ocean + white + navy")
+  → slide_001: full SlideSpec (layout, bg, elements, animations, !! IDs, theme-colored)
   → Frontend: slide fully renders on canvas
 
-Step 8 — compose
+Step 9 — compose
   → final deck snapshot
-  → Frontend: Export button activates, "AI Assist" available on all elements
+  → Frontend: Export button activates, theme picker + "AI Assist" available on all elements
 ```
 
 ---
 
-## 12. Design Intelligence Rules
+## 13. Design Intelligence Rules
 
 The system prompt for `design_slide` must internalize these rules:
 
@@ -676,7 +828,7 @@ Caption:  12–14pt, fontWeight 400, opacity 40%
 
 ---
 
-## 13. .pptx Export
+## 14. .pptx Export
 
 ### Library: PptxGenJS
 
@@ -729,7 +881,7 @@ Video backgrounds          ❌  Phase 3
 
 ---
 
-## 14. State Management
+## 15. State Management
 
 ### Edit State — How User + AI Edits Work Together
 
@@ -787,7 +939,7 @@ type DeckState = {
 
 ---
 
-## 15. Frontend — OctopilotSlidesView
+## 16. Frontend — OctopilotSlidesView
 
 ### Layout
 
@@ -845,7 +997,7 @@ workflow_complete      { deckId }                   →  export activates
 
 ---
 
-## 16. Tech Stack
+## 17. Tech Stack
 
 ```
 Frontend         Next.js 16, React 19, Tailwind CSS v4, TypeScript
@@ -872,7 +1024,7 @@ Reused from Ghostwriter:
 
 ---
 
-## 17. Build Phases
+## 18. Build Phases
 
 ### Phase 1 — MVP (Core)
 
@@ -888,7 +1040,9 @@ Reused from Ghostwriter:
 [ ] Property panel (position + size for all)
 [ ] Property panel (animation: type, direction, duration, delay)
 [ ] SlidesOrchestrator (agent loop — adapted from Ghostwriter loop.ts)
-[ ] Tools: analyze_instruction, ask_user, create_slides, write_slide, design_slide, compose
+[ ] DeckTheme type + built-in theme library (10 named palettes)
+[ ] ask_user for theme selection (choice input type)
+[ ] Tools: analyze_instruction, ask_user, create_slides, write_slide, design_slide, compose, update_deck_theme
 [ ] Edit tools: update_element, add_element, remove_element
 [ ] SSE streaming to frontend
 [ ] Basic transitions: fade, push (web + PPTX)
@@ -932,7 +1086,7 @@ Reused from Ghostwriter:
 
 ---
 
-## 18. Open Questions
+## 19. Open Questions
 
 ```
 Q1: Image generation model — DALL-E 3 vs Flux Schnell vs Ideogram?
@@ -960,4 +1114,5 @@ Q7: Undo/redo scope — per-element or full deck snapshot?
 ---
 
 *Last updated: 2026-04-26*  
-*Status: Architecture & Design Phase — no code written yet*
+*Status: Architecture & Design Phase — no code written yet*  
+*Sections: 19 — Color Theme System added (Section 9)*
