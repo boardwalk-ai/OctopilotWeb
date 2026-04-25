@@ -1,7 +1,8 @@
 # OctopilotSlides — Product & Architecture Document
 
 > **Goal:** Build the world's best AI-powered presentation tool.  
-> Beautiful on the web. Fully functional in PowerPoint. Driven by a true agentic AI.
+> Beautiful on the web. Fully functional in PowerPoint. Driven by a true agentic AI.  
+> **Brand line: Everything customizable + AI assist.**
 
 ---
 
@@ -16,8 +17,10 @@ OctopilotSlides is different:
 - Animations and Morph transitions work **both in the browser and in exported .pptx**
 - The AI can create, delete, redesign, and reorganize slides on its own initiative
 - Research is grounded in real sources — same pipeline as Ghostwriter
+- **User can manually edit every single property** — font, size, color, shape, animation — directly on the canvas
+- **AI can also edit every single property** — user says "make this bolder" → AI calls the right tool
 
-**One sentence:** AI that designs slides the way a senior designer + researcher would, end to end.
+**One sentence:** AI that designs slides the way a senior designer + researcher would — and then hands full creative control back to the user.
 
 ---
 
@@ -32,7 +35,8 @@ OctopilotSlides is different:
 | Morph transition | ❌ | ❌ | ❌ | manual | ✅ |
 | .pptx export (animations intact) | ❌ | partial | ❌ | native | ✅ |
 | ask_user conversational flow | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Slide-level AI redesign | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Full manual element editing | ❌ | limited | ❌ | ✅ | ✅ |
+| AI element-level editing | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
@@ -78,7 +82,8 @@ This gives perfect fidelity across both renderers with simple math.
 
 ## 4. Slide Data Schema
 
-Every slide is a JSON object. The AI outputs this. Both renderers consume it.
+Every slide is a JSON object. The AI outputs this. Both renderers consume it.  
+User and AI edits both write to this same spec — it is the single source of truth.
 
 ```typescript
 type SlideSpec = {
@@ -127,10 +132,14 @@ type TextElement = {
     fontSize: number       // in pt
     fontWeight: 400 | 600 | 700 | 800
     fontFamily: string     // must be a system-safe font (see Font Map)
-    color: string
-    align: "left" | "center" | "right"
+    color: string          // hex
+    align: "left" | "center" | "right" | "justify"
     italic?: boolean
+    underline?: boolean
+    strikethrough?: boolean
     lineHeight?: number
+    letterSpacing?: number // em
+    opacity?: number       // 0–1
   }
   animation?: AnimationSpec
 }
@@ -196,6 +205,7 @@ type IconElement = {
   style: {
     color: string
     size: number           // pt
+    opacity?: number
   }
   animation?: AnimationSpec
 }
@@ -232,14 +242,13 @@ type AnimationSpec = {
   duration: number           // milliseconds
   delay: number              // milliseconds
   easing?: "linear" | "easeIn" | "easeOut" | "easeInOut" | "bounce"
-  morphTargetId?: string     // for Morph — ID of matching element on next slide
 }
 ```
 
 ### Animation Types (PPTX-compatible)
 
 ```
-Entrance:   "appear" | "fade" | "flyIn" | "floatIn" | "zoomIn" | 
+Entrance:   "appear" | "fade" | "flyIn" | "floatIn" | "zoomIn" |
             "wipe" | "bounce" | "swivel" | "grow"
 
 Exit:       "disappear" | "fadeOut" | "flyOut" | "zoomOut" | "collapse"
@@ -339,83 +348,251 @@ Web rendering: URL used directly.
 
 ---
 
-## 8. Agentic Workflow
+## 8. AI + User Editing Model ("Everything Customizable + AI Assist")
+
+This is Octopilot's brand promise — both AI and users can edit everything, down to individual element properties.
+
+### One State, Two Editors
+
+```
+JSON Slide Spec  ←─────────────  Source of Truth
+      ↑                                ↑
+      │                                │
+User edits                       AI edits
+(canvas click                    (tool calls via
+ → property panel)                chat / auto)
+
+Both write to the same spec.
+Renderer re-renders immediately.
+PPTX export always reflects latest state.
+```
+
+### Canvas Modes (Figma-style)
+
+```
+H  —  Hand / Navigate mode   (default)
+       drag = pan canvas
+       scroll = zoom
+
+V  —  Select / Edit mode
+       click element = select + show handles
+       drag element = move / resize
+       double-click text = inline edit
+```
+
+Toggle via toolbar button or keyboard shortcuts `H` / `V`.
+
+### User Edit Flow
+
+```
+User switches to Select mode (V)
+        ↓
+Clicks on an element
+        ↓
+Element shows selection handles (corners + border)
+        ↓
+Properties panel appears (right sidebar or floating):
+
+  ┌────────────── TEXT ───────────────┐
+  │  Font      [Inter          ▾]     │
+  │  Size      [48  ] pt              │
+  │  Weight    [B] [I] [U] [S]        │
+  │  Color     [████]  #ffffff        │
+  │  Align     [◀] [▌] [▶] [⬛]      │
+  │  Opacity   ──────●──  90%         │
+  │  Line H    [1.5 ] ×               │
+  │  Spacing   [0.02] em              │
+  ├────────────── POSITION ───────────┤
+  │  X [5%]  Y [20%]                  │
+  │  W [48%] H [25%]  🔒              │
+  ├────────────── ANIMATION ──────────┤
+  │  Type    [Fly In        ▾]        │
+  │  Dir     [From Bottom   ▾]        │
+  │  Duration [400] ms  Delay [200]ms │
+  ├────────────── AI ASSIST ──────────┤
+  │  ✦ [Make bolder] [Suggest color]  │
+  │  ✦ Type: ________________________ │
+  └───────────────────────────────────┘
+
+User changes fontSize 48 → 64
+        ↓
+SlideSpec JSON: element.style.fontSize = 64
+        ↓
+Canvas re-renders instantly
+        ↓
+PPTX export reflects change automatically
+```
+
+### AI Edit Flow (Same State)
+
+```
+User: "Slide 3 ရဲ့ title ကို bold red ပြောင်းပေး"
+        ↓
+AI extended thinking:
+  → slide_003, element id "!!stat_hero"
+  → changes: { fontWeight: 800, color: "#ef4444" }
+        ↓
+AI calls: update_element({
+  slideId: "slide_003",
+  elementId: "!!stat_hero",
+  changes: { fontWeight: 800, color: "#ef4444" }
+})
+        ↓
+SlideSpec JSON updates
+        ↓
+SSE event → frontend re-renders live
+```
+
+### Property Panel — Full List
+
+**Text:**
+- Font family (dropdown — Google Fonts mapped to system)
+- Font size (pt)
+- Font weight (regular / medium / semibold / bold / extrabold)
+- Italic, Underline, Strikethrough toggles
+- Text color (color picker + hex)
+- Opacity (slider 0–100%)
+- Alignment (left / center / right / justify)
+- Line height (multiplier)
+- Letter spacing (em)
+
+**Shape:**
+- Fill color
+- Stroke color + width
+- Corner radius (rect only)
+- Opacity
+- Rotation (degrees)
+
+**Image:**
+- Object fit (cover / contain / fill)
+- Opacity
+- Border radius
+
+**All elements:**
+- Position X / Y (%)
+- Size W / H (%)
+- Lock aspect ratio toggle
+- Rotation
+
+**Animation:**
+- Trigger (entrance / exit / emphasis / onClick)
+- Type (dropdown of PPTX-compatible types)
+- Direction
+- Duration (ms)
+- Delay (ms)
+
+---
+
+## 9. Agentic Workflow
 
 ### Agent Architecture
 
 No LangGraph. No external orchestration framework.
 
-Stack: **Claude API (tool_use) + custom SlidesOrchestrator** — same pattern as `GhostwriterOrchestrator`.
+Stack: **OpenRouter → Claude Opus (primary model) + custom SlidesOrchestrator**
 
-Loop:
+The orchestrator directly reuses existing Ghostwriter infrastructure:
 
 ```
-User sends message
-        ↓
-Claude API call (tools enabled + extended thinking)
-        ↓
-AI outputs tool_use block
-        ↓
-Server executes tool → result
-        ↓
-Result sent back to Claude (next turn)
-        ↓
-Repeat until AI returns plain text (done) or asks user
+Reused as-is:
+  src/server/ghostwriter/shared/openrouter.ts   ← JSON call helper
+  src/server/backendConfig.ts                   ← getOpenRouterConfig("primary")
+  src/server/ghostwriter/agent/runs.ts          ← AgentRun + SSE emit
+  src/server/ghostwriter/agent/tools.ts         ← toOpenRouterToolSpec()
+
+New (slides-specific):
+  src/server/slides/agent/loop.ts               ← SlidesAgent loop
+  src/server/slides/agent/tools/               ← 15 tool implementations
+  src/server/slides/agent/runs.ts              ← DeckRun + DeckState
+  src/server/slides/agent/systemPrompt.ts      ← design intelligence rules
+  src/app/api/slides/start/route.ts            ← SSE endpoint
+  src/app/api/slides/answer/route.ts           ← ask_user reply
+  src/app/api/slides/export/route.ts           ← PPTX download
 ```
 
-### The 9 Tools
+### OpenRouter Tool Format
 
-#### `analyze_instruction`
-Input: raw user instruction text  
-Output: `{ topic, audience, tone, complexity, suggestedSlideCount, keyThemes[] }`  
-Purpose: AI understands what it's building before making any slides.
+OpenRouter uses **OpenAI-compatible function calling** — not Anthropic native format.
 
-#### `ask_user`
-Input: `{ question: string, field: string, inputType: "text" | "number" | "choice", suggestions?: string[] }`  
-Output: user's answer  
-Purpose: AI asks for missing info — slide count, style preference, company name, etc.  
-Used when: slide count not given, tone unclear, critical info missing.
+```typescript
+// Tool spec sent to OpenRouter:
+{
+  type: "function",
+  function: {
+    name: "design_slide",
+    description: "...",
+    parameters: { /* JSON Schema */ }
+  }
+}
 
-#### `create_slides`
-Input: `{ count: number, titles?: string[] }`  
-Output: `{ slides: { id: string, position: number, status: "blank" }[] }`  
-Purpose: Scaffolds the deck with blank slides + unique IDs.  
-Frontend: renders blank frames on canvas immediately.
+// AI response tool call:
+{
+  type: "function",
+  function: {
+    name: "design_slide",
+    arguments: "{\"id\":\"slide_001\", ...}"  // ← JSON string, must parse
+  }
+}
 
-#### `delete_slide`
-Input: `{ id: string, reason: string }`  
-Output: confirmation  
-Purpose: AI can remove a slide it decides is redundant after writing.
+// Tool result message:
+{
+  role: "tool",
+  tool_call_id: "call_abc123",
+  content: "{\"status\":\"ok\"}"
+}
+```
 
-#### `search_source`
-Input: `{ query: string, maxResults: number }`  
-Output: `{ results: { title, url, snippet }[] }`  
-Purpose: Web research grounding content in real sources.  
-Same pipeline as Ghostwriter's source search.
+### Agent Loop (Simplified)
 
-#### `analyze_source`
-Input: `{ url: string, focusTopics: string[] }`  
-Output: `{ facts: string[], quotes: string[], data: Record<string, unknown>[] }`  
-Purpose: Extracts structured knowledge from a source page.
+```
+messages = [system, user_brief]
+loop until done:
+  response = callOpenRouter(messages, toolSpecs)
+  
+  if response.tool_calls is empty:
+    if deck is complete → emit done, break
+    else nudge model → "Continue — call the next tool"
+  
+  for each tool_call in response.tool_calls:
+    result = executeTool(tool_call)
+    messages.push(tool result)
+    emit SSE event to frontend
+```
 
-#### `write_slide`
-Input: `{ id: string, topic: string, position: "intro"|"body"|"conclusion"|"data", sources: string[] }`  
-Output: `{ title: string, bullets: string[], quote?: string, speakerNotes: string }`  
-Purpose: Writes the content for one slide, grounded in sources.
-
-#### `design_slide`
-Input: `{ id: string, content: SlideContent, deckTheme: ThemeSpec, position: number, totalSlides: number }`  
-Output: Full `SlideSpec` JSON (layout, background, elements[], animations[])  
-Purpose: The AI's visual design brain. Decides layout, shapes, image placement, element animations, typography, Morph IDs.
-
-#### `compose`
-Input: `{ deckId: string, slides: SlideSpec[] }`  
-Output: `{ exportSnapshot: ExportDeckSnapshot }`  
-Purpose: Final assembly. Validates the deck, resolves all image URLs, prepares export snapshot.
+Cost cap, max steps, dedup guard — same as Ghostwriter loop.ts.
 
 ---
 
-## 9. Workflow Sequence
+## 10. Complete Tool List (15 tools)
+
+### Generation tools
+
+| Tool | Input | Output | Purpose |
+|---|---|---|---|
+| `analyze_instruction` | raw instruction text | `{ topic, audience, tone, complexity, suggestedCount, keyThemes[] }` | Understand the brief |
+| `ask_user` | `{ question, field, inputType, suggestions? }` | user answer | Ask slide count, style, company name etc. |
+| `create_slides` | `{ count, titles? }` | `{ slides: { id, position }[] }` | Scaffold blank deck |
+| `delete_slide` | `{ id, reason }` | confirmation | Remove redundant slide |
+| `search_source` | `{ query, maxResults }` | `{ results: { title, url, snippet }[] }` | Web research |
+| `analyze_source` | `{ url, focusTopics[] }` | `{ facts[], quotes[], data[] }` | Extract knowledge |
+| `fetch_image` | `{ source, query, orientation, mood }` | `{ url, credit }` | Get Unsplash / AI image |
+| `write_slide` | `{ id, topic, position, sources[] }` | `{ title, bullets[], quote?, speakerNotes }` | Write slide content |
+| `design_slide` | `{ id, content, deckTheme, position, totalSlides }` | Full `SlideSpec` JSON | Visual design per slide |
+| `compose` | `{ deckId, slides[] }` | `{ exportSnapshot }` | Final assembly |
+
+### Edit tools (user + AI both use these)
+
+| Tool | Input | Output | Purpose |
+|---|---|---|---|
+| `update_element` | `{ slideId, elementId, changes: Partial<ElementStyle> }` | updated element | Change font, color, size, animation etc. |
+| `add_element` | `{ slideId, element: SlideElement }` | updated slide | Add new element to existing slide |
+| `remove_element` | `{ slideId, elementId }` | confirmation | Delete an element |
+| `reorder_slides` | `{ slideId, newPosition }` | updated deck order | Move slides |
+| `update_slide_background` | `{ slideId, background: Background }` | updated slide | Change bg color/gradient/image |
+
+---
+
+## 11. Workflow Sequence
 
 ```
 User types: "Climate change impacts on SE Asia, board presentation, professional"
@@ -429,35 +606,32 @@ Step 2 — ask_user
 
 Step 3 — create_slides (count: 9)
   → slide_001 … slide_009 (blank, IDs assigned)
-  → Frontend: 9 blank frames appear on canvas
+  → Frontend: 9 blank frames appear on canvas immediately
 
-Step 4 — search_source (2–3 queries in sequence)
-  → results from web
+Step 4 — search_source (2–3 queries)
+  → web results
 
 Step 5 — analyze_source (per result)
   → structured facts, data, quotes
 
 Step 6 — write_slide (per slide, sequential)
-  → slide_001: { title: "The Climate Crisis", bullets: [...] }
-  → Frontend: slide updates live as each one is written
+  → slide_001: { title, bullets, speakerNotes }
+  → Frontend: slide text appears live
 
-Step 7 — design_slide (per slide, sequential)
-  → slide_001: full SlideSpec with layout, bg, elements, animations
-  → Frontend: slide renders fully on canvas
+Step 7 — fetch_image + design_slide (per slide)
+  → slide_001: full SlideSpec (layout, bg, elements, animations, !! IDs)
+  → Frontend: slide fully renders on canvas
 
 Step 8 — compose
   → final deck snapshot
-  → Frontend: Export button activates
+  → Frontend: Export button activates, "AI Assist" available on all elements
 ```
-
-Frontend receives real-time updates via **SSE** (same as Ghostwriter pattern).  
-Each tool completion emits an event → canvas updates live.
 
 ---
 
-## 10. Design Intelligence Rules
+## 12. Design Intelligence Rules
 
-The AI prompt for `design_slide` must internalize these rules to produce frontier-quality output:
+The system prompt for `design_slide` must internalize these rules:
 
 ### Layout Selection
 
@@ -496,14 +670,13 @@ Caption:  12–14pt, fontWeight 400, opacity 40%
 
 ```
 • Assign "!!" IDs to hero elements that persist across slides
-• Example: title text on slide 1 → "!!main_title"
-           same element repositioned on slide 2 → Morph handles transition
+• Title on slide 1 → "!!main_title" — same ID on slide 2 triggers Morph
 • Use Morph to create narrative continuity (element "travels" through deck)
 ```
 
 ---
 
-## 11. .pptx Export
+## 13. .pptx Export
 
 ### Library: PptxGenJS
 
@@ -531,7 +704,7 @@ PptxGenJS Renderer
   ↓
 Images: fetch URLs → base64 embed (server-side)
 Fonts: substitute via Font Map
-Morph: !! element names preserved → morph transition set
+Morph: !! element names preserved → morph transition XML injected
   ↓
 .pptx buffer → res.download()
 ```
@@ -547,6 +720,7 @@ Images (embedded)          ✅  100%
 Slide transitions          ✅  100%
 Element animations         ✅  ~95% (PPTX-vocab animations)
 Morph                      ✅  100% (!! naming + morph XML)
+User manual edits          ✅  100% (same spec → same export)
 Google Fonts               ⚠️   System font substitution
 Complex SVG paths          ⚠️   Basic shapes only (Phase 1)
 CSS box-shadow             ⚠️   PPTX glow effect (approximate)
@@ -555,7 +729,33 @@ Video backgrounds          ❌  Phase 3
 
 ---
 
-## 12. State Management
+## 14. State Management
+
+### Edit State — How User + AI Edits Work Together
+
+```typescript
+// Every edit (user or AI) calls this same function:
+function applyElementPatch(
+  state: DeckState,
+  slideId: string,
+  elementId: string,
+  changes: Partial<TextStyle | ShapeStyle | ImageStyle>
+): DeckState {
+  return {
+    ...state,
+    slides: state.slides.map(slide =>
+      slide.id !== slideId ? slide : {
+        ...slide,
+        elements: slide.elements.map(el =>
+          el.id !== elementId ? el : { ...el, style: { ...el.style, ...changes } }
+        )
+      }
+    )
+  }
+}
+// User edit: call directly from property panel onChange
+// AI edit:   call from update_element tool handler → emit SSE → frontend updates
+```
 
 ### Phase 1 (MVP)
 
@@ -587,83 +787,113 @@ type DeckState = {
 
 ---
 
-## 13. Frontend — OctopilotSlidesView
+## 15. Frontend — OctopilotSlidesView
 
 ### Layout
 
 ```
-Fixed header (AppHeader)
+Fixed header (AppHeader, height 64px)
   ↓
-Left Sidebar [320px]          Main Canvas [flex-1]
-  ├── Mode header              ├── Toolbar (zoom, fit, theme, export)
-  ├── Workflow / Sources tabs  ├── Infinite canvas (pan + zoom)
-  ├── Step list (live)         │   ├── Dot-grid background
-  ├── Sources (post-research)  │   ├── Slide frames (SVG rendered)
-  └── Chat + input box         └── Thumbnail strip (horizontal)
+Left Sidebar [320px]              Main Canvas [flex-1]
+  ├── Mode header + progress ring   ├── Toolbar
+  ├── Workflow / Sources tabs       │    ├── Mode toggle [H] [V]
+  ├── Step list (live)              │    ├── Zoom controls [−][%][+][Fit]
+  ├── Sources (post-research)       │    ├── Theme picker
+  └── Chat + input box              │    └── Export button (PPTX)
+                                    │
+                                    ├── Infinite canvas (pan + zoom)
+                                    │   ├── Dot-grid background
+                                    │   └── Slide frames (SVG rendered)
+                                    │
+                                    └── Thumbnail strip (horizontal)
+
+Select mode only:
+  Right panel [280px] — Properties panel (appears when element selected)
 ```
 
 ### Canvas Interactions
 
 ```
-Left-click drag          →  pan canvas
-Scroll (trackpad)        →  pan (deltaX / deltaY)
-Ctrl + scroll / pinch    →  zoom centered on cursor
-Click slide              →  focus + zoom to slide, set active
-"Fit" button             →  fit all slides in viewport
-+/- buttons              →  step zoom ±10%
+Hand mode (H):
+  Left-click drag      →  pan canvas
+  Scroll (trackpad)    →  pan (deltaX / deltaY)
+  Ctrl + scroll        →  zoom centered on cursor
+  Click slide          →  focus + zoom to slide
+  "Fit" button         →  fit all slides in viewport
+
+Select mode (V):
+  Click element        →  select + show handles + open property panel
+  Drag element         →  move (updates x/y in spec)
+  Drag handle          →  resize (updates w/h in spec)
+  Double-click text    →  inline edit mode
+  Click canvas bg      →  deselect
+  Escape               →  back to Hand mode
 ```
 
-### Real-time SSE Events (sidebar + canvas)
+### Real-time SSE Events
 
 ```
-workflow_step     { stepId, status }           →  step indicator update
-slide_created     { id, position }             →  blank frame appears on canvas
-slide_written     { id, content }              →  text appears in slide
-slide_designed    { id, spec: SlideSpec }      →  slide fully renders
-source_found      { title, url }               →  sources tab populates
-ask_user          { question, field, type }    →  chat input activates with prompt
-workflow_complete { deckId }                   →  export button activates
-```
-
----
-
-## 14. Tech Stack
-
-```
-Frontend       Next.js 16, React 19, Tailwind CSS v4, TypeScript
-Rendering      SVG + HTML (web preview)
-Animations     GSAP (web), PptxGenJS (export)
-Morph          Flubber.js (shape interpolation, web) + !! naming (PPTX)
-PPTX Export    PptxGenJS
-Images         Unsplash API + server-side fetch for embed
-Icons          Lucide React (already installed)
-AI             Claude API (tool_use + extended thinking)
-Streaming      SSE (same as Ghostwriter)
-State (MVP)    Server in-memory Map
-State (Prod)   Firestore
-Auth           Firebase (existing)
+workflow_step          { stepId, status, detail }   →  step indicator update
+slide_created          { id, position }             →  blank frame on canvas
+slide_written          { id, content }              →  text content appears
+slide_designed         { id, spec: SlideSpec }      →  slide fully renders
+element_updated        { slideId, elementId, style }→  live property update
+source_found           { title, url }               →  sources tab populates
+ask_user               { question, field, type }    →  chat input prompts user
+workflow_complete      { deckId }                   →  export activates
 ```
 
 ---
 
-## 15. Build Phases
+## 16. Tech Stack
+
+```
+Frontend         Next.js 16, React 19, Tailwind CSS v4, TypeScript
+AI Model         Claude Opus via OpenRouter (primary_model from backendConfig)
+API Format       OpenAI-compatible (OpenRouter standard)
+Rendering        SVG + HTML (web canvas)
+Animations       GSAP (web), PptxGenJS animation XML (export)
+Morph            Flubber.js (shape interpolation, web) + !! naming (PPTX)
+PPTX Export      PptxGenJS
+Images           Unsplash API + server-side fetch for base64 embed
+Icons            Lucide React (already installed)
+Streaming        SSE — same pattern as Ghostwriter
+State (MVP)      Server in-memory Map<runId, DeckState>
+State (Prod)     Firestore
+Auth             Firebase (existing)
+
+Reused from Ghostwriter:
+  openrouter.ts        JSON call helper + retry logic
+  backendConfig.ts     getOpenRouterConfig("primary") — API key + model
+  agent/runs.ts        AgentRun type + emit() SSE helper
+  agent/tools.ts       toOpenRouterToolSpec() converter
+  routeAuth.ts         requireAuthenticatedRequest()
+```
+
+---
+
+## 17. Build Phases
 
 ### Phase 1 — MVP (Core)
 
 ```
-[ ] JSON Slide Spec schema (TypeScript types)
-[ ] SVG/HTML web renderer
-[ ] Thumbnail renderer (scaled)
-[ ] Infinite canvas (pan + zoom) — done ✅
-[ ] Basic shapes: rect, circle, triangle, oval
-[ ] Text elements
-[ ] Image elements (Unsplash URL)
-[ ] SlidesOrchestrator (agent loop)
+[ ] JSON Slide Spec schema + TypeScript types
+[ ] SVG/HTML web renderer (text, shapes, images)
+[ ] Thumbnail renderer (scaled mini previews)
+[ ] Infinite canvas (pan + zoom) — ✅ done
+[ ] Canvas mode toggle (H / V)
+[ ] Element selection + handles
+[ ] Property panel (text: font, size, color, bold, italic, underline, align)
+[ ] Property panel (shape: fill, stroke, opacity, rotation)
+[ ] Property panel (position + size for all)
+[ ] Property panel (animation: type, direction, duration, delay)
+[ ] SlidesOrchestrator (agent loop — adapted from Ghostwriter loop.ts)
 [ ] Tools: analyze_instruction, ask_user, create_slides, write_slide, design_slide, compose
+[ ] Edit tools: update_element, add_element, remove_element
 [ ] SSE streaming to frontend
-[ ] Basic transitions: fade, push (PPTX + web)
-[ ] PptxGenJS export (shapes + text + images)
-[ ] Font map (web → system)
+[ ] Basic transitions: fade, push (web + PPTX)
+[ ] PptxGenJS export (shapes + text + images, no animations yet)
+[ ] Font map (web Google Fonts → PPTX system fonts)
 ```
 
 ### Phase 2 — Power
@@ -671,53 +901,60 @@ Auth           Firebase (existing)
 ```
 [ ] search_source + analyze_source tools
 [ ] fetch_image tool (Unsplash API)
-[ ] Per-element animations (fly-in, fade, zoom)
-[ ] Morph transition (!! naming + Flubber.js + GSAP)
+[ ] Per-element GSAP animations in web renderer
+[ ] Animation export in PptxGenJS (fly-in, fade, zoom)
+[ ] Morph transition (Flubber.js + GSAP web, !! XML PPTX)
 [ ] Advanced shapes: diamond, hexagon, arrow, speech bubble, star
-[ ] Custom path shapes
+[ ] reorder_slides + update_slide_background tools
+[ ] "AI Assist" button in property panel
+[ ] Inline text editing (double-click)
+[ ] Undo / Redo (command history stack)
+[ ] Keyboard shortcuts (Ctrl+B, Ctrl+I, Ctrl+Z etc.)
 [ ] Google Font embedding in PPTX
 [ ] Firestore persistence
-[ ] Speaker notes in export
-[ ] delete_slide tool
+[ ] Speaker notes view
 ```
 
 ### Phase 3 — Frontier
 
 ```
-[ ] AI-generated images (DALL-E / Flux via fetch_image)
-[ ] Charts (bar, pie, line) — D3 or Recharts + PPTX chart XML
+[ ] AI-generated images (DALL-E / Flux)
+[ ] Charts (bar, pie, line) — D3 + PPTX chart XML
 [ ] Video backgrounds
-[ ] Complex emphasis animations (teeter, bold reveal)
-[ ] Motion path animations
-[ ] Deck themes (AI picks from theme library)
+[ ] Complex emphasis animations (teeter, bold reveal, motion path)
+[ ] Present mode (full-screen browser slideshow)
 [ ] Collaborative editing (multi-user canvas)
-[ ] Present mode (full-screen browser presentation)
-[ ] Slide notes view (presenter mode)
+[ ] Deck themes (AI picks from curated theme library)
 [ ] Version history
+[ ] Export to PDF (jsPDF — already installed)
+[ ] Multi-select + group editing
 ```
 
 ---
 
-## 16. Open Questions
+## 18. Open Questions
 
 ```
 Q1: Image generation model — DALL-E 3 vs Flux Schnell vs Ideogram?
-    (Cost, quality, speed tradeoff)
+    Cost / quality / speed tradeoff. Decide before Phase 3.
 
-Q2: Unsplash API key — free tier limits (50 req/hour for demo)
-    Need production key for scale.
+Q2: Unsplash API key — free tier: 50 req/hour (demo).
+    Need production key for scale. Already used elsewhere in Octopilot?
 
-Q3: Morph on web — Flubber.js vs GSAP MorphSVG plugin (paid)?
-    Flubber is free, open source, handles shape interpolation well.
+Q3: Morph on web — Flubber.js (free, OSS) vs GSAP MorphSVG (paid plugin)?
+    Flubber handles shape-to-shape interpolation well. Recommend Flubber.js.
 
-Q4: PptxGenJS font embedding — test with custom .ttf files
-    Verify it works cleanly in current Next.js build.
+Q4: PptxGenJS animation export — verify animation XML output is correct
+    for Claude Opus–generated specs before shipping Phase 1.
 
-Q5: Slide count limit — what's reasonable per run?
-    MVP: 15 slides max. Production: unlimited with streaming.
+Q5: Slide count limit per run?
+    MVP: 15 slides max. Production: unlimited (streaming handles it).
 
-Q6: ask_user — inline in chat or modal overlay?
-    Decision: inline in chat (consistent with Ghostwriter pattern).
+Q6: Property panel — right sidebar (fixed) or floating panel (contextual)?
+    Decision: right sidebar for Phase 1, floating panel Phase 2.
+
+Q7: Undo/redo scope — per-element or full deck snapshot?
+    Recommend: command pattern (each edit = reversible command object).
 ```
 
 ---
