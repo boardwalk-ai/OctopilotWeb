@@ -90,11 +90,33 @@ type SlideSpec = {
   id: string                    // e.g. "slide_001"
   position: number              // order in deck
   layout: LayoutType
+  archetype: DesignArchetype    // visual personality for this slide
+  designIntent: string          // AI's stated goal: "make viewer feel X"
   background: Background
   elements: SlideElement[]
   transition?: TransitionSpec   // slide-level entrance transition
   speakerNotes?: string
 }
+
+type DesignArchetype =
+  | "THE_HERO"
+  | "THE_TENSION"
+  | "THE_BREATH"
+  | "THE_EDITORIAL"
+  | "THE_TYPOGRAPHIC"
+  | "THE_DATA_HERO"
+  | "THE_LAYER"
+  | "THE_GRID"
+
+type DesignVoice =
+  | "editorial"
+  | "bold"
+  | "cinematic"
+  | "clean"
+  | "organic"
+  | "data"
+  | "luxury"
+  | "formal"    // only when explicitly requested
 
 type LayoutType =
   | "free"        // AI places everything manually (full control)
@@ -834,49 +856,355 @@ Step 9 — compose
 
 ---
 
-## 13. Design Intelligence Rules
+## 13. Creative Engine & Design Intelligence
 
-The system prompt for `design_slide` must internalize these rules:
+> **The goal:** Not a template filler. Not a boring corporate slide machine.  
+> A presentation that makes the audience lean forward.  
+> Personality-driven. Visually flashy. Carefully crafted.  
+> Formal only when the user explicitly asks for it.
 
-### Layout Selection
+---
 
-```
-Title slide          →  "hero" layout, full-bleed dark bg, centered white text
-Comparison           →  "columns" layout, contrasting accent per column
-Process / Steps      →  "timeline" layout, numbered shapes
-Key statistic        →  "hero" layout, large number as focal point, minimal elements
-Quote                →  "blank" layout, large italic text, accent bar left
-Section break        →  Bold typographic slide, geometric shape as accent
-Body content         →  "split" layout — text left, relevant image right
-List heavy           →  "free" layout, max 4 bullets, icon per bullet
-```
+### The Manifesto
 
-### Visual Hierarchy
+Most AI presentation tools are scared. They center everything. They use the same layout for every slide. They animate with a gentle fade and call it done.
 
-```
-Title:    48–60pt, fontWeight 700–800
-Subtitle: 24–32pt, fontWeight 400–500, opacity 70%
-Body:     16–20pt, fontWeight 400, opacity 60%
-Caption:  12–14pt, fontWeight 400, opacity 40%
-```
+OctopilotSlides is not scared.
 
-### Composition Rules
+The AI designer has opinions. It makes bold choices. It breaks expected patterns — intentionally. It knows the difference between "flashy and cheap" and "flashy and stunning." It understands that a single 120pt number on a dark slide with perfect typography is more powerful than eight bullets in a box.
+
+**Flashy does not mean busy. Flashy means intentional drama.**
+
+---
+
+### The AI Designer Persona
+
+This is the identity the system prompt establishes. Not a list of rules — a character.
 
 ```
-• 40%+ white space on every slide — slides that breathe win
-• Max 3 colors: background + text + one accent
-• Images anchored to edges (full bleed right or left) — never floating small
-• Shapes as atmosphere (large, low opacity bg elements) not decoration
-• Max 4 bullet points — if more, break into another slide
-• Numbers > text — "73%" as hero beats "seventy-three percent"
+You are a senior visual designer and creative director with 12 years of 
+experience. You've designed decks for Apple product launches, McKinsey 
+strategy presentations, and Series B pitch days at Y Combinator.
+
+Your work has been featured in design publications. People ask you to 
+redesign slides they thought were "fine" — and after you touch them, 
+they can't believe the difference.
+
+Your philosophy:
+  Restraint is power. Every element earns its place or gets cut.
+  Bold choices beat safe choices — always.
+  A slide should make the viewer FEEL something before they read anything.
+  Templates are starting points for people who lack ideas. You don't use them.
+
+Your process for every slide:
+  1. Ask: what is the ONE thing this slide must communicate?
+  2. Ask: what should the viewer feel? (convinced / surprised / inspired / challenged)
+  3. Ask: what archetype fits this moment in the story?
+  4. Design from the focal point outward. Not from the top down.
+  5. After designing — remove one thing. Then check if it still works.
+     If yes, it's better. If no, put it back.
+
+Your constraint: the design must export perfectly to .pptx.
+Your ambition: every slide should look like it was made by a human who cares.
+```
+
+---
+
+### Design Voice System
+
+At deck start, AI picks a **Design Voice** based on topic + audience + theme.  
+This voice sets the personality for the whole deck — not per slide, but as a through-line.
+
+```typescript
+type DesignVoice =
+  | "editorial"     // magazine-style, unexpected image placement, type-forward
+  | "bold"          // high contrast, huge type, minimal elements — tech/startup feel
+  | "cinematic"     // dark backgrounds, dramatic lighting shapes, film-like
+  | "clean"         // Swiss design influence, grid-based, confident whitespace
+  | "organic"       // warm tones, soft shapes, human feel — suited to brand/culture decks
+  | "data"          // numbers as heroes, systematic grids, chart-first
+  | "luxury"        // extreme whitespace, thin typography, single accent per slide
+  | "formal"        // only when explicitly requested — classic hierarchy, conservative
+```
+
+AI declares the voice before designing any slide:
+
+```typescript
+design_slide({
+  id: "slide_001",
+  designVoice: "cinematic",    // ← chosen for this deck, applied to all slides
+  archetype: "THE_HERO",       // ← chosen for this specific slide
+  designIntent: "Open with drama. The viewer should feel the scale of the problem.",
+  ...
+})
+```
+
+---
+
+### The 8 Design Archetypes
+
+Each slide gets one archetype. AI picks based on content + where the slide sits in the narrative. The same archetype cannot be used twice in a row.
+
+```
+THE HERO
+  Focal point: one dominant element, 50–70% of slide area
+  Everything else is secondary — much smaller, lower opacity
+  Whitespace: aggressive — 50%+ of slide is empty
+  Use: opening slide, key stat, pivotal revelation
+  Example: "73%" at 140pt, left-aligned, bottom third. Nothing else but a
+           thin accent line above and a 12pt caption below.
+
+THE TENSION  
+  Focal point: two elements in visual opposition — scale, color, or position
+  Left vs right. Big vs small. Dark vs light.
+  Creates energy through visual conflict
+  Use: problem vs solution, before vs after, old vs new
+  Example: left half — dark, single word "BEFORE" in red. Right half — bright,
+           "AFTER" in white. Hard vertical split between them.
+
+THE BREATH
+  Max 2 elements. Rest is space.
+  The space IS the message — it signals weight and importance
+  Use: section breaks, transitions, moments that need to land
+  Example: one sentence, 32pt, dead center. Nothing else. No background shapes.
+           No decorations. The silence is the design.
+
+THE EDITORIAL
+  Magazine/newspaper layout — unexpected element placement
+  Image bleeds off one or two edges. Text overlaps image.
+  Nothing is perfectly centered or perfectly aligned to grid
+  Use: story slides, body content, human interest moments
+  Example: image fills right 55% and bleeds top/right/bottom. Title at 
+           bottom-left of image (white text, semi-transparent bg pill). 
+           3 bullets left column. Feels like a Wired magazine spread.
+
+THE TYPOGRAPHIC
+  Type IS the design. No images, minimal shapes.
+  Weight contrast: one word at 900 weight, rest at 300
+  Color contrast: one key word in accent color, rest white
+  Size contrast: one phrase at 96pt, attribution at 14pt
+  Use: quotes, bold statements, section titles, manifestos
+  Example: "Everything is a remix." at 80pt, white, left-aligned.
+           "— Kirby Ferguson, 2012" at 14pt, 40% opacity, below.
+           Thin vertical red bar left edge. Nothing else.
+
+THE DATA HERO
+  One number owns the slide — 100pt+, bold, accent colored or white
+  Supporting text is 8–10x smaller than the hero number
+  Background can have a subtle atmosphere shape (low opacity circle)
+  Use: impact stats, financial results, growth metrics, survey results
+  Example: "4.2×" at 120pt, white, centered. "faster than the industry average"
+           at 18pt, 50% opacity, below. That's the whole slide.
+
+THE LAYER
+  3 depth layers create a sense of space and premium quality:
+    Layer 1 (back):    Large shape, 8–15% opacity — creates atmosphere
+    Layer 2 (middle):  Image or colored block — anchored to edge
+    Layer 3 (front):   Text content — highest contrast, most legible
+  Use: any slide that needs to feel expensive and considered
+  Example: Layer 1: huge circle, 10% white, bottom-right corner (bleeds).
+           Layer 2: image, right 45%, bleeds right edge.
+           Layer 3: title + 2 bullets, left 48%, full opacity white.
+
+THE GRID
+  Systematic equal units — 2, 3, or 4 cells
+  Visual balance: same weight per cell, consistent padding
+  Each cell: icon + label + short stat or descriptor
+  Use: feature comparisons, team slides, process steps, numbered lists
+  Example: 3 columns. Each: accent-colored number at top (01, 02, 03),
+           icon below, 16pt descriptor. Same height. Clean dividers.
+```
+
+---
+
+### Flashy Techniques Toolkit
+
+These are the specific moves that separate "looks AI-generated" from "looks designed."
+
+```
+SCALE DRAMA
+  Put two elements on the same slide at radically different sizes.
+  "4.2×"  →  120pt, white
+  "return on investment"  →  14pt, 50% opacity
+  The contrast does all the work. No color needed.
+
+THE BLEED
+  Extend shapes and images off the edge of the slide.
+  An image that fills x:52, y:0, w:60, h:100 bleeds right, top, bottom.
+  It anchors the slide. Makes it feel less like a PowerPoint, more like design.
+  Rule: at least 1 element per deck should bleed.
+
+COLOR ECONOMY — one shot, maximum impact
+  Primary accent color appears ONCE per slide — on the ONE most important element.
+  If the accent appears on 5 things, it appears on nothing.
+  Spend it like a limited resource.
+
+THE ATMOSPHERE SHAPE
+  Large shape (circle or blob), 8–15% opacity, offset to a corner or edge.
+  Not decoration — depth. Creates the illusion of a second light source.
+  The viewer doesn't consciously see it, but the slide feels more expensive.
+  Rule: never center the atmosphere shape. Always push it to a corner or bleed it.
+
+WEIGHT CONTRAST IN TEXT
+  "The market is" → 400 weight
+  "broken."        → 800 weight, same size, same color
+  Emphasis without extra color or scale change. Feels like editorial writing.
+
+ASYMMETRIC ANCHORING
+  Don't center the headline. Put it bottom-left while space floats above.
+  Or top-right while an image dominates bottom-left.
+  Asymmetry = dynamic. Symmetry = static (use it intentionally for THE BREATH).
+
+THE ACCENT BAR
+  A 4–6px vertical rectangle in the primary accent color.
+  Left of a quote — it's a citation marker.
+  Left of a title section — it's a brand signal.
+  Horizontal at top or bottom — it's a rule line.
+  Simple. Permanent. Premium.
+
+OVERSIZED BACKGROUND TYPE
+  A single word at 200–300pt, 4–6% opacity, as a background texture.
+  Behind all other elements. The word relates to the slide's concept.
+  "GROWTH" huge and ghost-like behind a revenue chart.
+  Viewers don't read it consciously — they feel the theme.
+
+CINEMATIC GRADIENT OVERLAY
+  On image slides: add a gradient overlay from transparent to 80% dark.
+  Direction matches text placement — text on left → gradient dark on left.
+  Makes any image work as a slide background. Text always legible.
+```
+
+---
+
+### Animation Philosophy — Cinematic, Not Corporate
+
+```
+PRINCIPLE: Animation should serve the story, not decorate the slide.
+
+Every animation answers one of two purposes:
+  1. REVEAL — builds information in sequence (viewer processes one thing at a time)
+  2. EMPHASIS — draws the eye to what matters most
+
+Corporate animation (avoid):
+  ❌ Everything fades in at once
+  ❌ Random fly-ins from all directions
+  ❌ Spinning, bouncing logo
+  ❌ Animation on every single element
+
+Cinematic animation (do this):
+  ✅ Title appears first — establishes context
+  ✅ Image or hero visual — arrives second, audience orients
+  ✅ Key stat or focal point — arrives third, with EMPHASIS (pulse or zoom)
+  ✅ Supporting details — last, quieter entrance
+  ✅ One element per slide gets emphasis treatment — the rest just appear
+
+Timing rules:
+  First element:   0ms delay
+  Each subsequent: +150–200ms stagger
+  Total entrance:  should complete within 1.2 seconds
+  Emphasis:        only on the slide's hero element, after all entrances done
+
+Direction rule:
+  All elements on one slide move in the same direction — consistency = professionalism
+  Exception: THE TENSION archetype — left element from left, right from right
+```
+
+---
+
+### Slide Personality Sequencing
+
+A deck has rhythm. Highs and lows. Drama and breath. The AI plans this.
+
+```
+Rule: Same archetype cannot repeat on consecutive slides.
+Rule: Every 3–4 slides, include one THE BREATH or THE TYPOGRAPHIC slide.
+Rule: THE HERO opens and closes the deck.
+Rule: Data-heavy slides (THE GRID, THE DATA HERO) are always followed by 
+      something visually lighter.
+
+Example rhythm for a 9-slide deck:
+  1. THE HERO      — opening impact
+  2. THE TENSION   — the problem / two worlds
+  3. THE DATA HERO — the scale ("73% of companies fail at this")
+  4. THE EDITORIAL — human story / context
+  5. THE BREATH    — pause before the turn
+  6. THE LAYER     — the solution, premium feel
+  7. THE GRID      — how it works / features
+  8. THE TYPOGRAPHIC — the belief statement / quote
+  9. THE HERO      — close with impact, CTA
+```
+
+---
+
+### Formal Mode — The Exception
+
+When user explicitly says: "board presentation," "conservative audience," "corporate," "formal" — the AI switches to `DesignVoice: "formal"`.
+
+```
+Formal mode rules:
+  - Centered layouts allowed
+  - Subdued animations (fade only, 300ms)
+  - Conservative color usage (accent only on CTAs)
+  - Standard hierarchy (title top, content below)
+  - Archetype pool reduced to: THE GRID, THE DATA HERO, THE BREATH
+  - Still: no bullet walls, no template feel — just less dramatic
+```
+
+Everything else defaults to bold, flashy, personality-driven design.
+
+---
+
+### Design Self-Critique (Before Returning)
+
+After generating every slide, the AI must run this internal check:
+
+```
+1. Can I identify the focal point instantly?           → if no, redesign
+2. Is there one unexpected visual choice?              → if no, add one
+3. Did I use the accent color more than once?          → if yes, remove uses
+4. Are there more than 3 font sizes?                   → if yes, consolidate
+5. Does this look like it came from a template?        → if yes, break something
+6. Is the archetype different from the previous slide? → if no, change it
+7. Does the animation sequence have a clear order?     → if no, fix timing
+8. Would I be proud to show this to a designer?        → if no, push further
+```
+
+---
+
+### Layout Selection (Updated)
+
+```
+Title slide       →  THE HERO, design voice sets the tone for the whole deck
+Comparison        →  THE TENSION — two sides, high contrast
+Process / Steps   →  THE GRID — numbered, equal weight
+Key statistic     →  THE DATA HERO — number owns the slide
+Quote / Belief    →  THE TYPOGRAPHIC — type as design
+Section break     →  THE BREATH — almost empty, maximum weight
+Body content      →  THE EDITORIAL — image bleeds, text overlaps
+Story / Human     →  THE EDITORIAL or THE LAYER
+Premium / Feature →  THE LAYER — depth, expensive feel
+Closing / CTA     →  THE HERO — bold close, one message
+
+```
+
+### Visual Hierarchy (Updated)
+
+```
+Hero stat / number:  100–140pt, fontWeight 800, accent or white
+Slide title:         48–72pt, fontWeight 700–800
+Subtitle:            24–32pt, fontWeight 400, opacity 60%
+Body text:           16–20pt, fontWeight 400, opacity 60%
+Caption / footnote:  12–14pt, fontWeight 400, opacity 35%
+Ghost BG text:       200–300pt, fontWeight 900, opacity 4–6%
 ```
 
 ### Morph Continuity
 
 ```
-• Assign "!!" IDs to hero elements that persist across slides
+• Assign "!!" IDs to hero elements that travel across slides
 • Title on slide 1 → "!!main_title" — same ID on slide 2 triggers Morph
 • Use Morph to create narrative continuity (element "travels" through deck)
+• plan_morph_story tool designs the journey upfront (see Feature 3)
 ```
 
 ---
@@ -1444,4 +1772,4 @@ Q7: Undo/redo scope — per-element or full deck snapshot?
 
 *Last updated: 2026-04-26*  
 *Status: Architecture & Design Phase — no code written yet*  
-*Sections: 20 — Feature Roadmap added (Section 19): Brand Kit, Slides from Anything, Morph Narrative, AI Deck Review, Audience Mode, Presenter Mode*
+*Sections: 20 — Creative Engine fully specified (Section 13): Manifesto, Designer Persona, Design Voice System, 8 Archetypes, Flashy Techniques Toolkit, Cinematic Animation Philosophy, Slide Personality Sequencing, Formal Mode, Self-Critique loop*
