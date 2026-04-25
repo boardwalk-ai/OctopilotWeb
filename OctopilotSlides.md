@@ -1057,7 +1057,9 @@ Reused from Ghostwriter:
 [ ] fetch_image tool (Unsplash API)
 [ ] Per-element GSAP animations in web renderer
 [ ] Animation export in PptxGenJS (fly-in, fade, zoom)
+[ ] Smart animation choreography (narrative-aware timing in system prompt)
 [ ] Morph transition (Flubber.js + GSAP web, !! XML PPTX)
+[ ] Morph Narrative Planning — plan_morph_story tool (Feature 3)
 [ ] Advanced shapes: diamond, hexagon, arrow, speech bubble, star
 [ ] reorder_slides + update_slide_background tools
 [ ] "AI Assist" button in property panel
@@ -1067,6 +1069,11 @@ Reused from Ghostwriter:
 [ ] Google Font embedding in PPTX
 [ ] Firestore persistence
 [ ] Speaker notes view
+[ ] Brand Kit — BrandKit schema + update_brand_kit tool (Feature 1)
+[ ] Slides from Anything — ingest_source tool (URL/PDF/DOCX) (Feature 2)
+[ ] AI Deck Review — review_deck tool + feedback panel (Feature 4)
+[ ] Audience Mode — AudienceMode type + deck versioning (Feature 5)
+[ ] Presenter Mode — /present/[deckId] route + keyboard nav (Feature 6)
 ```
 
 ### Phase 3 — Frontier
@@ -1076,17 +1083,286 @@ Reused from Ghostwriter:
 [ ] Charts (bar, pie, line) — D3 + PPTX chart XML
 [ ] Video backgrounds
 [ ] Complex emphasis animations (teeter, bold reveal, motion path)
-[ ] Present mode (full-screen browser slideshow)
 [ ] Collaborative editing (multi-user canvas)
-[ ] Deck themes (AI picks from curated theme library)
-[ ] Version history
+[ ] Version history + deck snapshots
 [ ] Export to PDF (jsPDF — already installed)
 [ ] Multi-select + group editing
+[ ] Google Slides export (content only, no animations)
 ```
 
 ---
 
-## 19. Open Questions
+## 19. Feature Roadmap — Confirmed Features
+
+Six features confirmed for the product roadmap.
+
+---
+
+### Feature 1: Brand Kit
+
+Every company has brand guidelines. OctopilotSlides is the only AI deck tool that respects them.
+
+**What it does:**
+Users upload their brand once. Every deck AI generates stays on-brand — automatically.
+
+**Brand Kit Schema:**
+
+```typescript
+type BrandKit = {
+  companyName: string
+  logoUrl?: string               // PNG/SVG — embedded on title + closing slides
+  palette: {
+    primary: string              // brand primary color (hex)
+    secondary: string            // brand secondary color
+    background: string           // preferred slide bg
+    text: string                 // preferred text color
+  }
+  typography: {
+    heading: string              // e.g. "Montserrat"
+    body: string                 // e.g. "Inter"
+  }
+  tone?: "formal" | "modern" | "playful" | "minimal"
+  tagline?: string               // optionally placed on title slide
+}
+```
+
+**How it integrates:**
+- Stored in user profile (Firestore)
+- At deck start: `ask_user` offers "Use Brand Kit" as first theme option
+- If selected: `DeckTheme` is synthesized from `BrandKit.palette` + `BrandKit.typography`
+- Logo placed automatically on slide 1 and slide N (closing)
+- `companyName` inserted into title slide subtitle
+
+**Tool:** `update_brand_kit` — user can update via settings, AI can read but not overwrite
+
+**Why it matters:** Gamma, Beautiful.ai, Tome — none do this. It's the #1 request from B2B users.
+
+---
+
+### Feature 2: Slides from Anything
+
+Paste a URL. Upload a PDF. Drop a Word doc. Get a deck.
+
+**Supported inputs:**
+
+```
+URL:   Blog post / article / research paper / product page / Wikipedia
+PDF:   Company report / whitepaper / academic paper
+DOCX:  Word document / existing outline
+Text:  Raw pasted text (already supported via main input)
+```
+
+**How it works:**
+
+```
+User pastes URL or uploads file
+        ↓
+New tool: ingest_source({ type: "url"|"pdf"|"docx", content })
+        ↓
+Extracts: title, key sections, facts, data, quotes
+        ↓
+Returns: { outline, keyPoints[], rawText }
+        ↓
+analyze_instruction uses this as the brief
+        ↓
+Normal generation flow continues
+```
+
+**New tool: `ingest_source`**
+
+```typescript
+ingest_source({
+  type: "url" | "pdf" | "docx",
+  url?: string,           // for URL type
+  fileBase64?: string,    // for PDF/DOCX
+  fileName?: string
+})
+// returns: { title, outline, keyPoints[], quotes[], data[], rawText }
+```
+
+**Implementation:**
+- URL: Cheerio / Readability to extract clean article text (server-side)
+- PDF: `pdf-parse` npm package
+- DOCX: `mammoth` npm package (already battle-tested)
+
+**Frontend:** drag-and-drop zone or URL input box in sidebar — above the chat input
+
+---
+
+### Feature 3: Morph Narrative Planning
+
+The most unique feature in the market. No other AI deck tool does this.
+
+**The concept:**
+AI plans a *visual story* upfront — a key shape morphs and transforms across the deck, acting as a visual metaphor that travels with the narrative.
+
+**How the AI plans it:**
+
+Before running `design_slide` on individual slides, AI runs `plan_morph_story`:
+
+```typescript
+plan_morph_story({
+  deckId: string,
+  narrative: string,          // "problem → scale → solution → outcome"
+  morphElement: {
+    id: "!!story_shape",      // persists across all slides
+    concept: string,          // "a circle representing the problem"
+    journey: [
+      { slideId: "slide_001", shape: "circle",    meaning: "the problem exists",   style: { fill: "#ef4444", size: 15 } },
+      { slideId: "slide_003", shape: "oval",      meaning: "problem is growing",   style: { fill: "#dc2626", size: 25 } },
+      { slideId: "slide_005", shape: "rectangle", meaning: "problem is contained", style: { fill: "#f59e0b", size: 20 } },
+      { slideId: "slide_007", shape: "circle",    meaning: "problem is solved",    style: { fill: "#22c55e", size: 18 } },
+      { slideId: "slide_009", shape: "star",      meaning: "outcome achieved",     style: { fill: "#f59e0b", size: 22 } },
+    ]
+  }
+})
+```
+
+`design_slide` then includes `!!story_shape` in the specified slides with the planned style.
+
+**Web:** Flubber.js interpolates shape paths — circle smoothly morphs to rectangle to star
+**PPTX:** Same `!!` element IDs → PowerPoint Morph transition XML — 100% fidelity
+
+**System prompt rule:** AI must plan morph story ONLY when narrative arc is clear (problem/solution, before/after, journey). Not forced on every deck.
+
+---
+
+### Feature 4: AI Deck Review
+
+After generation (or at any time), user clicks **"Review Deck"** — AI audits the full deck and gives structured feedback.
+
+**Output format:**
+
+```
+📊 Deck Score: 78 / 100
+
+🔴 Issues (fix these):
+  Slide 2:  7 bullets — too dense. Max 4. Split into 2 slides.
+  Slide 5:  No visual. Pure text. Add a shape, chart, or image.
+  Missing:  No closing/CTA slide. Add one.
+
+🟡 Suggestions (consider these):
+  Slide 4:  Headline is weak — "Results" → try "Revenue up 3× in 6 months"
+  Slide 6:  Stat is buried in body text — make it the hero (large number, center slide)
+  Slide 8:  Animation is heavy — 6 animated elements on one slide feels chaotic
+
+✅ What's working:
+  Visual hierarchy is consistent across all slides.
+  Good use of white space on slides 1, 3, 7.
+  Morph continuity is clean.
+
+Estimated presentation time: ~12 minutes at 1.5 min/slide
+```
+
+**How it works:**
+- Separate LLM call (not part of agent loop)
+- Input: full `DeckState` serialized as JSON + `SlideSpec[]`
+- System prompt: deck review criteria (visual hierarchy, content density, narrative flow, CTA presence)
+- Output: structured `DeckReview` JSON → rendered as feedback panel in sidebar
+
+**New tool** (or direct API call): `review_deck`
+
+**Cost:** ~1 LLM call, cheap. Can offer as free feature.
+
+---
+
+### Feature 5: Audience Mode
+
+Same content. Different deck for different audiences. One click.
+
+**Audience profiles:**
+
+```typescript
+type AudienceMode =
+  | "board"         // formal, data-first, conservative design, dense info ok
+  | "investor"      // punchy, hero numbers, bold visuals, 10-slide max, narrative-driven
+  | "conference"    // visual-heavy, minimal text, big images, presentation-optimized
+  | "internal"      // casual, info-dense, less design polish needed
+  | "client"        // professional, outcome-focused, solution-framing
+  | "custom"        // user describes their audience
+```
+
+**How it works:**
+
+```
+User has completed "board" deck
+        ↓
+Clicks "Audience Mode" → selects "investor"
+        ↓
+AI re-runs design_slide (per slide) with:
+  - same write_slide content (text unchanged)
+  - new audienceMode: "investor" context
+  - instruction: "reframe for investors — focus on traction, market size, ROI"
+        ↓
+New deck version created (original preserved)
+        ↓
+User can toggle between versions in UI
+```
+
+**DeckState versioning:** `DeckState.versions: Record<AudienceMode, SlideSpec[]>`
+
+**Frontend:** "Audience" button in toolbar → dropdown → generates new version → tab-switch between versions
+
+---
+
+### Feature 6: Presenter Mode
+
+Present directly from the browser. No export needed.
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Current Slide (full-screen)                                 │
+│                                                              │
+│  [animated, GSAP plays on click/keyboard]                    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+
+Presenter view (separate window / second screen):
+┌──────────────────────┬──────────────────────────────────────┐
+│  Current slide mini  │  Speaker Notes                        │
+│  Next slide mini     │                                       │
+│                      │  ⏱ 4:32  [Slide 3 / 9]               │
+└──────────────────────┴──────────────────────────────────────┘
+```
+
+**Controls:**
+
+```
+→ / Space       Next slide / next animation step
+←              Previous slide
+F / Escape     Enter / exit fullscreen
+L              Laser pointer mode (red dot follows cursor)
+B              Blank screen (black — audience attention)
+```
+
+**Animations:** GSAP timelines trigger on click — same animation system used in canvas preview, no new code needed
+
+**Speaker notes:** Already in `SlideSpec.speakerNotes` — just display them
+
+**Timer:** Simple `setInterval` counting up from 00:00
+
+**Implementation:** New route `/present/[deckId]` — reads from DeckState, renders full-screen SlideCanvas with keyboard event listeners
+
+---
+
+### Competitive Position After These 6 Features
+
+```
+Feature                    Gamma   Beautiful.ai   Tome   OctopilotSlides
+───────────────────────────────────────────────────────────────────────────
+Brand Kit                    ❌         ❌          ❌         ✅
+Slides from URL/PDF          partial    ❌          ❌         ✅
+Morph Narrative (AI-planned) ❌         ❌          ❌         ✅  ← unique
+AI Deck Review               ❌         ❌          ❌         ✅
+Audience Mode                ❌         ❌          ❌         ✅
+Presenter Mode               ✅         ❌          ❌         ✅
+```
+
+---
+
+## 20. Open Questions
 
 ```
 Q1: Image generation model — DALL-E 3 vs Flux Schnell vs Ideogram?
@@ -1115,4 +1391,4 @@ Q7: Undo/redo scope — per-element or full deck snapshot?
 
 *Last updated: 2026-04-26*  
 *Status: Architecture & Design Phase — no code written yet*  
-*Sections: 19 — Color Theme System added (Section 9)*
+*Sections: 20 — Feature Roadmap added (Section 19): Brand Kit, Slides from Anything, Morph Narrative, AI Deck Review, Audience Mode, Presenter Mode*
