@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { PNG } from "pngjs";
 import type {
   Background,
   DeckTheme,
@@ -14,6 +15,10 @@ import { toPptxFont } from "@/types/slides";
 // 16:9 widescreen in PPTX inches (default in PowerPoint)
 const SLIDE_W_IN = 10;
 const SLIDE_H_IN = 5.625;
+
+/** Raster size for gradient → PNG backgrounds (16:9, enough for crisp projection). */
+const GRADIENT_PNG_W = 1920;
+const GRADIENT_PNG_H = 1080;
 
 function pctX(x: number): number {
   return (x / 100) * SLIDE_W_IN;
@@ -48,12 +53,131 @@ function textAlign(align: TextElement["style"]["align"]) {
   return "left";
 }
 
-function backgroundToSlideFill(bg: Background): { color?: string } {
-  if (bg.type === "solid") return { color: hexNoHash(bg.color) };
-  // MVP: gradients + images are handled as best-effort (solid fallback)
-  if (bg.type === "gradient") return { color: hexNoHash(bg.from) };
-  if (bg.type === "image") return { color: "000000" };
-  return { color: "000000" };
+function parseHexRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hexNoHash(hex);
+  if (h.length === 3) {
+    return {
+      r: parseInt(h[0] + h[0], 16),
+      g: parseInt(h[1] + h[1], 16),
+      b: parseInt(h[2] + h[2], 16),
+    };
+  }
+  if (h.length === 6) {
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+  return { r: 0, g: 0, b: 0 };
+}
+
+/**
+ * CSS `linear-gradient(angle, from, to)`–aligned raster (angle in deg, 0 = up, 90 = right).
+ * PptxGenJS does not emit OOXML gradFill for slide backgrounds; we match the web renderer via PNG.
+ */
+function linearGradientToPngBuffer(
+  width: number,
+  height: number,
+  fromHex: string,
+  toHex: string,
+  angleDeg: number,
+): Buffer {
+  const from = parseHexRgb(fromHex);
+  const to = parseHexRgb(toHex);
+  const rad = (angleDeg * Math.PI) / 180;
+  const gx = Math.sin(rad);
+  const gy = -Math.cos(rad);
+
+  const corners: [number, number][] = [
+    [0, 0],
+    [width, 0],
+    [0, height],
+    [width, height],
+  ];
+  let minO = Infinity;
+  let maxO = -Infinity;
+  for (const [x, y] of corners) {
+    const o = x * gx + y * gy;
+    minO = Math.min(minO, o);
+    maxO = Math.max(maxO, o);
+  }
+  const span = maxO - minO || 1;
+
+  const png = new PNG({ width, height, colorType: 6 });
+  const { data } = png;
+  let i = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const t = clamp01((x * gx + y * gy - minO) / span);
+      data[i++] = Math.round(from.r + (to.r - from.r) * t);
+      data[i++] = Math.round(from.g + (to.g - from.g) * t);
+      data[i++] = Math.round(from.b + (to.b - from.b) * t);
+      data[i++] = 255;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
+function gradientBackgroundToDataUrl(bg: Extract<Background, { type: "gradient" }>): string {
+  const buf = linearGradientToPngBuffer(
+    GRADIENT_PNG_W,
+    GRADIENT_PNG_H,
+    bg.from,
+    bg.to,
+    bg.angle,
+  );
+  return `data:image/png;base64,${buf.toString("base64")}`;
+}
+
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n));
+}
+
+async function applySlideBackground(slide: any, bg: Background) {
+  if (bg.type === "solid") {
+    slide.background = { color: hexNoHash(bg.color) };
+    return;
+  }
+
+  if (bg.type === "gradient") {
+    slide.addImage({
+      data: gradientBackgroundToDataUrl(bg),
+      x: 0,
+      y: 0,
+      w: SLIDE_W_IN,
+      h: SLIDE_H_IN,
+    });
+    return;
+  }
+
+  if (bg.type === "image") {
+    // Base layer: full-bleed image.
+    const img = await fetchImageData(bg.src);
+    slide.addImage({
+      data: img.data,
+      x: 0,
+      y: 0,
+      w: SLIDE_W_IN,
+      h: SLIDE_H_IN,
+    });
+
+    // Optional overlay to ensure legibility (e.g. darken).
+    if (bg.overlay) {
+      const opacity = bg.overlayOpacity == null ? 0.6 : clamp01(bg.overlayOpacity);
+      slide.addShape("rect", {
+        x: 0,
+        y: 0,
+        w: SLIDE_W_IN,
+        h: SLIDE_H_IN,
+        fill: {
+          color: hexNoHash(bg.overlay),
+          transparency: Math.round((1 - opacity) * 100),
+        },
+        line: { color: "000000", transparency: 100 },
+      });
+    }
+  }
 }
 
 function mapShapeType(shape: ShapeElement["shape"]): string {
@@ -213,10 +337,7 @@ export async function renderDeckToPptxBuffer(args: {
   for (const spec of ordered) {
     const slide = pptx.addSlide();
 
-    const bg = backgroundToSlideFill(spec.background);
-    if (bg.color) {
-      slide.background = { color: bg.color };
-    }
+    await applySlideBackground(slide, spec.background);
 
     for (const el of spec.elements as SlideElement[]) {
       if (el.type === "text") addText(slide, el as TextElement, args.theme);

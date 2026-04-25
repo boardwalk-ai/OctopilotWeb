@@ -119,6 +119,7 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
   - [x] Text rendering (FONT_MAP via `toPptxFont()`)
   - [x] Shape rendering (basic shapes; best-effort mapping)
   - [x] Image rendering (server-side fetch → base64 embed)
+  - [x] Gradient slide backgrounds (CSS-linear-gradient angles → raster PNG via `pngjs`, full-bleed image layer)
   - [x] Speaker notes
   - [ ] Slide transitions (skipped for now; depends on exact PptxGenJS API surface)
 - [x] `src/app/api/slides/export/route.ts` — POST: return .pptx download
@@ -236,7 +237,7 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 - ✅ Theme name + color swatch in toolbar
 - ✅ Sidebar with workflow steps + sources + chat
 - ✅ Real AI agent run via SSE (slides stream in live)
-- ✅ Export `.pptx` (text/shapes/images/notes) via PptxGenJS
+- ✅ Export `.pptx` (text/shapes/images/gradient+image backgrounds/notes) via PptxGenJS
 - ✅ Property panel (V mode) — edit element styles + position locally
 
 ---
@@ -248,7 +249,6 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 1. Add basic slide transitions (fade/push) in both web + PPTX export
 2. Add Google Fonts CSS import for theme fonts (web renderer)
 3. Export icons as SVG→PNG instead of placeholder glyph
-```
 
 ---
 
