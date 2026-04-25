@@ -372,6 +372,32 @@ export function getThemeByName(name: string): DeckTheme | undefined {
   return BUILT_IN_THEMES.find((t) => t.name === name);
 }
 
+const FALLBACK_THEME: DeckTheme = BUILT_IN_THEMES[3]; // ember + charcoal + black
+
+/** Coerce any LLM-produced theme-ish object into a fully-formed DeckTheme.
+ *  - Strings resolve via getThemeByName and fall back to base.
+ *  - Partial objects are deep-merged with `base` (or FALLBACK_THEME) so
+ *    consumers can always read theme.palette.* / theme.typography.*.
+ */
+export function normalizeDeckTheme(
+  input: unknown,
+  base: DeckTheme = FALLBACK_THEME,
+): DeckTheme {
+  if (typeof input === "string") {
+    return getThemeByName(input) ?? base;
+  }
+  if (!input || typeof input !== "object") return base;
+  const t = input as Partial<DeckTheme> & { palette?: Partial<DeckTheme["palette"]>; typography?: Partial<DeckTheme["typography"]> };
+  return {
+    name: typeof t.name === "string" && t.name.trim() ? t.name : base.name,
+    palette: { ...base.palette, ...(t.palette ?? {}) },
+    typography: {
+      heading: { ...base.typography.heading, ...(t.typography?.heading ?? {}) },
+      body: { ...base.typography.body, ...(t.typography?.body ?? {}) },
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Font Map — Google Font → PPTX system font substitution
 // ---------------------------------------------------------------------------

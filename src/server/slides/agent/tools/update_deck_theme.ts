@@ -1,5 +1,5 @@
 import type { DeckTheme } from "@/types/slides";
-import { getThemeByName } from "@/types/slides";
+import { normalizeDeckTheme } from "@/types/slides";
 import type { Tool } from "../tools";
 import { emit } from "../runs";
 
@@ -21,14 +21,7 @@ export const update_deck_theme: Tool<{
     },
   },
   async execute(args, ctx) {
-    const theme =
-      typeof args.theme === "string"
-        ? (getThemeByName(args.theme) ?? null)
-        : (args.theme as DeckTheme);
-
-    if (!theme) {
-      return { ok: false, error: `Unknown theme: ${String(args.theme)}` };
-    }
+    const theme: DeckTheme = normalizeDeckTheme(args.theme, ctx.run.state.theme);
 
     ctx.run.state.deckId = args.deckId || ctx.run.state.deckId;
     ctx.run.state.theme = theme;

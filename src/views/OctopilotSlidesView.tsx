@@ -10,6 +10,7 @@ import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import { SlideCanvas, SlideThumbnail, PropertyPanel, GoogleFontsLink } from "@/components/slides";
 import {
   getThemeByName,
+  normalizeDeckTheme,
   THEME_NAMES,
   type SlideSpec,
   type DeckTheme,
@@ -482,7 +483,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       }
 
       if (ev.type === "theme_set") {
-        setTheme(ev.theme);
+        setTheme((prev) => normalizeDeckTheme(ev.theme, prev));
       }
 
       if (ev.type === "slide_created") {
@@ -1008,9 +1009,9 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               </div>
 
               <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2 py-1">
-                <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: theme.palette.primary }} />
+                <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: theme?.palette?.primary ?? "#888" }} />
                 <select
-                  value={theme.name}
+                  value={theme?.name ?? DEMO_THEME.name}
                   onChange={(e) => {
                     const t = getThemeByName(e.target.value);
                     if (t) setTheme(t);
