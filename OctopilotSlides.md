@@ -222,6 +222,59 @@ type Rect = {
 }
 ```
 
+### Element ID Convention
+
+Every element on every slide has a unique, human-readable ID.  
+AI generates these when calling `design_slide`. The convention is strict so AI can always reference any element directly — no searching, no ambiguity.
+
+**Format:** `{slideId}_{role}_{index?}`
+
+```
+Standard IDs:
+  slide_001_title          Main title text
+  slide_001_subtitle       Subtitle / deck label
+  slide_001_body_1         First body paragraph or bullet block
+  slide_001_body_2         Second body paragraph
+  slide_001_caption        Caption or footnote text
+  slide_001_quote          Pull quote text
+  slide_001_stat_1         Hero statistic / large number
+  slide_001_image_1        First image
+  slide_001_image_2        Second image
+  slide_001_icon_1         First icon
+  slide_001_shape_bg       Background decorative shape (large, low opacity)
+  slide_001_shape_accent   Accent bar / highlight shape (primary color)
+  slide_001_shape_divider  Horizontal rule / divider line
+  slide_001_logo           Brand logo (from Brand Kit)
+
+Morph IDs (!! prefix — persists across slides):
+  !!hero_title             Title that morphs from slide to slide
+  !!story_shape            Morph Narrative Planning shape
+  !!brand_logo             Logo that travels through deck
+```
+
+**Why this matters:**
+
+```
+User says: "Slide 3 ရဲ့ body text ကို font size 18 ပြောင်းပေး"
+AI knows:   elementId = "slide_003_body_1"   ← no search needed
+
+User clicks on the accent bar on slide 5
+Frontend:   selectedElementId = "slide_005_shape_accent"
+            → Property Panel shows fill color, stroke, opacity
+
+AI calls:   update_element({
+              slideId: "slide_005",
+              elementId: "slide_005_shape_accent",
+              changes: { fill: "#f43f5e" }
+            })
+```
+
+**Rules AI must follow:**
+- Every element on every slide gets an ID at `design_slide` time — no unnamed elements
+- IDs are unique within the deck (not just within a slide)
+- `!!` prefix reserved for Morph elements only
+- AI uses the exact same ID when calling `update_element` — never re-generates or guesses
+
 ---
 
 ## 5. Animation System
