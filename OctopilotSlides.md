@@ -1407,28 +1407,27 @@ Reused from Ghostwriter:
 
 ## 18. Build Phases
 
-### Phase 1 — MVP (Core)
+### Phase 1 — MVP (Core) — **complete (18 / 18)**
 
 ```
-[ ] JSON Slide Spec schema + TypeScript types
-[ ] SVG/HTML web renderer (text, shapes, images)
-[ ] Thumbnail renderer (scaled mini previews)
-[ ] Infinite canvas (pan + zoom) — ✅ done
-[ ] Canvas mode toggle (H / V)
-[ ] Element selection + handles
-[ ] Property panel (text: font, size, color, bold, italic, underline, align)
-[ ] Property panel (shape: fill, stroke, opacity, rotation)
-[ ] Property panel (position + size for all)
-[ ] Property panel (animation: type, direction, duration, delay)
-[ ] SlidesOrchestrator (agent loop — adapted from Ghostwriter loop.ts)
-[ ] DeckTheme type + built-in theme library (10 named palettes)
-[ ] ask_user for theme selection (choice input type)
-[ ] Tools: analyze_instruction, ask_user, create_slides, write_slide, design_slide, compose, update_deck_theme
-[ ] Edit tools: update_element, add_element, remove_element
-[ ] SSE streaming to frontend
-[ ] Basic transitions: fade, push (web + PPTX)
-[ ] PptxGenJS export (shapes + text + images, no animations yet)
-[ ] Font map (web Google Fonts → PPTX system fonts)
+[x] JSON Slide Spec schema + TypeScript types
+[x] SVG/HTML web renderer (text, shapes, images)
+[x] Thumbnail renderer (scaled mini previews)
+[x] Infinite canvas (pan + zoom)
+[x] Canvas mode toggle (H / V)
+[x] Element selection + handles
+[x] Property panel (text: font, size, color, bold, italic, underline, align)
+[x] Property panel (shape: fill, stroke, opacity, rotation)
+[x] Property panel (position + size for all)
+[x] Property panel (animation: type, direction, duration, delay)
+[x] SlidesOrchestrator (agent loop — adapted from Ghostwriter loop.ts)
+[x] DeckTheme type + built-in theme library (10 named palettes)
+[x] ask_user for theme selection (choice input type)
+[x] Tools: analyze_instruction, ask_user, create_slides, write_slide, design_slide, compose, update_deck_theme
+[x] Edit tools: update_element, add_element, remove_element
+[x] SSE streaming to frontend
+[x] Basic transitions: fade, push (web + PPTX)
+[x] PptxGenJS export (shapes + text + images + FONT_MAP web→PPTX fonts; per-element PPTX animations deferred)
 ```
 
 ### Phase 2 — Power

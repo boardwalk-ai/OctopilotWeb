@@ -3,11 +3,22 @@
 import {
   useEffect, useRef, useState,
   FormEvent, KeyboardEvent, useCallback,
+  useMemo,
 } from "react";
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
-import { SlideCanvas, SlideThumbnail, PropertyPanel } from "@/components/slides";
-import { getThemeByName, type SlideSpec, type DeckTheme, type AgentQuestion, type SlidesSSEEvent } from "@/types/slides";
+import { SlideCanvas, SlideThumbnail, PropertyPanel, GoogleFontsLink } from "@/components/slides";
+import {
+  getThemeByName,
+  THEME_NAMES,
+  type SlideSpec,
+  type DeckTheme,
+  type AgentQuestion,
+  type SlidesSSEEvent,
+  type AnimationSpec,
+  type TextElement,
+} from "@/types/slides";
+import { buildGoogleFontsCssHref } from "@/lib/slideGoogleFonts";
 import { SlidesAgentClient } from "@/services/SlidesAgentClient";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
@@ -88,6 +99,7 @@ const DEMO_SLIDES: SlideSpec[] = [
     id: "slide_002", position: 2, layout: "hero",
     archetype: "THE_DATA_HERO",
     designIntent: "Let the number own the slide — make the viewer feel the scale",
+    transition: { type: "fade", duration: 500 },
     background: { type: "solid", color: "#0f0f0f" },
     elements: [
       { id: "slide_002_shape_bg", type: "shape", shape: "circle",
@@ -113,6 +125,7 @@ const DEMO_SLIDES: SlideSpec[] = [
     id: "slide_003", position: 3, layout: "split",
     archetype: "THE_EDITORIAL",
     designIntent: "Design intelligence — show the AI thinks, it doesn't just fill",
+    transition: { type: "push", duration: 450, direction: "left" },
     background: { type: "solid", color: "#111111" },
     elements: [
       { id: "slide_003_shape_image", type: "shape", shape: "rectangle",
@@ -140,6 +153,7 @@ const DEMO_SLIDES: SlideSpec[] = [
     id: "slide_004", position: 4, layout: "blank",
     archetype: "THE_BREATH",
     designIntent: "Pause — let the quote land. Maximum weight through emptiness.",
+    transition: { type: "fade", duration: 500 },
     background: { type: "solid", color: "#0f0f0f" },
     elements: [
       { id: "slide_004_shape_bg", type: "shape", shape: "circle",
@@ -160,6 +174,7 @@ const DEMO_SLIDES: SlideSpec[] = [
     id: "slide_005", position: 5, layout: "columns",
     archetype: "THE_GRID",
     designIntent: "3 features — systematic, confident, credible",
+    transition: { type: "fade", duration: 500 },
     background: { type: "solid", color: "#0f0f0f" },
     elements: [
       { id: "slide_005_title", type: "text", variant: "title",
@@ -225,6 +240,7 @@ const DEMO_SLIDES: SlideSpec[] = [
     id: "slide_006", position: 6, layout: "blank",
     archetype: "THE_TYPOGRAPHIC",
     designIntent: "Close with conviction — type as design, one message",
+    transition: { type: "push", duration: 400, direction: "up" },
     background: { type: "solid", color: "#0f0f0f" },
     elements: [
       { id: "slide_006_shape_accent", type: "shape", shape: "rectangle",
@@ -271,13 +287,21 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
+  const [slideAnimEpoch, setSlideAnimEpoch] = useState(0);
   const [slides, setSlides] = useState<SlideSpec[]>(DEMO_SLIDES);
   const [theme, setTheme] = useState<DeckTheme>(DEMO_THEME);
   const [isRunning, setIsRunning] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"workflow" | "sources">("workflow");
   const [canvasMode, setCanvasMode] = useState<"h" | "v">("h");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [editingTextElementId, setEditingTextElementId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<AgentQuestion | null>(null);
+
+  const fontsHref = useMemo(() => buildGoogleFontsCssHref(theme, slides), [theme, slides]);
+
+  useEffect(() => {
+    setSlideAnimEpoch((n) => n + 1);
+  }, [activeSlide]);
 
   // ── Canvas pan / zoom state ──
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -366,6 +390,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const focusSlide = useCallback((index: number) => {
     setActiveSlide(index);
     setSelectedElementId(null);
+    setEditingTextElementId(null);
     const el = canvasRef.current;
     if (!el) return;
     const cw = el.clientWidth;
@@ -377,18 +402,6 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       x: cw / 2 - (targetX + SLIDE_W / 2) * targetZoom,
       y: ch / 2 - (SLIDE_H / 2) * targetZoom,
     });
-  }, []);
-
-  // Keyboard shortcut H / V
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === "TEXTAREA") return;
-      if (e.key === "h" || e.key === "H") { setCanvasMode("h"); setSelectedElementId(null); }
-      if (e.key === "v" || e.key === "V") setCanvasMode("v");
-      if (e.key === "Escape") { setCanvasMode("h"); setSelectedElementId(null); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // ── Chat / send ──
@@ -449,6 +462,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     setTheme(DEMO_THEME);
     setActiveSlide(0);
     setSelectedElementId(null);
+    setEditingTextElementId(null);
     setPendingQuestion(null);
     setSidebarTab("workflow");
 
@@ -577,6 +591,127 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     [activeSpec, selectedElementId],
   );
 
+  const patchSelectedElementContent = useCallback(
+    (content: string) => {
+      if (!activeSpec || !selectedElementId) return;
+      const slideId = activeSpec.id;
+      setSlides((prev) =>
+        prev.map((s) => {
+          if (s.id !== slideId) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) =>
+              el.id === selectedElementId && el.type === "text" ? { ...el, content } : el,
+            ),
+          };
+        }),
+      );
+    },
+    [activeSpec, selectedElementId],
+  );
+
+  const patchSelectedElementAnimation = useCallback(
+    (animation: AnimationSpec | undefined) => {
+      if (!activeSpec || !selectedElementId) return;
+      const slideId = activeSpec.id;
+      setSlides((prev) =>
+        prev.map((s) => {
+          if (s.id !== slideId) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) =>
+              el.id === selectedElementId ? { ...el, animation } : el,
+            ),
+          };
+        }),
+      );
+    },
+    [activeSpec, selectedElementId],
+  );
+
+  const patchActiveSlideTransition = useCallback(
+    (transition: SlideSpec["transition"]) => {
+      setSlides((prev) => {
+        const spec = prev[activeSlide];
+        if (!spec) return prev;
+        return prev.map((s, i) =>
+          i !== activeSlide
+            ? s
+            : {
+                ...s,
+                transition: !transition || transition.type === "none" ? undefined : transition,
+              },
+        );
+      });
+    },
+    [activeSlide],
+  );
+
+  const slideEnterAnimation = useMemo(() => {
+    const spec = slides[activeSlide];
+    if (!spec?.transition || spec.transition.type === "none") return undefined;
+    const ms = spec.transition.duration ?? 500;
+    const sec = `${ms / 1000}s`;
+    if (spec.transition.type === "fade") return `octoSlideFadeIn ${sec} ease-out both`;
+    if (spec.transition.type === "push") {
+      const d = spec.transition.direction ?? "left";
+      const map: Record<string, string> = {
+        left: `octoSlidePushFromLeft ${sec} ease-out both`,
+        right: `octoSlidePushFromRight ${sec} ease-out both`,
+        up: `octoSlidePushFromTop ${sec} ease-out both`,
+        down: `octoSlidePushFromBottom ${sec} ease-out both`,
+      };
+      return map[d] ?? map.left;
+    }
+    return undefined;
+  }, [activeSlide, slides]);
+
+  // Keyboard: H / V / Esc + Ctrl/Cmd+B/I/U for selected text
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "TEXTAREA" || t.tagName === "INPUT" || t.isContentEditable) return;
+
+      if ((e.metaKey || e.ctrlKey) && canvasMode === "v" && selectedElementId && activeSpec) {
+        const hit = activeSpec.elements.find((x) => x.id === selectedElementId);
+        if (hit?.type === "text") {
+          const te = hit as TextElement;
+          if (e.key === "b" || e.key === "B") {
+            e.preventDefault();
+            patchSelectedElementStyle({
+              fontWeight: (te.style.fontWeight >= 700 ? 400 : 700) as TextElement["style"]["fontWeight"],
+            });
+            return;
+          }
+          if (e.key === "i" || e.key === "I") {
+            e.preventDefault();
+            patchSelectedElementStyle({ italic: !te.style.italic });
+            return;
+          }
+          if (e.key === "u" || e.key === "U") {
+            e.preventDefault();
+            patchSelectedElementStyle({ underline: !te.style.underline });
+            return;
+          }
+        }
+      }
+
+      if (e.key === "h" || e.key === "H") {
+        setCanvasMode("h");
+        setSelectedElementId(null);
+        setEditingTextElementId(null);
+      }
+      if (e.key === "v" || e.key === "V") setCanvasMode("v");
+      if (e.key === "Escape") {
+        setCanvasMode("h");
+        setSelectedElementId(null);
+        setEditingTextElementId(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canvasMode, selectedElementId, activeSpec, patchSelectedElementStyle]);
+
   const exportPptx = useCallback(async () => {
     if (!slides.length) {
       setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: "No slides to export yet." }]);
@@ -617,6 +752,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a]">
+      <GoogleFontsLink href={fontsHref} />
 
       {/* ─ Header ─ */}
       <AppHeader
@@ -750,6 +886,41 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             </div>
 
             <form onSubmit={sendMessage} className="px-3 pb-3">
+              {pendingQuestion && pendingQuestion.inputType === "choice" && (pendingQuestion.suggestions?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1.5 pb-2">
+                  {pendingQuestion.suggestions!.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        if (isRunning) return;
+                        const q = pendingQuestion;
+                        const runId = runHandleRef.current?.getRunId() || "";
+                        if (!q || !runId) {
+                          setMessages((p) => [
+                            ...p,
+                            { id: `a-${Date.now()}`, role: "assistant", text: "Run is not ready yet — please retry in a moment." },
+                          ]);
+                          return;
+                        }
+                        setMessages((p) => [...p, { id: `u-${Date.now()}`, role: "user", text: s }]);
+                        setIsRunning(true);
+                        setPendingQuestion(null);
+                        void SlidesAgentClient.answer(runId, q.field, s).catch((err) => {
+                          setIsRunning(false);
+                          setMessages((p) => [
+                            ...p,
+                            { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not submit answer." },
+                          ]);
+                        });
+                      }}
+                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11.5px] text-white/70 hover:border-red-500/30 hover:text-white transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 focus-within:border-red-500/30 transition-colors">
                 <textarea
                   ref={textareaRef}
@@ -817,10 +988,42 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                 Fit
               </button>
 
-              {/* Theme swatch */}
-              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-1 cursor-default select-none">
+              <div className="flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2 py-1">
+                <span className="text-[10px] text-white/25 uppercase tracking-wider shrink-0">Slide</span>
+                <select
+                  value={activeSpec?.transition?.type ?? "none"}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "none") patchActiveSlideTransition(undefined);
+                    else if (v === "fade") patchActiveSlideTransition({ type: "fade", duration: 500 });
+                    else patchActiveSlideTransition({ type: "push", duration: 450, direction: "left" });
+                  }}
+                  className="max-w-[88px] bg-transparent text-[11px] text-white/60 outline-none cursor-pointer"
+                  aria-label="Slide transition"
+                >
+                  <option value="none">None</option>
+                  <option value="fade">Fade</option>
+                  <option value="push">Push</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2 py-1">
                 <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: theme.palette.primary }} />
-                <span className="text-[11.5px] text-white/35 truncate max-w-[100px]">{theme.name}</span>
+                <select
+                  value={theme.name}
+                  onChange={(e) => {
+                    const t = getThemeByName(e.target.value);
+                    if (t) setTheme(t);
+                  }}
+                  className="max-w-[120px] bg-transparent text-[11px] text-white/50 outline-none cursor-pointer truncate"
+                  aria-label="Deck theme"
+                >
+                  {THEME_NAMES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Export */}
@@ -871,7 +1074,16 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                         : "0 0 0 1px rgba(255,255,255,0.08), 0 12px 48px rgba(0,0,0,0.7)",
                     }} />
 
-                    {/* Real slide render */}
+                    <div
+                      key={isActive ? `live-${slideAnimEpoch}` : `idle-${spec.id}`}
+                      style={{
+                        position: "relative",
+                        width: SLIDE_W,
+                        height: SLIDE_H,
+                        borderRadius: 6,
+                        animation: isActive ? slideEnterAnimation : undefined,
+                      }}
+                    >
                     <SlideCanvas
                       spec={spec}
                       theme={theme}
@@ -880,14 +1092,39 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                       selectedElementId={isActive ? selectedElementId : null}
                       onElementSelect={(id) => {
                         focusSlide(i);
+                        setEditingTextElementId(null);
                         setSelectedElementId(id);
                       }}
                       onBackgroundClick={() => {
                         focusSlide(i);
+                        setEditingTextElementId(null);
                         setSelectedElementId(null);
                       }}
+                      editingTextElementId={isActive ? editingTextElementId : null}
+                      onTextDoubleClick={(id) => {
+                        focusSlide(i);
+                        setSelectedElementId(id);
+                        setEditingTextElementId(id);
+                      }}
+                      onTextEditCommit={(id, content) => {
+                        setEditingTextElementId(null);
+                        setSlides((prev) =>
+                          prev.map((s) =>
+                            s.id !== spec.id
+                              ? s
+                              : {
+                                  ...s,
+                                  elements: s.elements.map((el) =>
+                                    el.id === id && el.type === "text" ? { ...el, content } : el,
+                                  ),
+                                },
+                          ),
+                        );
+                      }}
+                      onTextEditCancel={() => setEditingTextElementId(null)}
                       style={{ borderRadius: 6, cursor: canvasMode === "h" ? "pointer" : "default" }}
                     />
+                    </div>
 
                     {/* Click to focus (H mode) */}
                     {canvasMode === "h" && (
@@ -912,7 +1149,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               <p className="text-[10.5px] text-white/15 text-right">
                 {canvasMode === "h"
                   ? "Drag to pan · Ctrl+scroll to zoom · H/V to switch mode"
-                  : "Click element to select · V mode · Press H or Esc to exit"}
+                  : "Click to select · Double-click text to edit · ⌘/Ctrl+B/I/U · H or Esc exits"}
               </p>
             </div>
           </div>
@@ -947,9 +1184,14 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             <PropertyPanel
               slideId={activeSpec.id}
               element={selectedElement}
-              onClose={() => setSelectedElementId(null)}
+              onClose={() => {
+                setSelectedElementId(null);
+                setEditingTextElementId(null);
+              }}
               onStyleChange={(changes) => patchSelectedElementStyle(changes)}
               onPositionChange={(changes) => patchSelectedElementPosition(changes)}
+              onContentChange={selectedElement.type === "text" ? patchSelectedElementContent : undefined}
+              onAnimationChange={patchSelectedElementAnimation}
             />
           )}
         </div>
@@ -959,6 +1201,26 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes octoSlideFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes octoSlidePushFromLeft {
+          from { transform: translateX(-28px); opacity: 0.65; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes octoSlidePushFromRight {
+          from { transform: translateX(28px); opacity: 0.65; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes octoSlidePushFromTop {
+          from { transform: translateY(-22px); opacity: 0.65; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes octoSlidePushFromBottom {
+          from { transform: translateY(22px); opacity: 0.65; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>

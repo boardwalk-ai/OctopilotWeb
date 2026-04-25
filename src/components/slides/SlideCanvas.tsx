@@ -102,6 +102,10 @@ function ElementWrapper({
   isSelected,
   onSelect,
   mode,
+  editingTextElementId,
+  onTextDoubleClick,
+  onTextEditCommit,
+  onTextEditCancel,
 }: {
   el: SlideElement;
   toPx: (rect: Rect) => { left: number; top: number; width: number; height: number };
@@ -109,6 +113,10 @@ function ElementWrapper({
   isSelected: boolean;
   onSelect?: (id: string) => void;
   mode: "h" | "v";
+  editingTextElementId?: string | null;
+  onTextDoubleClick?: (elementId: string) => void;
+  onTextEditCommit?: (elementId: string, content: string) => void;
+  onTextEditCancel?: () => void;
 }) {
   const pos = toPx(el.position);
   const clickable = mode === "v";
@@ -117,10 +125,31 @@ function ElementWrapper({
     ? () => { onSelect?.(el.id); }
     : undefined;
 
+  const textEl = el.type === "text" ? (el as Parameters<typeof TextEl>[0]["el"]) : null;
+  const isTextEditing = el.type === "text" && editingTextElementId === el.id;
+
   const renderers = {
-    text: () => (
-      <TextEl el={el as Parameters<typeof TextEl>[0]["el"]} toPx={toPx} scale={scale} isSelected={false} onClick={handleClick} />
-    ),
+    text: () =>
+      textEl ? (
+        <TextEl
+          el={textEl}
+          toPx={toPx}
+          scale={scale}
+          isSelected={false}
+          isEditing={isTextEditing}
+          onClick={handleClick}
+          onDoubleClick={
+            clickable
+              ? (e) => {
+                  e.stopPropagation();
+                  onTextDoubleClick?.(el.id);
+                }
+              : undefined
+          }
+          onEditCommit={(content) => onTextEditCommit?.(el.id, content)}
+          onEditCancel={onTextEditCancel}
+        />
+      ) : null,
     shape: () => (
       <ShapeEl el={el as Parameters<typeof ShapeEl>[0]["el"]} toPx={toPx} isSelected={false} onClick={handleClick} />
     ),
@@ -158,18 +187,26 @@ export interface SlideCanvasProps {
   onElementSelect?: (id: string) => void;
   /** Called when clicking the slide background (deselects in V mode). */
   onBackgroundClick?: () => void;
+  editingTextElementId?: string | null;
+  onTextDoubleClick?: (elementId: string) => void;
+  onTextEditCommit?: (elementId: string, content: string) => void;
+  onTextEditCancel?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
 
 export default function SlideCanvas({
   spec,
-  theme,
+  theme: _theme,
   width,
   mode = "h",
   selectedElementId,
   onElementSelect,
   onBackgroundClick,
+  editingTextElementId,
+  onTextDoubleClick,
+  onTextEditCommit,
+  onTextEditCancel,
   className,
   style,
 }: SlideCanvasProps) {
@@ -186,7 +223,12 @@ export default function SlideCanvas({
   });
 
   const handleBgClick = () => {
-    if (mode === "v") onBackgroundClick?.();
+    if (mode !== "v") return;
+    if (editingTextElementId) {
+      onTextEditCancel?.();
+      return;
+    }
+    onBackgroundClick?.();
   };
 
   return (
@@ -213,6 +255,10 @@ export default function SlideCanvas({
           isSelected={selectedElementId === el.id}
           onSelect={onElementSelect}
           mode={mode}
+          editingTextElementId={editingTextElementId}
+          onTextDoubleClick={onTextDoubleClick}
+          onTextEditCommit={onTextEditCommit}
+          onTextEditCancel={onTextEditCancel}
         />
       ))}
     </div>

@@ -1,9 +1,55 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Rect, SlideElement, TextStyle, ShapeStyle, ImageStyle, IconStyle } from "@/types/slides";
+import type {
+  Rect,
+  SlideElement,
+  TextStyle,
+  ShapeStyle,
+  ImageStyle,
+  IconStyle,
+  AnimationSpec,
+  AnimationTrigger,
+  EntranceAnimationType,
+  ExitAnimationType,
+  EmphasisAnimationType,
+} from "@/types/slides";
 
-const FONT_CHOICES = ["Inter", "Source Sans Pro", "Playfair Display", "JetBrains Mono", "Cormorant", "Nunito"] as const;
+const FONT_CHOICES = [
+  "Inter",
+  "Source Sans Pro",
+  "Playfair Display",
+  "JetBrains Mono",
+  "Cormorant",
+  "Nunito",
+  "Georgia",
+  "Calibri",
+] as const;
+
+const ENTRANCE_TYPES: EntranceAnimationType[] = [
+  "appear",
+  "fade",
+  "flyIn",
+  "floatIn",
+  "zoomIn",
+  "wipe",
+  "bounce",
+  "swivel",
+  "grow",
+];
+const EXIT_TYPES: ExitAnimationType[] = ["disappear", "fadeOut", "flyOut", "zoomOut", "collapse"];
+const EMPHASIS_TYPES: EmphasisAnimationType[] = ["pulse", "spin", "teeter", "flash", "boldReveal", "wiggle"];
+
+const TRIGGERS: AnimationTrigger[] = [
+  "entrance",
+  "exit",
+  "emphasis",
+  "onClick",
+  "withPrev",
+  "afterPrev",
+];
+
+const DIRECTIONS = ["fromBottom", "fromTop", "fromLeft", "fromRight"] as const;
 
 type Props = {
   element: SlideElement;
@@ -11,6 +57,8 @@ type Props = {
   onClose: () => void;
   onStyleChange: (changes: Partial<TextStyle | ShapeStyle | ImageStyle | IconStyle>) => void;
   onPositionChange: (changes: Partial<Rect>) => void;
+  onContentChange?: (content: string) => void;
+  onAnimationChange?: (anim: AnimationSpec | undefined) => void;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -65,12 +113,46 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
+function Toggle({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "h-9 min-w-[2.25rem] rounded-lg border px-2 text-[12px] font-semibold transition-colors",
+        active
+          ? "border-red-500/50 bg-red-500/20 text-white"
+          : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20 hover:text-white/80",
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
+}
+
+function typesForTrigger(trigger: AnimationTrigger): readonly string[] {
+  if (trigger === "entrance") return ENTRANCE_TYPES;
+  if (trigger === "exit") return EXIT_TYPES;
+  if (trigger === "emphasis") return EMPHASIS_TYPES;
+  return ENTRANCE_TYPES;
+}
+
 export default function PropertyPanel({
   element,
   slideId,
   onClose,
   onStyleChange,
   onPositionChange,
+  onContentChange,
+  onAnimationChange,
 }: Props) {
   const typeLabel = useMemo(() => {
     if (element.type === "text") return `Text · ${element.variant}`;
@@ -79,6 +161,14 @@ export default function PropertyPanel({
     if (element.type === "icon") return `Icon · ${element.name}`;
     return "Element";
   }, [element]);
+
+  const anim: AnimationSpec | undefined = element.animation;
+  const defaultAnim = (): AnimationSpec => ({
+    trigger: "entrance",
+    type: "fade",
+    duration: 500,
+    delay: 0,
+  });
 
   return (
     <aside className="w-[280px] shrink-0 border-l border-white/[0.06] bg-[#0f0f0f]">
@@ -139,10 +229,125 @@ export default function PropertyPanel({
           </div>
         </section>
 
+        {/* ANIMATION */}
+        {onAnimationChange && (
+          <section className="space-y-3">
+            <div className="text-[11px] font-semibold text-white/70">Animation</div>
+            <Field label="Preset">
+              <Select
+                value={anim ? "on" : "off"}
+                onChange={(e) => {
+                  if (e.target.value === "off") onAnimationChange(undefined);
+                  else onAnimationChange(anim ?? defaultAnim());
+                }}
+              >
+                <option value="off">None</option>
+                <option value="on">On</option>
+              </Select>
+            </Field>
+            {anim && (
+              <>
+                <Field label="Trigger">
+                  <Select
+                    value={anim.trigger}
+                    onChange={(e) => {
+                      const trigger = e.target.value as AnimationTrigger;
+                      const pool = typesForTrigger(trigger);
+                      const nextType = pool.includes(anim.type as never) ? anim.type : pool[0];
+                      onAnimationChange({ ...anim, trigger, type: nextType as AnimationSpec["type"] });
+                    }}
+                  >
+                    {TRIGGERS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Type">
+                  <Select
+                    value={anim.type}
+                    onChange={(e) =>
+                      onAnimationChange({
+                        ...anim,
+                        type: e.target.value as AnimationSpec["type"],
+                      })
+                    }
+                  >
+                    {typesForTrigger(anim.trigger).map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {(anim.type === "flyIn" || anim.type === "flyOut" || anim.type === "wipe") && (
+                  <Field label="Direction">
+                    <Select
+                      value={anim.direction ?? "fromBottom"}
+                      onChange={(e) =>
+                        onAnimationChange({
+                          ...anim,
+                          direction: e.target.value as NonNullable<AnimationSpec["direction"]>,
+                        })
+                      }
+                    >
+                      {DIRECTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Duration (ms)">
+                    <Input
+                      type="number"
+                      step="50"
+                      value={String(anim.duration)}
+                      onChange={(e) =>
+                        onAnimationChange({
+                          ...anim,
+                          duration: clamp(parseNumber(e.target.value, anim.duration), 0, 60000),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Delay (ms)">
+                    <Input
+                      type="number"
+                      step="50"
+                      value={String(anim.delay)}
+                      onChange={(e) =>
+                        onAnimationChange({
+                          ...anim,
+                          delay: clamp(parseNumber(e.target.value, anim.delay), 0, 60000),
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
         {/* TYPE-SPECIFIC */}
         {element.type === "text" && (
           <section className="space-y-3">
             <div className="text-[11px] font-semibold text-white/70">Text</div>
+
+            {onContentChange && (
+              <Field label="Content">
+                <textarea
+                  value={element.content}
+                  onChange={(e) => onContentChange(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-[12.5px] text-white/80 outline-none focus:border-red-500/30 resize-y min-h-[88px]"
+                />
+              </Field>
+            )}
 
             <Field label="Font">
               <Select
@@ -156,6 +361,29 @@ export default function PropertyPanel({
                 ))}
               </Select>
             </Field>
+
+            <div className="flex flex-wrap gap-1.5">
+              <Toggle
+                label="B"
+                active={element.style.fontWeight >= 700}
+                onClick={() =>
+                  onStyleChange({
+                    fontWeight: (element.style.fontWeight >= 700 ? 400 : 700) as TextStyle["fontWeight"],
+                  } as Partial<TextStyle>)
+                }
+              />
+              <Toggle label="I" active={!!element.style.italic} onClick={() => onStyleChange({ italic: !element.style.italic } as Partial<TextStyle>)} />
+              <Toggle
+                label="U"
+                active={!!element.style.underline}
+                onClick={() => onStyleChange({ underline: !element.style.underline } as Partial<TextStyle>)}
+              />
+              <Toggle
+                label="S"
+                active={!!element.style.strikethrough}
+                onClick={() => onStyleChange({ strikethrough: !element.style.strikethrough } as Partial<TextStyle>)}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Size (pt)">
@@ -233,6 +461,19 @@ export default function PropertyPanel({
                 />
               </Field>
             </div>
+
+            <Field label="Letter spacing (em)">
+              <Input
+                type="number"
+                step="0.01"
+                value={String(element.style.letterSpacing ?? 0)}
+                onChange={(e) =>
+                  onStyleChange({
+                    letterSpacing: clamp(parseNumber(e.target.value, element.style.letterSpacing ?? 0), -0.5, 1),
+                  } as Partial<TextStyle>)
+                }
+              />
+            </Field>
           </section>
         )}
 
@@ -393,4 +634,3 @@ export default function PropertyPanel({
     </aside>
   );
 }
-

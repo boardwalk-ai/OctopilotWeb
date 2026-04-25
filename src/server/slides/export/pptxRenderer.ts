@@ -1,5 +1,8 @@
 import PptxGenJS from "pptxgenjs";
+import { Buffer } from "node:buffer";
+import sharp from "sharp";
 import { PNG } from "pngjs";
+import { injectPptxSlideTransitions } from "@/server/slides/export/injectPptxSlideTransitions";
 import type {
   Background,
   DeckTheme,
@@ -19,6 +22,16 @@ const SLIDE_H_IN = 5.625;
 /** Raster size for gradient → PNG backgrounds (16:9, enough for crisp projection). */
 const GRADIENT_PNG_W = 1920;
 const GRADIENT_PNG_H = 1080;
+
+/** Pinned lucide-static icons on jsDelivr (SVG → PNG via sharp). */
+const LUCIDE_STATIC_VER = "0.469.0";
+
+function iconNameToKebab(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
+    .toLowerCase();
+}
 
 function pctX(x: number): number {
   return (x / 100) * SLIDE_W_IN;
@@ -242,6 +255,10 @@ function addText(slide: any, el: TextElement, theme?: DeckTheme) {
     transparency:
       el.style.opacity == null ? undefined : Math.round((1 - safeOpacity(el.style.opacity)!) * 100),
     lineSpacingMultiple: el.style.lineHeight,
+    charSpacing:
+      el.style.letterSpacing == null
+        ? undefined
+        : Math.round(el.style.fontSize * el.style.letterSpacing * 25),
   });
 }
 
@@ -306,15 +323,48 @@ async function addImage(slide: any, el: ImageElement) {
   });
 }
 
-function addIcon(slide: any, el: IconElement) {
-  // MVP: icons export as text glyph placeholder (Phase 2: inline SVG → image).
+async function lucideIconToPngDataUrl(name: string, colorHex: string, px: number): Promise<string | null> {
+  const kebab = iconNameToKebab(name);
+  const url = `https://cdn.jsdelivr.net/npm/lucide-static@${LUCIDE_STATIC_VER}/icons/${kebab}.svg`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    let svg = await response.text();
+    const hex = hexNoHash(colorHex || "ffffff");
+    svg = svg.replace(/currentColor/g, `#${hex}`);
+    const png = await sharp(Buffer.from(svg))
+      .resize(Math.max(8, Math.round(px)), Math.max(8, Math.round(px)))
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+async function addIcon(slide: any, el: IconElement) {
+  const pt = Math.max(8, Math.min(200, el.style.size ?? 24));
+  const px = Math.min(512, Math.max(32, Math.round(pt * 2.5)));
+  const dataUrl = await lucideIconToPngDataUrl(el.name, el.style.color || "#ffffff", px);
+  if (dataUrl) {
+    slide.addImage({
+      data: dataUrl,
+      x: pctX(el.position.x),
+      y: pctY(el.position.y),
+      w: pctW(el.position.w),
+      h: pctH(el.position.h),
+      transparency:
+        el.style.opacity == null ? undefined : Math.round((1 - safeOpacity(el.style.opacity)!) * 100),
+    });
+    return;
+  }
   slide.addText("■", {
     x: pctX(el.position.x),
     y: pctY(el.position.y),
     w: pctW(el.position.w),
     h: pctH(el.position.h),
     fontFace: "Calibri",
-    fontSize: Math.max(8, Math.min(200, el.style.size ?? 24)),
+    fontSize: pt,
     color: hexNoHash(el.style.color || "#ffffff"),
     align: "center",
     valign: "mid",
@@ -343,7 +393,7 @@ export async function renderDeckToPptxBuffer(args: {
       if (el.type === "text") addText(slide, el as TextElement, args.theme);
       if (el.type === "shape") addShape(slide, el as ShapeElement);
       if (el.type === "image") await addImage(slide, el as ImageElement);
-      if (el.type === "icon") addIcon(slide, el as IconElement);
+      if (el.type === "icon") await addIcon(slide, el as IconElement);
     }
 
     if (spec.speakerNotes) {
@@ -354,6 +404,8 @@ export async function renderDeckToPptxBuffer(args: {
   // `pptxgenjs` write() API differs slightly across versions; we use the
   // object form here and cast to keep TS happy.
   const ab = (await (pptx as any).write({ outputType: "arraybuffer" })) as ArrayBuffer;
-  return new Uint8Array(ab);
+  const raw = new Uint8Array(ab);
+  const withTransitions = await injectPptxSlideTransitions(raw, ordered);
+  return new Uint8Array(withTransitions);
 }
 

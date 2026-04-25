@@ -8,7 +8,7 @@
 ## Overall Status
 
 ```
-Phase 1 (MVP)     ████████████████░░░░  8 / 18 done   ~44%
+Phase 1 (MVP)     ████████████████████  18 / 18 done   100%
 Phase 2 (Power)   ░░░░░░░░░░░░░░░░░░░░  0 / 21 done
 Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  0 / 9 done
 ```
@@ -18,7 +18,7 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 ## ✅ Done
 
 ### Architecture & Documentation
-- [x] `OctopilotSlides.md` — full product + architecture document (20 sections)
+- [x] `OctopilotSlides.md` — full product + architecture document (20 sections); Phase 1 checklist marked complete
 - [x] Color Theme System spec — 10 named palettes, semantic roles, ask_user flow
 - [x] Creative Engine spec — Manifesto, Designer Persona, 8 Archetypes, Flashy Toolkit, Animation Philosophy
 - [x] Feature Roadmap — Brand Kit, Slides from Anything, Morph Narrative, AI Deck Review, Audience Mode, Presenter Mode
@@ -58,13 +58,13 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 ### Chunk B — Web Renderer (`src/components/slides/`) ✅
 - [x] `SlideCanvas.tsx` — renders `SlideSpec` at any pixel width (scale = width/880)
 - [x] Background rendering — solid, gradient, image+overlay
-- [x] `TextEl.tsx` — font, weight, color, align, italic, underline, strikethrough, lineHeight, letterSpacing, opacity
+- [x] `TextEl.tsx` — font, weight, color, align, italic, underline, strikethrough, lineHeight, letterSpacing, opacity; double-click inline edit (contentEditable)
 - [x] `ShapeEl.tsx` — 11 SVG shapes: rectangle, circle, oval, triangle, diamond, line, arrow, star, hexagon, parallelogram, speechBubble
 - [x] `ImageEl.tsx` — objectFit (cover/contain/fill), borderRadius, opacity, rotation
 - [x] `IconEl.tsx` — dynamic Lucide icon resolver by name string
 - [x] Selection handles — red ring + 4 corner dots on selected element
 - [x] `SlideThumbnail.tsx` — scaled mini preview (scale = thumbWidth/880)
-- [x] `index.ts` — barrel exports
+- [x] `GoogleFontsLink.tsx` — loads Google Fonts CSS2 for theme + slide text weights (`slideGoogleFonts.ts`)
 
 ### Canvas & UI (`src/views/OctopilotSlidesView.tsx`) ✅
 - [x] Infinite canvas — pan + zoom
@@ -76,12 +76,16 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 - [x] Fit view button
 - [x] Thumbnail strip with real `SlideThumbnail`
 - [x] Zoom controls (−/+/display)
-- [x] Theme swatch in toolbar (name + primary color dot)
+- [x] **Theme picker** — toolbar `<select>` over `THEME_NAMES` / `getThemeByName()`
+- [x] **Slide transition** toolbar — Fade / Push / None + `patchActiveSlideTransition`
+- [x] **Active slide enter animation** — CSS keyframes (fade / push by direction) synced to `TransitionSpec`
 - [x] Sidebar — workflow steps + sources tabs
 - [x] Chat UI (messages, input, send)
-- [x] 6 demo slides using real `SlideSpec` — all 6 archetypes represented
+- [x] **ask_user choice chips** — when `inputType === "choice"` and `suggestions[]`, one-click submit to `/api/slides/answer`
+- [x] 6 demo slides using real `SlideSpec` — transitions on slides 2–6 for demo
 - [x] Connect real agent to `OctopilotSlidesView` (replace mock workflow)
 - [x] Connect SSE events to canvas (live slide appear/update during generation)
+- [x] **⌘/Ctrl+B, I, U** — toggles bold / italic / underline on selected text (V mode)
 
 ### Chunk C — AI Agent ✅
 
@@ -105,23 +109,25 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 ### Chunk D — Property Panel ✅
 
 - [x] `src/components/slides/PropertyPanel.tsx` — right sidebar property panel
-- [x] Text properties: font family, size, weight, color, align, opacity, lineHeight
+- [x] Text properties: font family, size, weight, **B/I/U/S toggles**, color, align, opacity, lineHeight, **letterSpacing (em)**, **content** textarea
 - [x] Shape properties: fill, stroke, strokeWidth, opacity, cornerRadius, rotation
 - [x] Image properties: objectFit, opacity, borderRadius, rotation
 - [x] Icon properties: color, opacity, size
+- [x] **Animation** — preset on/off, trigger, type, direction (when applicable), duration, delay
 - [x] Position/size panel: X, Y, W, H (all %)
 - [x] Wire `onChange` → live re-render on canvas
 
 ### Chunk E — Export ✅
 
-- [x] `pptxgenjs` installed
+- [x] `pptxgenjs`, `pngjs`, `jszip`, `sharp` installed
 - [x] `src/server/slides/export/pptxRenderer.ts` — `SlideSpec[]` → `.pptx` buffer
-  - [x] Text rendering (FONT_MAP via `toPptxFont()`)
+  - [x] Text rendering (FONT_MAP via `toPptxFont()`, charSpacing from letterSpacing)
   - [x] Shape rendering (basic shapes; best-effort mapping)
   - [x] Image rendering (server-side fetch → base64 embed)
-  - [x] Gradient slide backgrounds (CSS-linear-gradient angles → raster PNG via `pngjs`, full-bleed image layer)
+  - [x] Gradient slide backgrounds (CSS-linear-gradient angles → raster PNG)
+  - [x] **Icons** — Lucide SVG from jsDelivr `lucide-static` → PNG via **sharp**, fallback glyph
   - [x] Speaker notes
-  - [ ] Slide transitions (skipped for now; depends on exact PptxGenJS API surface)
+  - [x] **Slide transitions** — `injectPptxSlideTransitions.ts` post-processes OOXML (`fade`, `push` + direction)
 - [x] `src/app/api/slides/export/route.ts` — POST: return .pptx download
 - [x] Export button wired in `OctopilotSlidesView.tsx`
 
@@ -135,10 +141,7 @@ Nothing currently in progress.
 
 ## ⏳ Phase 1 — Remaining
 
-### Remaining Phase 1 items
-
-- [ ] Basic transitions: fade, push (web CSS + PptxGenJS)
-- [ ] Font loading — Google Fonts CSS import for theme fonts
+**None — Phase 1 MVP is complete.**
 
 ---
 
@@ -154,9 +157,7 @@ Nothing currently in progress.
 - [ ] Advanced shapes (already in ShapeEl SVG, need Phase 2 exposure)
 - [ ] `reorder_slides` + `update_slide_background` tools
 - [ ] "AI Assist" button in property panel
-- [ ] Inline text editing (double-click on TextEl)
-- [ ] Undo / Redo command stack
-- [ ] Keyboard shortcuts (Ctrl+B/I/U/Z)
+- [ ] Undo / Redo command stack (+ Ctrl+Z); extend keyboard shortcuts beyond B/I/U
 - [ ] Google Font embedding in PPTX (.ttf embed)
 - [ ] Firestore persistence (replace in-memory Map)
 - [ ] Speaker notes view in UI
@@ -186,37 +187,41 @@ Nothing currently in progress.
 
 ```
 src/
+├── lib/
+│   └── slideGoogleFonts.ts          ✅ collect families + Google Fonts CSS2 URL
 ├── types/
 │   └── slides.ts                    ✅ complete
 │
 ├── components/
 │   └── slides/
-│       ├── index.ts                 ✅ barrel
-│       ├── SlideCanvas.tsx          ✅ complete
+│       ├── index.ts                 ✅ barrel (+ GoogleFontsLink)
+│       ├── SlideCanvas.tsx          ✅ complete (+ text edit wiring)
 │       ├── SlideThumbnail.tsx       ✅ complete
-│       ├── PropertyPanel.tsx        ✅ complete
+│       ├── PropertyPanel.tsx        ✅ complete (+ animation, text tools)
+│       ├── GoogleFontsLink.tsx      ✅ head stylesheet injection
 │       └── elements/
-│           ├── TextEl.tsx           ✅ complete
+│           ├── TextEl.tsx           ✅ + inline edit
 │           ├── ShapeEl.tsx          ✅ complete
 │           ├── ImageEl.tsx          ✅ complete
 │           └── IconEl.tsx           ✅ complete
 │
 ├── views/
-│   ├── OctopilotSlidesView.tsx      ✅ canvas + UI (real SSE agent)
+│   ├── OctopilotSlidesView.tsx      ✅ canvas + UI (transitions, theme, fonts, choice chips)
 │   └── MethodologyView.tsx          ✅ updated
 │
 └── server/
-    └── slides/                      ✅ agent started (export done)
+    └── slides/
         ├── agent/
         │   ├── loop.ts              ✅
         │   ├── runs.ts              ✅
         │   ├── systemPrompt.ts      ✅
         │   └── tools/               ✅ (Phase 1 subset)
         └── export/
-            └── pptxRenderer.ts      ✅
+            ├── pptxRenderer.ts      ✅ + sharp icons + JSZip transitions
+            └── injectPptxSlideTransitions.ts ✅ OOXML fade/push
 
 src/app/api/
-    └── slides/                      ✅ start + answer + export routes
+    └── slides/
         ├── start/route.ts           ✅
         ├── answer/route.ts          ✅
         └── export/route.ts          ✅
@@ -230,25 +235,27 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 
 - ✅ Methodology page shows OctopilotSlides node in the orbital UI
 - ✅ Clicking "Get Started" routes to the OctopilotSlidesView
-- ✅ 6 demo slides render correctly using real `SlideSpec` data
+- ✅ 6 demo slides render correctly using real `SlideSpec` data (sample fade/push transitions)
 - ✅ Infinite canvas — drag to pan, Ctrl+scroll to zoom, Fit button
 - ✅ H/V mode toggle (keyboard H/V/Esc + toolbar)
 - ✅ Thumbnail strip shows real mini renders of each slide
-- ✅ Theme name + color swatch in toolbar
+- ✅ **Theme picker** + Google Fonts loaded for deck + slide typefaces
+- ✅ **Slide transition** picker + motion when focusing a slide
 - ✅ Sidebar with workflow steps + sources + chat
+- ✅ **ask_user** choice suggestions as quick-submit chips
 - ✅ Real AI agent run via SSE (slides stream in live)
-- ✅ Export `.pptx` (text/shapes/images/gradient+image backgrounds/notes) via PptxGenJS
-- ✅ Property panel (V mode) — edit element styles + position locally
+- ✅ Export `.pptx` (text/shapes/images/icons/gradient+image backgrounds/transitions/notes)
+- ✅ Property panel (V mode) — typography, animation, content, layout
 
 ---
 
 ## Next Session Starts Here
 
-**Next up (Phase 1 polish)**
+**Phase 2 kickoff (first slices)**
 
-1. Add basic slide transitions (fade/push) in both web + PPTX export
-2. Add Google Fonts CSS import for theme fonts (web renderer)
-3. Export icons as SVG→PNG instead of placeholder glyph
+1. Firestore deck persistence + resume session
+2. `search_source` / `analyze_source` + real Sources tab data
+3. GSAP (or CSS) **playback** of `AnimationSpec` in web preview (export remains Phase 2)
 
 ---
 
