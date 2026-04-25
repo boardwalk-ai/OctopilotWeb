@@ -7,7 +7,8 @@ import {
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import { SlideCanvas, SlideThumbnail } from "@/components/slides";
-import { getThemeByName, type SlideSpec, type DeckTheme } from "@/types/slides";
+import { getThemeByName, type SlideSpec, type DeckTheme, type AgentQuestion, type SlidesSSEEvent } from "@/types/slides";
+import { SlidesAgentClient } from "@/services/SlidesAgentClient";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -269,22 +270,26 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
-  const [slides] = useState<SlideSpec[]>(DEMO_SLIDES);
-  const [theme] = useState<DeckTheme>(DEMO_THEME);
+  const [slides, setSlides] = useState<SlideSpec[]>(DEMO_SLIDES);
+  const [theme, setTheme] = useState<DeckTheme>(DEMO_THEME);
   const [isRunning, setIsRunning] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"workflow" | "sources">("workflow");
   const [canvasMode, setCanvasMode] = useState<"h" | "v">("h");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<AgentQuestion | null>(null);
 
   // ── Canvas pan / zoom state ──
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 80, y: 80 });
   const [zoom, setZoom] = useState(0.55);
   const dragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const runHandleRef = useRef<null | { close: () => void; getRunId: () => string }>(null);
+  const workflowIndexRef = useRef(0);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -324,6 +329,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     const target = e.target as HTMLElement;
     if (target.closest("[data-slide-canvas]")) return;
     dragging.current = true;
+    setIsDragging(true);
     lastMouse.current = { x: e.clientX, y: e.clientY };
   }, [canvasMode]);
 
@@ -335,7 +341,10 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
   }, []);
 
-  const onMouseUp = useCallback(() => { dragging.current = false; }, []);
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    setIsDragging(false);
+  }, []);
 
   // Fit all slides in view
   const fitView = useCallback(() => {
@@ -369,14 +378,6 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     });
   }, []);
 
-  // ── Canvas mode toggle ──
-  const toggleCanvasMode = useCallback(() => {
-    setCanvasMode((m) => {
-      if (m === "v") setSelectedElementId(null);
-      return m === "h" ? "v" : "h";
-    });
-  }, []);
-
   // Keyboard shortcut H / V
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -405,6 +406,30 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     setMessages((p) => [...p, { id: `u-${Date.now()}`, role: "user", text }]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    if (pendingQuestion) {
+      const runId = runHandleRef.current?.getRunId() || "";
+      if (!runId) {
+        setMessages((p) => [
+          ...p,
+          { id: `a-${Date.now()}`, role: "assistant", text: "Run is not ready yet — please retry in a moment." },
+        ]);
+        return;
+      }
+
+      setIsRunning(true);
+      setPendingQuestion(null);
+      void SlidesAgentClient.answer(runId, pendingQuestion.field, text)
+        .catch((err) => {
+          setIsRunning(false);
+          setMessages((p) => [
+            ...p,
+            { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not submit answer." },
+          ]);
+        });
+      return;
+    }
+
     setIsRunning(true);
     runWorkflow(text);
   };
@@ -413,34 +438,92 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  function runWorkflow(_prompt: string) {
-    setSteps(INITIAL_STEPS);
-    const delays = [600, 1600, 2800, 4000, 5200, 6200, 7400];
-    delays.forEach((d, i) => {
-      setTimeout(() => {
-        setSteps((prev) => prev.map((s) => {
-          if (s.id === i + 1) return { ...s, status: "running" };
-          if (s.id < i + 1) return { ...s, status: "completed" };
-          return s;
-        }));
-      }, d);
-    });
-    const aiMsgs = [
-      { d: 700,  t: "Got it — analyzing your brief and locking in scope." },
-      { d: 2000, t: "Theme selected: ember + charcoal + black. Bold, cinematic voice." },
-      { d: 3600, t: "3 sources found and synthesized." },
-      { d: 5000, t: "Slides designed. Speaker notes added." },
-      { d: 7200, t: "Your deck is ready. Export as .pptx whenever you like." },
-    ];
-    aiMsgs.forEach(({ d, t }) => {
-      setTimeout(() => {
-        setMessages((p) => [...p, { id: `a-${Date.now()}-${d}`, role: "assistant", text: t }]);
-      }, d);
-    });
-    setTimeout(() => {
-      setSteps((p) => p.map((s) => ({ ...s, status: "completed" })));
-      setIsRunning(false);
-    }, 8200);
+  function runWorkflow(prompt: string) {
+    runHandleRef.current?.close();
+    runHandleRef.current = null;
+
+    workflowIndexRef.current = 0;
+    setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
+    setSlides([]);
+    setTheme(DEMO_THEME);
+    setActiveSlide(0);
+    setSelectedElementId(null);
+    setPendingQuestion(null);
+    setSidebarTab("workflow");
+
+    const handleEvent = (ev: SlidesSSEEvent) => {
+      if (ev.type === "workflow_step" && ev.stepId !== "run_id") {
+        setSteps((prev) => {
+          const next = [...prev];
+          const idx = workflowIndexRef.current;
+          if (idx < next.length) {
+            const status: StepStatus =
+              ev.status === "done" ? "completed" : ev.status === "error" ? "error" : "running";
+            next[idx] = { ...next[idx], status, detail: ev.detail ?? next[idx].detail };
+            if (ev.status === "done") workflowIndexRef.current = Math.min(next.length, idx + 1);
+          }
+          return next;
+        });
+      }
+
+      if (ev.type === "theme_set") {
+        setTheme(ev.theme);
+      }
+
+      if (ev.type === "slide_created") {
+        setSlides((prev) => {
+          if (prev.some((s) => s.id === ev.id)) return prev;
+          const blank: SlideSpec = {
+            id: ev.id,
+            position: ev.position,
+            layout: "blank",
+            archetype: "THE_BREATH",
+            designIntent: "Blank slide.",
+            background: { type: "solid", color: DEMO_THEME.palette.background },
+            elements: [],
+          };
+          return [...prev, blank].sort((a, b) => a.position - b.position);
+        });
+      }
+
+      if (ev.type === "slide_designed") {
+        setSlides((prev) => {
+          const exists = prev.some((s) => s.id === ev.id);
+          const next = exists ? prev.map((s) => (s.id === ev.id ? ev.spec : s)) : [...prev, ev.spec];
+          return next.sort((a, b) => a.position - b.position);
+        });
+      }
+
+      if (ev.type === "slide_written") {
+        setMessages((p) => [...p, { id: `a-${Date.now()}-${ev.id}`, role: "assistant", text: `Writing ${ev.id}: ${ev.title}` }]);
+      }
+
+      if (ev.type === "ask_user") {
+        setIsRunning(false);
+        setPendingQuestion(ev.question);
+        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: ev.question.question }]);
+      }
+
+      if (ev.type === "workflow_complete") {
+        setSteps((p) => p.map((s) => ({ ...s, status: "completed" })));
+        setIsRunning(false);
+      }
+
+      if (ev.type === "error") {
+        setIsRunning(false);
+        setSteps((p) => p.map((s) => (s.status === "running" ? { ...s, status: "error" } : s)));
+        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: ev.message }]);
+      }
+    };
+
+    void SlidesAgentClient.start({ instruction: prompt }, handleEvent)
+      .then((handle) => {
+        runHandleRef.current = handle;
+      })
+      .catch((err) => {
+        setIsRunning(false);
+        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not start agent." }]);
+      });
   }
 
   const completedCount = steps.filter((s) => s.status === "completed").length;
@@ -669,7 +752,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
           <div
             ref={canvasRef}
             className="flex-1 overflow-hidden relative select-none"
-            style={{ cursor: canvasMode === "h" ? (dragging.current ? "grabbing" : "grab") : "default" }}
+            style={{ cursor: canvasMode === "h" ? (isDragging ? "grabbing" : "grab") : "default" }}
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}

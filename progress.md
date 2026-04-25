@@ -8,7 +8,7 @@
 ## Overall Status
 
 ```
-Phase 1 (MVP)     ████████░░░░░░░░░░░░  5 / 18 done   ~28%
+Phase 1 (MVP)     ████████████░░░░░░░░  6 / 18 done   ~33%
 Phase 2 (Power)   ░░░░░░░░░░░░░░░░░░░░  0 / 21 done
 Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  0 / 9 done
 ```
@@ -79,8 +79,28 @@ Phase 3 (Frontier)░░░░░░░░░░░░░░░░░░░░  
 - [x] Theme swatch in toolbar (name + primary color dot)
 - [x] Sidebar — workflow steps + sources tabs
 - [x] Chat UI (messages, input, send)
-- [x] Workflow animation (mock steps with timers)
 - [x] 6 demo slides using real `SlideSpec` — all 6 archetypes represented
+- [x] Connect real agent to `OctopilotSlidesView` (replace mock workflow)
+- [x] Connect SSE events to canvas (live slide appear/update during generation)
+
+### Chunk C — AI Agent ✅
+
+- [x] `src/server/slides/agent/systemPrompt.ts` — Creative Engine system prompt (MVP version)
+- [x] `src/server/slides/agent/loop.ts` — SlidesOrchestrator (adapted from Ghostwriter loop.ts)
+- [x] `src/server/slides/agent/runs.ts` — DeckRun type + in-memory store + answer waiters
+- [x] `src/server/slides/agent/tools/analyze_instruction.ts`
+- [x] `src/server/slides/agent/tools/ask_user.ts`
+- [x] `src/server/slides/agent/tools/create_slides.ts`
+- [x] `src/server/slides/agent/tools/write_slide.ts`
+- [x] `src/server/slides/agent/tools/design_slide.ts` (LLM-backed with safe fallback)
+- [x] `src/server/slides/agent/tools/compose.ts`
+- [x] `src/server/slides/agent/tools/update_deck_theme.ts`
+- [x] `src/server/slides/agent/tools/update_element.ts`
+- [x] `src/server/slides/agent/tools/add_element.ts`
+- [x] `src/server/slides/agent/tools/remove_element.ts`
+- [x] `src/app/api/slides/start/route.ts` — authenticated SSE start endpoint
+- [x] `src/app/api/slides/answer/route.ts` — reply to ask_user question
+- [x] `src/services/SlidesAgentClient.ts` — browser client for SSE + answer
 
 ---
 
@@ -91,25 +111,6 @@ Nothing currently in progress.
 ---
 
 ## ⏳ Phase 1 — Remaining
-
-### Chunk C — AI Agent (next up)
-
-- [ ] `src/server/slides/agent/systemPrompt.ts` — Designer Persona + all creative rules
-- [ ] `src/server/slides/agent/loop.ts` — SlidesOrchestrator (adapted from Ghostwriter loop.ts)
-- [ ] `src/server/slides/agent/runs.ts` — DeckRun type + in-memory `Map<runId, DeckState>`
-- [ ] `src/server/slides/agent/tools/analyze_instruction.ts`
-- [ ] `src/server/slides/agent/tools/ask_user.ts`
-- [ ] `src/server/slides/agent/tools/create_slides.ts`
-- [ ] `src/server/slides/agent/tools/write_slide.ts`
-- [ ] `src/server/slides/agent/tools/design_slide.ts` ← most complex, calls Claude Opus
-- [ ] `src/server/slides/agent/tools/compose.ts`
-- [ ] `src/server/slides/agent/tools/update_deck_theme.ts`
-- [ ] `src/server/slides/agent/tools/update_element.ts`
-- [ ] `src/server/slides/agent/tools/add_element.ts`
-- [ ] `src/server/slides/agent/tools/remove_element.ts`
-- [ ] `src/app/api/slides/start/route.ts` — POST: start run → SSE stream
-- [ ] `src/app/api/slides/answer/route.ts` — POST: reply to ask_user question
-- [ ] SSE streaming — `SlidesSSEEvent` events to frontend
 
 ### Chunk D — Property Panel (V mode editing)
 
@@ -138,8 +139,6 @@ Nothing currently in progress.
 
 - [ ] Basic transitions: fade, push (web CSS + PptxGenJS)
 - [ ] Font loading — Google Fonts CSS import for theme fonts
-- [ ] Connect real agent to `OctopilotSlidesView` (replace mock workflow)
-- [ ] Connect SSE events to canvas (live slide appear/update during generation)
 
 ---
 
@@ -202,23 +201,23 @@ src/
 │           └── IconEl.tsx           ✅ complete
 │
 ├── views/
-│   ├── OctopilotSlidesView.tsx      ✅ canvas + UI (mock data)
+│   ├── OctopilotSlidesView.tsx      ✅ canvas + UI (real SSE agent)
 │   └── MethodologyView.tsx          ✅ updated
 │
 └── server/
-    └── slides/                      ⏳ not started
+    └── slides/                      ✅ agent started (export pending)
         ├── agent/
-        │   ├── loop.ts              ⏳
-        │   ├── runs.ts              ⏳
-        │   ├── systemPrompt.ts      ⏳
-        │   └── tools/               ⏳ (13 tools)
+        │   ├── loop.ts              ✅
+        │   ├── runs.ts              ✅
+        │   ├── systemPrompt.ts      ✅
+        │   └── tools/               ✅ (Phase 1 subset)
         └── export/
             └── pptxRenderer.ts      ⏳
 
 src/app/api/
-    └── slides/                      ⏳ not started
-        ├── start/route.ts           ⏳
-        ├── answer/route.ts          ⏳
+    └── slides/                      ✅ start + answer routes
+        ├── start/route.ts           ✅
+        ├── answer/route.ts          ✅
         └── export/route.ts          ⏳
 ```
 
@@ -236,8 +235,7 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 - ✅ Thumbnail strip shows real mini renders of each slide
 - ✅ Theme name + color swatch in toolbar
 - ✅ Sidebar with workflow steps + sources + chat
-- ✅ Mock workflow animation (simulates AI running steps)
-- ❌ No real AI yet — agent not built
+- ✅ Real AI agent run via SSE (slides stream in live)
 - ❌ No export yet — PptxGenJS not integrated
 - ❌ No property panel yet — element editing not wired
 
@@ -245,15 +243,11 @@ If you open OctopilotSlides today (as dev.trhein@gmail.com):
 
 ## Next Session Starts Here
 
-**Chunk C: SlidesOrchestrator**
+**Chunk D: Property Panel**
 
-1. `src/server/slides/agent/systemPrompt.ts` — Creative Engine system prompt
-2. `src/server/slides/agent/runs.ts` — DeckState in-memory store
-3. `src/server/slides/agent/loop.ts` — agent loop (adapt from Ghostwriter loop.ts)
-4. Tools: `analyze_instruction` → `ask_user` → `create_slides` → `write_slide` → `design_slide` → `compose`
-5. `src/app/api/slides/start/route.ts` — SSE endpoint
-6. `src/app/api/slides/answer/route.ts` — ask_user reply
-7. Wire frontend: replace mock `runWorkflow()` with real SSE consumer
+1. Build right-side property panel component (appears on element select)
+2. Wire controls to `applyElementPatch()` for local edits
+3. (Phase 1) Keep edits local; (Phase 2) mirror to server with `update_element`
 ```
 
 ---
