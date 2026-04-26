@@ -594,6 +594,23 @@ function safeRect(input: unknown, fallback: Rect = { x: 8, y: 8, w: 40, h: 20 })
   };
 }
 
+/** For TEXT elements specifically: ensure x+w ≤ 100 and y+h ≤ 100.
+ *  Shapes/images may legitimately bleed off canvas (atmosphere, ghost text),
+ *  but text content must always be visible. If the AI placed a title at
+ *  y:80 h:30 (extends below canvas), we clamp h so it fits.
+ *
+ *  This is a SAFETY NET for prompt failures — the prompt explicitly tells
+ *  the designer to do this math, but we enforce it server-side so broken
+ *  output never reaches the canvas.
+ */
+function clampTextRect(rect: Rect): Rect {
+  const x = Math.max(0, Math.min(98, rect.x));
+  const y = Math.max(0, Math.min(95, rect.y));
+  const w = Math.min(rect.w, 100 - x);
+  const h = Math.min(rect.h, 100 - y);
+  return { x, y, w: Math.max(5, w), h: Math.max(3, h) };
+}
+
 function normalizeWeight(input: unknown, fallback: TextStyle["fontWeight"] = 400): TextStyle["fontWeight"] {
   const n = typeof input === "number" ? input : Number(input);
   if (Number.isFinite(n) && ALLOWED_WEIGHTS.has(n)) return n as TextStyle["fontWeight"];
@@ -680,7 +697,7 @@ export function normalizeSlideElement(
       type: "text",
       variant,
       content: safeStr(raw.content, ""),
-      position,
+      position: clampTextRect(position),
       style: normalizeTextStyle(raw.style, theme),
       animation,
     };

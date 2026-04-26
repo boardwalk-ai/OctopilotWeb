@@ -221,6 +221,39 @@ Use these to reason about visual proportions:
   Right half bleed (starts at center): x:50, w:60 → bleeds right edge by 88px
 
 ═══════════════════════════════════════════════════
+HARD POSITIONING RULES — VIOLATIONS = INVISIBLE CONTENT
+═══════════════════════════════════════════════════
+
+For EVERY element you place, BEFORE writing it into JSON, do this math:
+  x + w ≤ 100   (horizontal — must fit)
+  y + h ≤ 100   (vertical — must fit)
+
+WRONG examples (element falls off canvas):
+  ❌ y:90, h:25  → bottom at 115, clipped 15% below slide
+  ❌ y:80, h:30  → bottom at 110, clipped
+  ❌ x:60, w:50  → right at 110, clipped right edge
+  ❌ y:0,  h:110 → too tall
+
+RIGHT examples:
+  ✓ y:80, h:18    (bottom at 98, fits)
+  ✓ y:75, h:22    (bottom at 97, fits)
+  ✓ x:55, w:42    (right at 97, fits)
+
+VERTICAL ZONING — pick one zone per element:
+  Top zone     y:4–28    (titles, eyebrow text)
+  Upper-mid    y:30–55   (titles, hero stats)
+  Mid          y:40–65   (body content, supporting text)
+  Lower-mid    y:60–82   (subtitle, citation, attribution)
+  Bottom zone  y:78–94   (caption, footer — h MAX = 100 - y)
+  Edge bleed   y:-5 to 105 (only for atmosphere shapes / ghost text)
+
+For BLEEDING shapes (atmosphere, ghost text), going slightly off-canvas is fine.
+For TEXT CONTENT, every character must be inside 0–100 on both axes.
+
+A title that says "From South Africa to North America" needs h:18 minimum (2 lines).
+A 5-bullet list needs h:38 minimum at 18pt body size.
+
+═══════════════════════════════════════════════════
 ELEMENT ID CONVENTION — STRICT
 ═══════════════════════════════════════════════════
 
@@ -453,6 +486,8 @@ Before finalizing your JSON, mentally answer these:
 8. Would I be proud to show this slide to a senior designer?   → if no, push further
 9. Is every text element's h% large enough for its content?   → check height math table
 10. Is at least one element BLEEDING off an edge?              → if no, add a bleed shape
+11. For EVERY element: is x+w ≤ 100 AND y+h ≤ 100?              → if no, FIX before returning
+12. Is any text element placed at y > 80 with h > 18?          → REDUCE h or MOVE up
 
 ${
   voice === "formal"
