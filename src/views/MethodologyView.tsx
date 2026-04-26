@@ -23,14 +23,25 @@ interface MethodologyViewProps {
   onSelect: (method: "automation" | "manual" | "ghostwriter" | "octopilotslides") => void;
 }
 
+type BetaAccessFeatures = {
+  ghostwriter: boolean;
+  octopilotSlides: boolean;
+};
+
+const DEFAULT_BETA_ACCESS: BetaAccessFeatures = {
+  ghostwriter: false,
+  octopilotSlides: false,
+};
+
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
   const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides">(
     org.writingMode || "automation"
   );
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
-  const canSeeGhostwriter = user?.email?.trim().toLowerCase() === "dev.trhein@gmail.com";
-  const canSeeOctopilotSlides = user?.email?.trim().toLowerCase() === "dev.trhein@gmail.com";
+  const [betaAccess, setBetaAccess] = useState<BetaAccessFeatures>(DEFAULT_BETA_ACCESS);
+  const canSeeGhostwriter = betaAccess.ghostwriter;
+  const canSeeOctopilotSlides = betaAccess.octopilotSlides;
 
   const effectiveSelected = (() => {
     if (!canSeeGhostwriter && selected === "ghostwriter") return "automation" as const;
@@ -41,6 +52,50 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   useEffect(() => {
     return AuthService.subscribe(setUser);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBetaAccess = async () => {
+      if (!user) {
+        if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
+        return;
+      }
+
+      try {
+        const token = await AuthService.getIdToken();
+        if (!token) {
+          if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
+          return;
+        }
+
+        const response = await fetch("/api/beta-access/me", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
+          return;
+        }
+
+        const payload = (await response.json()) as { features?: Partial<BetaAccessFeatures> };
+        if (cancelled) return;
+        setBetaAccess({
+          ghostwriter: Boolean(payload.features?.ghostwriter),
+          octopilotSlides: Boolean(payload.features?.octopilotSlides),
+        });
+      } catch {
+        if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
+      }
+    };
+
+    void loadBetaAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Map modes to orbital timeline data
   const allModes: (TimelineItem & { key: "automation" | "manual" | "ghostwriter" | "octopilotslides" })[] = [

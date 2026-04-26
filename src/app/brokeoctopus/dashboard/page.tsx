@@ -9,6 +9,7 @@ import { StreamService } from "@/services/StreamService";
 import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
 import EarlyAccessEventsPanel from "@/components/admin/EarlyAccessEventsPanel";
 import AdminSystemSettingsPanel from "@/components/admin/AdminSystemSettingsPanel";
+import BetaAccessPanel from "@/components/admin/BetaAccessPanel";
 
 type MenuItem = {
   id: string;
@@ -107,6 +108,14 @@ const menuItems: MenuItem[] = [
     icon: <CalendarIcon />,
     columns: ["Status"],
     group: "Events",
+  },
+  {
+    id: "beta-access",
+    label: "Beta Access",
+    description: "Gate Ghostwriter & OctopilotSlides per email",
+    icon: <ShieldIcon />,
+    columns: ["Status"],
+    group: "Access Control",
   },
   { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon />, columns: ["No", "Provider", "Key", "Status"] },
   { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator action", icon: <ChartIcon />, columns: ["No", "Name", "Email", "Total Sessions", "Action"] },
@@ -263,6 +272,17 @@ function CalendarIcon() {
         <path d="M8 13h3" />
         <path d="M13 13h3" />
         <path d="M8 17h3" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <path d="M12 3.5 4 6.5v5c0 4.5 3.2 8.4 8 9.5 4.8-1.1 8-5 8-9.5v-5L12 3.5Z" />
+        <path d="m9 12 2 2 4-4" />
       </svg>
     </IconFrame>
   );
@@ -1680,6 +1700,8 @@ export default function BrokeOctopusPage() {
                 <PromoAreaPanel refreshKey={refreshKey} mode="referral" />
               ) : activeSection.id === "events-early-access" ? (
                 <EarlyAccessEventsPanel refreshKey={refreshKey} />
+              ) : activeSection.id === "beta-access" ? (
+                <BetaAccessPanel refreshKey={refreshKey} />
               ) : activeSection.id === "system-settings" ? (
                 <AdminSystemSettingsPanel refreshKey={refreshKey} />
               ) : (
