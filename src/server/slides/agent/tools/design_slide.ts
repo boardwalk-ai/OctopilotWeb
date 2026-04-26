@@ -4,6 +4,7 @@ import type { DeckTheme, DesignArchetype, DesignVoice, SlideSpec, SlideElement }
 import { applySlideUpsert, normalizeSlideSpec } from "@/types/slides";
 import type { Tool } from "../tools";
 import { emit } from "../runs";
+import { buildDesignerSystemPrompt } from "../systemPrompt";
 
 export const design_slide: Tool<{
   id: string;
@@ -51,33 +52,25 @@ export const design_slide: Tool<{
     try {
       const { apiKey, model } = await getOpenRouterConfig("primary");
 
-      const system = [
-        "You are a senior slide designer.",
-        "Return JSON only: a valid SlideSpec object.",
-        "Constraints:",
-        "- All positions are percentages 0-100.",
-        "- Use export-safe primitives only (text, shape, image, icon).",
-        "- Element ids must be unique, deterministic, and based on slide id.",
-        `- Slide id is "${args.id}".`,
-        "",
-        "SlideSpec shape:",
-        "{ id, position, layout, archetype, designIntent, background, elements, transition?, speakerNotes? }",
-        "",
-        theme ? `Theme palette: ${JSON.stringify(theme.palette)}` : "No theme provided.",
-        theme ? `Theme typography: ${JSON.stringify(theme.typography)}` : "",
-        voice ? `Deck design voice: ${voice}` : "",
-      ].join("\n");
+      const system = buildDesignerSystemPrompt({
+        deckTheme: theme,
+        designVoice: voice,
+        totalSlides: args.totalSlides,
+        previousArchetype: undefined, // TODO: pass from run state once tracked
+      });
 
       const user = [
-        `Design slide ${args.id} at position ${args.position}${args.totalSlides ? `/${args.totalSlides}` : ""}.`,
-        `Archetype preference: ${args.archetype ?? "choose best"}`,
-        `Design intent preference: ${args.designIntent ?? "choose best"}`,
+        `SLIDE: ${args.id}  |  Position ${args.position}${args.totalSlides ? ` of ${args.totalSlides}` : ""}`,
+        `Archetype: ${args.archetype ?? "your call — choose the most impactful one"}`,
+        `Design intent: ${args.designIntent ?? "make the viewer feel something before they read anything"}`,
         "",
-        `Title: ${args.content.title}`,
-        `Bullets: ${args.content.bullets.join(" | ")}`,
-        args.content.speakerNotes ? `Speaker notes: ${args.content.speakerNotes}` : "",
+        `TITLE: ${args.content.title}`,
+        args.content.bullets.length > 0
+          ? `CONTENT:\n${args.content.bullets.map((b) => `  • ${b}`).join("\n")}`
+          : "",
+        args.content.speakerNotes ? `SPEAKER NOTES: ${args.content.speakerNotes}` : "",
         "",
-        "Return a single SlideSpec JSON object. Keep it clean and readable.",
+        "Return the SlideSpec JSON. No markdown. No explanation. Just the object.",
       ].filter(Boolean).join("\n");
 
       const raw = await callJson({
@@ -87,7 +80,7 @@ export const design_slide: Tool<{
           { role: "system", content: system },
           { role: "user", content: user },
         ],
-        temperature: 0.35,
+        temperature: 0.7,
         jsonMode: true,
       });
 
