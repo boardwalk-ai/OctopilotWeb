@@ -467,6 +467,7 @@ export type DeckState = {
 
 export type SlidesSSEEvent =
   | { type: "workflow_step";     stepId: string; status: "pending" | "running" | "done" | "error"; detail?: string }
+  | { type: "thinking";          text: string }
   | { type: "slide_created";     id: string; position: number }
   | { type: "slide_written";     id: string; title: string; bullets: string[]; speakerNotes?: string }
   | { type: "slide_designed";    id: string; spec: SlideSpec }

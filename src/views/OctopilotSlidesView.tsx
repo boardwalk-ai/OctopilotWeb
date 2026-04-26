@@ -36,6 +36,8 @@ type ActivityEntry = {
   toolName: string;    // badge: "write_slide"
   status: ActivityStatus;
   detail?: string;     // answer, slide title, or error text
+  thinking?: string;   // orchestrator reasoning text (collapsible)
+  thinkingOpen?: boolean;
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -281,6 +283,7 @@ function ActivityIcon({ status }: { status: ActivityStatus }) {
 
 export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps) {
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const [pendingThinking, setPendingThinking] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -310,11 +313,17 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const activitiesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const runHandleRef = useRef<null | { close: () => void; getRunId: () => string }>(null);
+  const pendingThinkingRef = useRef<string | null>(null);
 
   // Auto-scroll activity log
   useEffect(() => {
     activitiesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activities]);
+
+  // Keep pendingThinkingRef in sync for use inside event handler closure
+  useEffect(() => {
+    pendingThinkingRef.current = pendingThinking;
+  }, [pendingThinking]);
 
   // Non-passive wheel listener for zoom + pan
   useEffect(() => {
@@ -382,6 +391,15 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
 
   useEffect(() => { fitView(); }, [fitView]);
 
+  // Auto-fit when the first AI slide appears (replaces demo slides)
+  const prevSlideLenRef = useRef(DEMO_SLIDES.length);
+  useEffect(() => {
+    const prev = prevSlideLenRef.current;
+    prevSlideLenRef.current = slides.length;
+    // Trigger fit when slides reset from demo to 0-1 (new run started)
+    if (prev > 1 && slides.length <= 1) fitView();
+  }, [slides.length, fitView]);
+
   const focusSlide = useCallback((index: number) => {
     setActiveSlide(index);
     setSelectedElementId(null);
@@ -443,6 +461,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     runHandleRef.current = null;
 
     setActivities([]);
+    setPendingThinking(null);
     setIsComplete(false);
     setSlides([]);
     setTheme(DEMO_THEME);
@@ -452,16 +471,24 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     setPendingQuestion(null);
 
     const handleEvent = (ev: SlidesSSEEvent) => {
+      if (ev.type === "thinking") {
+        // Buffer thinking text — attach it to the NEXT activity entry
+        setPendingThinking(ev.text);
+      }
+
       if (ev.type === "workflow_step" && ev.stepId !== "run_id") {
         const { label, toolName } = activityLabel(ev.detail ?? "");
         const entryId = ev.stepId;
 
         if (ev.status === "running") {
           setActivities((prev) => {
-            // Don't duplicate
             if (prev.some((a) => a.id === entryId)) return prev;
-            return [...prev, { id: entryId, label, toolName, status: "running" }];
+            // Consume buffered thinking text
+            const thinking = pendingThinkingRef.current ?? undefined;
+            pendingThinkingRef.current = null;
+            return [...prev, { id: entryId, label, toolName, status: "running", thinking, thinkingOpen: false }];
           });
+          setPendingThinking(null);
         } else if (ev.status === "done") {
           setActivities((prev) =>
             prev.map((a) => a.id === entryId ? { ...a, status: "done", detail: ev.detail } : a)
@@ -490,6 +517,60 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         });
       }
 
+      if (ev.type === "slide_written") {
+        // 1. Update activity label with the slide title
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.toolName === "write_slide" && a.status === "running"
+              ? { ...a, detail: ev.title }
+              : a
+          )
+        );
+        // 2. Render a live text-preview on canvas immediately (replaced later by design_slide)
+        setSlides((prev) => {
+          const existing = prev.find((s) => s.id === ev.id);
+          if (!existing) return prev;
+          const t = theme;
+          const preview: SlideSpec = {
+            ...existing,
+            designIntent: "Writing preview",
+            elements: [
+              {
+                id: `${ev.id}_title`,
+                type: "text", variant: "title",
+                content: ev.title,
+                position: { x: 8, y: 10, w: 84, h: 22 },
+                style: {
+                  fontFamily: t?.typography.heading.web ?? "Inter",
+                  fontSize: 52, fontWeight: 800,
+                  color: t?.palette.text ?? "#ffffff",
+                  align: "left", opacity: 1,
+                },
+              },
+              ...(ev.bullets && ev.bullets.length > 0 ? [{
+                id: `${ev.id}_body_1`,
+                type: "text" as const, variant: "body" as const,
+                content: ev.bullets.map((b: string) => `• ${b}`).join("\n"),
+                position: { x: 8, y: 36, w: 84, h: 52 },
+                style: {
+                  fontFamily: t?.typography.body.web ?? "Inter",
+                  fontSize: 18, fontWeight: 400 as const,
+                  color: t?.palette.textMuted ?? "#888888",
+                  align: "left" as const, opacity: 0.75, lineHeight: 1.65,
+                },
+              }] : []),
+            ],
+          };
+          return prev.map((s) => s.id === ev.id ? preview : s);
+        });
+        // 3. Focus this slide on canvas
+        setSlides((prev) => {
+          const idx = prev.findIndex((s) => s.id === ev.id);
+          if (idx >= 0) setActiveSlide(idx);
+          return prev;
+        });
+      }
+
       if (ev.type === "slide_designed") {
         setSlides((prev) => {
           const fallback = {
@@ -499,24 +580,11 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
           const safeSpec = normalizeSlideSpec(ev.spec, fallback, { theme });
           const exists = prev.some((s) => s.id === ev.id);
           const next = exists ? prev.map((s) => (s.id === ev.id ? safeSpec : s)) : [...prev, safeSpec];
+          // Focus the newly designed slide
+          const idx = next.findIndex((s) => s.id === ev.id);
+          if (idx >= 0) setActiveSlide(idx);
           return next.sort((a, b) => a.position - b.position);
         });
-        // Focus the newly designed slide
-        setActiveSlide((prev) => {
-          const idx = slides.findIndex((s) => s.id === ev.id);
-          return idx >= 0 ? idx : prev;
-        });
-      }
-
-      if (ev.type === "slide_written") {
-        // Update matching write_slide activity with the slide title
-        setActivities((prev) =>
-          prev.map((a) =>
-            a.toolName === "write_slide" && a.status === "running" && a.label.includes(ev.id.replace("slide_", ""))
-              ? { ...a, detail: ev.title }
-              : a
-          )
-        );
       }
 
       if (ev.type === "ask_user") {
@@ -824,35 +892,58 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             )}
 
             {activities.map((a) => (
-              <div key={a.id} className={`group flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition-all ${
+              <div key={a.id} className={`group rounded-lg transition-all ${
                 a.status === "running" ? "bg-white/[0.04]" : ""
               }`} style={{ animation: "slideUp 0.15s ease-out" }}>
-                <ActivityIcon status={a.status} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[12.5px] leading-snug ${
-                    a.status === "running" ? "text-white font-medium" :
-                    a.status === "done"    ? "text-white/50" :
-                    "text-red-400"
-                  }`}>
-                    {a.label}
-                    {a.status === "running" && (
-                      <span className="ml-1 inline-flex gap-[3px] items-center">
-                        {[0, 1, 2].map((i) => (
-                          <span key={i} className="inline-block h-[3px] w-[3px] rounded-full bg-red-500/70 animate-bounce"
-                            style={{ animationDelay: `${i * 0.15}s` }} />
-                        ))}
-                      </span>
+
+                {/* Thinking block (collapsible) */}
+                {a.thinking && (
+                  <button
+                    onClick={() => setActivities((prev) => prev.map((x) => x.id === a.id ? { ...x, thinkingOpen: !x.thinkingOpen } : x))}
+                    className="w-full flex items-center gap-1.5 px-2.5 pt-2 pb-1 text-left"
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      className={`text-white/20 shrink-0 transition-transform ${a.thinkingOpen ? "rotate-90" : ""}`}>
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                    <span className="text-[10px] text-white/20 font-medium tracking-wide uppercase">Thinking</span>
+                  </button>
+                )}
+                {a.thinking && a.thinkingOpen && (
+                  <div className="mx-2.5 mb-2 rounded-lg bg-white/[0.03] border border-white/[0.05] px-2.5 py-2">
+                    <p className="text-[11px] text-white/30 leading-relaxed whitespace-pre-wrap">{a.thinking}</p>
+                  </div>
+                )}
+
+                {/* Main row */}
+                <div className="flex items-start gap-2.5 px-2.5 py-2">
+                  <ActivityIcon status={a.status} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[12.5px] leading-snug ${
+                      a.status === "running" ? "text-white font-medium" :
+                      a.status === "done"    ? "text-white/50" :
+                      "text-red-400"
+                    }`}>
+                      {a.label}
+                      {a.status === "running" && (
+                        <span className="ml-1 inline-flex gap-[3px] items-center">
+                          {[0, 1, 2].map((i) => (
+                            <span key={i} className="inline-block h-[3px] w-[3px] rounded-full bg-red-500/70 animate-bounce"
+                              style={{ animationDelay: `${i * 0.15}s` }} />
+                          ))}
+                        </span>
+                      )}
+                    </p>
+                    {a.detail && a.status === "done" && a.toolName !== "complete" && (
+                      <p className="text-[10.5px] text-white/25 mt-0.5 truncate">{a.detail}</p>
                     )}
-                  </p>
-                  {a.detail && a.status === "done" && a.toolName !== "complete" && (
-                    <p className="text-[10.5px] text-white/25 mt-0.5 truncate">{a.detail}</p>
-                  )}
-                  {/* tool badge */}
-                  <p className={`text-[9.5px] font-mono mt-0.5 transition-opacity ${
-                    a.status === "running" ? "text-red-500/50 opacity-100" : "text-white/15 opacity-0 group-hover:opacity-100"
-                  }`}>
-                    {a.toolName !== "complete" && a.toolName !== "error" ? `calling ${a.toolName}` : ""}
-                  </p>
+                    <p className={`text-[9.5px] font-mono mt-0.5 transition-opacity ${
+                      a.status === "running" ? "text-red-500/50 opacity-100" : "text-white/15 opacity-0 group-hover:opacity-100"
+                    }`}>
+                      {a.toolName !== "complete" && a.toolName !== "error" ? `calling ${a.toolName}` : ""}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}

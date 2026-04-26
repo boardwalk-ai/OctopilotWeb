@@ -112,6 +112,12 @@ export async function runSlidesAgent(options: RunSlidesAgentOptions): Promise<vo
     }
 
     textOnlyStreak = 0;
+
+    // Emit any reasoning text the orchestrator produced before its tool calls.
+    if (assistant.content && assistant.content.trim()) {
+      emit(run, { type: "thinking", text: assistant.content.trim() });
+    }
+
     messages.push({ role: "assistant", content: assistant.content, tool_calls: toolCalls });
 
     for (const tc of toolCalls) {
