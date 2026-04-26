@@ -28,19 +28,14 @@ import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
 type OctopilotSlidesViewProps = { onBack: () => void };
 
-type StepStatus = "pending" | "running" | "completed" | "error";
+type ActivityStatus = "running" | "done" | "error";
 
-type WorkflowStep = {
-  id: number;
-  title: string;
-  detail: string;
-  status: StepStatus;
-};
-
-type ChatMessage = {
+type ActivityEntry = {
   id: string;
-  role: "assistant" | "user";
-  text: string;
+  label: string;       // human-readable: "Writing slide 2..."
+  toolName: string;    // badge: "write_slide"
+  status: ActivityStatus;
+  detail?: string;     // answer, slide title, or error text
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -49,21 +44,22 @@ const SLIDE_W = 880;
 const SLIDE_H = 495;
 const SLIDE_GAP = 72;
 
-const INITIAL_STEPS: WorkflowStep[] = [
-  { id: 1, title: "Analyze topic",    detail: "Parsing the brief and locking in scope.",      status: "pending" },
-  { id: 2, title: "Choose theme",     detail: "Picking the best color voice for your deck.",  status: "pending" },
-  { id: 3, title: "Build outline",    detail: "Structuring slides section by section.",        status: "pending" },
-  { id: 4, title: "Research sources", detail: "Searching for relevant, citable content.",      status: "pending" },
-  { id: 5, title: "Generate slides",  detail: "Writing and designing each slide.",             status: "pending" },
-  { id: 6, title: "Speaker notes",    detail: "Drafting presenter notes per slide.",           status: "pending" },
-  { id: 7, title: "Export deck",      detail: "Packaging the final PPTX.",                    status: "pending" },
-];
-
-const WELCOME: ChatMessage = {
-  id: "welcome",
-  role: "assistant",
-  text: "Hi! Tell me your topic, target audience, and tone — I'll design the rest.",
-};
+// Maps step detail strings (tool stepTitle output) → human-readable activity labels.
+function activityLabel(detail: string): { label: string; toolName: string } {
+  if (detail === "Analyze instruction") return { label: "Analyzing your brief", toolName: "analyze_instruction" };
+  if (detail.startsWith("Ask:")) {
+    const field = detail.replace("Ask:", "").trim();
+    if (field === "designAesthetic") return { label: "Choosing design aesthetic", toolName: "ask_user" };
+    if (field === "slideCount")      return { label: "Deciding slide count",       toolName: "ask_user" };
+    return { label: `Asking about ${field}`, toolName: "ask_user" };
+  }
+  if (detail === "Set deck theme") return { label: "Crafting custom theme",    toolName: "update_deck_theme" };
+  if (detail.startsWith("Create "))  return { label: `Scaffolding slides`,      toolName: "create_slides" };
+  if (detail.startsWith("Write "))   return { label: `Writing ${detail.replace("Write ", "").toLowerCase()}`, toolName: "write_slide" };
+  if (detail.startsWith("Design "))  return { label: `Designing ${detail.replace("Design ", "").toLowerCase()}`, toolName: "design_slide" };
+  if (detail === "Compose deck")     return { label: "Finalizing deck",          toolName: "compose" };
+  return { label: detail, toolName: "tool" };
+}
 
 // ─── Demo slides (real SlideSpec — showcasing the renderer) ───────────────────
 
@@ -260,40 +256,38 @@ const DEMO_SLIDES: SlideSpec[] = [
   },
 ];
 
-// ─── Step icon ─────────────────────────────────────────────────────────────────
+// ─── Activity icon ─────────────────────────────────────────────────────────────
 
-function StepIcon({ status }: { status: StepStatus }) {
-  if (status === "completed") return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 shrink-0">
+function ActivityIcon({ status }: { status: ActivityStatus }) {
+  if (status === "done") return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-[3px]">
       <path d="M20 6 9 17l-5-5" />
     </svg>
   );
   if (status === "running") return (
-    <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
-      <span className="absolute h-3 w-3 animate-ping rounded-full bg-red-500 opacity-40" />
+    <span className="relative flex h-3 w-3 shrink-0 items-center justify-center mt-[2px]">
+      <span className="absolute h-3 w-3 animate-ping rounded-full bg-red-500/60" />
       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
     </span>
   );
-  if (status === "error") return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-[3px]">
       <circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" />
     </svg>
   );
-  return <span className="h-1.5 w-1.5 rounded-full bg-white/[0.15] shrink-0" />;
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps) {
-  const [steps, setSteps] = useState<WorkflowStep[]>(INITIAL_STEPS);
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [input, setInput] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [slideAnimEpoch, setSlideAnimEpoch] = useState(0);
   const [slides, setSlides] = useState<SlideSpec[]>(DEMO_SLIDES);
   const [theme, setTheme] = useState<DeckTheme>(DEMO_THEME);
   const [isRunning, setIsRunning] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"workflow" | "sources">("workflow");
   const [canvasMode, setCanvasMode] = useState<"h" | "v">("h");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [editingTextElementId, setEditingTextElementId] = useState<string | null>(null);
@@ -313,15 +307,14 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [isDragging, setIsDragging] = useState(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activitiesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const runHandleRef = useRef<null | { close: () => void; getRunId: () => string }>(null);
-  const workflowIndexRef = useRef(0);
 
-  // Auto-scroll chat
+  // Auto-scroll activity log
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    activitiesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activities]);
 
   // Non-passive wheel listener for zoom + pan
   useEffect(() => {
@@ -415,37 +408,28 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     }
   };
 
+  const submitAnswer = (answer: string) => {
+    const q = pendingQuestion;
+    const runId = runHandleRef.current?.getRunId() || "";
+    if (!q || !runId) return;
+    // Mark the ask_user activity as done with the chosen answer
+    setActivities((prev) =>
+      prev.map((a) => a.toolName === "ask_user" && a.status === "running"
+        ? { ...a, status: "done", detail: answer }
+        : a
+      )
+    );
+    setIsRunning(true);
+    setPendingQuestion(null);
+    void SlidesAgentClient.answer(runId, q.field, answer).catch(() => setIsRunning(false));
+  };
+
   const sendMessage = (e?: FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || isRunning) return;
-    setMessages((p) => [...p, { id: `u-${Date.now()}`, role: "user", text }]);
+    if (!text || isRunning || pendingQuestion) return;
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-
-    if (pendingQuestion) {
-      const runId = runHandleRef.current?.getRunId() || "";
-      if (!runId) {
-        setMessages((p) => [
-          ...p,
-          { id: `a-${Date.now()}`, role: "assistant", text: "Run is not ready yet — please retry in a moment." },
-        ]);
-        return;
-      }
-
-      setIsRunning(true);
-      setPendingQuestion(null);
-      void SlidesAgentClient.answer(runId, pendingQuestion.field, text)
-        .catch((err) => {
-          setIsRunning(false);
-          setMessages((p) => [
-            ...p,
-            { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not submit answer." },
-          ]);
-        });
-      return;
-    }
-
     setIsRunning(true);
     runWorkflow(text);
   };
@@ -458,29 +442,35 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     runHandleRef.current?.close();
     runHandleRef.current = null;
 
-    workflowIndexRef.current = 0;
-    setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
+    setActivities([]);
+    setIsComplete(false);
     setSlides([]);
     setTheme(DEMO_THEME);
     setActiveSlide(0);
     setSelectedElementId(null);
     setEditingTextElementId(null);
     setPendingQuestion(null);
-    setSidebarTab("workflow");
 
     const handleEvent = (ev: SlidesSSEEvent) => {
       if (ev.type === "workflow_step" && ev.stepId !== "run_id") {
-        setSteps((prev) => {
-          const next = [...prev];
-          const idx = workflowIndexRef.current;
-          if (idx < next.length) {
-            const status: StepStatus =
-              ev.status === "done" ? "completed" : ev.status === "error" ? "error" : "running";
-            next[idx] = { ...next[idx], status, detail: ev.detail ?? next[idx].detail };
-            if (ev.status === "done") workflowIndexRef.current = Math.min(next.length, idx + 1);
-          }
-          return next;
-        });
+        const { label, toolName } = activityLabel(ev.detail ?? "");
+        const entryId = ev.stepId;
+
+        if (ev.status === "running") {
+          setActivities((prev) => {
+            // Don't duplicate
+            if (prev.some((a) => a.id === entryId)) return prev;
+            return [...prev, { id: entryId, label, toolName, status: "running" }];
+          });
+        } else if (ev.status === "done") {
+          setActivities((prev) =>
+            prev.map((a) => a.id === entryId ? { ...a, status: "done", detail: ev.detail } : a)
+          );
+        } else if (ev.status === "error") {
+          setActivities((prev) =>
+            prev.map((a) => a.id === entryId ? { ...a, status: "error", detail: ev.detail } : a)
+          );
+        }
       }
 
       if (ev.type === "theme_set") {
@@ -491,12 +481,9 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         setSlides((prev) => {
           if (prev.some((s) => s.id === ev.id)) return prev;
           const blank: SlideSpec = {
-            id: ev.id,
-            position: ev.position,
-            layout: "blank",
-            archetype: "THE_BREATH",
-            designIntent: "Blank slide.",
-            background: { type: "solid", color: DEMO_THEME.palette.background },
+            id: ev.id, position: ev.position, layout: "blank",
+            archetype: "THE_BREATH", designIntent: "Blank slide.",
+            background: { type: "solid", color: theme?.palette.background ?? "#0f0f0f" },
             elements: [],
           };
           return [...prev, blank].sort((a, b) => a.position - b.position);
@@ -507,52 +494,75 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
         setSlides((prev) => {
           const fallback = {
             id: ev.id,
-            position:
-              prev.find((s) => s.id === ev.id)?.position ??
-              (ev.spec?.position ?? prev.length + 1),
+            position: prev.find((s) => s.id === ev.id)?.position ?? (ev.spec?.position ?? prev.length + 1),
           };
           const safeSpec = normalizeSlideSpec(ev.spec, fallback, { theme });
           const exists = prev.some((s) => s.id === ev.id);
           const next = exists ? prev.map((s) => (s.id === ev.id ? safeSpec : s)) : [...prev, safeSpec];
           return next.sort((a, b) => a.position - b.position);
         });
+        // Focus the newly designed slide
+        setActiveSlide((prev) => {
+          const idx = slides.findIndex((s) => s.id === ev.id);
+          return idx >= 0 ? idx : prev;
+        });
       }
 
       if (ev.type === "slide_written") {
-        setMessages((p) => [...p, { id: `a-${Date.now()}-${ev.id}`, role: "assistant", text: `Writing ${ev.id}: ${ev.title}` }]);
+        // Update matching write_slide activity with the slide title
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.toolName === "write_slide" && a.status === "running" && a.label.includes(ev.id.replace("slide_", ""))
+              ? { ...a, detail: ev.title }
+              : a
+          )
+        );
       }
 
       if (ev.type === "ask_user") {
         setIsRunning(false);
         setPendingQuestion(ev.question);
-        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: ev.question.question }]);
+        // Mark the ask_user activity as waiting
+        setActivities((prev) =>
+          prev.map((a) => a.toolName === "ask_user" && a.status === "running"
+            ? { ...a, label: ev.question.question }
+            : a
+          )
+        );
       }
 
       if (ev.type === "workflow_complete") {
-        setSteps((p) => p.map((s) => ({ ...s, status: "completed" })));
         setIsRunning(false);
+        setIsComplete(true);
+        setActivities((prev) => [
+          ...prev,
+          { id: "complete", label: `${slides.length || "All"} slides ready`, toolName: "complete", status: "done" },
+        ]);
       }
 
       if (ev.type === "error") {
         setIsRunning(false);
-        setSteps((p) => p.map((s) => (s.status === "running" ? { ...s, status: "error" } : s)));
-        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: ev.message }]);
+        setActivities((prev) => [
+          ...prev,
+          { id: `err-${Date.now()}`, label: ev.message, toolName: "error", status: "error" },
+        ]);
       }
     };
 
     void SlidesAgentClient.start({ instruction: prompt }, handleEvent)
-      .then((handle) => {
-        runHandleRef.current = handle;
-      })
+      .then((handle) => { runHandleRef.current = handle; })
       .catch((err) => {
         setIsRunning(false);
-        setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not start agent." }]);
+        setActivities((prev) => [
+          ...prev,
+          { id: `err-${Date.now()}`, label: err instanceof Error ? err.message : "Could not start agent.", toolName: "error", status: "error" },
+        ]);
       });
   }
 
-  const completedCount = steps.filter((s) => s.status === "completed").length;
-  const progressPct = Math.round((completedCount / steps.length) * 100);
-  const runningStep = steps.find((s) => s.status === "running");
+  const doneCount = activities.filter((a) => a.status === "done").length;
+  const totalCount = activities.length;
+  const runningActivity = activities.find((a) => a.status === "running");
   const activeSpec = slides[activeSlide];
   const selectedElement =
     activeSpec && selectedElementId
@@ -722,19 +732,13 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   }, [canvasMode, selectedElementId, activeSpec, patchSelectedElementStyle]);
 
   const exportPptx = useCallback(async () => {
-    if (!slides.length) {
-      setMessages((p) => [...p, { id: `a-${Date.now()}`, role: "assistant", text: "No slides to export yet." }]);
-      return;
-    }
+    if (!slides.length) return;
 
     try {
       const response = await fetchWithUserAuthorization("/api/slides/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deckTitle: "octopilotslides",
-          slides,
-        }),
+        body: JSON.stringify({ deckTitle: "octopilotslides", slides }),
       });
 
       if (!response.ok) {
@@ -752,9 +756,9 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMessages((p) => [
-        ...p,
-        { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Export failed." },
+      setActivities((prev) => [
+        ...prev,
+        { id: `export-err-${Date.now()}`, label: err instanceof Error ? err.message : "Export failed.", toolName: "error", status: "error" },
       ]);
     }
   }, [slides]);
@@ -773,10 +777,10 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
       <div className="flex overflow-hidden" style={{ marginTop: 64, height: "calc(100vh - 64px)" }}>
 
         {/* ══ SIDEBAR ══ */}
-        <aside className="flex w-[320px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0f0f0f]">
+        <aside className="flex w-[300px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0f0f0f]">
 
           {/* Head */}
-          <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-4 py-3">
+          <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-4 py-3 shrink-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" />
@@ -785,151 +789,132 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-semibold text-white leading-none">OctopilotSlides</p>
               <p className="text-[11px] text-white/30 mt-0.5 leading-none truncate">
-                {isRunning && runningStep
-                  ? runningStep.title
-                  : completedCount > 0
-                  ? `${completedCount} / ${steps.length} steps done`
-                  : "Ready to build your deck"}
+                {isComplete
+                  ? `${slides.length} slides ready`
+                  : isRunning && runningActivity
+                  ? runningActivity.label
+                  : activities.length > 0
+                  ? `${doneCount} of ${totalCount} done`
+                  : "Describe your deck below"}
               </p>
             </div>
-            {(isRunning || completedCount > 0) && (
-              <div className="relative h-8 w-8 shrink-0">
-                <svg className="h-8 w-8 -rotate-90" viewBox="0 0 32 32">
-                  <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2.5" />
-                  <circle cx="16" cy="16" r="12" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 12}`}
-                    strokeDashoffset={`${2 * Math.PI * 12 * (1 - progressPct / 100)}`}
-                    className="transition-all duration-500"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-red-400">{progressPct}</span>
-              </div>
+            {/* Pulsing dot when running */}
+            {isRunning && (
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-50" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+              </span>
+            )}
+            {isComplete && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
             )}
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b border-white/[0.06] px-4 shrink-0">
-            {(["workflow", "sources"] as const).map((tab) => (
-              <button key={tab} onClick={() => setSidebarTab(tab)}
-                className={`relative pb-2 pt-2.5 text-[12px] font-medium capitalize mr-5 transition-colors ${sidebarTab === tab ? "text-white" : "text-white/30 hover:text-white/60"}`}>
-                {tab}
-                {sidebarTab === tab && <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-red-500" />}
-              </button>
+          {/* ── Activity log ── */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+            {activities.length === 0 && !isRunning && (
+              <div className="flex flex-col items-center justify-center py-12 text-center gap-2 opacity-40">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <p className="text-[12px] text-white/40">Type a topic below to start</p>
+              </div>
+            )}
+
+            {activities.map((a) => (
+              <div key={a.id} className={`group flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition-all ${
+                a.status === "running" ? "bg-white/[0.04]" : ""
+              }`} style={{ animation: "slideUp 0.15s ease-out" }}>
+                <ActivityIcon status={a.status} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[12.5px] leading-snug ${
+                    a.status === "running" ? "text-white font-medium" :
+                    a.status === "done"    ? "text-white/50" :
+                    "text-red-400"
+                  }`}>
+                    {a.label}
+                    {a.status === "running" && (
+                      <span className="ml-1 inline-flex gap-[3px] items-center">
+                        {[0, 1, 2].map((i) => (
+                          <span key={i} className="inline-block h-[3px] w-[3px] rounded-full bg-red-500/70 animate-bounce"
+                            style={{ animationDelay: `${i * 0.15}s` }} />
+                        ))}
+                      </span>
+                    )}
+                  </p>
+                  {a.detail && a.status === "done" && a.toolName !== "complete" && (
+                    <p className="text-[10.5px] text-white/25 mt-0.5 truncate">{a.detail}</p>
+                  )}
+                  {/* tool badge */}
+                  <p className={`text-[9.5px] font-mono mt-0.5 transition-opacity ${
+                    a.status === "running" ? "text-red-500/50 opacity-100" : "text-white/15 opacity-0 group-hover:opacity-100"
+                  }`}>
+                    {a.toolName !== "complete" && a.toolName !== "error" ? `calling ${a.toolName}` : ""}
+                  </p>
+                </div>
+              </div>
             ))}
+
+            {/* Completion banner */}
+            {isComplete && (
+              <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-3 text-center"
+                style={{ animation: "slideUp 0.2s ease-out" }}>
+                <p className="text-[13px] font-semibold text-white">✓ Deck complete</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{slides.length} slides · Export when ready</p>
+              </div>
+            )}
+            <div ref={activitiesEndRef} />
           </div>
 
-          {/* Workflow */}
-          {sidebarTab === "workflow" && (
-            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
-              {steps.map((step) => (
-                <div key={step.id} className={`flex items-start gap-3 rounded-lg px-2.5 py-2.5 transition-all ${
-                  step.status === "running" ? "bg-red-500/[0.06]" : step.status === "completed" ? "opacity-60" : "opacity-30"
-                }`}>
-                  <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                    <StepIcon status={step.status} />
+          {/* ── Question panel (when AI asks something) ── */}
+          {pendingQuestion && (
+            <div className="border-t border-white/[0.06] bg-[#0f0f0f] px-3 pt-3 pb-3 shrink-0"
+              style={{ animation: "slideUp 0.2s ease-out" }}>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 mb-2.5">
+                <div className="flex items-start gap-2 mb-2.5">
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-red-500/15 flex items-center justify-center mt-0.5">
+                    <Image src="/OCTOPILOT.png" alt="AI" width={11} height={11} className="opacity-80" />
                   </div>
-                  <div className="min-w-0">
-                    <p className={`text-[12.5px] font-medium leading-snug ${step.status === "running" ? "text-white" : "text-white/70"}`}>
-                      {step.title}
-                    </p>
-                    {(step.status === "running" || step.status === "completed") && (
-                      <p className="text-[11px] text-white/30 mt-0.5">{step.detail}</p>
-                    )}
-                  </div>
+                  <p className="text-[13px] text-white leading-snug">{pendingQuestion.question}</p>
                 </div>
-              ))}
+                {/* Choice chips */}
+                {pendingQuestion.inputType === "choice" && (pendingQuestion.suggestions?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {pendingQuestion.suggestions!.map((s) => (
+                      <button key={s} type="button" onClick={() => submitAnswer(s)}
+                        className="rounded-lg border border-white/[0.10] bg-white/[0.04] px-2.5 py-1.5 text-[12px] text-white/75 hover:border-red-500/40 hover:bg-red-500/[0.07] hover:text-white transition-all text-left">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Free-text answer */}
+              <form onSubmit={(e) => { e.preventDefault(); const v = input.trim(); if (v) { submitAnswer(v); setInput(""); } }}
+                className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 focus-within:border-red-500/25 transition-colors">
+                <input
+                  autoFocus
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = input.trim(); if (v) { submitAnswer(v); setInput(""); } } }}
+                  placeholder="Or type your answer…"
+                  className="flex-1 bg-transparent text-[12.5px] text-white placeholder-white/20 outline-none"
+                />
+                <button type="submit" disabled={!input.trim()}
+                  className="h-5 w-5 flex items-center justify-center rounded-full bg-red-500 disabled:opacity-25 transition-opacity shrink-0">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+              </form>
             </div>
           )}
 
-          {/* Sources */}
-          {sidebarTab === "sources" && (
-            <div className="flex-1 overflow-y-auto px-3 py-2.5">
-              {completedCount >= 4 ? (
-                <div className="space-y-2">
-                  {[
-                    { title: "Wikipedia", sub: "Background & overview", url: "en.wikipedia.org" },
-                    { title: "Britannica", sub: "Encyclopedia entry", url: "britannica.com" },
-                    { title: "Academic Journal", sub: "Peer-reviewed", url: "scholar.google.com" },
-                  ].map((src, i) => (
-                    <div key={i} className="rounded-lg border border-white/[0.07] p-3 hover:border-white/15 transition-colors">
-                      <p className="text-[12.5px] font-medium text-white/80">{src.title}</p>
-                      <p className="text-[11px] text-white/30 mt-0.5">{src.sub}</p>
-                      <p className="text-[10px] text-red-500/60 mt-1 font-mono truncate">{src.url}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-white/[0.03] flex items-center justify-center">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white/20">
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </div>
-                  <p className="text-[12px] text-white/20 max-w-[200px]">Sources appear after the research step completes.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Chat */}
-          <div className="border-t border-white/[0.06] flex flex-col shrink-0">
-            <div className="flex max-h-48 flex-col gap-2 overflow-y-auto px-3 py-3">
-              {messages.map((msg) => (
-                <div key={msg.id} className={`flex gap-2 text-[12.5px] leading-relaxed ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                  style={{ animation: "slideUp 0.2s ease-out" }}>
-                  {msg.role === "assistant" && (
-                    <div className="h-5 w-5 shrink-0 rounded-full bg-red-500/15 flex items-center justify-center mt-0.5">
-                      <Image src="/OCTOPILOT.png" alt="AI" width={11} height={11} className="opacity-80" />
-                    </div>
-                  )}
-                  <div className={`max-w-[84%] rounded-2xl px-3 py-2 ${
-                    msg.role === "assistant"
-                      ? "bg-white/[0.04] text-white/70 rounded-tl-sm"
-                      : "bg-red-500/20 text-white/90 rounded-tr-sm"
-                  }`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={sendMessage} className="px-3 pb-3">
-              {pendingQuestion && pendingQuestion.inputType === "choice" && (pendingQuestion.suggestions?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1.5 pb-2">
-                  {pendingQuestion.suggestions!.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        if (isRunning) return;
-                        const q = pendingQuestion;
-                        const runId = runHandleRef.current?.getRunId() || "";
-                        if (!q || !runId) {
-                          setMessages((p) => [
-                            ...p,
-                            { id: `a-${Date.now()}`, role: "assistant", text: "Run is not ready yet — please retry in a moment." },
-                          ]);
-                          return;
-                        }
-                        setMessages((p) => [...p, { id: `u-${Date.now()}`, role: "user", text: s }]);
-                        setIsRunning(true);
-                        setPendingQuestion(null);
-                        void SlidesAgentClient.answer(runId, q.field, s).catch((err) => {
-                          setIsRunning(false);
-                          setMessages((p) => [
-                            ...p,
-                            { id: `a-${Date.now()}`, role: "assistant", text: err instanceof Error ? err.message : "Could not submit answer." },
-                          ]);
-                        });
-                      }}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11.5px] text-white/70 hover:border-red-500/30 hover:text-white transition-colors"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* ── Prompt input (when idle) ── */}
+          {!pendingQuestion && (
+            <form onSubmit={sendMessage} className="border-t border-white/[0.06] px-3 py-3 shrink-0">
               <div className="flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 focus-within:border-red-500/30 transition-colors">
                 <textarea
                   ref={textareaRef}
@@ -939,7 +924,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                   placeholder={isRunning ? "Working on your deck…" : "Describe your presentation…"}
                   disabled={isRunning}
                   rows={1}
-                  className="flex-1 resize-none bg-transparent text-[13px] text-white placeholder-white/20 outline-none min-h-[22px] max-h-[140px] disabled:opacity-40 leading-relaxed"
+                  className="flex-1 resize-none bg-transparent text-[13px] text-white placeholder-white/20 outline-none min-h-[22px] max-h-[120px] disabled:opacity-30 leading-relaxed"
                 />
                 <button type="submit" disabled={!input.trim() || isRunning}
                   className="mb-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 transition-all hover:bg-red-400 disabled:opacity-25 disabled:cursor-not-allowed">
@@ -950,7 +935,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               </div>
               <p className="mt-1.5 text-center text-[10px] text-white/12">Enter to send · Shift+Enter for new line</p>
             </form>
-          </div>
+          )}
         </aside>
 
         {/* ══ MAIN CANVAS ══ */}
