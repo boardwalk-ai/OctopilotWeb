@@ -43,13 +43,14 @@ export async function runSlidesAgent(options: RunSlidesAgentOptions): Promise<vo
 
   run.state.status = "running";
 
-  const systemPrompt = buildSlidesSystemPrompt({
-    deckTheme: run.state.theme,
-    designVoice: run.state.designVoice,
-  });
-
   const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
+    {
+      role: "system",
+      content: buildSlidesSystemPrompt({
+        deckTheme: run.state.theme,
+        designVoice: run.state.designVoice,
+      }),
+    },
     { role: "user", content: instruction },
   ];
 
@@ -59,6 +60,15 @@ export async function runSlidesAgent(options: RunSlidesAgentOptions): Promise<vo
 
   for (let step = 0; step < SLIDES_AGENT_LIMITS.MAX_STEPS; step++) {
     if (run.finished) return;
+
+    // Rebuild system prompt every iteration so theme/voice changes are reflected.
+    messages[0] = {
+      role: "system",
+      content: buildSlidesSystemPrompt({
+        deckTheme: run.state.theme,
+        designVoice: run.state.designVoice,
+      }),
+    };
 
     const assistant = await callOpenRouter({ apiKey, model, messages, toolSpecs });
 
@@ -186,10 +196,22 @@ async function dispatchToolCall(args: {
       run.state.status = "running";
       run.state.pendingQuestion = null;
 
-      // Store some well-known answers on state for Phase 1.
-      if (field === "deckTheme" && typeof answer === "string") {
-        // Tool implementation also usually sets this, but keep a safety net.
-        // Theme parsing lives in the update_deck_theme tool.
+      // Persist well-known answers directly onto run.state so the
+      // system prompt reflects them immediately on the next iteration.
+      if ((field === "designAesthetic" || field === "designVoice") && typeof answer === "string") {
+        // Normalise free-text answers to a DesignVoice token.
+        const lower = answer.toLowerCase();
+        run.state.designVoice = (
+          lower.includes("editorial") ? "editorial" :
+          lower.includes("bold")      ? "bold"      :
+          lower.includes("cine")      ? "cinematic" :
+          lower.includes("clean")     ? "clean"     :
+          lower.includes("organic")   ? "organic"   :
+          lower.includes("data")      ? "data"      :
+          lower.includes("luxury")    ? "luxury"    :
+          lower.includes("formal")    ? "formal"    :
+          "editorial"
+        ) as import("@/types/slides").DesignVoice;
       }
 
       emit(run, { type: "workflow_step", stepId: tc.id, status: "done", detail: String(answer) });

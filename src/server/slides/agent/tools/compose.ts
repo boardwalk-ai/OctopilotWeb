@@ -27,6 +27,18 @@ export const compose: Tool<{
     },
   },
   async execute(args, ctx) {
+    // Guard: refuse to compose if any slide hasn't been designed yet.
+    // design_slide replaces the placeholder designIntent set by create_slides.
+    const undesigned = ctx.run.state.slides
+      .filter((s) => s.designIntent === "Placeholder scaffold slide.")
+      .map((s) => s.id);
+
+    if (undesigned.length > 0) {
+      return {
+        error: `Cannot compose — the following slides have not been designed yet: ${undesigned.join(", ")}. Call design_slide for each of these slides first, then call compose again.`,
+      };
+    }
+
     ctx.run.state.deckId = args.deckId || ctx.run.state.deckId;
     ctx.run.state.exportSnapshot = {
       deckId: ctx.run.state.deckId,
