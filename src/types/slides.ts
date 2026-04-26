@@ -368,6 +368,130 @@ export const BUILT_IN_THEMES: DeckTheme[] = [
 
 export const THEME_NAMES = BUILT_IN_THEMES.map((t) => t.name);
 
+// ---------------------------------------------------------------------------
+// Brand Presets — curated brand-style profiles for the design_brief stage.
+// Adapted from elite-powerpoint-designer skill. Used by the brief LLM call
+// to anchor a deck's overall aesthetic before per-slide design.
+// ---------------------------------------------------------------------------
+
+export type BrandFamily =
+  | "tech-keynote"
+  | "corporate-professional"
+  | "creative-bold"
+  | "financial-elite"
+  | "startup-pitch"
+  | "editorial-magazine"
+  | "luxury-minimal"
+  | "data-narrative";
+
+export type BrandPreset = {
+  family: BrandFamily;
+  name: string;
+  inspiration: string;
+  paletteHints: { background: string; primary: string; accent: string };
+  typographyHints: { heading: string; body: string };
+  visualMotif: string;        // ONE distinctive element repeated deck-wide
+  layoutPersonality: string;  // e.g. "extreme whitespace", "asymmetric grid"
+};
+
+export const BRAND_PRESETS: BrandPreset[] = [
+  {
+    family: "tech-keynote",
+    name: "Tech Keynote",
+    inspiration: "Apple, Tesla, premium product launches",
+    paletteHints: { background: "#000000", primary: "#0071e3", accent: "#ffffff" },
+    typographyHints: { heading: "Inter", body: "Inter" },
+    visualMotif: "extreme whitespace — single focal element per slide, nothing competes",
+    layoutPersonality: "centered, airy, minimal — every element earns its place",
+  },
+  {
+    family: "corporate-professional",
+    name: "Corporate Professional",
+    inspiration: "Microsoft, IBM, enterprise reports",
+    paletteHints: { background: "#f3f2f1", primary: "#003366", accent: "#0078d4" },
+    typographyHints: { heading: "Inter", body: "Source Sans Pro" },
+    visualMotif: "subtle grid alignment with consistent gutters — trustworthy, structured",
+    layoutPersonality: "balanced, grid-based, data-friendly — left-aligned content blocks",
+  },
+  {
+    family: "creative-bold",
+    name: "Creative Bold",
+    inspiration: "Google, Airbnb, design-forward brands",
+    paletteHints: { background: "#ffffff", primary: "#ea4335", accent: "#fbbc05" },
+    typographyHints: { heading: "Nunito", body: "Inter" },
+    visualMotif: "vibrant color blocks bleeding off one edge — playful, energetic",
+    layoutPersonality: "dynamic, asymmetric — break the grid intentionally",
+  },
+  {
+    family: "financial-elite",
+    name: "Financial Elite",
+    inspiration: "Goldman Sachs, McKinsey, premium financial",
+    paletteHints: { background: "#ffffff", primary: "#2c3e50", accent: "#d4af37" },
+    typographyHints: { heading: "Playfair Display", body: "Source Sans Pro" },
+    visualMotif: "thin gold rule lines + serif numerals — sophisticated, authoritative",
+    layoutPersonality: "traditional hierarchy, centered, balanced — restraint is power",
+  },
+  {
+    family: "startup-pitch",
+    name: "Startup Pitch",
+    inspiration: "Y Combinator, Series A pitch decks",
+    paletteHints: { background: "#0a0a0a", primary: "#6366f1", accent: "#ffffff" },
+    typographyHints: { heading: "Inter", body: "Inter" },
+    visualMotif: "oversized metrics with tiny labels — number drama, founder energy",
+    layoutPersonality: "left-aligned, problem→solution, metric-driven — no decoration",
+  },
+  {
+    family: "editorial-magazine",
+    name: "Editorial Magazine",
+    inspiration: "The New Yorker, Monocle, long-form magazines",
+    paletteHints: { background: "#0c0c0c", primary: "#c9a84c", accent: "#fafaf9" },
+    typographyHints: { heading: "Playfair Display", body: "Source Sans Pro" },
+    visualMotif: "huge ghost typography behind text + 1px hairline rules — print-feel",
+    layoutPersonality: "asymmetric magazine columns — text bleeds, grids broken",
+  },
+  {
+    family: "luxury-minimal",
+    name: "Luxury Minimal",
+    inspiration: "Hermès, COS, premium fashion",
+    paletteHints: { background: "#1a1410", primary: "#c9a884", accent: "#f5f0e8" },
+    typographyHints: { heading: "Cormorant", body: "Nunito" },
+    visualMotif: "warm neutrals, generous margins, no decoration — quiet confidence",
+    layoutPersonality: "centered, minimal, breathing — silence is the loudest design",
+  },
+  {
+    family: "data-narrative",
+    name: "Data Narrative",
+    inspiration: "Bloomberg, FT graphics, NYT charts",
+    paletteHints: { background: "#0f172a", primary: "#0ea5e9", accent: "#fbbf24" },
+    typographyHints: { heading: "Inter", body: "Source Sans Pro" },
+    visualMotif: "sharp data visualizations + atmospheric shapes — informative, calm",
+    layoutPersonality: "structured zones, clear data hierarchy, breathing room around stats",
+  },
+];
+
+export function getBrandPreset(family: BrandFamily): BrandPreset | undefined {
+  return BRAND_PRESETS.find((p) => p.family === family);
+}
+
+// ---------------------------------------------------------------------------
+// Design Brief — Stage 1 of the design pipeline. Output of design_brief tool,
+// input to design_slide. Captures high-level creative direction before
+// detailed positioning.
+// ---------------------------------------------------------------------------
+
+export type DesignBrief = {
+  brandFamily: BrandFamily;
+  archetype: DesignArchetype;
+  focalElement: string;        // "The number 300,000+ at 140pt"
+  designIntent: string;        // one sentence: what viewer should FEEL
+  visualMotif: string;         // deck-wide consistency element
+  layoutSketch: string;        // 2-3 sentences describing layout
+  riskyChoice: string;         // one bold/unexpected decision
+  visualElement: "stat" | "image" | "icon" | "shape" | "ghost-text" | "chart";
+};
+
+
+
 export function getThemeByName(name: string): DeckTheme | undefined {
   return BUILT_IN_THEMES.find((t) => t.name === name);
 }
@@ -452,6 +576,9 @@ export type DeckState = {
   status: DeckStatus;
   designVoice?: DesignVoice;
   theme?: DeckTheme;
+  brandFamily?: BrandFamily;        // deck-wide aesthetic
+  visualMotif?: string;             // distinctive element repeated across slides
+  lastArchetype?: DesignArchetype;  // for "no consecutive duplicates" rule
   slides: SlideSpec[];
   sources: SourceItem[];
   pendingQuestion: AgentQuestion | null;

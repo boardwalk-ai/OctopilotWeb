@@ -55,11 +55,13 @@ function activityLabel(detail: string): { label: string; toolName: string } {
     if (field === "slideCount")      return { label: "Deciding slide count",       toolName: "ask_user" };
     return { label: `Asking about ${field}`, toolName: "ask_user" };
   }
-  if (detail === "Set deck theme") return { label: "Crafting custom theme",    toolName: "update_deck_theme" };
-  if (detail.startsWith("Create "))  return { label: `Scaffolding slides`,      toolName: "create_slides" };
-  if (detail.startsWith("Write "))   return { label: `Writing ${detail.replace("Write ", "").toLowerCase()}`, toolName: "write_slide" };
-  if (detail.startsWith("Design "))  return { label: `Designing ${detail.replace("Design ", "").toLowerCase()}`, toolName: "design_slide" };
-  if (detail === "Compose deck")     return { label: "Finalizing deck",          toolName: "compose" };
+  if (detail === "Set deck theme")  return { label: "Crafting custom theme",                                                    toolName: "update_deck_theme" };
+  if (detail.startsWith("Create ")) return { label: `Scaffolding slides`,                                                       toolName: "create_slides" };
+  if (detail.startsWith("Write "))  return { label: `Writing ${detail.replace("Write ", "").toLowerCase()}`,                    toolName: "write_slide" };
+  if (detail.startsWith("Brief "))  return { label: `Briefing ${detail.replace("Brief ", "").toLowerCase()}`,                   toolName: "design_brief" };
+  if (detail.startsWith("Design ")) return { label: `Designing ${detail.replace("Design ", "").toLowerCase()}`,                 toolName: "design_slide" };
+  if (detail.startsWith("Critique ")) return { label: `Reviewing ${detail.replace("Critique ", "").toLowerCase()}`,             toolName: "critique_slide" };
+  if (detail === "Compose deck")    return { label: "Finalizing deck",                                                          toolName: "compose" };
   return { label: detail, toolName: "tool" };
 }
 

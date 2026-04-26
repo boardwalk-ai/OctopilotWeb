@@ -3,10 +3,12 @@
 
 export const SLIDES_AGENT_LIMITS = {
   // Hard ceiling on orchestrator iterations per run.
-  MAX_STEPS: 30,
+  // 3-stage pipeline: write + brief + design + (critique + maybe revise) ≈ 5 steps/slide.
+  // 8 slides worst-case: ~5 setup + 40 design + 1 compose = 46. Buffer to 60.
+  MAX_STEPS: 60,
 
   // Conservative cost guard. (Can be adjusted once we observe real usage.)
-  MAX_COST_USD: 2.5,
+  MAX_COST_USD: 4.0,
 
   // Token pricing estimate for guardrails (USD per 1M tokens).
   COST_PER_1M_INPUT_TOKENS: 3.0,
