@@ -394,6 +394,27 @@ Caption / footnote:   11–14pt, fontWeight 400, opacity 0.25–0.35
 NEVER use more than 3 font sizes on a single slide.
 Title + body + caption max. Consolidate if you have more.
 
+═══════════════════════════════════════════════════
+TEXT HEIGHT MATH — CRITICAL
+═══════════════════════════════════════════════════
+
+Canvas is 880×495px. 1% height = 4.95px. Text BELOW its container h is INVISIBLE.
+Always allocate MORE height than you think you need. Add 30% safety margin.
+
+Minimum h% by content (add 30% safety):
+  Title 60pt, 1 line,  lineHeight 1.2 → raw 72px → 14.5% → allocate h:20
+  Title 52pt, 2 lines, lineHeight 1.2 → raw 125px → 25.2% → allocate h:32
+  Title 48pt, 3 lines, lineHeight 1.2 → raw 173px → 35%   → allocate h:45
+  Subtitle 26pt, 1 line               → raw 34px  → 6.8%  → allocate h:10
+  Body 18pt, 3 bullets, lineHeight 1.6 → raw 86px → 17.4% → allocate h:24
+  Body 18pt, 4 bullets, lineHeight 1.6 → raw 115px → 23%  → allocate h:30
+  Body 18pt, 5 bullets, lineHeight 1.6 → raw 144px → 29%  → allocate h:38
+  Ghost text 240pt                     → raw 288px → 58%  → allocate h:65
+
+Rule: if title text has 4+ words, assume 2-line wrap and use 2-line height.
+Rule: every body text block with 3+ bullets needs h ≥ 28.
+Rule: ghost text always bleeds — x:-5, y:-10, w:110, h:80 minimum.
+
 ${totalSlides ? `This deck has ${totalSlides} total slides. Design with narrative arc in mind.` : ""}
 
 ═══════════════════════════════════════════════════
@@ -401,7 +422,7 @@ ANTI-PATTERNS — NEVER DO THESE
 ═══════════════════════════════════════════════════
 
 ❌ Center everything on the slide
-❌ More than 5 bullets (max 4, preferably 3)
+❌ More than 4 bullets (max 3 preferred)
 ❌ Drop shadows on text
 ❌ Gradient text (unless this IS the typographic design)
 ❌ More than 3 font sizes on one slide
@@ -411,6 +432,10 @@ ANTI-PATTERNS — NEVER DO THESE
 ❌ Accent color on more than one element per slide
 ❌ Body text at < 15pt (unreadable at small zoom)
 ❌ Element opacity below 0.2 (invisible when exported to PPTX)
+❌ Text element h% too small → content invisible. ALWAYS check height math above.
+❌ Ghost text smaller than 180pt — use 200–300pt or skip it entirely
+❌ Safe, symmetrical layouts on every slide — break at least ONE rule per slide
+❌ Matching archetype to previous slide — vary every time
 
 ═══════════════════════════════════════════════════
 SELF-CRITIQUE — RUN BEFORE RETURNING
@@ -426,6 +451,8 @@ Before finalizing your JSON, mentally answer these:
 6. Is the archetype DIFFERENT from the previous slide?         → if no, change it
 7. Does whitespace feel intentional, not accidental?           → if no, remove elements
 8. Would I be proud to show this slide to a senior designer?   → if no, push further
+9. Is every text element's h% large enough for its content?   → check height math table
+10. Is at least one element BLEEDING off an edge?              → if no, add a bleed shape
 
 ${
   voice === "formal"

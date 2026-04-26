@@ -61,7 +61,9 @@ export default function TextEl({
     left: pos.left,
     top: pos.top,
     width: pos.width,
-    height: pos.height,
+    // Use minHeight so text is never clipped: content expands downward if it overflows.
+    // The stored h% value acts as a floor, not a hard clip boundary.
+    minHeight: pos.height,
     fontFamily: `"${s.fontFamily}", sans-serif`,
     fontSize: `${s.fontSize * scale}px`,
     fontWeight: s.fontWeight,
@@ -74,7 +76,6 @@ export default function TextEl({
     lineHeight: s.lineHeight ?? 1.3,
     letterSpacing: s.letterSpacing ? `${s.letterSpacing}em` : undefined,
     opacity: s.opacity ?? 1,
-    overflow: "hidden",
     wordBreak: "break-word",
     whiteSpace: "pre-wrap",
     boxSizing: "border-box",
