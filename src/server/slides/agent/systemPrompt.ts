@@ -168,6 +168,21 @@ Element shapes:
 ALL positions and sizes are PERCENTAGES (0–100). 100 = full slide width or height.
 Font sizes are in pt, authored at 880px reference width (they scale automatically).
 
+SLIDE CANVAS — EXACT DIMENSIONS:
+  Width:  880 px  (= 100%)
+  Height: 495 px  (= 100%)
+  Aspect: 16:9
+
+Use these to reason about visual proportions:
+  1% x = 8.8 px   |   1% y = 4.95 px
+  To appear as a CIRCLE:  set h = w × (880/495) = w × 1.778
+    e.g. w:20, h:35.6 → looks circular
+  To appear as a SQUARE:  set h = w × 1.778
+  Full-height bleed element: h:100 = 495 px
+  Half-height:               h:50  = 247.5 px
+  Left third:                w:33  = 290 px
+  Right half bleed (starts at center): x:50, w:60 → bleeds right edge by 88px
+
 ═══════════════════════════════════════════════════
 ELEMENT ID CONVENTION — STRICT
 ═══════════════════════════════════════════════════
