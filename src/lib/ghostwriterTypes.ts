@@ -43,7 +43,6 @@ export type GhostwriterWorkflowStep = {
   detail: string;
   status: GhostwriterStepStatus;
   thoughts: string[];
-  assistantText?: string;
   toolName: string;
   toolArgs?: Record<string, unknown>;
 };

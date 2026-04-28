@@ -32,7 +32,6 @@ type WorkflowStep = {
   detail: string;
   status: StepStatus;
   thoughts: string[];
-  assistantText?: string;
   toolName: string;
   toolArgs?: Record<string, unknown>;
 };
@@ -471,7 +470,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
-  const pendingAssistantRef = useRef("");
+  // Assistant conversation stream (Cursor-style): not tied to tool cards.
+  const [assistantMessages, setAssistantMessages] = useState<string[]>([]);
+  const [assistantStreaming, setAssistantStreaming] = useState("");
   const [editingOpen, setEditingOpen] = useState(true);
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
@@ -596,35 +597,14 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
             if (event.type === "assistant_delta") {
               const delta = event.chunk || "";
-              if (delta) {
-                pendingAssistantRef.current += delta;
-              }
-
-              setRunState((prev) => {
-                if (!prev) return prev;
-                const next = { ...prev, steps: prev.steps.map((s) => ({ ...s })) };
-                const runningStep = next.steps.find((s) => s.status === "running" || s.status === "blocked");
-                if (runningStep) {
-                  runningStep.assistantText = (runningStep.assistantText || "") + delta;
-                }
-                return next;
-              });
+              if (delta) setAssistantStreaming((prev) => prev + delta);
               return;
             }
 
             if (event.type === "assistant_message") {
-              const text = event.text || "";
-              pendingAssistantRef.current = text;
-
-              setRunState((prev) => {
-                if (!prev) return prev;
-                const next = { ...prev, steps: prev.steps.map((s) => ({ ...s })) };
-                const runningStep = next.steps.find((s) => s.status === "running" || s.status === "blocked");
-                if (runningStep) {
-                  runningStep.assistantText = text;
-                }
-                return next;
-              });
+              const text = (event.text || "").trim();
+              if (text) setAssistantMessages((prev) => [...prev, text]);
+              setAssistantStreaming("");
               return;
             }
 
@@ -700,15 +680,12 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   // next thought stream starts a fresh entry.
                   const capturedThoughts = pendingThoughtsRef.current.slice();
                   pendingThoughtsRef.current = [];
-                  const capturedAssistant = pendingAssistantRef.current;
-                  pendingAssistantRef.current = "";
                   next.steps.push({
                     id: stepId,
                     title: event.title,
                     detail: "",
                     status: "running",
                     thoughts: capturedThoughts,
-                    assistantText: capturedAssistant || undefined,
                     toolName: event.tool,
                     toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
                   });
@@ -1345,6 +1322,30 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
 
           <section ref={streamRef} className={styles.workflowStream}>
+            {/* Cursor-style assistant conversation (agentic) */}
+            {!isLegacyMode && (assistantMessages.length > 0 || assistantStreaming.trim()) ? (
+              <div className={styles.streamLine}>
+                <div className={styles.streamIconWrap}>
+                  <span className={styles.timerDot} />
+                </div>
+                <div className={styles.streamCopy}>
+                  <span className={styles.streamTitle}>Assistant</span>
+                  <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
+                    <div className={styles.thinkingBox}>
+                      {assistantMessages.map((m, idx) => (
+                        <p key={idx} className={styles.inlineThoughtText}>
+                          {m}
+                        </p>
+                      ))}
+                      {assistantStreaming.trim() ? (
+                        <p className={styles.inlineThoughtText}>{assistantStreaming}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {visibleSteps.map((step) => {
               const isRunning = step.status === "running";
               // Running step with thoughts → always open (live streaming view).
@@ -1453,16 +1454,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                         )}
                       </div>
                     )}
-
-                    {/* Assistant normal text output (agentic) — attached per step */}
-                    {!isLegacyMode && step.assistantText?.trim() ? (
-                      <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
-                        <div className={styles.thinkingToggle} style={{ cursor: "default" }}>
-                          <span>Assistant</span>
-                        </div>
-                        <div className={styles.thinkingBox}>{step.assistantText}</div>
-                      </div>
-                    ) : null}
 
                     {/* Error recovery */}
                     {stepError && (
