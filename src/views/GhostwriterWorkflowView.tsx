@@ -32,6 +32,7 @@ type WorkflowStep = {
   detail: string;
   status: StepStatus;
   thoughts: string[];
+  assistantText?: string;
   toolName: string;
   toolArgs?: Record<string, unknown>;
 };
@@ -470,7 +471,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
-  const [assistantStreamContent, setAssistantStreamContent] = useState("");
+  const pendingAssistantRef = useRef("");
   const [editingOpen, setEditingOpen] = useState(true);
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
@@ -594,12 +595,36 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             }
 
             if (event.type === "assistant_delta") {
-              setAssistantStreamContent((prev) => prev + event.chunk);
+              const delta = event.chunk || "";
+              if (delta) {
+                pendingAssistantRef.current += delta;
+              }
+
+              setRunState((prev) => {
+                if (!prev) return prev;
+                const next = { ...prev, steps: prev.steps.map((s) => ({ ...s })) };
+                const runningStep = next.steps.find((s) => s.status === "running" || s.status === "blocked");
+                if (runningStep) {
+                  runningStep.assistantText = (runningStep.assistantText || "") + delta;
+                }
+                return next;
+              });
               return;
             }
 
             if (event.type === "assistant_message") {
-              setAssistantStreamContent(event.text);
+              const text = event.text || "";
+              pendingAssistantRef.current = text;
+
+              setRunState((prev) => {
+                if (!prev) return prev;
+                const next = { ...prev, steps: prev.steps.map((s) => ({ ...s })) };
+                const runningStep = next.steps.find((s) => s.status === "running" || s.status === "blocked");
+                if (runningStep) {
+                  runningStep.assistantText = text;
+                }
+                return next;
+              });
               return;
             }
 
@@ -675,12 +700,15 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   // next thought stream starts a fresh entry.
                   const capturedThoughts = pendingThoughtsRef.current.slice();
                   pendingThoughtsRef.current = [];
+                  const capturedAssistant = pendingAssistantRef.current;
+                  pendingAssistantRef.current = "";
                   next.steps.push({
                     id: stepId,
                     title: event.title,
                     detail: "",
                     status: "running",
                     thoughts: capturedThoughts,
+                    assistantText: capturedAssistant || undefined,
                     toolName: event.tool,
                     toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
                   });
@@ -1426,17 +1454,15 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                       </div>
                     )}
 
-                    {/* Assistant normal text output (agentic) */}
-                    {!isLegacyMode && assistantStreamContent.trim() && (
+                    {/* Assistant normal text output (agentic) — attached per step */}
+                    {!isLegacyMode && step.assistantText?.trim() ? (
                       <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
                         <div className={styles.thinkingToggle} style={{ cursor: "default" }}>
                           <span>Assistant</span>
                         </div>
-                        <div className={styles.thinkingBox}>
-                          {assistantStreamContent}
-                        </div>
+                        <div className={styles.thinkingBox}>{step.assistantText}</div>
                       </div>
-                    )}
+                    ) : null}
 
                     {/* Error recovery */}
                     {stepError && (
