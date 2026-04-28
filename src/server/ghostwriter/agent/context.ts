@@ -89,6 +89,11 @@ export type AgentFormatAnswers = {
 export type HumanizeChoice = "StealthGPT" | "UndetectableAI" | "Skip";
 export type ParagraphSplitChoice = "AI split" | "Manual" | "Skip split";
 
+export type UserOverrides = {
+  disabledTools: string[];
+  notes?: string;
+};
+
 // The full run-local state. Every field is optional until the tool that
 // populates it runs — tools should treat missing fields as "call the
 // prerequisite first" rather than crashing. The orchestrator's system
@@ -134,6 +139,11 @@ export type AgentContext = {
   draftSettings: AgentDraftSettings;
   formatAnswers: AgentFormatAnswers;
 
+  // Mid-run user directives (pause/override). Updated only when the user
+  // explicitly interrupts; omitted from normal turns to keep prompt tokens low.
+  userOverrides?: UserOverrides;
+  userDirectiveLog?: string[];
+
   // Set when a finalize tool has packaged the export snapshot (either as
   // a server-built object or, for client-rendered PDFs, a signal that the
   // client should assemble one from the current context).
@@ -155,5 +165,6 @@ export function createAgentContext(instruction: string): AgentContext {
     draftSettings: {},
     formatAnswers: {},
     exportReady: false,
+    userDirectiveLog: [],
   };
 }

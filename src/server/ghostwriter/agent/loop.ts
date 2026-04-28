@@ -22,6 +22,7 @@ import type {
 import { AGENT_LIMITS } from "./limits";
 import { emit, finishRun, waitForAnswer, type AgentRun } from "./runs";
 import { toOpenRouterToolSpec, type AnyTool } from "./tools";
+import { classifyUserDirective } from "./directives";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -92,6 +93,58 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   for (let step = 0; step < AGENT_LIMITS.MAX_STEPS; step++) {
     // Honour a cancellation that arrived while a tool was executing.
     if (run.finished) return;
+
+    // Soft pause: pause at the next safe boundary (before an orchestrator call),
+    // collect a user directive, then resume with updated overrides.
+    if (run.pauseRequested) {
+      run.pauseRequested = false;
+      run.status = "waiting_for_user";
+
+      emit(run, {
+        type: "question",
+        field: "userDirective",
+        question: "Paused. What should I change or skip in the workflow?",
+        inputType: "text",
+        allowCustom: true,
+        options: [
+          { label: "Skip critique + revision", value: "Skip critique and revision" },
+          { label: "Skip humanizer", value: "Skip humanizer" },
+          { label: "Skip more research", value: "Skip search/scrape/compact and continue" },
+        ],
+      });
+
+      try {
+        const directive = await waitForAnswer(run, "userDirective", AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
+        run.status = "running";
+
+        const directiveText = typeof directive === "string" ? directive.trim() : String(directive ?? "").trim();
+        if (directiveText) {
+          run.context.userDirectiveLog = run.context.userDirectiveLog || [];
+          run.context.userDirectiveLog.push(directiveText);
+
+          const decision = await classifyUserDirective({ directive: directiveText, context: run.context });
+          run.context.userOverrides = {
+            disabledTools: decision.disabledTools,
+            notes: decision.notes || directiveText,
+          };
+
+          emit(run, {
+            type: "context_update",
+            patch: { userOverrides: run.context.userOverrides, userDirectiveLog: run.context.userDirectiveLog },
+          });
+
+          // Inject a minimal user-turn so the orchestrator sees the override once.
+          messages.push({
+            role: "user",
+            content: `USER OVERRIDE (apply now)\n${run.context.userOverrides.notes || directiveText}\n\nDisabled tools: ${run.context.userOverrides.disabledTools.join(", ") || "(none)"}`,
+          });
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        emit(run, { type: "step_error", id: `${run.id}-pause`, error: errorMsg, retryable: false });
+        run.status = "running";
+      }
+    }
 
     const assistant = await callOpenRouter({
       apiKey,
@@ -208,6 +261,14 @@ async function dispatchToolCall(args: {
 
   if (!tool) {
     const errorMsg = `Unknown tool: ${tc.function.name}`;
+    emit(run, { type: "step_error", id: stepId, error: errorMsg, retryable: false });
+    return toolResultFrame(tc.id, { error: errorMsg });
+  }
+
+  // Respect user overrides: block disabled tools deterministically.
+  const disabled = run.context.userOverrides?.disabledTools || [];
+  if (disabled.includes(tool.name)) {
+    const errorMsg = `Tool disabled by user directive: ${tool.name}`;
     emit(run, { type: "step_error", id: stepId, error: errorMsg, retryable: false });
     return toolResultFrame(tc.id, { error: errorMsg });
   }

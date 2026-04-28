@@ -109,4 +109,17 @@ export class GhostwriterAgentClient {
       throw new Error(error.error || `Ghostwriter answer failed: ${response.status}`);
     }
   }
+
+  static async pause(runId: string): Promise<void> {
+    const response = await fetchWithUserAuthorization("/api/ghostwriter/pause", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Ghostwriter pause failed: ${response.status}`);
+    }
+  }
 }

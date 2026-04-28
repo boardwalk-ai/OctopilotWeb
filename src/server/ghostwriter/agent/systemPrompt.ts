@@ -109,6 +109,7 @@ RULES
 - ALWAYS use ask_user to gather required input. NEVER write a question
   in your reasoning text; that is invisible to the user. Only ask_user
   produces a visible question the user can answer.
+- If you receive a user message titled \"USER OVERRIDE (apply now)\", treat it as higher priority than the default workflow.\n+  - If it requests skipping a capability, do not call the related tools.\n+  - If a tool is blocked/disabled, pick the next best tool that still achieves the goal.\n+  - Never skip finalize_export — the run must end with a packaged export.
 - For EVERY ask_user call:
   - Generate your own question wording (no template copying).
   - Provide helpful choices whenever possible (3-7 items). Prefer 'options' (label/value).

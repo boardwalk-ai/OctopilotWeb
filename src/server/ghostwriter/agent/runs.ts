@@ -47,6 +47,10 @@ export type AgentRun = {
   // Outstanding `ask_user` calls keyed by field name.
   pendingAnswers: Map<string, PendingAnswer>;
 
+  // Soft pause: if set, the loop will pause at the next safe boundary
+  // (before the next orchestrator call) and ask for a user directive.
+  pauseRequested: boolean;
+
   // Set when the loop exits (success, fatal, or cancel). The SSE route uses
   // this to close the stream after draining any trailing events.
   finished: boolean;
@@ -86,6 +90,7 @@ export function createRun(draft: AgentDraftInput, authToken = ""): AgentRun {
     buffered: [],
     subscriber: null,
     pendingAnswers: new Map(),
+    pauseRequested: false,
     finished: false,
   };
   seedContextFromDraft(run.context, draft);

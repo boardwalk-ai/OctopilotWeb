@@ -1712,6 +1712,21 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 }
               }}
             />
+            {!isLegacyMode && runState?.status === "running" ? (
+              <button
+                type="button"
+                className={styles.chatSendBtn}
+                title="Pause after this step"
+                onClick={() => {
+                  if (!runState?.runId) return;
+                  void GhostwriterAgentClient.pause(runState.runId).catch((err) => {
+                    setRunError(err instanceof Error ? err.message : "Failed to pause.");
+                  });
+                }}
+              >
+                Stop
+              </button>
+            ) : null}
             <button
               type="button"
               className={styles.chatSendBtn}
