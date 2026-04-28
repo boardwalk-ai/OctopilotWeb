@@ -72,8 +72,10 @@ export type GhostwriterQuestion = {
   prompt: string;
   helperText?: string;
   inputType: "text" | "number" | "select";
-  options?: string[];
+  // Legacy runs used string[] options; agentic runs prefer structured options.
+  options?: Array<string | { label: string; value: string }>;
   suggestions?: string[];
+  allowCustom?: boolean;
 };
 
 export type GhostwriterRunContext = {

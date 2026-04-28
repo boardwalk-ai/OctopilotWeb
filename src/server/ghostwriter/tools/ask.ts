@@ -15,14 +15,16 @@ import type { Tool } from "@/server/ghostwriter/agent/tools";
 export type AskUserArgs = {
   field: string;
   question: string;
+  options?: Array<{ label: string; value: string }>;
   suggestions?: string[];
   inputType?: "text" | "number" | "select";
+  allowCustom?: boolean;
 };
 
 export const askUserTool: Tool<AskUserArgs, { answer: unknown }> = {
   name: "ask_user",
   description:
-    "Ask the human user a question and wait for their typed reply. Use this whenever you need information the draft doesn't contain (word count, citation style, humanization preference, etc.). Keep the question short and concrete. Provide `suggestions` for common answers when you can.",
+    "Ask the human user a question and wait for their typed reply. Use this whenever you need information the draft doesn't contain (word count, citation style, humanization preference, etc.). Keep the question short and concrete. Prefer `options` (label/value pairs) for select-style questions; provide 3-7 items and avoid copying template wording.",
   parameters: {
     type: "object",
     additionalProperties: false,
@@ -37,6 +39,20 @@ export const askUserTool: Tool<AskUserArgs, { answer: unknown }> = {
         type: "string",
         description: "The question text shown to the user.",
       },
+      options: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["label", "value"],
+          properties: {
+            label: { type: "string", description: "Human-friendly label shown in the UI." },
+            value: { type: "string", description: "Stable value submitted back to the agent." },
+          },
+        },
+        description:
+          "Preferred list of structured choices. Use this for select-style questions (citationStyle, humanizerChoice, paragraphSplitChoice) and when you want nicer labels (e.g. '800 words').",
+      },
       suggestions: {
         type: "array",
         items: { type: "string" },
@@ -47,6 +63,11 @@ export const askUserTool: Tool<AskUserArgs, { answer: unknown }> = {
         type: "string",
         enum: ["text", "number", "select"],
         description: "Hint for the UI about how to render the input.",
+      },
+      allowCustom: {
+        type: "boolean",
+        description:
+          "If true, the UI will allow a custom typed answer in addition to options/chips. Default true for text/number questions.",
       },
     },
   },

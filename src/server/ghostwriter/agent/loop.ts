@@ -246,6 +246,20 @@ async function dispatchToolCall(args: {
   if (tool.isUserQuestion) {
     const field = String((parsedArgs as Record<string, unknown>).field ?? "");
     const question = String((parsedArgs as Record<string, unknown>).question ?? "");
+    const rawOptions = (parsedArgs as Record<string, unknown>).options;
+    const options =
+      Array.isArray(rawOptions)
+        ? rawOptions
+            .map((entry) => {
+              if (!entry || typeof entry !== "object") return null;
+              const e = entry as Record<string, unknown>;
+              const label = typeof e.label === "string" ? e.label.trim() : "";
+              const value = typeof e.value === "string" ? e.value.trim() : "";
+              if (!label || !value) return null;
+              return { label, value };
+            })
+            .filter((entry): entry is { label: string; value: string } => entry !== null)
+        : undefined;
     const suggestions = Array.isArray((parsedArgs as Record<string, unknown>).suggestions)
       ? ((parsedArgs as Record<string, unknown>).suggestions as unknown[]).map(String)
       : undefined;
@@ -254,6 +268,13 @@ async function dispatchToolCall(args: {
       | "number"
       | "select"
       | undefined;
+    const allowCustomRaw = (parsedArgs as Record<string, unknown>).allowCustom;
+    const allowCustom =
+      typeof allowCustomRaw === "boolean"
+        ? allowCustomRaw
+        : inputType === "select"
+          ? false
+          : true;
 
     if (!field || !question) {
       const errorMsg = "ask_user requires `field` and `question`";
@@ -266,8 +287,10 @@ async function dispatchToolCall(args: {
       type: "question",
       field,
       question,
+      options: options && options.length > 0 ? options : undefined,
       suggestions,
       inputType,
+      allowCustom,
     });
 
     try {

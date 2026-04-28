@@ -107,7 +107,9 @@ function normalizeAgentQuestion(event: Extract<AgentEvent, { type: "question" }>
     field: event.field as GhostwriterQuestionField,
     prompt: event.question,
     inputType: event.inputType || "text",
+    options: event.options,
     suggestions: event.suggestions,
+    allowCustom: event.allowCustom,
   };
 }
 
@@ -962,6 +964,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     }
   };
 
+  const handleOptionClick = (value: string) => {
+    if (!runState?.pendingQuestion) return;
+    primeAudioContext();
+    const field = runState.pendingQuestion.field;
+    if (field === "wordCount" || field === "outlineCount") {
+      void submitCurrentAnswer(Number(value));
+    } else {
+      void submitCurrentAnswer(value);
+    }
+  };
+
   const handleRecovery = (action: RecoveryAction, stepId: number) => {
     const clearError = () => {
       setStepErrors((prev) => {
@@ -1804,8 +1817,25 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               <p className={styles.bottomQuestionHelper}>{displayedQuestion.helperText}</p>
             ) : null}
 
-            {/* Suggestion chips */}
-            {(displayedQuestion.suggestions || []).length > 0 && (
+            {/* Structured options (preferred) */}
+            {(displayedQuestion.options || []).length > 0 ? (
+              <div className={styles.suggestionChips}>
+                {(displayedQuestion.options || []).map((opt) => {
+                  const label = typeof opt === "string" ? opt : opt.label;
+                  const value = typeof opt === "string" ? opt : opt.value;
+                  return (
+                    <button
+                      key={`${value}-${label}`}
+                      type="button"
+                      className={styles.suggestionChip}
+                      onClick={() => handleOptionClick(value)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (displayedQuestion.suggestions || []).length > 0 ? (
               <div className={styles.suggestionChips}>
                 {(displayedQuestion.suggestions || []).map((chip) => (
                   <button
@@ -1818,9 +1848,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   </button>
                 ))}
               </div>
-            )}
+            ) : null}
 
             {/* Custom answer input */}
+            {displayedQuestion.allowCustom !== false ? (
             <div className={styles.bottomQuestionInput}>
               <input
                 type={displayedQuestion.inputType === "number" ? "number" : "text"}
@@ -1828,7 +1859,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 placeholder={
                   displayedQuestion.field === "wordCount"
                     ? "Or enter a custom count…"
-                    : displayedQuestion.suggestions?.length
+                    : (displayedQuestion.options?.length || displayedQuestion.suggestions?.length)
                     ? "Or type a custom answer…"
                     : "Type your answer…"
                 }
@@ -1863,6 +1894,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 </svg>
               </button>
             </div>
+            ) : null}
           </div>
         </div>
       ) : null}

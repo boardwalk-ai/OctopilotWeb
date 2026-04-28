@@ -26,8 +26,10 @@ export type AgentEvent =
       type: "question";
       field: string;
       question: string;
+      options?: Array<{ label: string; value: string }>;
       suggestions?: string[];
       inputType?: "text" | "number" | "select";
+      allowCustom?: boolean;
     }
 
   // Partial context mirror so the client can render intermediate artifacts
