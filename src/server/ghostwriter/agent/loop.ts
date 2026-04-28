@@ -90,6 +90,10 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   // mid-workflow. We nudge the model once before giving up.
   let textOnlyStreak = 0;
 
+  // After a user-initiated pause, allow exactly one plain-text assistant reply
+  // (answering the user's question) before resuming tool execution.
+  let allowOneTextReply = false;
+
   for (let step = 0; step < AGENT_LIMITS.MAX_STEPS; step++) {
     // Honour a cancellation that arrived while a tool was executing.
     if (run.finished) return;
@@ -99,6 +103,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     if (run.pauseRequested) {
       run.pauseRequested = false;
       run.status = "waiting_for_user";
+      allowOneTextReply = true;
 
       emit(run, {
         type: "question",
@@ -152,7 +157,10 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       messages,
       toolSpecs,
       // Stream thought deltas live so they appear in the UI as they arrive.
-      onDelta: (text) => emit(run, { type: "thought", text }),
+      onDelta: (text) => {
+        emit(run, { type: "thought", text });
+        emit(run, { type: "assistant_delta", chunk: text });
+      },
     });
 
     // Surface token usage and check the cost cap.
@@ -179,6 +187,19 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
     const toolCalls = assistant.tool_calls ?? [];
     if (toolCalls.length === 0) {
+      // If the user just paused and asked a question, allow one plain-text reply,
+      // then force the workflow to continue with tools.
+      if (allowOneTextReply && (assistant.content ?? "").trim()) {
+        allowOneTextReply = false;
+        emit(run, { type: "assistant_message", text: assistant.content ?? "" });
+        messages.push({ role: "assistant", content: assistant.content ?? "" });
+        messages.push({
+          role: "user",
+          content: "Continue the workflow — call the next required tool. Do not respond with text only.",
+        });
+        continue;
+      }
+
       // The model gave a text-only response (no tool calls).
       //
       // If finalize_export already ran and the export doc is ready, the agent

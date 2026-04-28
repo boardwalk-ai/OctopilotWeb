@@ -470,6 +470,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
+  const [assistantStreamContent, setAssistantStreamContent] = useState("");
   const [editingOpen, setEditingOpen] = useState(true);
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
@@ -589,6 +590,16 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
             if (event.type === "essay_delta") {
               setEssayStreamContent((prev) => prev + event.chunk);
+              return;
+            }
+
+            if (event.type === "assistant_delta") {
+              setAssistantStreamContent((prev) => prev + event.chunk);
+              return;
+            }
+
+            if (event.type === "assistant_message") {
+              setAssistantStreamContent(event.text);
               return;
             }
 
@@ -1412,6 +1423,18 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                             {essayStreamContent || (isRunning ? "Starting essay draft…" : "")}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Assistant normal text output (agentic) */}
+                    {!isLegacyMode && assistantStreamContent.trim() && (
+                      <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
+                        <div className={styles.thinkingToggle} style={{ cursor: "default" }}>
+                          <span>Assistant</span>
+                        </div>
+                        <div className={styles.thinkingBox}>
+                          {assistantStreamContent}
+                        </div>
                       </div>
                     )}
 

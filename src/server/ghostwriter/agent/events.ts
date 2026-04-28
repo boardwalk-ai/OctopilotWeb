@@ -13,6 +13,10 @@ export type AgentEvent =
   // appends them to a live "thinking" panel.
   | { type: "thought"; text: string }
 
+  // Streaming plain assistant text (non-tool output) for the main area.
+  | { type: "assistant_delta"; chunk: string }
+  | { type: "assistant_message"; text: string }
+
   // Lifecycle of a single tool call. `id` is a client-stable nanoid so
   // progress/done/error can reference the same entry in the timeline.
   | { type: "step_start"; id: string; title: string; tool: string; args?: unknown }
