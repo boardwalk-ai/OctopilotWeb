@@ -165,22 +165,19 @@ export function finishRun(run: AgentRun, status: "finished" | "error" | "cancell
 }
 
 function seedContextFromDraft(context: AgentContext, draft: AgentDraftInput): void {
-  const detectedSettings = readObject(draft.detectedSettings);
+  // NOTE: wordCount and citationStyle are intentionally NOT seeded here.
+  // write_essay throws if either is absent, which forces the orchestrator to
+  // call ask_user — that's the only correct way to set them.  Seeding from
+  // detectedSettings bypasses that confirmation and the agent never asks.
   const draftSettings = readObject(draft.draftSettings);
   const formatAnswers = readObject(draft.formatAnswers);
 
-  const mergedSettings = { ...detectedSettings, ...draftSettings };
-  if (typeof mergedSettings.wordCount === "number" && Number.isFinite(mergedSettings.wordCount)) {
-    context.draftSettings.wordCount = Math.round(mergedSettings.wordCount);
+  // Optional style hints that don't gate any tool can be seeded freely.
+  if (typeof draftSettings.tone === "string" && draftSettings.tone.trim()) {
+    context.draftSettings.tone = draftSettings.tone.trim();
   }
-  if (typeof mergedSettings.citationStyle === "string" && mergedSettings.citationStyle.trim()) {
-    context.draftSettings.citationStyle = mergedSettings.citationStyle.trim();
-  }
-  if (typeof mergedSettings.tone === "string" && mergedSettings.tone.trim()) {
-    context.draftSettings.tone = mergedSettings.tone.trim();
-  }
-  if (typeof mergedSettings.keywords === "string" && mergedSettings.keywords.trim()) {
-    context.draftSettings.keywords = mergedSettings.keywords.trim();
+  if (typeof draftSettings.keywords === "string" && draftSettings.keywords.trim()) {
+    context.draftSettings.keywords = draftSettings.keywords.trim();
   }
 
   for (const [key, value] of Object.entries(formatAnswers)) {
