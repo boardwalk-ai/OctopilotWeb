@@ -98,6 +98,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       model,
       messages,
       toolSpecs,
+      // Stream thought deltas live so they appear in the UI as they arrive.
+      onDelta: (text) => emit(run, { type: "thought", text }),
     });
 
     // Surface token usage and check the cost cap.
@@ -120,12 +122,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         return;
       }
     }
-
-    // Surface any free-form reasoning the model produced before/alongside its
-    // tool calls. The UI displays these inline with each workflow step.
-    if (assistant.content && assistant.content.trim().length > 0) {
-      emit(run, { type: "thought", text: assistant.content });
-    }
+    // Thought deltas are already streamed via onDelta above — no extra emit needed.
 
     const toolCalls = assistant.tool_calls ?? [];
     if (toolCalls.length === 0) {
@@ -375,14 +372,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
-// ────────────────── OpenRouter HTTP ─────────────────────────────────────────
+// ────────────────── OpenRouter HTTP (streaming) ──────────────────────────────
+//
+// Uses `stream: true` so orchestrator reasoning tokens are forwarded to the
+// client in real-time via `onDelta`. Tool call arguments are accumulated from
+// delta fragments and returned assembled, matching the non-streaming contract.
 async function callOpenRouter(args: {
   apiKey: string;
   model: string;
   messages: ChatMessage[];
   toolSpecs: ReturnType<typeof toOpenRouterToolSpec>[];
+  onDelta?: (text: string) => void;
 }): Promise<{ content: string | null; tool_calls?: AssistantToolCall[]; usage?: OpenRouterResponse["usage"] }> {
-  const { apiKey, model, messages, toolSpecs } = args;
+  const { apiKey, model, messages, toolSpecs, onDelta } = args;
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
@@ -398,6 +400,7 @@ async function callOpenRouter(args: {
       tools: toolSpecs,
       tool_choice: "auto",
       temperature: 0.3,
+      stream: true,
     }),
   });
 
@@ -405,21 +408,105 @@ async function callOpenRouter(args: {
     const text = await response.text().catch(() => "");
     throw new Error(`OpenRouter ${response.status}: ${text || response.statusText}`);
   }
-
-  const data = (await response.json()) as OpenRouterResponse;
-  if (data.error) {
-    throw new Error(`OpenRouter error: ${data.error.message || "unknown"}`);
+  if (!response.body) {
+    throw new Error("OpenRouter returned no response body");
   }
 
-  const msg = data.choices?.[0]?.message;
-  if (!msg) {
-    throw new Error("OpenRouter returned no assistant message");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let sseBuffer = "";
+  let fullContent = "";
+  let usage: OpenRouterResponse["usage"] | undefined;
+
+  // Tool call fragments: index → { id, name, accumulated args string }
+  const tcMap = new Map<number, { id: string; name: string; args: string }>();
+
+  outer: while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    sseBuffer += decoder.decode(value, { stream: true });
+
+    let lineEnd: number;
+    while ((lineEnd = sseBuffer.indexOf("\n")) !== -1) {
+      const line = sseBuffer.slice(0, lineEnd).trimEnd();
+      sseBuffer = sseBuffer.slice(lineEnd + 1);
+
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (payload === "[DONE]") break outer;
+      if (!payload) continue;
+
+      let chunk: {
+        choices?: Array<{
+          delta?: {
+            content?: string | null;
+            tool_calls?: Array<{
+              index?: number;
+              id?: string;
+              function?: { name?: string; arguments?: string };
+            }>;
+          };
+          finish_reason?: string | null;
+        }>;
+        usage?: OpenRouterResponse["usage"];
+        error?: { message?: string };
+      };
+      try {
+        chunk = JSON.parse(payload) as typeof chunk;
+      } catch {
+        continue;
+      }
+
+      if (chunk.error) {
+        throw new Error(`OpenRouter stream error: ${chunk.error.message || "unknown"}`);
+      }
+      if (chunk.usage) {
+        usage = chunk.usage;
+      }
+
+      const delta = chunk.choices?.[0]?.delta;
+      if (!delta) continue;
+
+      // ── text delta ────────────────────────────────────────────────────────
+      if (typeof delta.content === "string" && delta.content) {
+        fullContent += delta.content;
+        onDelta?.(delta.content);
+      }
+
+      // ── tool call deltas (arguments stream as fragments) ──────────────────
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const idx = tc.index ?? 0;
+          if (!tcMap.has(idx)) {
+            tcMap.set(idx, { id: "", name: "", args: "" });
+          }
+          const entry = tcMap.get(idx)!;
+          if (tc.id) entry.id = tc.id;
+          if (tc.function?.name) entry.name += tc.function.name;
+          if (tc.function?.arguments) entry.args += tc.function.arguments;
+        }
+      }
+    }
+  }
+
+  // Assemble tool calls in index order.
+  const toolCalls: AssistantToolCall[] = [];
+  for (let i = 0; tcMap.has(i); i++) {
+    const tc = tcMap.get(i)!;
+    if (tc.id && tc.name) {
+      toolCalls.push({
+        id: tc.id,
+        type: "function",
+        function: { name: tc.name, arguments: tc.args },
+      });
+    }
   }
 
   return {
-    content: msg.content ?? null,
-    tool_calls: msg.tool_calls,
-    usage: data.usage,
+    content: fullContent || null,
+    tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+    usage,
   };
 }
 

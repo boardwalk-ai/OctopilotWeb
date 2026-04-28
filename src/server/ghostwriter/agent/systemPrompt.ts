@@ -48,7 +48,13 @@ WORKFLOW
 6.  compact_sources().
 7.  evaluate_sources(). If not sufficient, run one more search+scrape+compact
     cycle targeting the reported gaps, then evaluate again.
-8.  ask_user for wordCount and citationStyle if not already set.
+8.  ALWAYS ask_user for wordCount and citationStyle before writing — do not
+    skip this step even if you see detected values in the payload. The user
+    must explicitly confirm these two settings.
+    ask_user(field="wordCount", question="What word count should I target?",
+             suggestions=["500","800","1200","2000","3000"], inputType="number")
+    ask_user(field="citationStyle", question="Which citation format should I use?",
+             suggestions=["APA","MLA","Chicago","Harvard","IEEE","None"], inputType="select")
 9.  write_essay().
 10. critique_essay(). If ready=true or no major issues, skip to step 12.
 11. revise_paragraph(paragraphIndex, issue) for each major issue.
@@ -120,6 +126,9 @@ export function buildUserBrief(draft: AgentDraftInput): string {
 function stripKnownKeys(draft: AgentDraftInput): Record<string, unknown> {
   const copy = { ...(draft as Record<string, unknown>) };
   delete copy.instruction;
+  // Strip detectedSettings — they are seeded into context already and showing
+  // them to the model causes it to treat them as "already set" and skip asking.
+  delete copy.detectedSettings;
   return copy;
 }
 

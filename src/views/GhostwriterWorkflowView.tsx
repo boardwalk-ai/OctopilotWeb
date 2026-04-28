@@ -627,17 +627,30 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
               switch (event.type) {
                 case "thought": {
-                  const nextThought = event.text.trim();
-                  if (!nextThought) break;
-                  // Attach to the currently-running step, or buffer for the next step_start.
+                  // Streaming delta — append to the LAST thought entry rather than
+                  // creating a new one per token. The block stays open so the user
+                  // sees the text grow in real time.
+                  const delta = event.text;
+                  if (!delta) break;
                   const runningStep = next.steps.find((s) => s.status === "running");
                   if (runningStep) {
-                    runningStep.thoughts = [...(runningStep.thoughts ?? []).slice(-7), nextThought];
+                    const thoughts = runningStep.thoughts ?? [];
+                    if (thoughts.length > 0) {
+                      // Append to the current (last) entry.
+                      const updated = [...thoughts];
+                      updated[updated.length - 1] = updated[updated.length - 1] + delta;
+                      runningStep.thoughts = updated;
+                    } else {
+                      runningStep.thoughts = [delta];
+                    }
                   } else {
-                    pendingThoughtsRef.current = [
-                      ...pendingThoughtsRef.current.slice(-7),
-                      nextThought,
-                    ];
+                    // Buffer until the next step_start captures it.
+                    const pending = pendingThoughtsRef.current;
+                    if (pending.length > 0) {
+                      pending[pending.length - 1] = pending[pending.length - 1] + delta;
+                    } else {
+                      pendingThoughtsRef.current = [delta];
+                    }
                   }
                   break;
                 }
@@ -645,7 +658,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   agentStepCountRef.current += 1;
                   const stepId = agentStepCountRef.current;
                   agentStepIdsRef.current.set(event.id, stepId);
-                  // Flush buffered thoughts into this step.
+                  // Flush buffered thoughts into this step, then reset so the
+                  // next thought stream starts a fresh entry.
                   const capturedThoughts = pendingThoughtsRef.current.slice();
                   pendingThoughtsRef.current = [];
                   next.steps.push({
@@ -1281,10 +1295,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           <section ref={streamRef} className={styles.workflowStream}>
             {visibleSteps.map((step) => {
               const isRunning = step.status === "running";
-              const thoughtsOpen = openThinkingSteps.has(step.id);
+              // Running step with thoughts → always open (live streaming view).
+              // Completed steps → toggled by the user via the Thought button.
+              const hasThoughtsNow = (step.thoughts?.length ?? 0) > 0;
+              const thoughtsOpen = (isRunning && hasThoughtsNow) || openThinkingSteps.has(step.id);
               const stepError = stepErrors.get(step.id);
               const isRetrying = retryingStep?.stepId === step.id;
-              const hasThoughts = (step.thoughts?.length ?? 0) > 0;
+              const hasThoughts = hasThoughtsNow;
               const isEssayStep = step.toolName === "write_essay";
 
               return (
