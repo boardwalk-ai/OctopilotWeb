@@ -289,12 +289,11 @@ async function dispatchToolCall(args: {
   // ── regular tool path ────────────────────────────────────────────────────
   const timeoutMs = tool.timeoutMs ?? AGENT_LIMITS.DEFAULT_TOOL_TIMEOUT_MS;
   try {
-    let result = await withTimeout(
+    const result = await withTimeout(
       tool.execute(parsedArgs, { run }),
       timeoutMs,
       `${tool.name} exceeded ${timeoutMs}ms`,
     );
-    result = await maybeCollectFollowUpAnswer(run, stepId, tool.name, result);
     emit(run, { type: "step_done", id: stepId, summary: extractSummary(result) });
     return toolResultFrame(tc.id, result);
   } catch (err) {
@@ -331,73 +330,6 @@ function extractSummary(result: unknown): string | undefined {
   if (typeof r.paragraphSplitChoice === "string") return `Split: ${r.paragraphSplitChoice}`;
   if (typeof r.revisionRounds === "number") return `Revision round ${r.revisionRounds}`;
   return undefined;
-}
-
-async function maybeCollectFollowUpAnswer(
-  run: AgentRun,
-  stepId: string,
-  toolName: string,
-  result: unknown,
-): Promise<unknown> {
-  if (!result || typeof result !== "object") return result;
-  const payload = { ...(result as Record<string, unknown>) };
-
-  if (toolName === "finalize_export" && !run.context.humanizeChoice) {
-    const answer = await askFollowUpQuestion(run, stepId, {
-      field: "humanizerChoice",
-      question: "Would you like to humanize your essay to bypass AI detectors?",
-      suggestions: ["StealthGPT", "UndetectableAI", "Skip"],
-      inputType: "text",
-    });
-    payload.humanizeChoice = answer;
-  }
-
-  if (
-    toolName === "humanize_essay" &&
-    String(payload.provider || "") === "StealthGPT" &&
-    !run.context.paragraphSplitChoice
-  ) {
-    const answer = await askFollowUpQuestion(run, stepId, {
-      field: "paragraphSplitChoice",
-      question: "StealthGPT merged the essay into one block. How should I handle paragraph breaks?",
-      suggestions: ["AI split", "Manual", "Skip split"],
-      inputType: "text",
-    });
-    payload.paragraphSplitChoice = answer;
-  }
-
-  return payload;
-}
-
-async function askFollowUpQuestion(
-  run: AgentRun,
-  stepId: string,
-  args: {
-    field: "humanizerChoice" | "paragraphSplitChoice";
-    question: string;
-    suggestions: string[];
-    inputType: "text";
-  },
-): Promise<string> {
-  run.status = "waiting_for_user";
-  emit(run, {
-    type: "question",
-    field: args.field,
-    question: args.question,
-    suggestions: args.suggestions,
-    inputType: args.inputType,
-  });
-
-  try {
-    const answer = await waitForAnswer(run, args.field, AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
-    run.status = "running";
-    applyAnswerToContext(run.context, args.field, answer);
-    emit(run, { type: "step_progress", id: stepId, detail: `${args.field}: ${String(answer)}` });
-    return String(answer);
-  } catch (err) {
-    run.status = "running";
-    throw err;
-  }
 }
 
 function toolResultFrame(toolCallId: string, payload: unknown): ChatMessage {

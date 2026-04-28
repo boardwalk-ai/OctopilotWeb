@@ -21,7 +21,7 @@ type FinalizeResult = {
 export const finalizeExportTool: Tool<FinalizeArgs, FinalizeResult> = {
   name: "finalize_export",
   description:
-    "Package the drafted essay into an export snapshot. Reads essay, bibliography, citation style, and any formatting metadata from context. Use this after write_essay succeeds.",
+    "Package the drafted essay into an export snapshot. Pass the formatting metadata (studentName, instructorName, etc.) that was collected via ask_user as individual named args — they are merged into the export and override any prior context values. Reads essay, bibliography, and citation style from context. Use this after collecting all required metadata.",
   parameters: {
     type: "object",
     additionalProperties: false,

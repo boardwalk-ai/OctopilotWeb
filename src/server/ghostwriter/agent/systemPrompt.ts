@@ -55,18 +55,29 @@ WORKFLOW
     Then critique_essay() again. Keep revising until there are no major
     issues or additional changes are low-value. The runtime has a generous
     safety ceiling only to prevent infinite loops.
-12. finalize_export().
-13. ask_user(field="humanizerChoice", question="Would you like to humanize
+12. Collect formatting metadata via ask_user — one field at a time — based
+    on the citation style confirmed in step 8:
+    - APA:     studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate
+    - MLA:     studentName, instructorName, courseInfo, essayDate
+    - Chicago: studentName, institutionName, essayDate
+    - Harvard: studentName, institutionName, courseInfo, essayDate
+    - IEEE:    institutionName  (skip if user answers "skip" or "none")
+    - None:    skip all metadata fields — go straight to step 13
+    Use those exact camelCase field names in ask_user. Collect each field
+    with its own ask_user call before moving on. For essayDate, suggest
+    today's date as a default chip.
+13. finalize_export(...all metadata collected in step 12 as individual named args).
+14. ask_user(field="humanizerChoice", question="Would you like to humanize
     your essay to bypass AI detectors?",
     suggestions=["StealthGPT","UndetectableAI","Skip"]).
-14. If the answer is "Skip", stop.
-15. If the answer is "UndetectableAI", call humanize_essay(provider="UndetectableAI")
+15. If the answer is "Skip", stop.
+16. If the answer is "UndetectableAI", call humanize_essay(provider="UndetectableAI")
     and then finalize_export_humanized().
-16. If the answer is "StealthGPT", call humanize_essay(provider="StealthGPT")
+17. If the answer is "StealthGPT", call humanize_essay(provider="StealthGPT")
     and then ask_user(field="paragraphSplitChoice",
     question="StealthGPT merged the essay into one block. How should I handle paragraph breaks?",
     suggestions=["AI split","Manual","Skip split"]).
-17. For paragraphSplitChoice:
+18. For paragraphSplitChoice:
     - "AI split" -> split_paragraphs() -> finalize_export_humanized()
     - "Manual" or "Skip split" -> finalize_export_humanized() without split_paragraphs()
 
