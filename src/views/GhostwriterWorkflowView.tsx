@@ -490,13 +490,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
-  // Chat history: user bubbles + AI bubbles rendered between tool cards.
-  type ChatItem = { id: string; role: "user" | "ai"; text: string };
-  const [chatItems, setChatItems] = useState<ChatItem[]>([]);
+  // Unified timeline: messages + tool step references in arrival order.
+  // Tool steps are stored as {kind:"tool", stepId} references — the actual step
+  // data lives in runState.steps and is looked up by stepId at render time.
+  type TimelineMessage = { kind: "message"; id: string; role: "user" | "ai"; text: string };
+  type TimelineTool   = { kind: "tool"; stepId: number };
+  type TimelineEntry  = TimelineMessage | TimelineTool;
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   // Streaming assistant text accumulator (cleared when assistant_message fires).
   const [assistantStreaming, setAssistantStreaming] = useState("");
-  // Keep legacy assistantMessages for non-tool AI text (will be merged into chatItems).
-  const [assistantMessages, setAssistantMessages] = useState<string[]>([]);
+  // Legacy alias kept so downstream read-only usages still compile.
+  const assistantMessages: string[] = [];
   const [editingOpen, setEditingOpen] = useState(true);
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
@@ -630,7 +634,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             if (event.type === "user_message") {
               const text = (event.text || "").trim();
               if (text) {
-                setChatItems((prev) => [...prev, { id: `u-${Date.now()}-${prev.length}`, role: "user", text }]);
+                setTimeline((prev) => [...prev, { kind: "message", id: `u-${Date.now()}`, role: "user", text }]);
               }
               return;
             }
@@ -638,8 +642,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             if (event.type === "assistant_message") {
               const text = (event.text || "").trim();
               if (text) {
-                setChatItems((prev) => [...prev, { id: `ai-${Date.now()}-${prev.length}`, role: "ai", text }]);
-                setAssistantMessages((prev) => [...prev, text]);
+                setTimeline((prev) => [...prev, { kind: "message", id: `ai-${Date.now()}`, role: "ai", text }]);
               }
               setAssistantStreaming("");
               return;
@@ -678,6 +681,46 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               }
             }
 
+            // step_start is handled outside setRunState so we can also update
+            // the unified timeline in the same render batch.
+            if (event.type === "step_start") {
+              agentStepCountRef.current += 1;
+              const stepId = agentStepCountRef.current;
+              agentStepIdsRef.current.set(event.id, stepId);
+              const capturedThoughts = pendingThoughtsRef.current.slice();
+              pendingThoughtsRef.current = [];
+              // Commit any streaming text before the tool card appears.
+              setAssistantStreaming("");
+              // Add tool reference to unified timeline.
+              setTimeline((prev) => [...prev, { kind: "tool", stepId }]);
+              if (event.tool === "write_essay") {
+                setEssayStreamContent("");
+                setEditingOpen(true);
+              }
+              setRunState((prev) => {
+                const current = prev || buildAgenticRunState(startedRun.runId);
+                const next = { ...current, steps: [...current.steps] };
+                next.steps.push({
+                  id: stepId,
+                  title: event.title,
+                  detail: "",
+                  status: "running",
+                  thoughts: capturedThoughts,
+                  toolName: event.tool,
+                  toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
+                });
+                next.pendingToolCall = {
+                  id: event.id,
+                  name: event.tool as GhostwriterToolCall["name"],
+                  args: (event.args as Record<string, unknown> | undefined) || undefined,
+                };
+                next.status = "running";
+                next.progress = buildDynamicProgress(next.steps);
+                return next;
+              });
+              return;
+            }
+
             setRunState((prev) => {
               const current = prev || buildAgenticRunState(startedRun.runId);
               const next = { ...current, context: { ...current.context }, steps: [...current.steps] };
@@ -708,35 +751,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                     } else {
                       pendingThoughtsRef.current = [delta];
                     }
-                  }
-                  break;
-                }
-                case "step_start": {
-                  agentStepCountRef.current += 1;
-                  const stepId = agentStepCountRef.current;
-                  agentStepIdsRef.current.set(event.id, stepId);
-                  // Flush buffered thoughts into this step, then reset so the
-                  // next thought stream starts a fresh entry.
-                  const capturedThoughts = pendingThoughtsRef.current.slice();
-                  pendingThoughtsRef.current = [];
-                  next.steps.push({
-                    id: stepId,
-                    title: event.title,
-                    detail: "",
-                    status: "running",
-                    thoughts: capturedThoughts,
-                    toolName: event.tool,
-                    toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
-                  });
-                  next.pendingToolCall = {
-                    id: event.id,
-                    name: event.tool as GhostwriterToolCall["name"],
-                    args: (event.args as Record<string, unknown> | undefined) || undefined,
-                  };
-                  next.status = "running";
-                  if (event.tool === "write_essay") {
-                    setEssayStreamContent("");
-                    setEditingOpen(true);
                   }
                   break;
                 }
@@ -1361,24 +1375,21 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
 
           <section ref={streamRef} className={styles.workflowStream}>
-            {/* Chat — user messages + AI conversational replies, free-flowing */}
-            {!isLegacyMode && chatItems.map((item) => (
-              <div
-                key={item.id}
-                className={item.role === "user" ? styles.chatLineUser : styles.chatLineAi}
-              >
-                {item.role === "ai" ? renderMarkdown(item.text) : item.text}
-              </div>
-            ))}
-            {/* Streaming AI text (not yet committed as a full message) */}
-            {!isLegacyMode && assistantStreaming.trim() ? (
-              <div className={styles.chatLineAi}>
-                {renderMarkdown(assistantStreaming)}
-                <span className={styles.streamCursor} />
-              </div>
-            ) : null}
-
-            {visibleSteps.map((step) => {
+            {/* Unified timeline: messages + tool cards in arrival order */}
+            {!isLegacyMode && timeline.map((entry) => {
+              if (entry.kind === "message") {
+                return (
+                  <div
+                    key={entry.id}
+                    className={entry.role === "user" ? styles.chatLineUser : styles.chatLineAi}
+                  >
+                    {entry.role === "ai" ? renderMarkdown(entry.text) : entry.text}
+                  </div>
+                );
+              }
+              // kind === "tool" — look up step data from runState
+              const step = (runState?.steps ?? []).find((s) => s.id === entry.stepId);
+              if (!step) return null;
               const isRunning = step.status === "running";
               // Running step with thoughts → always open (live streaming view).
               // Completed steps → toggled by the user via the Thought button.
@@ -1509,6 +1520,110 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                 </div>
               );
             })}
+            {/* Legacy mode: render steps directly (no timeline) */}
+            {isLegacyMode && visibleSteps.map((step) => {
+              const isRunning = step.status === "running";
+              const hasThoughtsNow = (step.thoughts?.length ?? 0) > 0;
+              const thoughtsOpen = (isRunning && hasThoughtsNow) || openThinkingSteps.has(step.id);
+              const stepError = stepErrors.get(step.id);
+              const isRetrying = retryingStep?.stepId === step.id;
+              const hasThoughts = hasThoughtsNow;
+              const isEssayStep = step.toolName === "write_essay";
+              return (
+                <div
+                  key={step.id}
+                  className={`${styles.streamLine} ${styles[`stream${step.status[0].toUpperCase()}${step.status.slice(1)}` as keyof typeof styles] || ""} ${stepError ? styles.streamError || "" : ""}`}
+                >
+                  <div className={`${styles.streamIconWrap} ${stepError ? styles.streamIconError || "" : ""}`}>
+                    {stepError && <ErrorIcon />}
+                    {!stepError && step.status === "completed" && <CheckIcon />}
+                    {!stepError && step.status === "running" && <SpinnerIcon />}
+                    {!stepError && step.status === "blocked" && <BlockedIcon />}
+                  </div>
+                  <div className={styles.streamCopy}>
+                    <span className={styles.streamTitle}>
+                      {step.title}
+                      {isRunning && <span className={styles.streamDots}><span>.</span><span>.</span><span>.</span><span>.</span></span>}
+                    </span>
+                    {hasThoughts && (
+                      <div className={styles.inlineThoughtWrap}>
+                        <button
+                          type="button"
+                          className={styles.inlineThoughtToggle}
+                          onClick={() => setOpenThinkingSteps((prev) => {
+                            const n = new Set(prev);
+                            if (n.has(step.id)) n.delete(step.id); else n.add(step.id);
+                            return n;
+                          })}
+                        >
+                          <span className={styles.inlineThoughtDot} />
+                          <span>Thought</span>
+                          <svg className={`${styles.thinkingChevron} ${thoughtsOpen ? styles.thinkingChevronOpen : ""}`} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {thoughtsOpen && (
+                          <div className={styles.inlineThoughtBody}>
+                            {step.thoughts.map((t, i) => <p key={i} className={styles.inlineThoughtText}>{t}</p>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {step.toolName && step.toolName !== "ask_user" && (
+                      <div className={styles.inlineToolCall}>
+                        <code className={styles.inlineToolName}>{step.toolName}</code>
+                        {step.toolArgs && Object.keys(step.toolArgs).length > 0 && (
+                          <span className={styles.inlineToolArgs}>{formatToolArgs(step.toolArgs)}</span>
+                        )}
+                      </div>
+                    )}
+                    {step.detail && <span className={styles.streamDetail}>{step.detail}</span>}
+                    {isRetrying && !stepError && (
+                      <span className={styles.streamDetail}>Retrying ({retryingStep!.attempt} of {retryingStep!.max})…</span>
+                    )}
+                    {isEssayStep && (isRunning || step.status === "completed") && (
+                      <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
+                        <button type="button" className={styles.thinkingToggle} onClick={() => setEditingOpen((prev) => !prev)}>
+                          <span>Draft</span>
+                          <svg className={`${styles.thinkingChevron} ${editingOpen ? styles.thinkingChevronOpen : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {editingOpen && (
+                          <div className={`${styles.thinkingBox} ${styles.editingBox}`}>
+                            {essayStreamContent || (isRunning ? "Starting essay draft…" : "")}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {stepError && (
+                      <div className={styles.errorRecovery}>
+                        <div className={styles.errorRecoveryMsg}>{stepError.message}</div>
+                        <div className={styles.errorRecoveryActions}>
+                          {stepError.recovery.map((action, idx) => (
+                            <button
+                              key={`${action.kind}-${idx}`}
+                              type="button"
+                              className={`${styles.errorRecoveryBtn} ${action.kind === "retry" ? styles.errorRecoveryBtnPrimary || "" : ""}`}
+                              onClick={() => handleRecovery(action, step.id)}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Streaming cursor — live AI text accumulating before or between tool calls */}
+            {!isLegacyMode && assistantStreaming.trim() && (
+              <div className={styles.chatLineAi}>
+                {renderMarkdown(assistantStreaming)}
+                <span className={styles.streamCursor} />
+              </div>
+            )}
 
             {originalExportDoc && !isHumanizing && !editorConfirmed.has("original") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>

@@ -172,8 +172,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     const assistantText = (assistant.content ?? "").trim();
     const toolCalls = assistant.tool_calls ?? [];
 
-    // Emit any plain-text response as a chat bubble (visible to the user).
-    if (assistantText && toolCalls.length === 0) {
+    // Always emit plain text as a chat bubble so the client commits streaming
+    // deltas before any tool cards appear. This also clears the streaming cursor.
+    if (assistantText) {
       emit(run, { type: "assistant_message", text: assistantText });
     }
 

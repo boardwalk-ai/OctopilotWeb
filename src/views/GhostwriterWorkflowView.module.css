@@ -1776,14 +1776,18 @@ button.activityHeader {
 }
 
 .chatLineUser {
-  align-self: flex-end;
-  max-width: 70%;
-  margin: 8px 2px 2px auto;
-  color: rgba(226, 232, 240, 0.55);
+  align-self: flex-start;
+  max-width: 72%;
+  margin: 8px 0 2px 2px;
+  padding: 8px 12px;
+  color: rgba(254, 202, 202, 0.9);
   font-size: 0.875rem;
-  line-height: 1.55;
-  text-align: right;
+  line-height: 1.6;
   word-break: break-word;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
 }
 
 .streamCursor {
