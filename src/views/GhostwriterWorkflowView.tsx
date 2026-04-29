@@ -158,6 +158,26 @@ function formatToolArgs(args: Record<string, unknown>): string {
   return parts.slice(0, 3).join(" · ");
 }
 
+// Parse minimal markdown for chat bubbles: **bold** and newlines.
+// Does NOT parse headers, lists, etc. — just enough for AI replies.
+function renderMarkdown(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Split on **bold** spans and literal newlines
+  const parts = text.split(/(\*\*[^*\n]+\*\*|\n)/g);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (!p) continue;
+    if (p === "\n") {
+      nodes.push(<br key={i} />);
+    } else if (p.startsWith("**") && p.endsWith("**") && p.length > 4) {
+      nodes.push(<strong key={i}>{p.slice(2, -2)}</strong>);
+    } else {
+      nodes.push(p);
+    }
+  }
+  return nodes;
+}
+
 function truncateText(value: string, max = 220): string {
   const trimmed = value.trim();
   if (trimmed.length <= max) return trimmed;
@@ -486,6 +506,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
   const [totalTokensUsed, setTotalTokensUsed] = useState(0);
+  const [promptTokensUsed, setPromptTokensUsed] = useState(0);
+  const [completionTokensUsed, setCompletionTokensUsed] = useState(0);
   // Question fade transition
   const [displayedQuestion, setDisplayedQuestion] = useState(runState?.pendingQuestion ?? null);
   const [questionExiting, setQuestionExiting] = useState(false);
@@ -625,6 +647,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
             if (event.type === "token_usage") {
               setTotalTokensUsed((prev) => prev + event.totalTokens);
+              setPromptTokensUsed((prev) => prev + (event.promptTokens ?? 0));
+              setCompletionTokensUsed((prev) => prev + (event.completionTokens ?? 0));
               return;
             }
 
@@ -1337,19 +1361,19 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
 
           <section ref={streamRef} className={styles.workflowStream}>
-            {/* Chat bubbles — user messages + AI conversational replies */}
+            {/* Chat — user messages + AI conversational replies, free-flowing */}
             {!isLegacyMode && chatItems.map((item) => (
               <div
                 key={item.id}
-                className={item.role === "user" ? styles.chatBubbleUser : styles.chatBubbleAi}
+                className={item.role === "user" ? styles.chatLineUser : styles.chatLineAi}
               >
-                {item.text}
+                {item.role === "ai" ? renderMarkdown(item.text) : item.text}
               </div>
             ))}
             {/* Streaming AI text (not yet committed as a full message) */}
             {!isLegacyMode && assistantStreaming.trim() ? (
-              <div className={styles.chatBubbleAi}>
-                {assistantStreaming}
+              <div className={styles.chatLineAi}>
+                {renderMarkdown(assistantStreaming)}
                 <span className={styles.streamCursor} />
               </div>
             ) : null}
@@ -1716,33 +1740,41 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             )}
           </section>
 
-          {/* Timer bar */}
-          <div className={`${styles.timerBar} ${finalDuration !== null ? (runState?.status === "error" ? styles.timerBarError || styles.timerBarDone : styles.timerBarDone) : ""}`}>
+          {/* Status bar — logo · time · ↑ input · ↓ output */}
+          <div className={styles.timerBar}>
+            <Image
+              src="/OCTOPILOT.png"
+              alt=""
+              width={16}
+              height={16}
+              className={`${styles.statusLogo} ${runState?.status === "running" ? styles.statusLogoPulse : ""}`}
+            />
+            <span className={styles.timerSep}>·</span>
             {finalDuration !== null ? (
               runState?.status === "error" ? (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "rgba(239,68,68,0.8)" }}>
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 8v4M12 16h.01" />
-                  </svg>
-                  <span style={{ color: "rgba(239,68,68,0.7)" }}>Stopped · {formatDuration(finalDuration)}</span>
-                </>
+                <span style={{ color: "rgba(239,68,68,0.65)" }}>Stopped · {formatDuration(finalDuration)}</span>
               ) : (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                  <span>Completed in {formatDuration(finalDuration)}</span>
-                </>
+                <span>{formatDuration(finalDuration)}</span>
               )
             ) : (
-              <>
-                <span className={styles.timerDot} />
-                <span>{formatDuration(elapsedSeconds)}</span>
-              </>
+              <span>{formatDuration(elapsedSeconds)}</span>
             )}
-            {totalTokensUsed > 0 && (
-              <span className={styles.timerTokens}>{formatTokens(totalTokensUsed)}</span>
+            {promptTokensUsed > 0 && (
+              <>
+                <span className={styles.timerSep}>·</span>
+                <span className={styles.timerTokenItem}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                  {formatTokens(promptTokensUsed)}
+                </span>
+                <span className={styles.timerTokenItem}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M19 12l-7 7-7-7" />
+                  </svg>
+                  {formatTokens(completionTokensUsed)}
+                </span>
+              </>
             )}
           </div>
 

@@ -1473,6 +1473,42 @@ button.activityHeader {
   color: rgba(34,197,94,0.6);
 }
 
+/* Logo in status bar — pulses when running */
+.statusLogo {
+  width: 16px;
+  height: 16px;
+  opacity: 0.35;
+  flex-shrink: 0;
+  filter: grayscale(40%);
+}
+
+.statusLogoPulse {
+  opacity: 0.7;
+  animation: logoPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.88); }
+}
+
+.timerSep {
+  color: rgba(255,255,255,0.14);
+  font-weight: 400;
+  margin: 0 1px;
+}
+
+.timerTokenItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.22);
+  font-variant-numeric: tabular-nums;
+}
+
+/* legacy — kept so old references don't break */
 .timerDot {
   width: 6px;
   height: 6px;
@@ -1480,12 +1516,11 @@ button.activityHeader {
   background: #ef4444;
   animation: timerPulse 1.4s ease-in-out infinite;
   flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(239,68,68,0.6);
 }
 
 @keyframes timerPulse {
-  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(239,68,68,0.6); }
-  50%       { opacity: 0.35; transform: scale(0.65); box-shadow: 0 0 2px rgba(239,68,68,0.3); }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.65); }
 }
 
 .timerTokens {
@@ -1493,7 +1528,6 @@ button.activityHeader {
   font-size: 0.65rem;
   font-weight: 500;
   color: rgba(255,255,255,0.18);
-  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1724,46 +1758,42 @@ button.activityHeader {
   box-shadow: none;
 }
 
-/* ─── Chat Bubbles ───────────────────────────────────────────────────────── */
+/* ─── Chat lines (free-flowing, no card/box) ─────────────────────────────── */
 
-.chatBubbleUser {
-  align-self: flex-end;
-  max-width: 72%;
-  margin: 4px 0 4px auto;
-  padding: 9px 14px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: 18px 18px 4px 18px;
-  color: #f1f5f9;
+.chatLineAi {
+  align-self: flex-start;
+  max-width: 88%;
+  margin: 8px 0 2px 2px;
+  color: #cbd5e1;
   font-size: 0.875rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
+  line-height: 1.7;
   word-break: break-word;
 }
 
-.chatBubbleAi {
-  align-self: flex-start;
-  max-width: 80%;
-  margin: 4px auto 4px 0;
-  padding: 9px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px 18px 18px 4px;
-  color: #e2e8f0;
+.chatLineAi strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.chatLineUser {
+  align-self: flex-end;
+  max-width: 70%;
+  margin: 8px 2px 2px auto;
+  color: rgba(226, 232, 240, 0.55);
   font-size: 0.875rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
+  line-height: 1.55;
+  text-align: right;
   word-break: break-word;
 }
 
 .streamCursor {
   display: inline-block;
   width: 2px;
-  height: 1em;
-  background: currentColor;
+  height: 0.85em;
+  background: #64748b;
   margin-left: 2px;
   vertical-align: text-bottom;
-  animation: cursorBlink 0.9s step-end infinite;
+  animation: cursorBlink 0.85s step-end infinite;
 }
 
 @keyframes cursorBlink {
