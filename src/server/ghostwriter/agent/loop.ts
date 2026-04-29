@@ -20,7 +20,7 @@ import type {
   ParagraphSplitChoice,
 } from "./context";
 import { AGENT_LIMITS } from "./limits";
-import { emit, finishRun, waitForAnswer, type AgentRun } from "./runs";
+import { emit, finishRun, waitForAnswer, waitForUserMessage, type AgentRun } from "./runs";
 import { toOpenRouterToolSpec, type AnyTool } from "./tools";
 import { classifyUserDirective } from "./directives";
 
@@ -86,63 +86,52 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
   // Running cost estimate — accumulated across all orchestrator round-trips.
   let cumulativeCostUsd = 0;
-  // How many consecutive text-only (no tool call) responses we've seen
-  // mid-workflow. We nudge the model once before giving up.
-  let textOnlyStreak = 0;
 
-  // After a user-initiated pause, allow exactly one plain-text assistant reply
-  // (answering the user's question) before resuming tool execution.
-  let allowOneTextReply = false;
+  // Revision mode: entered after finalize_export succeeds. The loop keeps
+  // running so the user can request changes without starting a new run.
+  // `revisionMode` is set when we see `exportReady` become true.
+  let revisionMode = false;
 
   for (let step = 0; step < AGENT_LIMITS.MAX_STEPS; step++) {
-    // Honour a cancellation that arrived while a tool was executing.
     if (run.finished) return;
 
-    // Soft pause: pause at the next safe boundary (before an orchestrator call),
-    // collect a user directive, then resume with updated overrides.
+    // ── drain queued user messages into conversation ─────────────────────────
+    // Messages that arrived while tools were executing are injected here so
+    // the model sees them before its next response.
+    while (run.messageQueue.length > 0) {
+      const queued = run.messageQueue.shift()!;
+      messages.push({ role: "user", content: queued });
+    }
+
+    // ── soft pause (user clicked Pause button) ───────────────────────────────
     if (run.pauseRequested) {
       run.pauseRequested = false;
       run.status = "waiting_for_user";
-      allowOneTextReply = true;
 
       emit(run, {
         type: "question",
         field: "userDirective",
-        question: "Paused. What should I change or skip in the workflow?",
+        question: "Paused. What should I change or skip?",
         inputType: "text",
         allowCustom: true,
         options: [
           { label: "Skip critique + revision", value: "Skip critique and revision" },
           { label: "Skip humanizer", value: "Skip humanizer" },
-          { label: "Skip more research", value: "Skip search/scrape/compact and continue" },
+          { label: "Skip extra research", value: "Skip search/scrape/compact and continue" },
         ],
       });
 
       try {
         const directive = await waitForAnswer(run, "userDirective", AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
         run.status = "running";
-
         const directiveText = typeof directive === "string" ? directive.trim() : String(directive ?? "").trim();
         if (directiveText) {
           run.context.userDirectiveLog = run.context.userDirectiveLog || [];
           run.context.userDirectiveLog.push(directiveText);
-
           const decision = await classifyUserDirective({ directive: directiveText, context: run.context });
-          run.context.userOverrides = {
-            disabledTools: decision.disabledTools,
-            notes: decision.notes || directiveText,
-          };
-
-          emit(run, {
-            type: "context_update",
-            patch: { userOverrides: run.context.userOverrides, userDirectiveLog: run.context.userDirectiveLog },
-          });
-
-          // Inject a minimal user-turn so the orchestrator sees the override once.
-          messages.push({
-            role: "user",
-            content: `USER OVERRIDE (apply now)\n${run.context.userOverrides.notes || directiveText}\n\nDisabled tools: ${run.context.userOverrides.disabledTools.join(", ") || "(none)"}`,
-          });
+          run.context.userOverrides = { disabledTools: decision.disabledTools, notes: decision.notes || directiveText };
+          emit(run, { type: "context_update", patch: { userOverrides: run.context.userOverrides, userDirectiveLog: run.context.userDirectiveLog } });
+          messages.push({ role: "user", content: `USER OVERRIDE (apply now)\n${run.context.userOverrides.notes || directiveText}\n\nDisabled tools: ${run.context.userOverrides.disabledTools.join(", ") || "(none)"}` });
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -151,99 +140,89 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       }
     }
 
+    // ── call the model ───────────────────────────────────────────────────────
     const assistant = await callOpenRouter({
       apiKey,
       model,
       messages,
       toolSpecs,
-      // Stream thought deltas live so they appear in the UI as they arrive.
       onDelta: (text) => {
         emit(run, { type: "thought", text });
         emit(run, { type: "assistant_delta", chunk: text });
       },
     });
 
-    // Surface token usage and check the cost cap.
+    // Token usage + cost cap.
     if (assistant.usage) {
       const promptTokens = assistant.usage.prompt_tokens ?? 0;
       const completionTokens = assistant.usage.completion_tokens ?? 0;
       const totalTokens = assistant.usage.total_tokens ?? 0;
-
       cumulativeCostUsd +=
         (promptTokens * AGENT_LIMITS.COST_PER_1M_INPUT_TOKENS +
           completionTokens * AGENT_LIMITS.COST_PER_1M_OUTPUT_TOKENS) /
         1_000_000;
-
       emit(run, { type: "token_usage", promptTokens, completionTokens, totalTokens });
-
       if (cumulativeCostUsd > AGENT_LIMITS.MAX_COST_USD) {
-        const costError = `Run stopped: estimated cost ($${cumulativeCostUsd.toFixed(3)}) exceeded cap ($${AGENT_LIMITS.MAX_COST_USD}).`;
-        emit(run, { type: "fatal", error: costError });
+        emit(run, { type: "fatal", error: `Run stopped: cost cap exceeded ($${cumulativeCostUsd.toFixed(3)}).` });
         finishRun(run, "error");
         return;
       }
     }
-    // Thought deltas are already streamed via onDelta above — no extra emit needed.
 
+    const assistantText = (assistant.content ?? "").trim();
     const toolCalls = assistant.tool_calls ?? [];
-    if (toolCalls.length === 0) {
-      // If the user just paused and asked a question, allow one plain-text reply,
-      // then force the workflow to continue with tools.
-      if (allowOneTextReply && (assistant.content ?? "").trim()) {
-        allowOneTextReply = false;
-        emit(run, { type: "assistant_message", text: assistant.content ?? "" });
-        messages.push({ role: "assistant", content: assistant.content ?? "" });
-        messages.push({
-          role: "user",
-          content: "Continue the workflow — call the next required tool. Do not respond with text only.",
-        });
-        continue;
-      }
 
-      // The model gave a text-only response (no tool calls).
-      //
-      // If finalize_export already ran and the export doc is ready, the agent
-      // legitimately finished — emit done.
-      //
-      // Otherwise it stopped mid-workflow (e.g., gave up after a scraper
-      // failure). Nudge it once with an explicit "continue" turn; if it still
-      // produces no tools after the nudge, surface a fatal error instead of
-      // silently completing a half-built essay.
-      if (run.context.humanizedExportDoc) {
-        emit(run, { type: "done", exportDoc: null });
-        finishRun(run, "finished");
-        return;
-      }
-
-      if (run.context.exportDoc && run.context.humanizeChoice === "Skip") {
-        emit(run, { type: "done", exportDoc: run.context.exportDoc });
-        finishRun(run, "finished");
-        return;
-      }
-
-      textOnlyStreak += 1;
-      if (textOnlyStreak <= 2) {
-        // Push the model's reasoning as an assistant turn, then inject a
-        // user nudge so it doesn't see an abrupt bare user message.
-        messages.push({ role: "assistant", content: assistant.content ?? "" });
-        messages.push({
-          role: "user",
-          content:
-            "Continue the workflow — call the next required tool. Do not respond with text only.",
-        });
-        continue;
-      }
-
-      // Three consecutive text-only turns without completing → fatal.
-      const stuckError =
-        "Agent stopped mid-workflow after multiple attempts. Please try again.";
-      emit(run, { type: "fatal", error: stuckError });
-      finishRun(run, "error");
-      return;
+    // Emit any plain-text response as a chat bubble (visible to the user).
+    if (assistantText && toolCalls.length === 0) {
+      emit(run, { type: "assistant_message", text: assistantText });
     }
 
-    // Reset streak whenever the model actually calls a tool.
-    textOnlyStreak = 0;
+    // ── no tool calls → conversational turn ─────────────────────────────────
+    if (toolCalls.length === 0) {
+      messages.push({ role: "assistant", content: assistant.content ?? "" });
+
+      // Check if we've just entered or are already in revision mode.
+      if (run.context.exportReady && !revisionMode) {
+        revisionMode = true;
+        // Emit done so the UI shows the export card, but keep the loop alive.
+        emit(run, {
+          type: "done",
+          exportDoc: run.context.humanizedExportDoc ? null : (run.context.exportDoc ?? null),
+        });
+      }
+
+      // Wait for the user to reply — either a revision request or "done".
+      run.status = revisionMode ? "revision_mode" : "waiting_for_user";
+
+      try {
+        const userMsg = await waitForUserMessage(run, AGENT_LIMITS.ASK_USER_TIMEOUT_MS);
+
+        // Sentinel emitted by finishRun (cancelled/error) — stop cleanly.
+        if (userMsg === "__run_ended__") return;
+
+        // Explicit exit in revision mode.
+        if (revisionMode && isExitMessage(userMsg)) {
+          finishRun(run, "finished");
+          return;
+        }
+
+        run.status = "running";
+        messages.push({ role: "user", content: userMsg });
+        continue;
+      } catch {
+        // Timeout — if export is ready just finish, otherwise fatal.
+        if (run.context.exportReady) {
+          finishRun(run, "finished");
+          return;
+        }
+        emit(run, { type: "fatal", error: "Timed out waiting for your response." });
+        finishRun(run, "error");
+        return;
+      }
+    }
+
+    // ── has tool calls → execute them ────────────────────────────────────────
+    run.status = "running";
 
     messages.push({
       role: "assistant",
@@ -252,21 +231,27 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     });
 
     for (const tc of toolCalls) {
-      const toolResultMessage = await dispatchToolCall({
-        run,
-        tc,
-        toolByName,
-        recentCalls,
-      });
+      const toolResultMessage = await dispatchToolCall({ run, tc, toolByName, recentCalls });
       messages.push(toolResultMessage);
+    }
+
+    // After tools run, check if export just became ready to enter revision mode.
+    if (run.context.exportReady && !revisionMode) {
+      revisionMode = true;
     }
   }
 
-  // Fell out of the loop without a stop — kill the run so we don't quietly
-  // burn tokens in the background.
   const limitError = `Agent exceeded MAX_STEPS=${AGENT_LIMITS.MAX_STEPS}`;
   emit(run, { type: "fatal", error: limitError });
   finishRun(run, "error");
+}
+
+// Returns true when the user wants to end the session (revision mode only).
+function isExitMessage(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return t === "done" || t === "exit" || t === "finish" || t === "stop" ||
+    t === "that's all" || t === "thats all" || t === "no more changes" ||
+    t === "all done" || t === "finished";
 }
 
 // ────────────────── dispatch one tool call ──────────────────────────────────

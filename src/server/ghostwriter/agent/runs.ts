@@ -36,7 +36,7 @@ export type AgentRun = {
   // without a browser session.
   authToken: string;
   createdAt: number;
-  status: "pending" | "running" | "waiting_for_user" | "finished" | "error" | "cancelled";
+  status: "pending" | "running" | "waiting_for_user" | "revision_mode" | "finished" | "error" | "cancelled";
 
   // Event queue — events produced before a subscriber connects are buffered
   // here so we never lose the prologue. The SSE route drains this on connect,
@@ -50,6 +50,12 @@ export type AgentRun = {
   // Soft pause: if set, the loop will pause at the next safe boundary
   // (before the next orchestrator call) and ask for a user directive.
   pauseRequested: boolean;
+
+  // Free-form conversational messages from the user. The loop drains this
+  // queue at the start of each iteration; when it needs input it registers
+  // `pendingMessageWaiter` and the `/message` API resolves it immediately.
+  messageQueue: string[];
+  pendingMessageWaiter: ((text: string) => void) | null;
 
   // Set when the loop exits (success, fatal, or cancel). The SSE route uses
   // this to close the stream after draining any trailing events.
@@ -91,6 +97,8 @@ export function createRun(draft: AgentDraftInput, authToken = ""): AgentRun {
     subscriber: null,
     pendingAnswers: new Map(),
     pauseRequested: false,
+    messageQueue: [],
+    pendingMessageWaiter: null,
     finished: false,
   };
   seedContextFromDraft(run.context, draft);
@@ -167,6 +175,42 @@ export function finishRun(run: AgentRun, status: "finished" | "error" | "cancell
     pending.reject(new Error(`Run ${status} before "${field}" was answered`));
   }
   run.pendingAnswers.clear();
+  // Reject any pending conversational waiter too.
+  if (run.pendingMessageWaiter) {
+    run.pendingMessageWaiter("__run_ended__");
+    run.pendingMessageWaiter = null;
+  }
+  run.messageQueue.length = 0;
+}
+
+// Pause the loop waiting for a free-form user message. Resolves immediately
+// if a message is already queued (arrived while tools were running).
+export function waitForUserMessage(run: AgentRun, timeoutMs: number): Promise<string> {
+  if (run.messageQueue.length > 0) {
+    return Promise.resolve(run.messageQueue.shift()!);
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      run.pendingMessageWaiter = null;
+      reject(new Error("Timed out waiting for user message"));
+    }, timeoutMs);
+    run.pendingMessageWaiter = (text: string) => {
+      clearTimeout(timer);
+      resolve(text);
+    };
+  });
+}
+
+// Deliver a free-form message from the user. If the loop is waiting, resolves
+// it immediately; otherwise queues it for the next iteration.
+export function deliverUserMessage(run: AgentRun, text: string): void {
+  if (run.pendingMessageWaiter) {
+    const waiter = run.pendingMessageWaiter;
+    run.pendingMessageWaiter = null;
+    waiter(text);
+  } else {
+    run.messageQueue.push(text);
+  }
 }
 
 function seedContextFromDraft(context: AgentContext, draft: AgentDraftInput): void {
