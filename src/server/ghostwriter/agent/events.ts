@@ -17,6 +17,10 @@ export type AgentEvent =
   | { type: "assistant_delta"; chunk: string }
   | { type: "assistant_message"; text: string }
 
+  // Echo of a user's free-form chat message so the UI can render it as a
+  // chat bubble without a separate API call.
+  | { type: "user_message"; text: string }
+
   // Lifecycle of a single tool call. `id` is a client-stable nanoid so
   // progress/done/error can reference the same entry in the timeline.
   | { type: "step_start"; id: string; title: string; tool: string; args?: unknown }

@@ -470,9 +470,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const pendingThoughtsRef = useRef<string[]>([]);
   // Essay streaming
   const [essayStreamContent, setEssayStreamContent] = useState("");
-  // Assistant conversation stream (Cursor-style): not tied to tool cards.
-  const [assistantMessages, setAssistantMessages] = useState<string[]>([]);
+  // Chat history: user bubbles + AI bubbles rendered between tool cards.
+  type ChatItem = { id: string; role: "user" | "ai"; text: string };
+  const [chatItems, setChatItems] = useState<ChatItem[]>([]);
+  // Streaming assistant text accumulator (cleared when assistant_message fires).
   const [assistantStreaming, setAssistantStreaming] = useState("");
+  // Keep legacy assistantMessages for non-tool AI text (will be merged into chatItems).
+  const [assistantMessages, setAssistantMessages] = useState<string[]>([]);
   const [editingOpen, setEditingOpen] = useState(true);
   // Humanized content
   const [humanizedBoxOpen, setHumanizedBoxOpen] = useState(true);
@@ -601,9 +605,20 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               return;
             }
 
+            if (event.type === "user_message") {
+              const text = (event.text || "").trim();
+              if (text) {
+                setChatItems((prev) => [...prev, { id: `u-${Date.now()}-${prev.length}`, role: "user", text }]);
+              }
+              return;
+            }
+
             if (event.type === "assistant_message") {
               const text = (event.text || "").trim();
-              if (text) setAssistantMessages((prev) => [...prev, text]);
+              if (text) {
+                setChatItems((prev) => [...prev, { id: `ai-${Date.now()}-${prev.length}`, role: "ai", text }]);
+                setAssistantMessages((prev) => [...prev, text]);
+              }
               setAssistantStreaming("");
               return;
             }
@@ -754,11 +769,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   break;
                 }
                 case "done": {
-                  next.status = "finished";
+                  // Enter revision_mode — export is ready but the loop stays
+                  // alive so the user can request further changes.
+                  next.status = "revision_mode" as typeof next.status;
                   next.pendingToolCall = null;
                   next.pendingQuestion = null;
-                  // Mark any steps still showing "running" as completed so
-                  // the stream doesn't keep a stale spinner after the run ends.
                   next.steps = next.steps.map((s) =>
                     s.status === "running" ? { ...s, status: "completed" } : s,
                   );
@@ -1322,27 +1337,20 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           </div>
 
           <section ref={streamRef} className={styles.workflowStream}>
-            {/* Cursor-style assistant conversation (agentic) */}
-            {!isLegacyMode && (assistantMessages.length > 0 || assistantStreaming.trim()) ? (
-              <div className={styles.streamLine}>
-                <div className={styles.streamIconWrap}>
-                  <span className={styles.timerDot} />
-                </div>
-                <div className={styles.streamCopy}>
-                  <span className={styles.streamTitle}>Assistant</span>
-                  <div className={styles.thinkingSection} style={{ marginTop: "0.4rem" }}>
-                    <div className={styles.thinkingBox}>
-                      {assistantMessages.map((m, idx) => (
-                        <p key={idx} className={styles.inlineThoughtText}>
-                          {m}
-                        </p>
-                      ))}
-                      {assistantStreaming.trim() ? (
-                        <p className={styles.inlineThoughtText}>{assistantStreaming}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
+            {/* Chat bubbles — user messages + AI conversational replies */}
+            {!isLegacyMode && chatItems.map((item) => (
+              <div
+                key={item.id}
+                className={item.role === "user" ? styles.chatBubbleUser : styles.chatBubbleAi}
+              >
+                {item.text}
+              </div>
+            ))}
+            {/* Streaming AI text (not yet committed as a full message) */}
+            {!isLegacyMode && assistantStreaming.trim() ? (
+              <div className={styles.chatBubbleAi}>
+                {assistantStreaming}
+                <span className={styles.streamCursor} />
               </div>
             ) : null}
 
@@ -1743,35 +1751,38 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             <input
               type="text"
               className={styles.chatInput}
-              placeholder="Send a message to Ghostwriter…"
+              placeholder={
+                (runState?.status as string) === "revision_mode"
+                  ? "Ask for revisions, or type \"done\" to finish…"
+                  : "Ask Ghostwriter anything about your essay…"
+              }
               value={chatMessage}
               onChange={(e) => setChatMessage(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && chatMessage.trim()) {
+                  e.preventDefault();
+                  const text = chatMessage.trim();
                   setChatMessage("");
+                  if (!isLegacyMode && runState?.runId) {
+                    void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
+                      setRunError(err instanceof Error ? err.message : "Message failed.");
+                    });
+                  }
                 }
               }}
             />
-            {!isLegacyMode && runState?.status === "running" ? (
-              <button
-                type="button"
-                className={styles.chatSendBtn}
-                title="Pause after this step"
-                onClick={() => {
-                  if (!runState?.runId) return;
-                  void GhostwriterAgentClient.pause(runState.runId).catch((err) => {
-                    setRunError(err instanceof Error ? err.message : "Failed to pause.");
-                  });
-                }}
-              >
-                Stop
-              </button>
-            ) : null}
             <button
               type="button"
               className={styles.chatSendBtn}
-              disabled={!chatMessage.trim()}
-              onClick={() => setChatMessage("")}
+              disabled={!chatMessage.trim() || isLegacyMode || !runState?.runId}
+              onClick={() => {
+                const text = chatMessage.trim();
+                if (!text || !runState?.runId) return;
+                setChatMessage("");
+                void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
+                  setRunError(err instanceof Error ? err.message : "Message failed.");
+                });
+              }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2 11 13" />
