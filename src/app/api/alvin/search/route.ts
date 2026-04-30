@@ -14,6 +14,7 @@ type JasmineResult = {
     Author: string;
     "Published Year": string;
     Publisher: string;
+    outline_index?: number;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -66,12 +67,15 @@ function normalizeResults(parsed: unknown, targetCount: number): JasmineResult[]
     const normalized = list
         .map((entry) => {
             const row = typeof entry === "object" && entry !== null ? entry as Record<string, unknown> : {};
+            const rawIndex = Number(row.outline_index ?? row.outlineIndex ?? row.outline ?? NaN);
+            const outline_index = Number.isFinite(rawIndex) && rawIndex > 0 ? Math.round(rawIndex) : undefined;
             return {
                 website_URL: String(row.website_URL || row.url || row.link || "").trim(),
                 Title: String(row.Title || row.title || "").trim(),
                 Author: String(row.Author || row.author || "").trim(),
                 "Published Year": String(row["Published Year"] || row.publishedYear || row.year || "").trim(),
                 Publisher: String(row.Publisher || row.publisher || row.source || "").trim(),
+                outline_index,
             } satisfies JasmineResult;
         })
         .filter((row) => /^https?:\/\//i.test(row.website_URL))
@@ -153,12 +157,21 @@ export async function POST(request: NextRequest) {
         const agentFile = path.resolve(process.cwd(), "agents/alvin.md");
         const SYSTEM_PROMPT = fs.readFileSync(agentFile, "utf-8");
 
+        // Number the outlines explicitly so Alvin can return outline_index correctly
+        type OutlineInput = { type?: string; title?: string; description?: string };
+        const numberedOutlines = (outlines as OutlineInput[]).map((o, i) => ({
+            outline_index: i + 1,
+            type: o.type || "",
+            title: o.title || "",
+            description: o.description || "",
+        }));
+
         const userMessage = `
 Number of links needed: ${safeTargetCount}
 Essay Topic: ${essayTopic}
 
-Supporting Outlines:
-${JSON.stringify(outlines, null, 2)}
+Supporting Outlines (use outline_index to indicate which outline each source supports):
+${JSON.stringify(numberedOutlines, null, 2)}
 `.trim();
 
         const payload = {

@@ -8,6 +8,8 @@ export interface AlvinSearchResult {
     Author: string;
     "Published Year": string;
     Publisher: string;
+    /** 1-based index of the outline this source best supports */
+    outline_index?: number;
 }
 
 export class AlvinService {

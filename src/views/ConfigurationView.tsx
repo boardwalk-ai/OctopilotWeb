@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
@@ -25,6 +25,7 @@ type AlvinSourceMeta = {
     Author?: string;
     "Published Year"?: string;
     Publisher?: string;
+    outline_index?: number;
 };
 
 const WORD_COUNTS = [500, 750, 1000, 1500, 2000, "Custom"] as const;
@@ -1528,6 +1529,12 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
     // --- Search & Scrape Logic ---
     const triggerScrape = async (index: number, url: string, alvinMeta?: AlvinSourceMeta) => {
+        // Resolve outline match title from org state
+        const outlineMatchIndex = alvinMeta?.outline_index;
+        const outlineMatchTitle = outlineMatchIndex != null
+            ? (org.selectedOutlines[outlineMatchIndex - 1]?.title ?? org.outlines[outlineMatchIndex - 1]?.title ?? undefined)
+            : undefined;
+
         try {
             const scrapeData = await ScraperService.scrape(url);
 
@@ -1540,6 +1547,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     publishedYear: scrapeData.publishedYear || alvinMeta?.["Published Year"],
                     publisher: scrapeData.publisher || alvinMeta?.Publisher,
                     fullContent: scrapeData.fullContent,
+                    outlineMatchIndex,
+                    outlineMatchTitle,
                     status: "scraped"
                 };
                 return next;
@@ -1554,6 +1563,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                     author: alvinMeta?.Author || "",
                     publishedYear: alvinMeta?.["Published Year"] || "",
                     publisher: alvinMeta?.Publisher || "",
+                    outlineMatchIndex,
+                    outlineMatchTitle,
                     status: "failed"
                 };
                 next[index] = failedSrc;
@@ -1857,7 +1868,8 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
                         {/* Dynamic Inputs */}
                         {searchSourceEntries.map(({ source, sourceIndex }) => (
-                            <div key={sourceIndex} className={`relative w-full ${styles.configSourceInputWrap}`}>
+                            <React.Fragment key={sourceIndex}>
+                            <div className={`relative w-full ${styles.configSourceInputWrap}`}>
                                 <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                                     {source.status === "loading" ? (
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-red-500" />
@@ -1896,6 +1908,19 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                     </button>
                                 )}
                             </div>
+                            {/* Outline match label */}
+                            {source.outlineMatchIndex != null && source.url.trim().length > 0 && (
+                                <div className="flex items-center gap-1.5 px-1 pt-1 pb-0.5">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-white/20">
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                    <span className="text-[11px] text-white/30">
+                                        Matches with Outline {source.outlineMatchIndex}
+                                        {source.outlineMatchTitle ? `: ${source.outlineMatchTitle}` : ""}
+                                    </span>
+                                </div>
+                            )}
+                            </React.Fragment>
                         ))}
 
                         <button onClick={handleAddSource} className={`mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.01] py-4 text-[14px] font-semibold text-white/60 transition hover:border-white/20 hover:bg-white/[0.03] hover:text-white ${styles.configAddSourceButton}`}>

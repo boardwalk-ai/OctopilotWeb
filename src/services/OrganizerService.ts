@@ -18,6 +18,10 @@ export interface SourceData {
     citationPreview?: string;
     status: "empty" | "loading" | "scraped" | "failed";
     manualSourceType?: "pdf" | "image" | "url" | "fieldwork";
+    /** 1-based index of the outline this source was matched to by Alvin */
+    outlineMatchIndex?: number;
+    /** Title of the matched outline */
+    outlineMatchTitle?: string;
     pdfMeta?: {
         fileName: string;
         pageCount: number;
