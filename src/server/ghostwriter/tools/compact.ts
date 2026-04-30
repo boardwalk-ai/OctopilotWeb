@@ -76,7 +76,7 @@ export const compactSourcesTool: Tool<CompactArgs, CompactResult> = {
       return { compacted: 0, failed: 0, totalInContext: ctx.compactedSources.length };
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+    const { apiKey, model } = await getOpenRouterConfig("secondary");
     const systemPrompt = loadZulyPrompt();
 
     let compacted = 0;

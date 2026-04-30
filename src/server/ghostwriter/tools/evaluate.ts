@@ -42,7 +42,7 @@ export const evaluateSourcesTool: Tool<EvaluateArgs, EvaluateResult> = {
       throw new Error("evaluate_sources: no compacted sources — run compact_sources first.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+    const { apiKey, model } = await getOpenRouterConfig("secondary");
 
     const sourceSummaries = ctx.compactedSources
       .map((s, i) => `Source ${i + 1}: ${s.title || "(no title)"}\n${s.summary || ""}`)
