@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 export type AutomationStepId =
   | "writing-style"
-  | "major-selection"
-  | "essay-type"
   | "instructions"
   | "outlines"
   | "configuration"
@@ -18,8 +16,6 @@ export type AutomationStepId =
 
 export const automationStepSequence: Array<{ id: AutomationStepId; label: string }> = [
   { id: "writing-style", label: "Writing Style" },
-  { id: "major-selection", label: "Major Selection" },
-  { id: "essay-type", label: "Essay Type" },
   { id: "instructions", label: "Instructions" },
   { id: "outlines", label: "Outlines" },
   { id: "configuration", label: "Configuration" },

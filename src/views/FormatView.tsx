@@ -194,21 +194,10 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                 <div className={`mb-10 ${styles.formatHero}`}>
                     <h1 className={`mb-2 text-[42px] font-bold tracking-tight text-white ${styles.formatTitle}`}>Format Your Essay</h1>
                     <p className={`mb-6 text-[20px] font-medium text-red-500 ${styles.formatLead}`}>
-                    Set up the formatting for your {org.essayType || "Custom"}
+                    Set up the formatting for your essay
                     </p>
 
                     <div className={`flex items-center gap-2 ${styles.formatMeta}`}>
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                <path d="M12 17h.01" />
-                            </svg>
-                        </div>
-                        <span className={`text-[18px] font-bold text-red-500 ${styles.formatMetaMajor}`}>
-                            {org.majorName || "Undeclared / General Studies"}
-                        </span>
-                        <span className={`text-[18px] font-bold text-white/50 ${styles.formatMetaDot}`}>•</span>
                         <span className={`text-[18px] font-bold text-white ${styles.formatMetaType}`}>
                             {citationStyle} {isAPA ? "7th Edition" : isMLA ? "9th Edition" : ""}
                         </span>

@@ -27,15 +27,14 @@ export function PlaceholderView({ step, index, onBack, onNext }: PlaceholderView
                     <button
                         onClick={() => {
                             const nextStepMaps: Record<number, AutomationStepId> = {
-                                1: "essay-type",
-                                2: "instructions",
-                                3: "outlines",
-                                4: "configuration",
-                                5: "format",
-                                6: "generation",
-                                7: "preview",
-                                8: "humanizer",
-                                9: "editor",
+                                0: "instructions",
+                                1: "outlines",
+                                2: "configuration",
+                                3: "format",
+                                4: "generation",
+                                5: "preview",
+                                6: "humanizer",
+                                7: "editor",
                             };
                             onNext(nextStepMaps[index]);
                         }}

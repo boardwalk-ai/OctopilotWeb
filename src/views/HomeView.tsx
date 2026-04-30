@@ -7,12 +7,9 @@ import { AuthService } from "@/services/AuthService";
 import { Organizer } from "@/services/OrganizerService";
 import { TrackerService } from "@/services/TrackerService";
 import { useOrganizer } from "@/hooks/useOrganizer";
-import { majorTypes } from "@/lib/majorConstants";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import MethodologyView from "@/views/MethodologyView";
 import WritingStyleView from "@/views/WritingStyleView";
-import MajorSelectionView from "@/views/MajorSelectionView";
-import EssayTypeView from "@/views/EssayTypeView";
 import InstructionsView from "@/views/InstructionsView";
 import OutlinesView from "@/views/OutlinesView";
 import ConfigurationView from "@/views/ConfigurationView";
@@ -28,13 +25,11 @@ import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
-import essayTypeMobileStyles from "./EssayTypeViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
 import formatMobileStyles from "./FormatViewMobile.module.css";
 import generationMobileStyles from "./GenerationViewMobile.module.css";
 import humanizerMobileStyles from "./HumanizerViewMobile.module.css";
 import instructionsMobileStyles from "./InstructionsViewMobile.module.css";
-import majorSelectionMobileStyles from "./MajorSelectionViewMobile.module.css";
 import outlinesMobileStyles from "./OutlinesViewMobile.module.css";
 import previewMobileStyles from "./PreviewViewMobile.module.css";
 import writingStyleMobileStyles from "./WritingStyleViewMobile.module.css";
@@ -57,17 +52,11 @@ function hasWritingStyleAccess(plan?: string | null): boolean {
 
 export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
-  const [selectedMajor, setSelectedMajor] = useState(0);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
   const stepScrollRef = useRef<HTMLDivElement>(null);
   const org = useOrganizer();
-
-  const handleSelectMajor = useCallback((index: number) => {
-    setSelectedMajor(index);
-    Organizer.set({ majorIndex: index, majorName: majorTypes[index]?.name || "" });
-  }, []);
 
   const skipWritingStyle = !hasWritingStyleAccess(accountPlan);
   const skipFormat = org.citationStyle === "None";
@@ -164,7 +153,7 @@ export default function HomeView() {
                 writingStyleFileName: null,
               });
               await TrackerService.updateSession({ writing_style_status: "guest_bypass" });
-              setPage("major-selection");
+              setPage("instructions");
               return;
             }
 
@@ -354,12 +343,8 @@ export default function HomeView() {
           <AppHeader
             className={page === "writing-style"
               ? writingStyleMobileStyles.writingStyleHeader
-              : page === "major-selection"
-                ? majorSelectionMobileStyles.majorHeader
-                : page === "essay-type"
-                  ? essayTypeMobileStyles.essayHeader
-                  : page === "instructions"
-                    ? instructionsMobileStyles.instructionsHeader
+              : page === "instructions"
+                ? instructionsMobileStyles.instructionsHeader
                     : page === "outlines"
                       ? outlinesMobileStyles.outlinesHeader
                       : page === "configuration"
@@ -384,12 +369,8 @@ export default function HomeView() {
             writingMode={org.writingMode}
             className={page === "writing-style"
               ? writingStyleMobileStyles.writingStyleStepper
-              : page === "major-selection"
-                ? majorSelectionMobileStyles.majorStepper
-                : page === "essay-type"
-                  ? essayTypeMobileStyles.essayStepper
-                  : page === "instructions"
-                    ? instructionsMobileStyles.instructionsStepper
+              : page === "instructions"
+                ? instructionsMobileStyles.instructionsStepper
                     : page === "outlines"
                       ? outlinesMobileStyles.outlinesStepper
                       : page === "configuration"
@@ -407,14 +388,10 @@ export default function HomeView() {
 
           <div
             ref={stepScrollRef}
-            className={`relative z-10 flex-1 min-h-0 ${page === "major-selection" || page === "essay-type" || page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" || page === "preview" || page === "humanizer" ? "overflow-hidden md:overflow-y-auto" : "overflow-y-auto"}`}
+            className={`relative z-10 flex-1 min-h-0 ${page === "instructions" || page === "outlines" || page === "configuration" || page === "format" || page === "generation" || page === "preview" || page === "humanizer" ? "overflow-hidden md:overflow-y-auto" : "overflow-y-auto"}`}
           >
             {page === "writing-style" ? (
               <WritingStyleView onBack={goBack} onNext={goNext} />
-            ) : page === "major-selection" ? (
-              <MajorSelectionView onBack={goBack} onNext={goNext} onSelectMajor={handleSelectMajor} />
-            ) : page === "essay-type" ? (
-              <EssayTypeView selectedMajor={selectedMajor} onBack={goBack} onNext={goNext} />
             ) : page === "instructions" ? (
               <InstructionsView onBack={goBack} onNext={goNext} />
             ) : page === "outlines" ? (

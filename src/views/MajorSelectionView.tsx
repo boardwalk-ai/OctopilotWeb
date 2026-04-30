@@ -107,7 +107,7 @@ export default function MajorSelectionView({ onBack, onNext, onSelectMajor }: Ma
                     onClick={() => {
                         if (selected !== null) {
                             onSelectMajor(selected);
-                            onNext("essay-type");
+                            onNext("instructions");
                         }
                     }}
                     className={`flex min-w-[250px] max-w-[440px] items-center justify-center gap-2 rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-200 ${styles.majorContinueButton} ${selected !== null

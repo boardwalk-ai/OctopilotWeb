@@ -1635,18 +1635,6 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                 <p className={`mb-6 text-[20px] font-medium text-red-500 ${styles.configLead}`}>Fine-tune the parameters for your Custom</p>
 
                 <div className={`flex items-center gap-2 ${styles.configMeta}`}>
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <path d="M12 17h.01" />
-                        </svg>
-                    </div>
-                    <span className={`text-[18px] font-bold text-red-500 ${styles.configMetaMajor}`}>
-                        {org.majorName || "Undeclared / General Studies"}
-                    </span>
-                    <span className={`text-[18px] font-bold text-white/50 ${styles.configMetaDot}`}>•</span>
-                    <span className={`text-[18px] font-bold text-white ${styles.configMetaType}`}>{org.essayType || "Custom"}</span>
                 </div>
             </div>
 

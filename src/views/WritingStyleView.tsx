@@ -77,7 +77,7 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                 writingStyleExtractedText: extractedText,
                 writingStyleProfile: profile,
             });
-            onNext("major-selection");
+            onNext("instructions");
         } catch (readError) {
             Organizer.set({
                 writingStyleStatus: "uploaded",
@@ -169,7 +169,7 @@ export default function WritingStyleView({ onNext }: WritingStyleViewProps) {
                                 writingStyleExtractedText: "",
                                 writingStyleProfile: null,
                             });
-                            onNext("major-selection");
+                            onNext("instructions");
                         }}
                         className={`mt-6 text-[15px] font-semibold text-white/50 underline transition hover:text-white disabled:cursor-not-allowed disabled:text-white/20 ${styles.writingStyleSkipButton}`}
                     >
