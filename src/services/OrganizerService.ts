@@ -109,6 +109,19 @@ export interface ExportDocumentSnapshot {
     generatedAt: string;
 }
 
+export interface RubricCriterionGrade {
+    name: string;
+    score: number;
+    maxPoints: number | null;
+    feedback: string;
+}
+
+export interface RubricGradingResult {
+    criteria: RubricCriterionGrade[];
+    overallPercentage: number;
+    summary: string;
+}
+
 export interface WritingStyleProfile {
     writing_style: string;
     grammar_usage_style: string;
@@ -135,6 +148,7 @@ export interface OrganizerState {
     instructionImageDataUrls: string[];
     rubricFileName: string | null;
     rubricCriteria: RubricCriterion[] | null;
+    rubricGradingResult: RubricGradingResult | null;
     imperfectModeEnabled: boolean;
 
     // Luna output (filled after analysis)
@@ -223,6 +237,7 @@ const defaultState: OrganizerState = {
     instructionImageDataUrls: [],
     rubricFileName: null,
     rubricCriteria: null,
+    rubricGradingResult: null,
     imperfectModeEnabled: false,
     analysis: "",
     essayTopic: "",

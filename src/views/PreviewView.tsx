@@ -1,9 +1,11 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer } from "@/services/OrganizerService";
+import type { RubricGradingResult } from "@/services/OrganizerService";
+import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 import styles from "./PreviewViewMobile.module.css";
 
 interface PreviewViewProps {
@@ -46,10 +48,149 @@ function StatCard({
     );
 }
 
+function scoreColor(pct: number): string {
+    if (pct >= 85) return "#22c55e";   // green
+    if (pct >= 70) return "#eab308";   // yellow
+    if (pct >= 50) return "#f97316";   // orange
+    return "#ef4444";                   // red
+}
+
+function CircleProgress({ percentage }: { percentage: number }) {
+    const radius = 40;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (percentage / 100) * circumference;
+    const color = scoreColor(percentage);
+
+    return (
+        <div className="relative flex items-center justify-center" style={{ width: 100, height: 100 }}>
+            <svg width="100" height="100" className="-rotate-90">
+                <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+                <circle
+                    cx="50" cy="50" r={radius} fill="none"
+                    stroke={color} strokeWidth="8"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    style={{ transition: "stroke-dashoffset 0.8s ease" }}
+                />
+            </svg>
+            <span className="absolute text-[22px] font-bold" style={{ color }}>{percentage}%</span>
+        </div>
+    );
+}
+
+function CriterionRow({ criterion }: { criterion: RubricGradingResult["criteria"][number] }) {
+    const max = criterion.maxPoints ?? 10;
+    const pct = Math.round((criterion.score / max) * 100);
+    const color = scoreColor(pct);
+
+    return (
+        <div className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="flex items-center justify-between gap-3">
+                <span className="text-[14px] font-semibold text-white/90">{criterion.name}</span>
+                <span className="shrink-0 text-[13px] font-bold" style={{ color }}>
+                    {criterion.score}/{max}
+                </span>
+            </div>
+            {/* progress bar */}
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${pct}%`, backgroundColor: color }}
+                />
+            </div>
+            <p className="text-[12px] leading-relaxed text-white/50">{criterion.feedback}</p>
+        </div>
+    );
+}
+
+function RubricScorePanel({ result }: { result: RubricGradingResult }) {
+    return (
+        <div className="mb-12 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-8 shadow-sm">
+            {/* header row */}
+            <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+                <div className="flex flex-col items-center gap-2">
+                    <CircleProgress percentage={result.overallPercentage} />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/40">Overall Score</span>
+                </div>
+                <div className="flex flex-col justify-center gap-2">
+                    <div className="flex items-center gap-2">
+                        {/* rubric icon */}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" className="opacity-70">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                        </svg>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Rubric Evaluation</span>
+                    </div>
+                    <p className="max-w-prose text-[14px] leading-relaxed text-white/70">{result.summary}</p>
+                </div>
+            </div>
+
+            {/* criteria grid */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {result.criteria.map((c, i) => (
+                    <CriterionRow key={i} criterion={c} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function RubricScoreLoading() {
+    return (
+        <div className="mb-12 flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] px-8 py-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+                <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+            </div>
+            <div>
+                <p className="text-[14px] font-semibold text-white/80">Grading your essay…</p>
+                <p className="text-[12px] text-white/40">Evaluating against rubric criteria</p>
+            </div>
+        </div>
+    );
+}
+
 export default function PreviewView({ onNext }: PreviewViewProps) {
     const org = useOrganizer();
     const [isEditing, setIsEditing] = useState(false);
     const [editableText, setEditableText] = useState(org.generatedEssay);
+    const [isGrading, setIsGrading] = useState(false);
+    const gradingStarted = useRef(false);
+
+    // Trigger background grading once when this view mounts
+    useEffect(() => {
+        const hasRubric = org.rubricCriteria && org.rubricCriteria.length > 0;
+        const hasEssay = !!org.generatedEssay;
+        const alreadyGraded = !!org.rubricGradingResult;
+
+        if (!hasRubric || !hasEssay || alreadyGraded || gradingStarted.current) return;
+
+        gradingStarted.current = true;
+        setIsGrading(true);
+
+        fetchWithUserAuthorization("/api/rubric/grade", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                essay: org.generatedEssay,
+                criteria: org.rubricCriteria,
+            }),
+        })
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json() as RubricGradingResult;
+                Organizer.set({ rubricGradingResult: data });
+            })
+            .catch((err) => {
+                console.error("[PreviewView] Rubric grading failed:", err);
+            })
+            .finally(() => {
+                setIsGrading(false);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Calculate dynamic stats
     const paragraphCount = org.selectedOutlines.length;
@@ -65,11 +206,9 @@ export default function PreviewView({ onNext }: PreviewViewProps) {
         if (!text) return "No content generated.";
         if (keywordList.length === 0) return text;
 
-        // Create a regex that safely matches any of the keywords case-insensitively
         const escapedKeywords = keywordList.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         const regex = new RegExp(`(${escapedKeywords.join('|')})`, 'gi');
 
-        // Split text by keywords and wrap matches in a glowing span
         const parts = text.split(regex);
         return parts.map((part, i) => {
             const isMatch = keywordList.some(k => k.toLowerCase() === part.toLowerCase());
@@ -211,6 +350,12 @@ export default function PreviewView({ onNext }: PreviewViewProps) {
                     />
                 </div>
 
+                {/* Rubric Score Panel */}
+                {isGrading && <RubricScoreLoading />}
+                {!isGrading && org.rubricGradingResult && (
+                    <RubricScorePanel result={org.rubricGradingResult} />
+                )}
+
                 {/* Essay Content Section */}
                 <div className={`mb-12 ${styles.previewEssaySection}`}>
                     <div className={`mb-4 flex items-center justify-between ${styles.previewEssayHeader}`}>
@@ -302,13 +447,13 @@ export default function PreviewView({ onNext }: PreviewViewProps) {
 
             <style jsx global>{`
                 @keyframes glowFlicker {
-                    0%, 100% { 
-                        opacity: 1; 
-                        text-shadow: 0 0 4px rgba(253, 224, 71, 0.5), 0 0 12px rgba(253, 224, 71, 0.3); 
+                    0%, 100% {
+                        opacity: 1;
+                        text-shadow: 0 0 4px rgba(253, 224, 71, 0.5), 0 0 12px rgba(253, 224, 71, 0.3);
                     }
-                    50% { 
-                        opacity: 0.85; 
-                        text-shadow: 0 0 10px rgba(253, 224, 71, 0.8), 0 0 20px rgba(253, 224, 71, 0.5); 
+                    50% {
+                        opacity: 0.85;
+                        text-shadow: 0 0 10px rgba(253, 224, 71, 0.8), 0 0 20px rgba(253, 224, 71, 0.5);
                     }
                 }
                 .animate-glow-flicker {
