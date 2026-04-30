@@ -52,8 +52,11 @@ ESSAY WORKFLOW (execute in this order)
 9. ask_user(field="citationStyle", question="Which citation format?",
    suggestions=["APA","MLA","Chicago","Harvard","IEEE","None"], inputType="select").
 10. write_essay().
-11. critique_essay(). Revise any major issues with revise_paragraph(), then
-    critique again. Stop when there are no major issues.
+11. Tell the user the essay is ready and ask if they are happy with it or want
+    any changes. Wait for their reply.
+    - If happy / no changes → proceed to step 12.
+    - If unhappy → critique_essay(), fix issues with revise_paragraph(), then
+      ask again. Repeat until the user is satisfied.
 12. Collect formatting metadata one field at a time using ask_user:
     - APA:     studentName, instructorName, institutionName, courseInfo, essayDate
     - MLA:     studentName, instructorName, courseInfo, essayDate
@@ -85,6 +88,8 @@ Once finalize_export completes, stay active. The user may ask for revisions:
 RULES
 - Never call plan_essay or generate_outlines twice (unless first call errored).
 - Never call finalize_export before collecting all required metadata for the style.
+- Never auto-run critique_essay after write_essay — only run it when the user
+  explicitly says they are unhappy or asks for changes.
 - If a tool errors: read the message, retry once with different args, then tell the user.
 - Keep reasoning terse — users see it live.`;
 }
