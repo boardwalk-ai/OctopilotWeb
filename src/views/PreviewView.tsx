@@ -49,104 +49,125 @@ function StatCard({
 }
 
 function scoreColor(pct: number): string {
-    if (pct >= 85) return "#22c55e";   // green
-    if (pct >= 70) return "#eab308";   // yellow
-    if (pct >= 50) return "#f97316";   // orange
-    return "#ef4444";                   // red
+    if (pct >= 85) return "#22c55e";
+    if (pct >= 70) return "#eab308";
+    if (pct >= 50) return "#f97316";
+    return "#ef4444";
 }
 
-function CircleProgress({ percentage }: { percentage: number }) {
-    const radius = 40;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (percentage / 100) * circumference;
-    const color = scoreColor(percentage);
-
-    return (
-        <div className="relative flex items-center justify-center" style={{ width: 100, height: 100 }}>
-            <svg width="100" height="100" className="-rotate-90">
-                <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
-                <circle
-                    cx="50" cy="50" r={radius} fill="none"
-                    stroke={color} strokeWidth="8"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    style={{ transition: "stroke-dashoffset 0.8s ease" }}
-                />
-            </svg>
-            <span className="absolute text-[22px] font-bold" style={{ color }}>{percentage}%</span>
-        </div>
-    );
+function scoreGrade(pct: number): string {
+    if (pct >= 97) return "A+";
+    if (pct >= 93) return "A";
+    if (pct >= 90) return "A−";
+    if (pct >= 87) return "B+";
+    if (pct >= 83) return "B";
+    if (pct >= 80) return "B−";
+    if (pct >= 77) return "C+";
+    if (pct >= 73) return "C";
+    if (pct >= 70) return "C−";
+    if (pct >= 60) return "D";
+    return "F";
 }
 
-function CriterionRow({ criterion }: { criterion: RubricGradingResult["criteria"][number] }) {
+function CriterionRow({ criterion, index }: { criterion: RubricGradingResult["criteria"][number]; index: number }) {
     const max = criterion.maxPoints ?? 10;
     const pct = Math.round((criterion.score / max) * 100);
     const color = scoreColor(pct);
 
     return (
-        <div className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-            <div className="flex items-center justify-between gap-3">
-                <span className="text-[14px] font-semibold text-white/90">{criterion.name}</span>
-                <span className="shrink-0 text-[13px] font-bold" style={{ color }}>
-                    {criterion.score}/{max}
-                </span>
+        <div className="group flex flex-col gap-2 py-5">
+            <div className="flex items-center gap-4">
+                <span className="w-5 shrink-0 text-[11px] font-bold tabular-nums text-white/20">{String(index + 1).padStart(2, "0")}</span>
+                <span className="flex-1 text-[14px] font-semibold text-white/85">{criterion.name}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                    <div className="h-1 w-20 overflow-hidden rounded-full bg-white/[0.06]">
+                        <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, backgroundColor: color, transition: "width 1s cubic-bezier(0.4,0,0.2,1)" }}
+                        />
+                    </div>
+                    <span
+                        className="w-9 rounded-md px-1.5 py-0.5 text-center text-[12px] font-bold tabular-nums"
+                        style={{ color, backgroundColor: `${color}18` }}
+                    >
+                        {criterion.score}/{max}
+                    </span>
+                </div>
             </div>
-            {/* progress bar */}
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, backgroundColor: color }}
-                />
-            </div>
-            <p className="text-[12px] leading-relaxed text-white/50">{criterion.feedback}</p>
+            <p className="ml-9 text-[12px] leading-relaxed text-white/38 italic">{criterion.feedback}</p>
         </div>
     );
 }
 
 function RubricScorePanel({ result }: { result: RubricGradingResult }) {
+    const color = scoreColor(result.overallPercentage);
+    const grade = scoreGrade(result.overallPercentage);
+
     return (
-        <div className="mb-12 rounded-3xl border border-white/[0.08] bg-white/[0.02] p-8 shadow-sm">
-            {/* header row */}
-            <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
-                <div className="flex flex-col items-center gap-2">
-                    <CircleProgress percentage={result.overallPercentage} />
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/40">Overall Score</span>
-                </div>
-                <div className="flex flex-col justify-center gap-2">
+        <div className="mb-12 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0b0b0b] shadow-[0_2px_40px_rgba(0,0,0,0.4)]">
+            {/* Colored top rule */}
+            <div className="h-[3px] w-full" style={{ backgroundColor: color }} />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-6 px-8 py-7">
+                <div className="flex min-w-0 flex-col gap-3">
                     <div className="flex items-center gap-2">
-                        {/* rubric icon */}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" className="opacity-70">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/30">
                             <path d="M9 11l3 3L22 4" />
                             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                         </svg>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Rubric Evaluation</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/35">Rubric Evaluation</span>
                     </div>
-                    <p className="max-w-prose text-[14px] leading-relaxed text-white/70">{result.summary}</p>
+                    <p className="max-w-[480px] text-[14px] leading-[1.75] text-white/60">{result.summary}</p>
+                    <span className="text-[11px] text-white/25">{result.criteria.length} criteria · Auto-graded</span>
+                </div>
+
+                {/* Score block */}
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span
+                        className="text-[56px] font-bold leading-none tracking-tight"
+                        style={{ color }}
+                    >
+                        {result.overallPercentage}
+                        <span className="text-[28px]">%</span>
+                    </span>
+                    <span
+                        className="rounded-lg px-2.5 py-0.5 text-[13px] font-bold tracking-wide"
+                        style={{ color, backgroundColor: `${color}1a` }}
+                    >
+                        {grade}
+                    </span>
                 </div>
             </div>
 
-            {/* criteria grid */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {/* Divider */}
+            <div className="mx-8 h-px bg-white/[0.05]" />
+
+            {/* Criteria list */}
+            <div className="divide-y divide-white/[0.04] px-8">
                 {result.criteria.map((c, i) => (
-                    <CriterionRow key={i} criterion={c} />
+                    <CriterionRow key={i} criterion={c} index={i} />
                 ))}
             </div>
+
+            {/* Bottom padding */}
+            <div className="h-2" />
         </div>
     );
 }
 
 function RubricScoreLoading() {
     return (
-        <div className="mb-12 flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] px-8 py-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-                <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5">
+        <div className="mb-12 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0b0b0b]">
+            <div className="h-[3px] w-full animate-pulse bg-white/[0.08]" />
+            <div className="flex items-center gap-4 px-8 py-7">
+                <svg className="animate-spin shrink-0 text-white/20" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-            </div>
-            <div>
-                <p className="text-[14px] font-semibold text-white/80">Grading your essay…</p>
-                <p className="text-[12px] text-white/40">Evaluating against rubric criteria</p>
+                <div>
+                    <p className="text-[14px] font-semibold text-white/60">Grading your essay…</p>
+                    <p className="mt-0.5 text-[12px] text-white/28">Evaluating against rubric criteria</p>
+                </div>
             </div>
         </div>
     );
