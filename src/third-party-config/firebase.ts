@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { browserLocalPersistence, getAuth, GoogleAuthProvider, setPersistence } from "firebase/auth";
+import { browserLocalPersistence, getAuth, GoogleAuthProvider, onAuthStateChanged, setPersistence } from "firebase/auth";
 
 // Firebase configuration for Octopilot Web.
 export const firebaseConfig = {
@@ -20,17 +20,29 @@ googleProvider.setCustomParameters({
   prompt: "select_account",
 });
 
-let persistencePromise: Promise<void> | null = null;
+// Set persistence eagerly at module load so it's ready before any auth call.
+// Lazy initialization (inside signInWithGoogle) caused a race where the popup
+// opened before Firebase finished applying persistence, failing the first attempt.
+export const persistencePromise: Promise<void> =
+  typeof window !== "undefined"
+    ? setPersistence(firebaseAuth, browserLocalPersistence)
+    : Promise.resolve();
 
+// Resolves once Firebase has finished its initial auth-state check (reads
+// from localStorage/IndexedDB). Awaiting this before signInWithPopup prevents
+// the "first attempt fails, second succeeds" race.
+export const authReadyPromise: Promise<void> =
+  typeof window !== "undefined"
+    ? new Promise<void>((resolve) => {
+        const unsub = onAuthStateChanged(firebaseAuth, () => {
+          unsub();
+          resolve();
+        });
+      })
+    : Promise.resolve();
+
+// Keep for backwards-compat — callers that already await this are fine.
 export function ensureFirebasePersistence(): Promise<void> {
-  if (typeof window === "undefined") {
-    return Promise.resolve();
-  }
-
-  if (!persistencePromise) {
-    persistencePromise = setPersistence(firebaseAuth, browserLocalPersistence);
-  }
-
   return persistencePromise;
 }
 

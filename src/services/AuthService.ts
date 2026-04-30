@@ -10,6 +10,7 @@ import {
   onAuthStateChanged,
   reload,
   sendEmailVerification,
+  sendPasswordResetEmail,
   sendSignInLinkToEmail,
   signInWithEmailAndPassword,
   signInWithEmailLink,
@@ -17,7 +18,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { ensureFirebasePersistence, firebaseAuth, getEmailLinkRedirectUrl, googleProvider } from "@/third-party-config/firebase";
+import { authReadyPromise, ensureFirebasePersistence, firebaseAuth, getEmailLinkRedirectUrl, googleProvider } from "@/third-party-config/firebase";
 
 const EMAIL_STORAGE_KEY = "octopilot.emailForSignIn";
 const EMAIL_MODE_STORAGE_KEY = "octopilot.emailLinkMode";
@@ -62,9 +63,23 @@ function mapFirebaseError(error: unknown): Error {
 export class AuthService {
   static async signInWithGoogle(): Promise<User> {
     try {
-      await ensureFirebasePersistence();
+      // Wait for persistence to be set AND for Firebase to finish its initial
+      // auth-state read. Both must complete before opening the popup, otherwise
+      // the first click fails and only the second succeeds.
+      await Promise.all([ensureFirebasePersistence(), authReadyPromise]);
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       return result.user;
+    } catch (error) {
+      throw mapFirebaseError(error);
+    }
+  }
+
+  static async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email.trim(), {
+        url: getEmailLinkRedirectUrl(),
+        handleCodeInApp: false,
+      });
     } catch (error) {
       throw mapFirebaseError(error);
     }

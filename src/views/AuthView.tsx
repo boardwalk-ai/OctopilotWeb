@@ -21,9 +21,12 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
   const [isEmailLinkLoading, setIsEmailLinkLoading] = useState(false);
   const [isLinkCompleting, setIsLinkCompleting] = useState(false);
   const [needsLinkEmail, setNeedsLinkEmail] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+  const [forgotPasswordDone, setForgotPasswordDone] = useState(false);
 
   const isLogin = mode === "login";
-  const isBusy = isEmailLoading || isGoogleLoading || isEmailLinkLoading || isLinkCompleting;
+  const isBusy = isEmailLoading || isGoogleLoading || isEmailLinkLoading || isLinkCompleting || isForgotPasswordLoading;
 
   useEffect(() => {
     if (typeof window === "undefined" || !AuthService.isEmailLink(window.location.href)) {
@@ -119,6 +122,23 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
       setError(googleError instanceof Error ? googleError.message : "Google sign-in failed.");
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError("Enter your email address first.");
+      return;
+    }
+    setError(null);
+    setIsForgotPasswordLoading(true);
+    try {
+      await AuthService.sendPasswordResetEmail(email);
+      setForgotPasswordDone(true);
+    } catch (forgotError) {
+      setError(forgotError instanceof Error ? forgotError.message : "Could not send reset email.");
+    } finally {
+      setIsForgotPasswordLoading(false);
     }
   };
 
@@ -240,7 +260,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                 <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-1.5">
                   <button
                     type="button"
-                    onClick={() => setMode("login")}
+                    onClick={() => { setMode("login"); setShowForgotPassword(false); setForgotPasswordDone(false); setError(null); }}
                     disabled={isBusy}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                       isLogin
@@ -252,7 +272,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode("signup")}
+                    onClick={() => { setMode("signup"); setShowForgotPassword(false); setForgotPasswordDone(false); setError(null); }}
                     disabled={isBusy}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                       !isLogin
@@ -332,7 +352,19 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   </label>
 
                   <label className="block space-y-2">
-                    <span className="text-[15px] font-medium text-white/88">Password</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[15px] font-medium text-white/88">Password</span>
+                      {isLogin && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => { setShowForgotPassword(!showForgotPassword); setForgotPasswordDone(false); setError(null); }}
+                          className="text-[12px] font-medium text-white/40 transition hover:text-red-300 disabled:opacity-50"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="password"
                       placeholder={isLogin ? "Enter your password" : "Choose a secure password"}
@@ -341,9 +373,36 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-white/26 focus:border-red-500/65 focus:bg-white/[0.06]"
                       autoComplete={isLogin ? "current-password" : "new-password"}
                       disabled={isBusy || needsLinkEmail}
-                      required={!needsLinkEmail}
+                      required={!needsLinkEmail && !showForgotPassword}
                     />
                   </label>
+
+                  {isLogin && showForgotPassword && (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+                      {forgotPasswordDone ? (
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 text-green-400">✓</span>
+                          <p className="text-[13px] leading-relaxed text-white/70">
+                            Reset link sent to <span className="font-semibold text-white/90">{email.trim()}</span>. Check your inbox and follow the link to set a new password.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-[12px] text-white/50 leading-relaxed">
+                            We'll send a reset link to your email. Make sure the email above is filled in.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleForgotPassword}
+                            disabled={isBusy || !email.trim()}
+                            className="w-full rounded-[18px] border border-white/12 bg-white/[0.05] px-4 py-2.5 text-[13px] font-semibold text-white/80 transition hover:border-red-500/40 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isForgotPasswordLoading ? "Sending…" : "Send reset link"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {needsLinkEmail && (
                     <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/60">
@@ -399,7 +458,7 @@ export default function AuthView({ initialError = null }: AuthViewProps) {
                   <span>{isLogin ? "Need an account?" : "Already registered?"}</span>
                   <button
                     type="button"
-                    onClick={() => setMode(isLogin ? "signup" : "login")}
+                    onClick={() => { setMode(isLogin ? "signup" : "login"); setShowForgotPassword(false); setForgotPasswordDone(false); setError(null); }}
                     className="font-semibold text-red-300 transition hover:text-white"
                   >
                     {isLogin ? "Switch to signup" : "Switch to login"}
