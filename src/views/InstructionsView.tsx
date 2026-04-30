@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { AutomationStepId } from "@/components/StepperHeader";
 import { AccountStateService } from "@/services/AccountStateService";
+import { AuthService } from "@/services/AuthService";
 import { FileReadService } from "@/services/FileReadService";
 import { Organizer } from "@/services/OrganizerService";
 import { HeinService } from "@/services/HeinService";
@@ -14,6 +16,23 @@ interface InstructionsViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
+const GREETINGS = [
+    "What are we writing today",
+    "What's the assignment",
+    "Let's craft something great",
+    "Ready when you are",
+    "Tell me about your essay",
+    "What would you like to write",
+    "Hey, what are we working on",
+    "Drop your instructions below",
+    "What's on the syllabus today",
+    "Let's get started",
+];
+
+function getGreeting(): string {
+    return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+}
+
 export default function InstructionsView({ onBack, onNext }: InstructionsViewProps) {
     const [instructions, setInstructions] = useState(() => Organizer.get().instructionTextInput);
     const [imperfectMode, setImperfectMode] = useState(() => Organizer.get().imperfectModeEnabled);
@@ -21,54 +40,55 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
+    const [greeting] = useState(getGreeting);
+    const [userName, setUserName] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const isSubscriber = !!accountPlan && /(pro|premium)/i.test(accountPlan) && !/guest/i.test(accountPlan);
+    const canSubmit = (instructions.trim().length > 0 || uploadedFile !== null) && !isAnalyzing;
 
-    // Test Mode Autofill
-    React.useEffect(() => {
-        if (TestService.isActive) {
-            setInstructions(TestService.getInstructions());
+    useEffect(() => {
+        const user = AuthService.getCurrentUser();
+        if (user?.displayName) {
+            setUserName(user.displayName.split(" ")[0]);
         }
     }, []);
 
-    React.useEffect(() => {
+    useEffect(() => {
+        if (TestService.isActive) setInstructions(TestService.getInstructions());
+    }, []);
+
+    useEffect(() => {
         return AccountStateService.subscribe((snapshot) => {
             setAccountPlan(snapshot?.plan ?? null);
         });
     }, []);
 
-    React.useEffect(() => {
-        if (!isSubscriber && imperfectMode) {
-            setImperfectMode(false);
-        }
+    useEffect(() => {
+        if (!isSubscriber && imperfectMode) setImperfectMode(false);
     }, [imperfectMode, isSubscriber]);
 
-    const canRead = instructions.trim().length > 0 || uploadedFile !== null;
+    // Auto-grow textarea
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+    }, [instructions]);
 
     const handleFileChange = (file: File | null) => {
         setError(null);
-        if (!file) {
-            setUploadedFile(null);
-            return;
-        }
-
+        if (!file) { setUploadedFile(null); return; }
         const validationError = FileReadService.validateFile(file);
-        if (validationError) {
-            setUploadedFile(null);
-            setError(validationError);
-            return;
-        }
-
+        if (validationError) { setUploadedFile(null); setError(validationError); return; }
         setUploadedFile(file);
     };
 
-    const handleRead = async () => {
-        if (!canRead || isAnalyzing) return;
-
+    const handleSubmit = async () => {
+        if (!canSubmit) return;
         setError(null);
         setIsAnalyzing(true);
-
         try {
             const trimmedInstructions = instructions.trim();
             const hasText = trimmedInstructions.length > 0;
@@ -76,9 +96,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
             const extractedFileText = uploadedFile ? await FileReadService.extractText(uploadedFile) : "";
             const combinedInstructions = [
                 hasText ? trimmedInstructions : "",
-                extractedFileText
-                    ? `Uploaded File (${uploadedFile?.name || "document"}):\n${extractedFileText}`
-                    : "",
+                extractedFileText ? `Uploaded File (${uploadedFile?.name || "document"}):\n${extractedFileText}` : "",
             ].filter(Boolean).join("\n\n");
 
             Organizer.set({
@@ -100,179 +118,169 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            void handleSubmit();
+        }
+    };
+
     return (
-        <div className={`flex min-h-full w-full flex-col px-6 pt-32 pb-[100px] lg:px-10 2xl:px-14 ${styles.instructionsShell}`}>
-            {/* Title row with Imperfect Mode toggle */}
-            <div className={`mb-6 flex items-start justify-between ${styles.instructionsTitleRow}`}>
-                <div className={styles.instructionsIntro}>
-                    <h1 className={`text-[36px] font-bold text-white ${styles.instructionsTitle}`}>
-                        Give us your assignment instructions
+        <div className={`flex min-h-full w-full flex-col items-center justify-center px-4 pb-8 ${styles.instructionsShell}`}
+            style={{ paddingTop: "calc(4.5rem + 48px)" }}
+        >
+            {/* Center column */}
+            <div className="flex w-full max-w-2xl flex-col items-center gap-8">
+
+                {/* Logo + Greeting */}
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <Image
+                        src="/OCTOPILOT.png"
+                        alt="Octopilot"
+                        width={56}
+                        height={56}
+                        className="opacity-90"
+                    />
+                    <h1 className="text-[28px] font-semibold tracking-tight text-white md:text-[32px]">
+                        {greeting}
+                        {userName && (
+                            <span className="text-red-400">, {userName}</span>
+                        )}
+                        ?
                     </h1>
-                    <p className={`mt-1 text-[16px] text-white/50 ${styles.instructionsSubtitle}`}>
-                        Provide your assignment details so we can create the perfect essay outline
-                    </p>
                 </div>
 
-                {/* Imperfect Mode Toggle */}
-                <button
-                    onClick={() => {
-                        if (!isAnalyzing && isSubscriber) {
-                            setImperfectMode(!imperfectMode);
-                        }
-                    }}
-                    disabled={isAnalyzing || !isSubscriber}
-                    className={`ml-6 mt-1 flex shrink-0 items-center gap-3 rounded-full border px-5 py-3 text-left transition-all duration-300 ${styles.instructionsToggle} ${imperfectMode
-                        ? "border-red-500/60 bg-red-500/[0.12]"
-                        : "border-red-500/30 bg-red-500/[0.04] hover:border-red-500/50 hover:bg-red-500/[0.08]"
-                        }`}
-                >
-                    <div className={styles.instructionsToggleCopy}>
-                        <div className={`flex items-center gap-2 ${styles.instructionsToggleHead}`}>
-                            <span className={`block text-[14px] font-bold text-white ${styles.instructionsToggleLabel}`}>Imperfect Mode</span>
-                            <span className={`rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300 ${styles.instructionsToggleBadge}`}>
-                                Only Subscribers
-                            </span>
-                        </div>
-                        <span className={`block text-[12px] text-white/40 ${styles.instructionsToggleHint}`}>Feed writing styles into AI</span>
-                    </div>
-                    {/* Toggle switch */}
-                    <div className={`relative h-[22px] w-[40px] shrink-0 rounded-full transition-colors duration-300 ${styles.instructionsToggleSwitch} ${imperfectMode ? "bg-red-500" : "bg-white/15"}`}>
-                        <div className={`absolute top-[3px] h-[16px] w-[16px] rounded-full bg-white shadow-md transition-transform duration-300 ${styles.instructionsToggleThumb} ${imperfectMode ? "translate-x-[21px]" : "translate-x-[3px]"}`} />
-                    </div>
-                </button>
-            </div>
-
-            {/* Content — fills remaining space, no scroll */}
-            <div className={`flex flex-1 flex-col gap-0 ${styles.instructionsContent}`}>
-                {/* Textarea */}
-                <textarea
-                    value={instructions}
-                    disabled={isAnalyzing}
-                    onChange={(e) => {
-                        setInstructions(e.target.value);
-                        Organizer.set({ instructionTextInput: e.target.value });
-                    }}
-                    placeholder="Type your assignment instructions here..."
-                    className={`min-h-[140px] flex-[2] w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-[15px] leading-relaxed text-white placeholder-white/25 outline-none transition focus:border-white/15 focus:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-60 ${styles.instructionsTextarea}`}
-                />
-
-                {/* "or" divider */}
-                <div className={`flex items-center justify-center py-4 ${styles.instructionsDivider}`}>
-                    <span className={`text-[14px] font-medium text-white/30 ${styles.instructionsDividerText}`}>or</span>
-                </div>
-
-                {/* Upload area */}
-                <div
-                    onClick={() => {
-                        if (!isAnalyzing) {
-                            fileInputRef.current?.click();
-                        }
-                    }}
-                    className={`flex flex-[2] flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 transition-all duration-200 ${styles.instructionsUpload} ${uploadedFile
-                        ? "border-red-500/30 bg-red-500/[0.04]"
-                        : "border-white/[0.08] bg-white/[0.01] hover:border-white/15 hover:bg-white/[0.03]"
-                        } ${isAnalyzing ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-                >
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept={FileReadService.getAcceptedTypes()}
-                        className="hidden"
+                {/* Input card */}
+                <div className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4 shadow-[0_0_40px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+                    <textarea
+                        ref={textareaRef}
+                        value={instructions}
                         disabled={isAnalyzing}
                         onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            handleFileChange(file);
+                            setInstructions(e.target.value);
+                            Organizer.set({ instructionTextInput: e.target.value });
                         }}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Paste your assignment instructions, essay topic, or anything you need help writing…"
+                        rows={4}
+                        className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-white placeholder-white/25 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ minHeight: "96px", maxHeight: "320px" }}
                     />
-                    {/* Upload icon */}
-                    <svg
-                        className={`mb-3 text-red-500 ${styles.instructionsUploadIcon}`}
-                        width="36"
-                        height="36"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    >
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <path d="M12 18v-6" />
-                        <path d="m9 15 3-3 3 3" />
-                    </svg>
-                    {uploadedFile ? (
-                        <>
-                            <p className={`text-[15px] font-semibold text-red-400 ${styles.instructionsUploadTitle}`}>
-                                {uploadedFile.name}
-                            </p>
-                            <p className={`mt-1 text-[13px] text-white/40 ${styles.instructionsUploadHint}`}>
-                                Click to change file
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <p className={`text-[15px] font-semibold text-white ${styles.instructionsUploadTitle}`}>
-                                Upload your instruction document
-                            </p>
-                            <p className={`mt-1 text-[13px] text-white/40 ${styles.instructionsUploadHint}`}>
-                                One file only. {FileReadService.getSupportedTypeLabel()}
-                            </p>
-                        </>
+
+                    {/* Attached file pill */}
+                    {uploadedFile && (
+                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-400">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <span className="flex-1 truncate text-[13px] text-red-300">{uploadedFile.name}</span>
+                            <button
+                                type="button"
+                                onClick={() => setUploadedFile(null)}
+                                className="text-white/30 transition hover:text-white/60"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 6 6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     )}
-                </div>
 
-            </div>
+                    {/* Bottom action row */}
+                    <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            {/* Attach file */}
+                            <button
+                                type="button"
+                                disabled={isAnalyzing}
+                                onClick={() => fileInputRef.current?.click()}
+                                title="Attach document"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.06] hover:text-white/70 disabled:cursor-not-allowed"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                                </svg>
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept={FileReadService.getAcceptedTypes()}
+                                className="hidden"
+                                disabled={isAnalyzing}
+                                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                            />
 
-            {/* Fixed Bottom Action Bar — Back + Read */}
-            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-5 backdrop-blur-md ${styles.instructionsFooter}`}>
-                <div className={`flex w-full items-center justify-between gap-4 py-5 ${styles.instructionsFooterInner}`}>
-                    <button
-                        onClick={onBack}
-                        disabled={isAnalyzing}
-                        className={`ml-20 flex min-w-[148px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:ml-24 ${styles.instructionsBackButton}`}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                        </svg>
-                        Back
-                    </button>
+                            {/* Imperfect Mode pill */}
+                            <button
+                                type="button"
+                                disabled={isAnalyzing || !isSubscriber}
+                                onClick={() => { if (!isAnalyzing && isSubscriber) setImperfectMode(!imperfectMode); }}
+                                title={isSubscriber ? "Toggle Imperfect Mode" : "Subscribers only"}
+                                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
+                                    imperfectMode
+                                        ? "border-red-500/50 bg-red-500/10 text-red-400"
+                                        : isSubscriber
+                                            ? "border-white/10 bg-transparent text-white/30 hover:border-white/20 hover:text-white/50"
+                                            : "border-white/[0.05] bg-transparent text-white/15 cursor-not-allowed"
+                                }`}
+                            >
+                                <span className={`h-1.5 w-1.5 rounded-full ${imperfectMode ? "bg-red-400" : "bg-white/20"}`} />
+                                Imperfect Mode
+                                {!isSubscriber && (
+                                    <span className="ml-0.5 text-[9px] uppercase tracking-wider text-amber-400/60">Pro</span>
+                                )}
+                            </button>
+                        </div>
 
-                    <button
-                        onClick={handleRead}
-                        disabled={isAnalyzing || (!instructions.trim() && !uploadedFile)}
-                        className={`group relative flex min-w-[250px] max-w-[460px] items-center justify-center gap-2 overflow-hidden rounded-full px-9 py-3.5 text-[14px] font-semibold transition-all duration-300 ${styles.instructionsReadButton} ${isAnalyzing || (!instructions.trim() && !uploadedFile)
-                            ? "bg-white/[0.04] text-white/30 cursor-not-allowed"
-                            : "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:bg-red-400"
+                        {/* Send button */}
+                        <button
+                            type="button"
+                            onClick={() => void handleSubmit()}
+                            disabled={!canSubmit}
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200 ${
+                                canSubmit
+                                    ? "bg-red-500 text-white shadow-[0_0_16px_rgba(239,68,68,0.3)] hover:bg-red-400"
+                                    : "bg-white/[0.06] text-white/20 cursor-not-allowed"
                             }`}
-                    >
-                        {isAnalyzing ? (
-                            <div className="flex items-center gap-2">
+                        >
+                            {isAnalyzing ? (
                                 <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                                 </svg>
-                                <span>Reading instructions...</span>
-                            </div>
-                        ) : (
-                            <>
-                                <span>Read</span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 19V5M5 12l7-7 7 7" />
                                 </svg>
-                            </>
-                        )}
-                        {!isAnalyzing && (instructions.trim() || uploadedFile) && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
-                        )}
-                    </button>
-                    {error && (
-                        <div className={`absolute bottom-full left-1/2 mb-4 -translate-x-1/2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-4 py-2 text-[13px] text-red-400 ${styles.instructionsError}`}>
-                            {error}
-                        </div>
-                    )}
+                            )}
+                        </button>
+                    </div>
                 </div>
+
+                {/* Hint */}
+                <p className="text-center text-[12px] text-white/20">
+                    Press <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Enter</kbd> to analyze · <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Shift+Enter</kbd> for new line
+                </p>
+
+                {/* Error */}
+                {error && (
+                    <div className="w-full rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-[13px] text-red-400">
+                        {error}
+                    </div>
+                )}
             </div>
+
+            {/* Back button — bottom left */}
+            <button
+                onClick={onBack}
+                disabled={isAnalyzing}
+                className="fixed bottom-6 left-6 flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-5 py-2.5 text-[13px] font-medium text-white/40 transition hover:border-white/15 hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back
+            </button>
         </div>
     );
 }
