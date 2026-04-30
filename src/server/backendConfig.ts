@@ -81,20 +81,29 @@ async function getBackendSettings(): Promise<Record<string, string>> {
   return value;
 }
 
-export async function getOpenRouterConfig(kind: "primary" | "secondary" | "source_search") {
+export async function getOpenRouterConfig(
+  kind: "primary" | "secondary" | "source_search" | "ghostwriter_write" | "ghostwriter_orchestrator",
+) {
   const keys = await getBackendKeys();
-  const settings = kind === "source_search" ? await getBackendSettings() : null;
+  const needsSettings = kind === "source_search" || kind === "ghostwriter_write" || kind === "ghostwriter_orchestrator";
+  const settings = needsSettings ? await getBackendSettings() : null;
 
   if (!keys.openrouter_api_key) {
     throw new Error("No active OpenRouter key is configured.");
   }
 
-  const model =
-    kind === "primary"
-      ? keys.primary_model
-      : kind === "source_search"
-        ? settings?.source_search_model || keys.secondary_model
-        : keys.secondary_model;
+  let model: string | undefined;
+  if (kind === "primary") {
+    model = keys.primary_model;
+  } else if (kind === "secondary") {
+    model = keys.secondary_model;
+  } else if (kind === "source_search") {
+    model = settings?.source_search_model || keys.secondary_model;
+  } else if (kind === "ghostwriter_write") {
+    model = settings?.ghostwriter_write_model || keys.primary_model;
+  } else if (kind === "ghostwriter_orchestrator") {
+    model = settings?.ghostwriter_orchestrator_model || keys.secondary_model;
+  }
 
   if (!model) {
     throw new Error(`No ${kind} model is configured.`);

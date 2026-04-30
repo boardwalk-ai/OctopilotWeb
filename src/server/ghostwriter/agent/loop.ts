@@ -80,7 +80,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   // Dedup guard — block identical (name, argsHash) within DEDUP_WINDOW_MS.
   const recentCalls = new Map<string, number>();
 
-  const { apiKey, model } = await getOpenRouterConfig("primary");
+  const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
   run.status = "running";
 

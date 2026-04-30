@@ -56,7 +56,7 @@ export async function classifyUserDirective(args: {
     return { disabledTools: Array.from(disabledTools), notes: directive };
   }
 
-  const { apiKey, model } = await getOpenRouterConfig("secondary");
+  const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
   const system = `You are a router that converts a user's mid-run directive into tool disable overrides.
 Return ONLY JSON in this shape:

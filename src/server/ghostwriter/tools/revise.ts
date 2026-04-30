@@ -79,7 +79,7 @@ export const reviseParagraphTool: Tool<ReviseArgs, ReviseResult> = {
       .map((s, i) => `Source ${i + 1}: ${s.title || ""}\n${s.summary || ""}`)
       .join("\n\n");
 
-    const { apiKey, model } = await getOpenRouterConfig("primary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
     const systemPrompt = `You are an academic essay editor for OctoPilot AI.
 

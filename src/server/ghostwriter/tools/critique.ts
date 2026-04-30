@@ -45,7 +45,7 @@ export const critiqueEssayTool: Tool<CritiqueArgs, CritiqueResult> = {
       throw new Error("critique_essay: essay is missing — run write_essay first.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("primary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
     const paragraphs = ctx.essay.split(/\n{2,}/).filter(Boolean);
     const numberedEssay = paragraphs

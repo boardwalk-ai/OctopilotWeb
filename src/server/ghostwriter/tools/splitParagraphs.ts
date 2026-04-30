@@ -78,7 +78,7 @@ export const splitParagraphsTool: Tool<SplitArgs, SplitResult> = {
       throw new Error("split_paragraphs: need at least 2 outlines to split paragraphs.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
     const messages = [
       { role: "system" as const, content: buildSystemPrompt(ctx.outlines) },

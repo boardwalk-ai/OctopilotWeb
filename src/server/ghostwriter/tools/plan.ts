@@ -79,7 +79,7 @@ export const planEssayTool: Tool<PlanArgs, PlanResult> = {
       throw new Error("Cannot plan: no instruction was provided with the draft.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
     const userContent =
       `User instruction:\n${instruction}` +

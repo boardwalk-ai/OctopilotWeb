@@ -84,7 +84,7 @@ export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
       );
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
 
     const planBlock = ctx.plan
       ? [

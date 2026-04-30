@@ -70,7 +70,7 @@ export const writeEssayTool: Tool<WriteArgs, WriteResult> = {
     if (!ctx.draftSettings.citationStyle)
       throw new Error("write_essay: citationStyle is missing — ask_user(field=\"citationStyle\") first.");
 
-    const { apiKey, model } = await getOpenRouterConfig("primary");
+    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_write");
     const systemPrompt = loadLucasPrompt();
 
     const outlinesString = ctx.outlines
