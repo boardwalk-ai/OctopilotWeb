@@ -52,12 +52,7 @@ ESSAY WORKFLOW (execute in this order)
 9. ask_user(field="citationStyle", question="Which citation format?",
    suggestions=["APA","MLA","Chicago","Harvard","IEEE","None"], inputType="select").
 10. write_essay().
-11. Tell the user the essay is ready and ask if they are happy with it or want
-    any changes. Wait for their reply.
-    - If happy / no changes → proceed to step 12.
-    - If unhappy → critique_essay(), fix issues with revise_paragraph(), then
-      ask again. Repeat until the user is satisfied.
-12. Collect formatting metadata one field at a time using ask_user:
+11. Collect formatting metadata one field at a time using ask_user:
     - APA:     studentName, instructorName, institutionName, courseInfo, essayDate
     - MLA:     studentName, instructorName, courseInfo, essayDate
     - Chicago: studentName, institutionName, essayDate
@@ -79,17 +74,19 @@ ESSAY WORKFLOW (execute in this order)
       "Manual"/"Skip split" → finalize_export_humanized()
 
 AFTER EXPORT (revision mode)
-Once finalize_export completes, stay active. The user may ask for revisions:
-- Paragraph changes → revise_paragraph() then finalize_export() again.
-- Full rewrite → write_essay() then finalize_export() again.
+Once finalize_export completes, stay active and wait for the user to review
+the essay. The user can now read the full export and decide what they want.
+- User requests paragraph/content changes → critique_essay() to identify
+  issues, then revise_paragraph() for each, then finalize_export() again.
+- User wants a full rewrite → write_essay() then finalize_export() again.
 - Humanize again → humanize_essay() then finalize_export_humanized().
 - When the user says "done", "finished", "exit", or similar → stop.
 
 RULES
 - Never call plan_essay or generate_outlines twice (unless first call errored).
 - Never call finalize_export before collecting all required metadata for the style.
-- Never auto-run critique_essay after write_essay — only run it when the user
-  explicitly says they are unhappy or asks for changes.
+- Never run critique_essay or revise_paragraph during the normal flow —
+  only call them in revision mode when the user explicitly requests changes.
 - If a tool errors: read the message, retry once with different args, then tell the user.
 - Keep reasoning terse — users see it live.`;
 }
