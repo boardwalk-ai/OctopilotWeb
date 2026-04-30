@@ -98,6 +98,11 @@ Imperfect Mode: OFF
 Ignore any user-style imitation instructions and write in the normal Octopilot academic standard.
 `;
 
+    const rubricCriteria = ctx.rubricCriteria;
+    const rubricBlock = rubricCriteria && rubricCriteria.length > 0
+      ? `\nRubric Criteria (your essay MUST satisfy every criterion below — do not mention the rubric in your output, just write to these standards):\n${rubricCriteria.map((c, i) => `${i + 1}. ${c.name}${c.points != null ? ` (${c.points} pts)` : ""}: ${c.description}`).join("\n")}\n`
+      : "";
+
     const userMessage = [
       `Word Count: ${ctx.draftSettings.wordCount}`,
       `Essay Topic: ${ctx.essayTopic}`,
@@ -106,7 +111,7 @@ Ignore any user-style imitation instructions and write in the normal Octopilot a
       `Citation Format: ${ctx.draftSettings.citationStyle}`,
       `Keywords: ${keywords}`,
       writingStyleBlock,
-      "",
+      rubricBlock,
       `Outlines (${ctx.outlines.length} paragraphs):`,
       outlinesString,
       "",

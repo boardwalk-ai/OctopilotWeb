@@ -8,6 +8,7 @@ import { AuthService } from "@/services/AuthService";
 import { FileReadService } from "@/services/FileReadService";
 import { Organizer } from "@/services/OrganizerService";
 import { HeinService } from "@/services/HeinService";
+import { RubricParserService } from "@/services/RubricParserService";
 import { TestService } from "@/services/TestService";
 import styles from "./InstructionsViewMobile.module.css";
 
@@ -45,7 +46,6 @@ function isPdfFile(file: File): boolean {
 
 function getFileIcon(file: File) {
     if (isImageFile(file)) {
-        // Image icon
         return (
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -54,7 +54,6 @@ function getFileIcon(file: File) {
             </svg>
         );
     }
-    // Document icon
     return (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -67,12 +66,14 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     const [instructions, setInstructions] = useState(() => Organizer.get().instructionTextInput);
     const [imperfectMode, setImperfectMode] = useState(() => Organizer.get().imperfectModeEnabled);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [rubricFile, setRubricFile] = useState<File | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
     const [greeting] = useState(getGreeting);
     const [userName, setUserName] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const rubricInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const isSubscriber = !!accountPlan && /(pro|premium)/i.test(accountPlan) && !/guest/i.test(accountPlan);
@@ -116,11 +117,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                 break;
             }
             const validationError = FileReadService.validateFile(file);
-            if (validationError) {
-                setError(validationError);
-                continue;
-            }
-            // Avoid exact duplicates by name+size
+            if (validationError) { setError(validationError); continue; }
             const isDup = combined.some((f) => f.name === file.name && f.size === file.size);
             if (!isDup) combined.push(file);
         }
@@ -129,6 +126,14 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
 
     const removeFile = (index: number) => {
         setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleRubricFile = (file: File | null) => {
+        setError(null);
+        if (!file) { setRubricFile(null); return; }
+        const err = FileReadService.validateFile(file);
+        if (err) { setError(err); return; }
+        setRubricFile(file);
     };
 
     const handleSubmit = async () => {
@@ -140,7 +145,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
             const hasText = trimmedInstructions.length > 0;
             const hasFiles = uploadedFiles.length > 0;
 
-            // Process each file: PDFs → extract text, images → dataURL for vision
+            // Process instruction files
             const extractedTexts: string[] = [];
             const imageDataUrls: string[] = [];
 
@@ -150,11 +155,8 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                     imageDataUrls.push(dataUrl);
                 } else if (isPdfFile(file)) {
                     const text = await FileReadService.extractText(file);
-                    if (text.trim()) {
-                        extractedTexts.push(`Uploaded File (${file.name}):\n${text.trim()}`);
-                    }
+                    if (text.trim()) extractedTexts.push(`Uploaded File (${file.name}):\n${text.trim()}`);
                 } else {
-                    // Fallback: try text extraction
                     try {
                         const text = await FileReadService.extractText(file);
                         if (text.trim()) extractedTexts.push(`Uploaded File (${file.name}):\n${text.trim()}`);
@@ -181,9 +183,27 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                 instructionImageDataUrls: imageDataUrls,
                 instructionSource: source,
                 imperfectModeEnabled: isSubscriber ? imperfectMode : false,
+                rubricFileName: rubricFile?.name ?? null,
+                rubricCriteria: null, // will be populated by parallel call
             });
 
-            await HeinService.analyze();
+            // Fire Hein + RubricParser in parallel
+            const [heinResult, rubricResult] = await Promise.allSettled([
+                HeinService.analyze(),
+                rubricFile ? RubricParserService.parse(rubricFile) : Promise.resolve(null),
+            ]);
+
+            if (heinResult.status === "rejected") {
+                throw heinResult.reason instanceof Error ? heinResult.reason : new Error("Analysis failed");
+            }
+
+            // Save rubric criteria if parsing succeeded (non-blocking — failure just means no rubric data)
+            if (rubricResult.status === "fulfilled" && rubricResult.value) {
+                Organizer.set({ rubricCriteria: rubricResult.value });
+            } else if (rubricResult.status === "rejected") {
+                console.warn("[InstructionsView] Rubric parsing failed (non-fatal):", rubricResult.reason);
+            }
+
             onNext("outlines");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Analysis failed");
@@ -241,7 +261,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         style={{ maxHeight: "320px", overflowY: "hidden" }}
                     />
 
-                    {/* Attached file pills */}
+                    {/* Instruction file pills */}
                     {uploadedFiles.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                             {uploadedFiles.map((file, idx) => (
@@ -249,9 +269,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                                     key={`${file.name}-${file.size}-${idx}`}
                                     className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-2.5 py-1.5 max-w-[200px]"
                                 >
-                                    <span className="shrink-0 text-red-400">
-                                        {getFileIcon(file)}
-                                    </span>
+                                    <span className="shrink-0 text-red-400">{getFileIcon(file)}</span>
                                     <span className="truncate text-[12px] text-red-300 leading-none" title={file.name}>
                                         {file.name}
                                     </span>
@@ -270,10 +288,37 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         </div>
                     )}
 
+                    {/* Rubric file pill */}
+                    {rubricFile && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-violet-500/25 bg-violet-500/[0.07] px-2.5 py-1.5 max-w-[220px]">
+                                {/* Rubric / checklist icon */}
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-violet-400">
+                                    <path d="M9 11l3 3L22 4" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                </svg>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/70 leading-none">Rubric</span>
+                                <span className="truncate text-[12px] text-violet-300 leading-none" title={rubricFile.name}>
+                                    {rubricFile.name}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setRubricFile(null)}
+                                    disabled={isAnalyzing}
+                                    className="shrink-0 ml-0.5 text-white/25 transition hover:text-white/60 disabled:cursor-not-allowed"
+                                >
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M18 6 6 18M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Bottom action row */}
                     <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            {/* Attach file */}
+                            {/* Attach instruction file */}
                             <button
                                 type="button"
                                 disabled={isAnalyzing || uploadedFiles.length >= MAX_FILES}
@@ -296,7 +341,36 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                                     if (e.target.files && e.target.files.length > 0) {
                                         handleFilesAdded(Array.from(e.target.files));
                                     }
-                                    // Reset so the same file can be re-selected after removal
+                                    e.target.value = "";
+                                }}
+                            />
+
+                            {/* Attach rubric */}
+                            <button
+                                type="button"
+                                disabled={isAnalyzing}
+                                onClick={() => rubricInputRef.current?.click()}
+                                title={rubricFile ? `Rubric: ${rubricFile.name}` : "Attach rubric document"}
+                                className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium transition ${
+                                    rubricFile
+                                        ? "text-violet-400 hover:bg-violet-500/10"
+                                        : "text-white/30 hover:bg-white/[0.06] hover:text-white/60"
+                                } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 11l3 3L22 4" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                </svg>
+                                Rubric
+                            </button>
+                            <input
+                                ref={rubricInputRef}
+                                type="file"
+                                accept={FileReadService.getAcceptedTypes()}
+                                className="hidden"
+                                disabled={isAnalyzing}
+                                onChange={(e) => {
+                                    handleRubricFile(e.target.files?.[0] ?? null);
                                     e.target.value = "";
                                 }}
                             />

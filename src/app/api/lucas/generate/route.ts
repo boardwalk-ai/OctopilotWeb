@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { OrganizerState, CompactedSource } from "@/services/OrganizerService";
+import { OrganizerState, CompactedSource, RubricCriterion } from "@/services/OrganizerService";
 import { getOpenRouterConfig } from "@/server/backendConfig";
 import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
@@ -60,6 +60,12 @@ Imperfect Mode: OFF
 Ignore any user-style imitation instructions and write in the normal Octopilot academic standard.
 `;
 
+        // Format rubric criteria block if present
+        const rubricCriteria: RubricCriterion[] | null = organizerState.rubricCriteria ?? null;
+        const rubricBlock = rubricCriteria && rubricCriteria.length > 0
+            ? `\nRubric Criteria (your essay MUST satisfy every criterion below — do not mention the rubric in your output, just write to these standards):\n${rubricCriteria.map((c, i) => `${i + 1}. ${c.name}${c.points != null ? ` (${c.points} pts)` : ""}: ${c.description}`).join("\n")}\n`
+            : "";
+
         // Construct user prompt matching the agent's expected inputs
         const userMessage = `
 Word Count: ${organizerState.wordCount}
@@ -68,8 +74,7 @@ Essay Type: ${organizerState.essayType}
 Writing Tone: ${organizerState.tone}
 Citation Format: ${organizerState.citationStyle}
 Keywords: ${organizerState.keywords || "None"}
-${writingStyleBlock}
-
+${writingStyleBlock}${rubricBlock}
 Outlines (${organizerState.selectedOutlines.length} paragraphs):
 ${outlinesString}
 

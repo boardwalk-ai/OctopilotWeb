@@ -8,7 +8,7 @@
 // Lifetime: one instance per `AgentRun`. Attached to the run in `runs.ts`.
 // Persistence: in-memory only (see milestone 1/6 notes on the runs store).
 
-import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
+import type { ExportDocumentSnapshot, RubricCriterion } from "@/services/OrganizerService";
 
 export type OutlineType = "Introduction" | "Body Paragraph" | "Conclusion";
 
@@ -102,6 +102,10 @@ export type AgentContext = {
   // Verbatim user instruction (already bundled with any client-extracted
   // file text before the run started).
   instruction: string;
+
+  // Optional rubric criteria parsed from an uploaded rubric document.
+  // Injected into the essay writer so it writes to satisfy each criterion.
+  rubricCriteria?: RubricCriterion[];
 
   // Essay-identification outputs.
   essayTopic?: string;

@@ -2,6 +2,12 @@
 // Holds user selections (major, essay type, instructions) so they can be
 // passed to agents like Luna without server persistence.
 
+export interface RubricCriterion {
+    name: string;
+    description: string;
+    points?: number;
+}
+
 export interface SourceData {
     url: string;
     title?: string;
@@ -123,6 +129,8 @@ export interface OrganizerState {
     instructionFileNames: string[];
     instructionFileExtractedText: string;
     instructionImageDataUrls: string[];
+    rubricFileName: string | null;
+    rubricCriteria: RubricCriterion[] | null;
     imperfectModeEnabled: boolean;
 
     // Luna output (filled after analysis)
@@ -209,6 +217,8 @@ const defaultState: OrganizerState = {
     instructionFileNames: [],
     instructionFileExtractedText: "",
     instructionImageDataUrls: [],
+    rubricFileName: null,
+    rubricCriteria: null,
     imperfectModeEnabled: false,
     analysis: "",
     essayTopic: "",
