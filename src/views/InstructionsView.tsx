@@ -103,7 +103,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     useEffect(() => {
         const el = textareaRef.current;
         if (!el) return;
-        el.style.height = "auto";
+        el.style.height = "0px";
         el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
     }, [instructions]);
 
@@ -236,9 +236,9 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         }}
                         onKeyDown={handleKeyDown}
                         placeholder="Paste your assignment instructions, essay topic, or anything you need help writing…"
-                        rows={4}
+                        rows={1}
                         className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-white placeholder-white/25 outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{ minHeight: "96px", maxHeight: "320px" }}
+                        style={{ maxHeight: "320px", overflowY: "hidden" }}
                     />
 
                     {/* Attached file pills */}
