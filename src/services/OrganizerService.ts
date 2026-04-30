@@ -120,7 +120,9 @@ export interface OrganizerState {
     writingStyleProfile: WritingStyleProfile | null;
     instructionSource: "text" | "document" | "text+document" | null;
     instructionFileName: string | null;
+    instructionFileNames: string[];
     instructionFileExtractedText: string;
+    instructionImageDataUrls: string[];
     imperfectModeEnabled: boolean;
 
     // Luna output (filled after analysis)
@@ -204,7 +206,9 @@ const defaultState: OrganizerState = {
     writingStyleProfile: null,
     instructionSource: null,
     instructionFileName: null,
+    instructionFileNames: [],
     instructionFileExtractedText: "",
+    instructionImageDataUrls: [],
     imperfectModeEnabled: false,
     analysis: "",
     essayTopic: "",

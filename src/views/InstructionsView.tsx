@@ -16,6 +16,8 @@ interface InstructionsViewProps {
     onNext: (step: AutomationStepId) => void;
 }
 
+const MAX_FILES = 3;
+
 const GREETINGS = [
     "What are we writing today",
     "What's the assignment",
@@ -33,10 +35,38 @@ function getGreeting(): string {
     return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 }
 
+function isImageFile(file: File): boolean {
+    return FileReadService.isImageFile(file);
+}
+
+function isPdfFile(file: File): boolean {
+    return FileReadService.isPdfFile(file);
+}
+
+function getFileIcon(file: File) {
+    if (isImageFile(file)) {
+        // Image icon
+        return (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+            </svg>
+        );
+    }
+    // Document icon
+    return (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+        </svg>
+    );
+}
+
 export default function InstructionsView({ onBack, onNext }: InstructionsViewProps) {
     const [instructions, setInstructions] = useState(() => Organizer.get().instructionTextInput);
     const [imperfectMode, setImperfectMode] = useState(() => Organizer.get().imperfectModeEnabled);
-    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
@@ -46,7 +76,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const isSubscriber = !!accountPlan && /(pro|premium)/i.test(accountPlan) && !/guest/i.test(accountPlan);
-    const canSubmit = (instructions.trim().length > 0 || uploadedFile !== null) && !isAnalyzing;
+    const canSubmit = (instructions.trim().length > 0 || uploadedFiles.length > 0) && !isAnalyzing;
 
     useEffect(() => {
         const user = AuthService.getCurrentUser();
@@ -77,12 +107,28 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
     }, [instructions]);
 
-    const handleFileChange = (file: File | null) => {
+    const handleFilesAdded = (incoming: File[]) => {
         setError(null);
-        if (!file) { setUploadedFile(null); return; }
-        const validationError = FileReadService.validateFile(file);
-        if (validationError) { setUploadedFile(null); setError(validationError); return; }
-        setUploadedFile(file);
+        const combined = [...uploadedFiles];
+        for (const file of incoming) {
+            if (combined.length >= MAX_FILES) {
+                setError(`You can attach up to ${MAX_FILES} files.`);
+                break;
+            }
+            const validationError = FileReadService.validateFile(file);
+            if (validationError) {
+                setError(validationError);
+                continue;
+            }
+            // Avoid exact duplicates by name+size
+            const isDup = combined.some((f) => f.name === file.name && f.size === file.size);
+            if (!isDup) combined.push(file);
+        }
+        setUploadedFiles(combined);
+    };
+
+    const removeFile = (index: number) => {
+        setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async () => {
@@ -92,20 +138,48 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
         try {
             const trimmedInstructions = instructions.trim();
             const hasText = trimmedInstructions.length > 0;
-            const hasDocument = uploadedFile !== null;
-            const extractedFileText = uploadedFile ? await FileReadService.extractText(uploadedFile) : "";
+            const hasFiles = uploadedFiles.length > 0;
+
+            // Process each file: PDFs → extract text, images → dataURL for vision
+            const extractedTexts: string[] = [];
+            const imageDataUrls: string[] = [];
+
+            for (const file of uploadedFiles) {
+                if (isImageFile(file)) {
+                    const dataUrl = await FileReadService.toDataUrl(file);
+                    imageDataUrls.push(dataUrl);
+                } else if (isPdfFile(file)) {
+                    const text = await FileReadService.extractText(file);
+                    if (text.trim()) {
+                        extractedTexts.push(`Uploaded File (${file.name}):\n${text.trim()}`);
+                    }
+                } else {
+                    // Fallback: try text extraction
+                    try {
+                        const text = await FileReadService.extractText(file);
+                        if (text.trim()) extractedTexts.push(`Uploaded File (${file.name}):\n${text.trim()}`);
+                    } catch { /* skip */ }
+                }
+            }
+
             const combinedInstructions = [
                 hasText ? trimmedInstructions : "",
-                extractedFileText ? `Uploaded File (${uploadedFile?.name || "document"}):\n${extractedFileText}` : "",
+                ...extractedTexts,
             ].filter(Boolean).join("\n\n");
+
+            const fileNames = uploadedFiles.map((f) => f.name);
+            const source: "text" | "document" | "text+document" =
+                hasText && hasFiles ? "text+document" : hasFiles ? "document" : "text";
 
             Organizer.set({
                 instructionTextInput: trimmedInstructions,
                 instructions: combinedInstructions,
-                uploadedFileName: uploadedFile?.name || null,
-                instructionFileName: uploadedFile?.name || null,
-                instructionFileExtractedText: extractedFileText,
-                instructionSource: hasText && hasDocument ? "text+document" : hasDocument ? "document" : "text",
+                uploadedFileName: fileNames[0] ?? null,
+                instructionFileName: fileNames[0] ?? null,
+                instructionFileNames: fileNames,
+                instructionFileExtractedText: extractedTexts.join("\n\n"),
+                instructionImageDataUrls: imageDataUrls,
+                instructionSource: source,
                 imperfectModeEnabled: isSubscriber ? imperfectMode : false,
             });
 
@@ -167,23 +241,32 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                         style={{ minHeight: "96px", maxHeight: "320px" }}
                     />
 
-                    {/* Attached file pill */}
-                    {uploadedFile && (
-                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-400">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            <span className="flex-1 truncate text-[13px] text-red-300">{uploadedFile.name}</span>
-                            <button
-                                type="button"
-                                onClick={() => setUploadedFile(null)}
-                                className="text-white/30 transition hover:text-white/60"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M18 6 6 18M6 6l12 12" />
-                                </svg>
-                            </button>
+                    {/* Attached file pills */}
+                    {uploadedFiles.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {uploadedFiles.map((file, idx) => (
+                                <div
+                                    key={`${file.name}-${file.size}-${idx}`}
+                                    className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-2.5 py-1.5 max-w-[200px]"
+                                >
+                                    <span className="shrink-0 text-red-400">
+                                        {getFileIcon(file)}
+                                    </span>
+                                    <span className="truncate text-[12px] text-red-300 leading-none" title={file.name}>
+                                        {file.name}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(idx)}
+                                        disabled={isAnalyzing}
+                                        className="shrink-0 ml-0.5 text-white/25 transition hover:text-white/60 disabled:cursor-not-allowed"
+                                    >
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M18 6 6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
 
@@ -193,10 +276,10 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                             {/* Attach file */}
                             <button
                                 type="button"
-                                disabled={isAnalyzing}
+                                disabled={isAnalyzing || uploadedFiles.length >= MAX_FILES}
                                 onClick={() => fileInputRef.current?.click()}
-                                title="Attach document"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.06] hover:text-white/70 disabled:cursor-not-allowed"
+                                title={uploadedFiles.length >= MAX_FILES ? `Max ${MAX_FILES} files` : "Attach document or image"}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.06] hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -206,10 +289,24 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
                                 ref={fileInputRef}
                                 type="file"
                                 accept={FileReadService.getAcceptedTypes()}
+                                multiple
                                 className="hidden"
                                 disabled={isAnalyzing}
-                                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                        handleFilesAdded(Array.from(e.target.files));
+                                    }
+                                    // Reset so the same file can be re-selected after removal
+                                    e.target.value = "";
+                                }}
                             />
+
+                            {/* File count badge */}
+                            {uploadedFiles.length > 0 && (
+                                <span className="text-[11px] text-white/30 tabular-nums">
+                                    {uploadedFiles.length}/{MAX_FILES}
+                                </span>
+                            )}
 
                             {/* Imperfect Mode pill */}
                             <button
@@ -259,7 +356,7 @@ export default function InstructionsView({ onBack, onNext }: InstructionsViewPro
 
                 {/* Hint */}
                 <p className="text-center text-[12px] text-white/20">
-                    Press <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Enter</kbd> to analyze · <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Shift+Enter</kbd> for new line
+                    Press <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Enter</kbd> to analyze · <kbd className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-white/30">Shift+Enter</kbd> for new line · Up to {MAX_FILES} files
                 </p>
 
                 {/* Error */}

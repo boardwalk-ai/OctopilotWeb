@@ -40,6 +40,7 @@ export class HeinService {
                 major: state.majorName,
                 essayType: state.essayType,
                 instructions: state.instructions,
+                imageDataUrls: state.instructionImageDataUrls ?? [],
             }),
         });
 

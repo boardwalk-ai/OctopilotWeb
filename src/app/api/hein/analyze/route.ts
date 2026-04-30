@@ -7,6 +7,7 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Hein's system prompt
 const SYSTEM_PROMPT = `You are Hein, an academic assignment analysis agent for OctoPilot AI.
 Your job is to analyze the user's assignment instructions along with their selected major and essay type.
+If images are attached, read them carefully — they may contain assignment sheets, rubrics, or visual prompts.
 You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
 
 Respond in exactly this JSON format:
@@ -18,6 +19,10 @@ Respond in exactly this JSON format:
   "structure": "The recommended essay structure (e.g., introduction, body paragraphs, and conclusion)"
 }`;
 
+type ContentBlock =
+    | { type: "text"; text: string }
+    | { type: "image_url"; image_url: { url: string } };
+
 export async function POST(request: NextRequest) {
     try {
         const auth = await requireAuthenticatedRequest(request);
@@ -26,25 +31,45 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { major, essayType, instructions } = body;
+        const { major, essayType, instructions, imageDataUrls } = body as {
+            major?: string;
+            essayType?: string;
+            instructions?: string;
+            imageDataUrls?: string[];
+        };
 
-        if (!instructions) {
+        const hasText = typeof instructions === "string" && instructions.trim().length > 0;
+        const images: string[] = Array.isArray(imageDataUrls)
+            ? imageDataUrls.filter((u) => typeof u === "string" && u.startsWith("data:"))
+            : [];
+
+        if (!hasText && images.length === 0) {
             return NextResponse.json(
-                { error: "Missing required field: instructions" },
+                { error: "Missing required field: instructions or at least one image" },
                 { status: 400 }
             );
         }
 
         const { apiKey, model } = await getOpenRouterConfig("secondary");
-        const targetModel = model;
 
-        const userMessage = `
-Major: ${major || "Not specified"}
+        const textBlock = `Major: ${major || "Not specified"}
 Essay Type: ${essayType || "Not specified"}
 
 Assignment Instructions:
-${instructions}
-`.trim();
+${instructions?.trim() || "(No text — see attached image(s) above)"}`.trim();
+
+        // Build vision-capable content array when images are present
+        let userContent: string | ContentBlock[];
+        if (images.length > 0) {
+            const blocks: ContentBlock[] = images.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+            }));
+            blocks.push({ type: "text", text: textBlock });
+            userContent = blocks;
+        } else {
+            userContent = textBlock;
+        }
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: "POST",
@@ -55,10 +80,10 @@ ${instructions}
                 "X-Title": "OctoPilot AI",
             },
             body: JSON.stringify({
-                model: targetModel,
+                model,
                 messages: [
                     { role: "system", content: SYSTEM_PROMPT },
-                    { role: "user", content: userMessage },
+                    { role: "user", content: userContent },
                 ],
                 temperature: 0.3,
                 response_format: { type: "json_object" },
@@ -84,8 +109,7 @@ ${instructions}
             );
         }
 
-        // Parse the JSON response from Hein
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(content as string);
 
         return NextResponse.json({
             analysis: parsed.analysis || "",
