@@ -269,7 +269,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
       />
 
       {/* Content */}
-      <div className={`flex flex-1 flex-col items-center px-6 pt-20 ${styles.methodologyContent}`}>
+      <div className={`flex flex-1 flex-col items-center overflow-y-auto min-h-0 px-6 pt-20 ${styles.methodologyContent}`}>
         {/* Logo */}
         <Image
           src="/OCTOPILOT.png"
