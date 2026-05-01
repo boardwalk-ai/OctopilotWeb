@@ -535,6 +535,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [miniEditorDownloading, setMiniEditorDownloading] = useState(false);
   const miniEditorContentRefs = useRef<Array<HTMLDivElement | null>>([]);
 
+  // Essay focus multiselect state
+  const [focusSelections, setFocusSelections] = useState<string[]>([]);
+  const [customFocusInput, setCustomFocusInput] = useState("");
+
   // Play error sound whenever a new step error is recorded
   const stepErrorsSize = stepErrors.size;
   useEffect(() => {
@@ -990,6 +994,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
     if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
 
+    // Reset multiselect state when question changes
+    setFocusSelections([]);
+    setCustomFocusInput("");
+
     if (displayedQuestion) {
       setQuestionExiting(true);
       questionTimerRef.current = setTimeout(() => {
@@ -1042,6 +1050,27 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     } else {
       void submitCurrentAnswer(value);
     }
+  };
+
+  const toggleFocusSelection = (value: string) => {
+    setFocusSelections((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const submitFocusSelections = (selections: string[]) => {
+    // Merge custom input if present
+    const custom = customFocusInput.trim();
+    const final = custom && !selections.includes(custom) ? [...selections, custom] : selections;
+    setFocusSelections([]);
+    setCustomFocusInput("");
+    void submitCurrentAnswer(JSON.stringify(final));
+  };
+
+  const handleFocusSuggestMore = () => {
+    setFocusSelections([]);
+    setCustomFocusInput("");
+    void submitCurrentAnswer("__suggest_more__");
   };
 
   const handleRecovery = (action: RecoveryAction, stepId: number) => {
@@ -1625,6 +1654,104 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
+            {/* Essay focus multiselect — renders inline in the main area */}
+            {displayedQuestion?.field === "essayFocus" && displayedQuestion.inputType === "multiselect" && (
+              <div className={styles.focusSelectorCard}>
+                <div className={styles.focusSelectorHeader}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 8v4l2 2" />
+                  </svg>
+                  <span>Ghostwriter</span>
+                </div>
+                <h3 className={styles.focusSelectorPrompt}>{displayedQuestion.prompt}</h3>
+                <p className={styles.focusSelectorHint}>Select one or more focus areas — we&apos;ll build the outline around your choices.</p>
+                <div className={styles.focusOptionsList}>
+                  {(displayedQuestion.options || []).map((opt) => {
+                    const label = typeof opt === "string" ? opt : opt.label;
+                    const value = typeof opt === "string" ? opt : opt.value;
+                    const selected = focusSelections.includes(value);
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`${styles.focusOption} ${selected ? styles.focusOptionSelected : ""}`}
+                        onClick={() => toggleFocusSelection(value)}
+                      >
+                        <span className={styles.focusOptionCheck}>
+                          {selected ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          ) : null}
+                        </span>
+                        <span className={styles.focusOptionLabel}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom input */}
+                <div className={styles.focusCustomRow}>
+                  <input
+                    type="text"
+                    className={styles.focusCustomInput}
+                    placeholder="Add your own focus area…"
+                    value={customFocusInput}
+                    onChange={(e) => setCustomFocusInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customFocusInput.trim()) {
+                        const v = customFocusInput.trim();
+                        if (!focusSelections.includes(v)) {
+                          setFocusSelections((prev) => [...prev, v]);
+                        }
+                        setCustomFocusInput("");
+                      }
+                    }}
+                  />
+                  {customFocusInput.trim() && (
+                    <button
+                      type="button"
+                      className={styles.focusCustomAddBtn}
+                      onClick={() => {
+                        const v = customFocusInput.trim();
+                        if (!focusSelections.includes(v)) {
+                          setFocusSelections((prev) => [...prev, v]);
+                        }
+                        setCustomFocusInput("");
+                      }}
+                    >
+                      Add
+                    </button>
+                  )}
+                </div>
+
+                {/* Actions row */}
+                <div className={styles.focusActionsRow}>
+                  <button
+                    type="button"
+                    className={styles.focusSuggestMoreBtn}
+                    onClick={handleFocusSuggestMore}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v5h5" />
+                    </svg>
+                    Suggest more options
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.focusContinueBtn}
+                    disabled={focusSelections.length === 0 && !customFocusInput.trim()}
+                    onClick={() => submitFocusSelections(focusSelections)}
+                  >
+                    Continue
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {originalExportDoc && !isHumanizing && !editorConfirmed.has("original") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>
                 <div className={styles.editorCardIcon}>
@@ -2017,8 +2144,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         )}
       </div>
 
-      {/* AI question dock — slides up from screen bottom */}
-      {displayedQuestion ? (
+      {/* AI question dock — slides up from screen bottom (hidden for multiselect which renders inline) */}
+      {displayedQuestion && displayedQuestion.inputType !== "multiselect" ? (
         <div className={`${styles.bottomQuestionDock} ${questionExiting ? styles.bottomQuestionDockExiting : ""}`}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>

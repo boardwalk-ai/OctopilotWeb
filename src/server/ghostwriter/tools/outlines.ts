@@ -19,7 +19,11 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 type OutlineArgs = {
   // Total paragraph count (1 intro + N body + 1 conclusion).
+  // The orchestrator decides this based on how many focus areas the user selected.
   count: number;
+  // The focus areas the user selected (from the essayFocus multiselect step).
+  // Empty if the user provided a custom answer or skipped selection.
+  selectedFocusAreas?: string[];
 };
 
 type OutlineResult = {
@@ -59,7 +63,7 @@ Respond in this JSON shape:
 export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
   name: "generate_outlines",
   description:
-    "Generate a paragraph outline for the essay: 1 Introduction + (count-2) Body Paragraphs + 1 Conclusion, in that order. Requires plan_essay to have run first (topic + plan are read from run context). Pass the user's preferred count.",
+    "Generate a paragraph outline for the essay: 1 Introduction + (count-2) Body Paragraphs + 1 Conclusion, in that order. Requires plan_essay to have run first (topic + plan are read from run context). Decide the count based on how many focus areas the user selected — do NOT ask the user for a paragraph count.",
   parameters: {
     type: "object",
     additionalProperties: false,
@@ -70,7 +74,12 @@ export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
         minimum: 3,
         maximum: 20,
         description:
-          "Total paragraph count including introduction and conclusion. Typical essays use 5; longer research pieces use 7-10.",
+          "Total paragraph count including introduction and conclusion. Decide based on user's selected focus areas: 1-2 focus areas → 5, 3 → 6, 4 → 7, 5+ → 8-9. Never ask the user.",
+      },
+      selectedFocusAreas: {
+        type: "array",
+        items: { type: "string" },
+        description: "The focus areas the user selected in the essayFocus step. Pass these through so the outline aligns with the user's chosen angles.",
       },
     },
   },
@@ -89,12 +98,16 @@ export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
     const planBlock = ctx.plan
       ? [
           `Thesis: ${ctx.plan.thesis}`,
-          `Paragraph count: ${ctx.plan.paragraphCount}`,
+          `Paragraph count: ${total}`,
           ctx.plan.notes ? `Planner notes: ${ctx.plan.notes}` : null,
         ]
           .filter(Boolean)
           .join("\n")
       : "(no plan — use topic and type alone)";
+
+    const focusBlock = (args.selectedFocusAreas || []).length > 0
+      ? `\nUser's selected focus areas (ensure the outline covers these):\n${(args.selectedFocusAreas || []).map((f) => `- ${f}`).join("\n")}`
+      : "";
 
     const userMessage = [
       `Essay Topic: ${ctx.essayTopic}`,
@@ -102,6 +115,7 @@ export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
       "",
       "Plan:",
       planBlock,
+      focusBlock,
       "",
       "User Instruction:",
       ctx.instruction,

@@ -25,6 +25,7 @@ export type GhostwriterQuestionField =
   | "wordCount"
   | "citationStyle"
   | "outlineCount"
+  | "essayFocus"
   | "studentName"
   | "instructorName"
   | "institutionName"
@@ -71,7 +72,7 @@ export type GhostwriterQuestion = {
   field: GhostwriterQuestionField;
   prompt: string;
   helperText?: string;
-  inputType: "text" | "number" | "select";
+  inputType: "text" | "number" | "select" | "multiselect";
   // Legacy runs used string[] options; agentic runs prefer structured options.
   options?: Array<string | { label: string; value: string }>;
   suggestions?: string[];

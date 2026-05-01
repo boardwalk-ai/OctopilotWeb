@@ -24,11 +24,15 @@ export type EssayPlan = {
   // One-sentence thesis the essay will argue / explain.
   thesis: string;
   // Suggested paragraph count (1 intro + N body + 1 conclusion).
+  // Used internally by the orchestrator — NOT shown to the user.
   paragraphCount: number;
   // Search strategy hints for the researcher step.
   searchQueries: string[];
   // Free-form notes the orchestrator can consult later. Not rendered.
   notes?: string;
+  // 5-8 short bullet-point strings the AI suggests as essay focus angles.
+  // Rendered as a multiselect in the main area after planning.
+  essayFocusOptions?: string[];
 };
 
 // Minimal slice of the legacy source shape. Widens as 3b/3c tools land.

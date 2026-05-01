@@ -47,7 +47,11 @@ Required shape:
   "thesis": "one-sentence thesis the essay should argue or explain",
   "paragraphCount": integer between 3 and 12 inclusive,
   "searchQueries": [3-6 short search queries that would surface citable sources],
-  "notes": "one or two sentences of additional guidance for the writer (optional)"
+  "notes": "one or two sentences of additional guidance for the writer (optional)",
+  "essayFocusOptions": [
+    "5 to 8 short bullet-point strings (max 10 words each) representing distinct angles, sub-topics, or aspects the user could choose to emphasize in the essay",
+    "Each option should be a concrete, meaningful direction — not vague"
+  ]
 }
 
 Rules:
@@ -55,7 +59,9 @@ Rules:
 - paragraphCount must include the introduction and conclusion (so the body
   count is paragraphCount - 2).
 - searchQueries must be phrased as web queries, not questions. No quotes.
-- thesis must be a single declarative sentence.`;
+- thesis must be a single declarative sentence.
+- essayFocusOptions must be 5-8 items, each a concise phrase (noun phrase or short clause).
+  Make them specific to the topic — vary across historical, analytical, ethical, practical angles.`;
 
 export const planEssayTool: Tool<PlanArgs, PlanResult> = {
   name: "plan_essay",
@@ -123,8 +129,11 @@ export const planEssayTool: Tool<PlanArgs, PlanResult> = {
       ? (parsed.searchQueries as unknown[]).map((q) => String(q).trim()).filter(Boolean).slice(0, 6)
       : [];
     const notes = parsed?.notes ? String(parsed.notes) : undefined;
+    const essayFocusOptions = Array.isArray(parsed?.essayFocusOptions)
+      ? (parsed.essayFocusOptions as unknown[]).map((o) => String(o).trim()).filter(Boolean).slice(0, 8)
+      : [];
 
-    const plan: EssayPlan = { thesis, paragraphCount, searchQueries, notes };
+    const plan: EssayPlan = { thesis, paragraphCount, searchQueries, notes, essayFocusOptions };
 
     // Commit to run context + mirror a slice to the client.
     run.context.essayTopic = essayTopic;
