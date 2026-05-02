@@ -537,7 +537,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   // Essay focus multiselect state
   const [focusSelections, setFocusSelections] = useState<string[]>([]);
-  const [customFocusInput, setCustomFocusInput] = useState("");
+  // Track locally-sent user messages to deduplicate SSE user_message events
+  const pendingUserMessagesRef = useRef<Set<string>>(new Set());
 
   // Play error sound whenever a new step error is recorded
   const stepErrorsSize = stepErrors.size;
@@ -638,7 +639,13 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             if (event.type === "user_message") {
               const text = (event.text || "").trim();
               if (text) {
-                setTimeline((prev) => [...prev, { kind: "message", id: `u-${Date.now()}`, role: "user", text }]);
+                // If we already added this message locally (from the send handler),
+                // skip the SSE duplicate to prevent ordering issues.
+                if (pendingUserMessagesRef.current.has(text)) {
+                  pendingUserMessagesRef.current.delete(text);
+                } else {
+                  setTimeline((prev) => [...prev, { kind: "message", id: `u-${Date.now()}`, role: "user", text }]);
+                }
               }
               return;
             }
@@ -996,7 +1003,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
     // Reset multiselect state when question changes
     setFocusSelections([]);
-    setCustomFocusInput("");
 
     if (displayedQuestion) {
       setQuestionExiting(true);
@@ -1059,18 +1065,36 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   };
 
   const submitFocusSelections = (selections: string[]) => {
-    // Merge custom input if present
-    const custom = customFocusInput.trim();
-    const final = custom && !selections.includes(custom) ? [...selections, custom] : selections;
     setFocusSelections([]);
-    setCustomFocusInput("");
-    void submitCurrentAnswer(JSON.stringify(final));
+    void submitCurrentAnswer(JSON.stringify(selections));
   };
 
   const handleFocusSuggestMore = () => {
     setFocusSelections([]);
-    setCustomFocusInput("");
     void submitCurrentAnswer("__suggest_more__");
+  };
+
+  const handleChatSend = (text: string) => {
+    if (!text || !runState?.runId || isLegacyMode) return;
+    setChatMessage("");
+    primeAudioContext();
+
+    // If the essay focus panel is waiting for an answer, treat the chat
+    // message as a focus refinement request — submit it as the answer so
+    // the AI can regenerate options around the user's direction.
+    if (displayedQuestion?.field === "essayFocus") {
+      void submitCurrentAnswer(`__chat_refinement__:${text}`);
+      return;
+    }
+
+    // Normal case: add immediately to local timeline (correct ordering),
+    // then POST to the agent. The SSE user_message echo is deduplicated.
+    pendingUserMessagesRef.current.add(text);
+    setTimeline((prev) => [...prev, { kind: "message", id: `u-local-${Date.now()}`, role: "user", text }]);
+
+    void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
+      setRunError(err instanceof Error ? err.message : "Message failed.");
+    });
   };
 
   const handleRecovery = (action: RecoveryAction, stepId: number) => {
@@ -1664,7 +1688,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   <span>Ghostwriter</span>
                 </div>
                 <h3 className={styles.focusSelectorPrompt}>{displayedQuestion.prompt}</h3>
-                <p className={styles.focusSelectorHint}>Select one or more focus areas — we&apos;ll build the outline around your choices.</p>
+                <p className={styles.focusSelectorHint}>Select one or more focus areas — or describe what you want in the chat bar below.</p>
                 <div className={styles.focusOptionsList}>
                   {(displayedQuestion.options || []).map((opt) => {
                     const label = typeof opt === "string" ? opt : opt.label;
@@ -1690,41 +1714,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   })}
                 </div>
 
-                {/* Custom input */}
-                <div className={styles.focusCustomRow}>
-                  <input
-                    type="text"
-                    className={styles.focusCustomInput}
-                    placeholder="Add your own focus area…"
-                    value={customFocusInput}
-                    onChange={(e) => setCustomFocusInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && customFocusInput.trim()) {
-                        const v = customFocusInput.trim();
-                        if (!focusSelections.includes(v)) {
-                          setFocusSelections((prev) => [...prev, v]);
-                        }
-                        setCustomFocusInput("");
-                      }
-                    }}
-                  />
-                  {customFocusInput.trim() && (
-                    <button
-                      type="button"
-                      className={styles.focusCustomAddBtn}
-                      onClick={() => {
-                        const v = customFocusInput.trim();
-                        if (!focusSelections.includes(v)) {
-                          setFocusSelections((prev) => [...prev, v]);
-                        }
-                        setCustomFocusInput("");
-                      }}
-                    >
-                      Add
-                    </button>
-                  )}
-                </div>
-
                 {/* Actions row */}
                 <div className={styles.focusActionsRow}>
                   <button
@@ -1740,7 +1729,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   <button
                     type="button"
                     className={styles.focusContinueBtn}
-                    disabled={focusSelections.length === 0 && !customFocusInput.trim()}
+                    disabled={focusSelections.length === 0}
                     onClick={() => submitFocusSelections(focusSelections)}
                   >
                     Continue
@@ -2026,7 +2015,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               type="text"
               className={styles.chatInput}
               placeholder={
-                (runState?.status as string) === "revision_mode"
+                displayedQuestion?.field === "essayFocus"
+                  ? "Ask for different focus areas, or describe what to emphasize…"
+                  : (runState?.status as string) === "revision_mode"
                   ? "Ask for revisions, or type \"done\" to finish…"
                   : "Ask Ghostwriter anything about your essay…"
               }
@@ -2035,13 +2026,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && chatMessage.trim()) {
                   e.preventDefault();
-                  const text = chatMessage.trim();
-                  setChatMessage("");
-                  if (!isLegacyMode && runState?.runId) {
-                    void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
-                      setRunError(err instanceof Error ? err.message : "Message failed.");
-                    });
-                  }
+                  handleChatSend(chatMessage.trim());
                 }
               }}
             />
@@ -2049,14 +2034,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               type="button"
               className={styles.chatSendBtn}
               disabled={!chatMessage.trim() || isLegacyMode || !runState?.runId}
-              onClick={() => {
-                const text = chatMessage.trim();
-                if (!text || !runState?.runId) return;
-                setChatMessage("");
-                void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
-                  setRunError(err instanceof Error ? err.message : "Message failed.");
-                });
-              }}
+              onClick={() => handleChatSend(chatMessage.trim())}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2 11 13" />

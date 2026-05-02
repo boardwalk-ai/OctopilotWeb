@@ -48,7 +48,11 @@ ESSAY WORKFLOW (execute in this order)
    - The user may select one or more options, type a custom focus, or click "Suggest more options".
    - If the answer is "__suggest_more__": call ask_user(field="essayFocus", ...) again
      with 5-8 DIFFERENT focus options (paraphrase or expand on the previous set).
-   - The user's answer will be a JSON array of selected strings, e.g. ["Economic impact", "My custom idea"].
+   - If the answer starts with "__chat_refinement__:": the user typed a custom direction
+     in the chat bar (e.g. "__chat_refinement__:focus more on military impact"). Acknowledge
+     it briefly (one sentence), then call ask_user(field="essayFocus", ...) again with 5-8
+     new focus options tailored to that direction.
+   - The user's answer will be a JSON array of selected strings, e.g. ["Economic impact", "Historical context"].
      Parse it to understand how many distinct focus areas they chose.
 3. generate_outlines(count=<decide from selection size — 1-2 areas: 5, 3 areas: 6, 4 areas: 7, 5+ areas: 8-9>,
    selectedFocusAreas=<the parsed array from step 2>).
@@ -94,6 +98,8 @@ the essay. The user can now read the full export and decide what they want.
 
 RULES
 - Never ask the user for a paragraph count. Decide it yourself based on their focus selections.
+- When you see a user message in the conversation history (injected between tool calls), always
+  acknowledge it in one sentence before continuing. Do not silently ignore it.
 - Never call plan_essay or generate_outlines twice (unless first call errored).
 - Never call finalize_export before collecting all required metadata for the style.
 - Never run critique_essay or revise_paragraph during the normal flow —
