@@ -339,13 +339,16 @@ async function dispatchToolCall(args: {
     const suggestions = Array.isArray((parsedArgs as Record<string, unknown>).suggestions)
       ? ((parsedArgs as Record<string, unknown>).suggestions as unknown[]).map(String)
       : undefined;
-    const inputType = (parsedArgs as Record<string, unknown>).inputType as
+    let inputType = (parsedArgs as Record<string, unknown>).inputType as
       | "text"
       | "number"
       | "select"
       | "multiselect"
       | "sourceReview"
       | undefined;
+    // Fallback: infer inputType from field name in case the model omits it.
+    if (field === "sourceReview") inputType = "sourceReview";
+    if (field === "essayFocus") inputType = "multiselect";
     const allowCustomRaw = (parsedArgs as Record<string, unknown>).allowCustom;
     const allowCustom =
       typeof allowCustomRaw === "boolean"
