@@ -335,14 +335,27 @@ async function dispatchToolCall(args: {
       | "text"
       | "number"
       | "select"
+      | "multiselect"
+      | "sourceReview"
       | undefined;
     const allowCustomRaw = (parsedArgs as Record<string, unknown>).allowCustom;
     const allowCustom =
       typeof allowCustomRaw === "boolean"
         ? allowCustomRaw
-        : inputType === "select"
+        : inputType === "select" || inputType === "sourceReview"
           ? false
           : true;
+
+    // Auto-inject scraped sources when rendering the source review panel.
+    const sources =
+      inputType === "sourceReview"
+        ? run.context.scrapedSources.map((s) => ({
+            url: s.url,
+            title: s.title,
+            publisher: s.publisher,
+            contentPreview: s.fullContent?.slice(0, 400) ?? "",
+          }))
+        : undefined;
 
     if (!field || !question) {
       const errorMsg = "ask_user requires `field` and `question`";
@@ -359,6 +372,7 @@ async function dispatchToolCall(args: {
       suggestions,
       inputType,
       allowCustom,
+      sources,
     });
 
     try {
@@ -619,6 +633,18 @@ function applyAnswerToContext(ctx: AgentContext, field: string, value: unknown):
 
   if (isDraftSettingsField(field)) {
     ctx.draftSettings[field] = stringValue;
+    return;
+  }
+
+  if (field === "sourceReview") {
+    try {
+      const parsed = JSON.parse(stringValue);
+      if (Array.isArray(parsed)) {
+        ctx.sourceReviewNotes = parsed as Array<{ url: string; focusNote?: string; rejected?: boolean }>;
+      }
+    } catch {
+      // Malformed JSON — ignore, compact_sources will proceed without notes.
+    }
     return;
   }
 

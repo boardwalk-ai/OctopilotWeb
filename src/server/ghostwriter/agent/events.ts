@@ -36,8 +36,9 @@ export type AgentEvent =
       question: string;
       options?: Array<{ label: string; value: string }>;
       suggestions?: string[];
-      inputType?: "text" | "number" | "select";
+      inputType?: "text" | "number" | "select" | "multiselect" | "sourceReview";
       allowCustom?: boolean;
+      sources?: Array<{ url: string; title?: string; publisher?: string; contentPreview?: string }>;
     }
 
   // Partial context mirror so the client can render intermediate artifacts

@@ -59,7 +59,16 @@ ESSAY WORKFLOW (execute in this order)
    NEVER ask the user for a paragraph count — you decide it based on their focus selections.
 4. search_sources(count=5). Refine once if results look thin.
 5. scrape_sources(limit=5). If fewer than 3 survive, search again + scrape again.
-6. compact_sources().
+5b. ask_user(field="sourceReviewChoice",
+    question="Sources are ready. Would you like to review them before I start writing?",
+    suggestions=["Review Sources", "One Shot"],
+    inputType="select").
+    - "One Shot" → go straight to step 6.
+    - "Review Sources" → ask_user(field="sourceReview", inputType="sourceReview",
+      question="Review each source. Add a focus note to guide the summary, or exclude sources you don't want used. Click Continue when ready.")
+      Sources are auto-injected — do NOT pass them manually.
+      The answer is stored in context automatically.
+6. compact_sources(). It reads sourceReviewNotes from context automatically — no need to pass them.
 7. evaluate_sources(). If not sufficient, run one more search→scrape→compact cycle.
 8. ask_user(field="wordCount", question="What word count should I target?",
    suggestions=["500","800","1200","2000","3000"], inputType="number").

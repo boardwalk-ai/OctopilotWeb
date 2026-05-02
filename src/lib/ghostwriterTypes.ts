@@ -34,7 +34,16 @@ export type GhostwriterQuestionField =
   | "essayDate"
   | "humanizeChoice"
   | "humanizerChoice"
-  | "paragraphSplitChoice";
+  | "paragraphSplitChoice"
+  | "sourceReviewChoice"
+  | "sourceReview";
+
+export type SourceReviewItem = {
+  url: string;
+  title?: string;
+  publisher?: string;
+  contentPreview?: string;
+};
 
 export type GhostwriterStepStatus = "pending" | "running" | "completed" | "blocked" | "error";
 
@@ -72,11 +81,12 @@ export type GhostwriterQuestion = {
   field: GhostwriterQuestionField;
   prompt: string;
   helperText?: string;
-  inputType: "text" | "number" | "select" | "multiselect";
+  inputType: "text" | "number" | "select" | "multiselect" | "sourceReview";
   // Legacy runs used string[] options; agentic runs prefer structured options.
   options?: Array<string | { label: string; value: string }>;
   suggestions?: string[];
   allowCustom?: boolean;
+  sources?: SourceReviewItem[];
 };
 
 export type GhostwriterRunContext = {

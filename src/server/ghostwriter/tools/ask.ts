@@ -61,8 +61,8 @@ export const askUserTool: Tool<AskUserArgs, { answer: unknown }> = {
       },
       inputType: {
         type: "string",
-        enum: ["text", "number", "select", "multiselect"],
-        description: "Hint for the UI about how to render the input. Use \"multiselect\" for the essayFocus step so the user can pick multiple bullet-point options at once.",
+        enum: ["text", "number", "select", "multiselect", "sourceReview"],
+        description: "Hint for the UI. Use \"multiselect\" for essayFocus. Use \"sourceReview\" to show the scraped source review panel — sources are auto-injected from context, no need to pass them manually.",
       },
       allowCustom: {
         type: "boolean",

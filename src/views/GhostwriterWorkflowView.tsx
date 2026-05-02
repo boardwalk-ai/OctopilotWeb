@@ -110,6 +110,7 @@ function normalizeAgentQuestion(event: Extract<AgentEvent, { type: "question" }>
     options: event.options,
     suggestions: event.suggestions,
     allowCustom: event.allowCustom,
+    sources: event.sources,
   };
 }
 
@@ -537,6 +538,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
   // Essay focus multiselect state
   const [focusSelections, setFocusSelections] = useState<string[]>([]);
+  // Source review state: url → { focusNote, rejected }
+  const [sourceNotes, setSourceNotes] = useState<Record<string, { focusNote: string; rejected: boolean }>>({});
   // Track locally-sent user messages to deduplicate SSE user_message events
   const pendingUserMessagesRef = useRef<Set<string>>(new Set());
 
@@ -1001,8 +1004,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
     if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
 
-    // Reset multiselect state when question changes
+    // Reset multiselect + source review state when question changes
     setFocusSelections([]);
+    setSourceNotes({});
 
     if (displayedQuestion) {
       setQuestionExiting(true);
@@ -1067,6 +1071,16 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const submitFocusSelections = (selections: string[]) => {
     setFocusSelections([]);
     void submitCurrentAnswer(JSON.stringify(selections));
+  };
+
+  const submitSourceReview = () => {
+    const notes = Object.entries(sourceNotes).map(([url, data]) => ({
+      url,
+      ...(data.focusNote.trim() ? { focusNote: data.focusNote.trim() } : {}),
+      ...(data.rejected ? { rejected: true } : {}),
+    }));
+    setSourceNotes({});
+    void submitCurrentAnswer(JSON.stringify(notes));
   };
 
   const handleFocusSuggestMore = () => {
@@ -1770,6 +1784,91 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
+            {/* Source review panel — renders inline when sourceReview question is active */}
+            {displayedQuestion?.field === "sourceReview" && displayedQuestion.inputType === "sourceReview" && (
+              <div className={styles.sourceReviewPanel}>
+                <div className={styles.sourceReviewHeader}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span>Review Sources</span>
+                  <span className={styles.sourceReviewCount}>{displayedQuestion.sources?.length ?? 0} sources</span>
+                </div>
+
+                <div className={styles.sourceReviewList}>
+                  {(displayedQuestion.sources ?? []).map((src) => {
+                    const note = sourceNotes[src.url] ?? { focusNote: "", rejected: false };
+                    return (
+                      <div
+                        key={src.url}
+                        className={`${styles.sourceCard} ${note.rejected ? styles.sourceCardRejected : ""}`}
+                      >
+                        <div className={styles.sourceCardTop}>
+                          <div className={styles.sourceCardMeta}>
+                            <a
+                              href={src.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.sourceCardTitle}
+                            >
+                              {src.title || src.url}
+                            </a>
+                            {src.publisher && (
+                              <span className={styles.sourceCardPublisher}>{src.publisher}</span>
+                            )}
+                          </div>
+                          <button
+                            className={`${styles.sourceExcludeBtn} ${note.rejected ? styles.sourceExcludeBtnActive : ""}`}
+                            onClick={() =>
+                              setSourceNotes((prev) => ({
+                                ...prev,
+                                [src.url]: { ...note, rejected: !note.rejected },
+                              }))
+                            }
+                          >
+                            {note.rejected ? "Excluded" : "Exclude"}
+                          </button>
+                        </div>
+
+                        {!note.rejected && (
+                          <>
+                            {src.contentPreview && (
+                              <p className={styles.sourceCardPreview}>{src.contentPreview}…</p>
+                            )}
+                            <input
+                              type="text"
+                              className={styles.sourceFocusInput}
+                              placeholder="Focus note (optional) — e.g. focus on economic impact"
+                              value={note.focusNote}
+                              onChange={(e) =>
+                                setSourceNotes((prev) => ({
+                                  ...prev,
+                                  [src.url]: { ...note, focusNote: e.target.value },
+                                }))
+                              }
+                            />
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className={styles.sourceReviewActions}>
+                  <span className={styles.sourceReviewHint}>
+                    {Object.values(sourceNotes).filter((n) => n.rejected).length} excluded ·{" "}
+                    {Object.values(sourceNotes).filter((n) => n.focusNote.trim()).length} with focus notes
+                  </span>
+                  <button className={styles.sourceReviewContinueBtn} onClick={submitSourceReview}>
+                    Continue with essay
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {originalExportDoc && !isHumanizing && !editorConfirmed.has("original") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>
                 <div className={styles.editorCardIcon}>
@@ -2151,8 +2250,8 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         )}
       </div>
 
-      {/* AI question dock — slides up from screen bottom (hidden for multiselect which renders inline) */}
-      {displayedQuestion && displayedQuestion.inputType !== "multiselect" ? (
+      {/* AI question dock — slides up from screen bottom (hidden for multiselect/sourceReview which renders inline) */}
+      {displayedQuestion && displayedQuestion.inputType !== "multiselect" && displayedQuestion.inputType !== "sourceReview" ? (
         <div className={`${styles.bottomQuestionDock} ${questionExiting ? styles.bottomQuestionDockExiting : ""}`}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>

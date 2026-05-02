@@ -66,9 +66,16 @@ export const compactSourcesTool: Tool<CompactArgs, CompactResult> = {
       ? new Set(args.urls.map((u) => String(u).trim().toLowerCase()).filter(Boolean))
       : null;
 
+    // Respect user's source review: skip rejected, apply focus notes.
+    const reviewNotes = ctx.sourceReviewNotes ?? [];
+    const rejectedUrls = new Set(
+      reviewNotes.filter((n) => n.rejected).map((n) => n.url.toLowerCase()),
+    );
+
     const targets = ctx.scrapedSources.filter((s) => {
       if (alreadyCompacted.has(s.url.toLowerCase())) return false;
       if (selectedUrls && !selectedUrls.has(s.url.toLowerCase())) return false;
+      if (rejectedUrls.has(s.url.toLowerCase())) return false;
       return true;
     });
 
@@ -84,11 +91,15 @@ export const compactSourcesTool: Tool<CompactArgs, CompactResult> = {
 
     for (const source of targets) {
       try {
+        const reviewNote = reviewNotes.find(
+          (n) => n.url.toLowerCase() === source.url.toLowerCase(),
+        );
         const summary = await compactOne({
           apiKey,
           model,
           systemPrompt,
           source,
+          focusNote: reviewNote?.focusNote,
         });
         if (!summary.trim()) {
           failed++;
@@ -128,17 +139,19 @@ async function compactOne(args: {
   model: string;
   systemPrompt: string;
   source: ScrapedSourceLite;
+  focusNote?: string;
 }): Promise<string> {
-  const { apiKey, model, systemPrompt, source } = args;
+  const { apiKey, model, systemPrompt, source, focusNote } = args;
 
   const userMessage = [
     "Task: SOURCE_COMPACTION",
     `Source Type: web`,
     `Source Title: ${source.title || "Untitled"}`,
+    focusNote ? `User Focus Instruction: "${focusNote}" — Emphasise this area in your summary and key points.` : "",
     "",
     "Full Content:",
     source.fullContent,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   const content = await callJson({
     apiKey,

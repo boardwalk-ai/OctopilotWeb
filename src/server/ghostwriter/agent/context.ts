@@ -147,6 +147,14 @@ export type AgentContext = {
   draftSettings: AgentDraftSettings;
   formatAnswers: AgentFormatAnswers;
 
+  // Source review notes — set when user reviews scraped sources before compaction.
+  // compact_sources reads these automatically; no explicit arg needed.
+  sourceReviewNotes?: Array<{
+    url: string;
+    focusNote?: string;
+    rejected?: boolean;
+  }>;
+
   // Mid-run user directives (pause/override). Updated only when the user
   // explicitly interrupts; omitted from normal turns to keep prompt tokens low.
   userOverrides?: UserOverrides;
