@@ -157,9 +157,9 @@ export default function StepperHeader({
           </div>
 
           <div
-            className="mt-1 text-[9px] uppercase tracking-[0.15em]"
+            className="mt-1 text-[10.5px] uppercase tracking-[0.15em] font-semibold"
             style={{
-              color: "rgba(255,255,255,0.28)",
+              color: "#facc15",
               transition: "color 1s ease",
             }}
           >
