@@ -1417,13 +1417,42 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
         {/* Main workflow stream */}
         <main className={styles.mainColumn}>
           <div className={styles.mainHero}>
-            <Image src="/OCTOPILOT.png" alt="Octopilot" width={48} height={48} className={styles.heroLogo} />
-            <div>
-              <div className={styles.heroLabel}>Agentic Workflow</div>
-              <h2 className={styles.mainTitle}>{runState?.goal.title || "Ghostwriter is moving through the workflow one step at a time."}</h2>
-              <p className={styles.goalProgress}>
-                {runState?.progress.label || "Starting"} · {runState?.progress.percent || 0}% complete
-              </p>
+            {/* Top row: badge + meta chips */}
+            <div className={styles.heroTopRow}>
+              <div className={styles.heroGwBadge}>
+                <Image src="/OCTOPILOT.png" alt="Octopilot" width={18} height={18} className={styles.heroLogo} />
+                <span>Ghostwriter</span>
+              </div>
+              <div className={styles.heroMetaChips}>
+                {topicSummary.type && <span className={styles.heroChip}>{topicSummary.type}</span>}
+                {topicSummary.citation && topicSummary.citation !== "Pending" && <span className={styles.heroChip}>{topicSummary.citation}</span>}
+                {topicSummary.words > 0 && <span className={styles.heroChip}>{topicSummary.words.toLocaleString()} words</span>}
+              </div>
+            </div>
+
+            {/* Essay topic title */}
+            <h2 className={styles.mainTitle}>
+              {runState?.context.topic || topicSummary.topic !== "Waiting for topic" ? (runState?.context.topic || topicSummary.topic) : null}
+              {!runState?.context.topic && topicSummary.topic === "Waiting for topic" && (
+                <span className={styles.mainTitlePlaceholder}>What would you like to write about?</span>
+              )}
+            </h2>
+
+            {/* Status + progress */}
+            <div className={styles.heroStatusRow}>
+              <span className={styles.heroStatusDot} data-active={!!runState && runState.progress.percent < 100} />
+              <span className={styles.heroStatusLabel}>{runState?.progress.label || "Waiting for topic"}</span>
+              {(runState?.progress.percent ?? 0) > 0 && (
+                <span className={styles.heroProgressPct}>{runState!.progress.percent}%</span>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            <div className={styles.heroProgressTrack}>
+              <div
+                className={styles.heroProgressFill}
+                style={{ width: `${runState?.progress.percent || 0}%` }}
+              />
             </div>
           </div>
 
