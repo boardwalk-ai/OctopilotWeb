@@ -10,7 +10,7 @@
 
 import fs from "fs";
 import path from "path";
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import type { SearchResultLite } from "@/server/ghostwriter/agent/context";
 import { emit } from "@/server/ghostwriter/agent/runs";
@@ -78,7 +78,7 @@ export const searchSourcesTool: Tool<SearchArgs, SearchResult> = {
     }
 
     const targetCount = Math.max(3, Math.min(20, Number(args.count) || 8));
-    const { apiKey, model } = await getOpenRouterConfig("source_search");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "source_search");
 
     const systemPrompt = loadAlvinPrompt();
     const outlinesForPrompt = ctx.outlines.map((o) => ({

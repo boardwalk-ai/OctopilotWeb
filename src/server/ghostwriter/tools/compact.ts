@@ -10,7 +10,7 @@
 
 import fs from "fs";
 import path from "path";
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import type {
   CompactedSourceLite,
@@ -83,7 +83,7 @@ export const compactSourcesTool: Tool<CompactArgs, CompactResult> = {
       return { compacted: 0, failed: 0, totalInContext: ctx.compactedSources.length };
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "secondary");
     const systemPrompt = loadZulyPrompt();
 
     let compacted = 0;

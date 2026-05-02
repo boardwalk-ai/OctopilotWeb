@@ -6,7 +6,7 @@
 // Reads: ctx.humanizedContent, ctx.outlines
 // Writes: ctx.humanizedContent (rejoined with \n\n paragraph breaks)
 
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
 import { callJson, parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
@@ -78,7 +78,7 @@ export const splitParagraphsTool: Tool<SplitArgs, SplitResult> = {
       throw new Error("split_paragraphs: need at least 2 outlines to split paragraphs.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "secondary");
 
     const messages = [
       { role: "system" as const, content: buildSystemPrompt(ctx.outlines) },

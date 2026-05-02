@@ -10,7 +10,7 @@
 // deferred to a later milestone — they require per-model SSE parsing quirks
 // that aren't worth debugging before the tool-dispatch path is solid.
 
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { fetchFreshOpenRouterKey, getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { AgentEvent } from "./events";
 import type {
   AgentContext,
@@ -80,7 +80,15 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   // Dedup guard — block identical (name, argsHash) within DEDUP_WINDOW_MS.
   const recentCalls = new Map<string, number>();
 
-  const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+  // Assign a fresh LRU-rotated key to this run. Done once here so:
+  // - Concurrent runs spread across the key pool.
+  // - All tool calls within this run share the same key (consistent rate-limit bucket).
+  // - Key never leaves the server (never in SSE events or API responses).
+  if (!run.openRouterKey) {
+    run.openRouterKey = await fetchFreshOpenRouterKey();
+  }
+
+  const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "ghostwriter_orchestrator");
 
   run.status = "running";
 

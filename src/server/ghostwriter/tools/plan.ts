@@ -9,7 +9,7 @@
 // writes the result into `AgentContext` so downstream tools don't need to
 // pass it around in their args.
 
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import type { EssayPlan } from "@/server/ghostwriter/agent/context";
 import { emit } from "@/server/ghostwriter/agent/runs";
@@ -85,7 +85,7 @@ export const planEssayTool: Tool<PlanArgs, PlanResult> = {
       throw new Error("Cannot plan: no instruction was provided with the draft.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "ghostwriter_orchestrator");
 
     const userContent =
       `User instruction:\n${instruction}` +

@@ -10,7 +10,7 @@
 // until it's retired at milestone 8.
 
 import { randomUUID } from "crypto";
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import type { OutlineItem, OutlineType } from "@/server/ghostwriter/agent/context";
 import { emit } from "@/server/ghostwriter/agent/runs";
@@ -93,7 +93,7 @@ export const generateOutlinesTool: Tool<OutlineArgs, OutlineResult> = {
       );
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "ghostwriter_orchestrator");
 
     const planBlock = ctx.plan
       ? [

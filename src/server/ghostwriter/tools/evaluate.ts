@@ -6,7 +6,7 @@
 // is false, the orchestrator should search with a new refinement query
 // and scrape + compact again (capped at 2 extra search rounds).
 
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { callJson, parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
 
@@ -42,7 +42,7 @@ export const evaluateSourcesTool: Tool<EvaluateArgs, EvaluateResult> = {
       throw new Error("evaluate_sources: no compacted sources — run compact_sources first.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("secondary");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "secondary");
 
     const sourceSummaries = ctx.compactedSources
       .map((s, i) => `Source ${i + 1}: ${s.title || "(no title)"}\n${s.summary || ""}`)

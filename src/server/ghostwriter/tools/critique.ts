@@ -7,7 +7,7 @@
 //
 // The orchestrator should cap revision rounds at AGENT_LIMITS.MAX_REVISION_ROUNDS.
 
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
 import { callJson, parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
@@ -45,7 +45,7 @@ export const critiqueEssayTool: Tool<CritiqueArgs, CritiqueResult> = {
       throw new Error("critique_essay: essay is missing — run write_essay first.");
     }
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_orchestrator");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "ghostwriter_orchestrator");
 
     const paragraphs = ctx.essay.split(/\n{2,}/).filter(Boolean);
     const numberedEssay = paragraphs

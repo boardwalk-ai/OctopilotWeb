@@ -14,7 +14,7 @@
 
 import fs from "fs";
 import path from "path";
-import { getOpenRouterConfig } from "@/server/backendConfig";
+import { getOpenRouterConfigForRun } from "@/server/backendConfig";
 import type { Tool } from "@/server/ghostwriter/agent/tools";
 import { emit } from "@/server/ghostwriter/agent/runs";
 import { parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
@@ -70,7 +70,7 @@ export const writeEssayTool: Tool<WriteArgs, WriteResult> = {
     if (!ctx.draftSettings.citationStyle)
       throw new Error("write_essay: citationStyle is missing — ask_user(field=\"citationStyle\") first.");
 
-    const { apiKey, model } = await getOpenRouterConfig("ghostwriter_write");
+    const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "ghostwriter_write");
     const systemPrompt = loadLucasPrompt();
 
     const outlinesString = ctx.outlines

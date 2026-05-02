@@ -35,6 +35,11 @@ export type AgentRun = {
   // server-side tools can call the Octopilot API (e.g. credit deduction)
   // without a browser session.
   authToken: string;
+
+  // LRU-rotated OpenRouter key assigned at run start. Fetched fresh (no cache)
+  // so concurrent runs spread load across the key pool.
+  // SECURITY: server-side only — never serialised to SSE events or API responses.
+  openRouterKey: string;
   createdAt: number;
   status: "pending" | "running" | "waiting_for_user" | "revision_mode" | "finished" | "error" | "cancelled";
 
@@ -90,6 +95,7 @@ export function createRun(draft: AgentDraftInput, authToken = ""): AgentRun {
     id: randomUUID(),
     draft,
     authToken,
+    openRouterKey: "", // populated async by fetchFreshOpenRouterKey() in loop startup
     context: createAgentContext(instruction),
     createdAt: Date.now(),
     status: "pending",
