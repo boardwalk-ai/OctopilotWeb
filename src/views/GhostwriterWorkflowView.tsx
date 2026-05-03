@@ -1785,7 +1785,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             )}
 
             {/* Source review panel — renders inline when sourceReview question is active */}
-            {displayedQuestion?.field === "sourceReview" && displayedQuestion.inputType === "sourceReview" && (
+            {displayedQuestion?.field === "sourceReview" && (
               <div className={styles.sourceReviewPanel}>
                 <div className={styles.sourceReviewHeader}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2251,7 +2251,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       </div>
 
       {/* AI question dock — slides up from screen bottom (hidden for multiselect/sourceReview which renders inline) */}
-      {displayedQuestion && displayedQuestion.inputType !== "multiselect" && displayedQuestion.inputType !== "sourceReview" ? (
+      {displayedQuestion && displayedQuestion.field !== "essayFocus" && displayedQuestion.field !== "sourceReview" ? (
         <div className={`${styles.bottomQuestionDock} ${questionExiting ? styles.bottomQuestionDockExiting : ""}`}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>
