@@ -2448,13 +2448,12 @@ button.activityHeader {
 /* ─── Source Review Panel ────────────────────────────────────────────────── */
 
 .sourceReviewPanel {
-  margin: 0.5rem 0 0.75rem;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 16px;
-  background: #1a1825;
+  flex-shrink: 0;
+  margin: 0 1.8rem 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px 14px 0 0;
+  background: #16141f;
   overflow: hidden;
-  opacity: 1;
-  transform: none;
   position: relative;
   z-index: 12;
 }
@@ -2485,7 +2484,7 @@ button.activityHeader {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-height: 420px;
+  max-height: 280px;
   overflow-y: auto;
   scrollbar-width: none;
 }

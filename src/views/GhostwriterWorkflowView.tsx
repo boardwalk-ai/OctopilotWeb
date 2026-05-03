@@ -1819,101 +1819,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
-            {/* DEBUG: visible state inspection — remove after fixing */}
-            {runState?.status === "waiting_for_user" && (
-              <div style={{ padding: "8px 12px", margin: "6px 0", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #e94560", fontSize: "11px", color: "#e94560", fontFamily: "monospace" }}>
-                DEBUG — pQ.field: {runState?.pendingQuestion?.field ?? "null"} |
-                dQ.field: {displayedQuestion?.field ?? "null"} |
-                srQ: {sourceReviewQuestion ? "YES" : "null"} |
-                sources: {sourceReviewQuestion?.sources?.length ?? "n/a"} |
-                inputType: {runState?.pendingQuestion?.inputType ?? "n/a"}
-              </div>
-            )}
-
-            {/* Source review panel — renders inline when sourceReview question is active */}
-            {sourceReviewQuestion && (
-              <div className={styles.sourceReviewPanel}>
-                <div className={styles.sourceReviewHeader}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                  </svg>
-                  <span>Review Sources</span>
-                  <span className={styles.sourceReviewCount}>{sourceReviewQuestion.sources?.length ?? 0} sources</span>
-                </div>
-
-                <div className={styles.sourceReviewList}>
-                  {(sourceReviewQuestion.sources ?? []).map((src) => {
-                    const note = sourceNotes[src.url] ?? { focusNote: "", rejected: false };
-                    return (
-                      <div
-                        key={src.url}
-                        className={`${styles.sourceCard} ${note.rejected ? styles.sourceCardRejected : ""}`}
-                      >
-                        <div className={styles.sourceCardTop}>
-                          <div className={styles.sourceCardMeta}>
-                            <a
-                              href={src.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={styles.sourceCardTitle}
-                            >
-                              {src.title || src.url}
-                            </a>
-                            {src.publisher && (
-                              <span className={styles.sourceCardPublisher}>{src.publisher}</span>
-                            )}
-                          </div>
-                          <button
-                            className={`${styles.sourceExcludeBtn} ${note.rejected ? styles.sourceExcludeBtnActive : ""}`}
-                            onClick={() =>
-                              setSourceNotes((prev) => ({
-                                ...prev,
-                                [src.url]: { ...note, rejected: !note.rejected },
-                              }))
-                            }
-                          >
-                            {note.rejected ? "Excluded" : "Exclude"}
-                          </button>
-                        </div>
-
-                        {!note.rejected && (
-                          <>
-                            {src.contentPreview && (
-                              <p className={styles.sourceCardPreview}>{src.contentPreview}…</p>
-                            )}
-                            <input
-                              type="text"
-                              className={styles.sourceFocusInput}
-                              placeholder="Focus note (optional) — e.g. focus on economic impact"
-                              value={note.focusNote}
-                              onChange={(e) =>
-                                setSourceNotes((prev) => ({
-                                  ...prev,
-                                  [src.url]: { ...note, focusNote: e.target.value },
-                                }))
-                              }
-                            />
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className={styles.sourceReviewActions}>
-                  <span className={styles.sourceReviewHint}>
-                    {Object.values(sourceNotes).filter((n) => n.rejected).length} excluded ·{" "}
-                    {Object.values(sourceNotes).filter((n) => n.focusNote.trim()).length} with focus notes
-                  </span>
-                  <button className={styles.sourceReviewContinueBtn} onClick={submitSourceReview}>
-                    Continue with essay
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
 
             {originalExportDoc && !isHumanizing && !editorConfirmed.has("original") && (
               <div className={styles.editorCard} onClick={() => handleOpenMiniEditor("original")}>
@@ -2144,6 +2049,92 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
           </section>
+
+          {/* Source review panel — rendered as a direct child of mainColumn
+              so it's never hidden by workflowStream's scroll viewport */}
+          {sourceReviewQuestion && (
+            <div className={styles.sourceReviewPanel}>
+              <div className={styles.sourceReviewHeader}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span>Review Sources</span>
+                <span className={styles.sourceReviewCount}>{sourceReviewQuestion.sources?.length ?? 0} sources</span>
+              </div>
+
+              <div className={styles.sourceReviewList}>
+                {(sourceReviewQuestion.sources ?? []).map((src) => {
+                  const note = sourceNotes[src.url] ?? { focusNote: "", rejected: false };
+                  return (
+                    <div
+                      key={src.url}
+                      className={`${styles.sourceCard} ${note.rejected ? styles.sourceCardRejected : ""}`}
+                    >
+                      <div className={styles.sourceCardTop}>
+                        <div className={styles.sourceCardMeta}>
+                          <a
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.sourceCardTitle}
+                          >
+                            {src.title || src.url}
+                          </a>
+                          {src.publisher && (
+                            <span className={styles.sourceCardPublisher}>{src.publisher}</span>
+                          )}
+                        </div>
+                        <button
+                          className={`${styles.sourceExcludeBtn} ${note.rejected ? styles.sourceExcludeBtnActive : ""}`}
+                          onClick={() =>
+                            setSourceNotes((prev) => ({
+                              ...prev,
+                              [src.url]: { ...note, rejected: !note.rejected },
+                            }))
+                          }
+                        >
+                          {note.rejected ? "Excluded" : "Exclude"}
+                        </button>
+                      </div>
+
+                      {!note.rejected && (
+                        <>
+                          {src.contentPreview && (
+                            <p className={styles.sourceCardPreview}>{src.contentPreview}…</p>
+                          )}
+                          <input
+                            type="text"
+                            className={styles.sourceFocusInput}
+                            placeholder="Focus note (optional) — e.g. focus on economic impact"
+                            value={note.focusNote}
+                            onChange={(e) =>
+                              setSourceNotes((prev) => ({
+                                ...prev,
+                                [src.url]: { ...note, focusNote: e.target.value },
+                              }))
+                            }
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className={styles.sourceReviewActions}>
+                <span className={styles.sourceReviewHint}>
+                  {Object.values(sourceNotes).filter((n) => n.rejected).length} excluded ·{" "}
+                  {Object.values(sourceNotes).filter((n) => n.focusNote.trim()).length} with focus notes
+                </span>
+                <button className={styles.sourceReviewContinueBtn} onClick={submitSourceReview}>
+                  Continue with essay
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Status bar — logo · time · ↑ input · ↓ output */}
           <div className={styles.timerBar}>
