@@ -1807,6 +1807,17 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
               </div>
             )}
 
+            {/* DEBUG: visible state inspection — remove after fixing */}
+            {runState?.status === "waiting_for_user" && (
+              <div style={{ padding: "8px 12px", margin: "6px 0", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #e94560", fontSize: "11px", color: "#e94560", fontFamily: "monospace" }}>
+                DEBUG — pQ.field: {runState?.pendingQuestion?.field ?? "null"} |
+                dQ.field: {displayedQuestion?.field ?? "null"} |
+                srQ: {sourceReviewQuestion ? "YES" : "null"} |
+                sources: {sourceReviewQuestion?.sources?.length ?? "n/a"} |
+                inputType: {runState?.pendingQuestion?.inputType ?? "n/a"}
+              </div>
+            )}
+
             {/* Source review panel — renders inline when sourceReview question is active */}
             {sourceReviewQuestion && (
               <div className={styles.sourceReviewPanel}>
