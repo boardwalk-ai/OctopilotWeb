@@ -1372,6 +1372,22 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   // original editor visible.
   const isHumanizing = humanizeInFlight || Boolean(humanizedExportDoc);
 
+  // Resolve the active question for inline panels. Fall back to
+  // runState.pendingQuestion so the panel renders immediately when the SSE
+  // event arrives, without waiting for the displayedQuestion useEffect to fire.
+  const sourceReviewQuestion =
+    displayedQuestion?.field === "sourceReview"
+      ? displayedQuestion
+      : runState?.pendingQuestion?.field === "sourceReview"
+        ? runState.pendingQuestion
+        : null;
+  const essayFocusQuestion =
+    displayedQuestion?.field === "essayFocus"
+      ? displayedQuestion
+      : runState?.pendingQuestion?.field === "essayFocus"
+        ? runState.pendingQuestion
+        : null;
+
   return (
     <div className={styles.workflowShell}>
       <AppHeader
@@ -1722,7 +1738,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             )}
 
             {/* Essay focus multiselect — renders inline in the main area */}
-            {displayedQuestion?.field === "essayFocus" && displayedQuestion.inputType === "multiselect" && (
+            {essayFocusQuestion && (
               <div className={styles.focusSelectorCard}>
                 <div className={styles.focusSelectorHeader}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1730,10 +1746,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   </svg>
                   <span>Ghostwriter</span>
                 </div>
-                <h3 className={styles.focusSelectorPrompt}>{displayedQuestion.prompt}</h3>
+                <h3 className={styles.focusSelectorPrompt}>{essayFocusQuestion.prompt}</h3>
                 <p className={styles.focusSelectorHint}>Select one or more focus areas — or describe what you want in the chat bar below.</p>
                 <div className={styles.focusOptionsList}>
-                  {(displayedQuestion.options || []).map((opt) => {
+                  {(essayFocusQuestion.options || []).map((opt) => {
                     const label = typeof opt === "string" ? opt : opt.label;
                     const value = typeof opt === "string" ? opt : opt.value;
                     const selected = focusSelections.includes(value);
@@ -1785,18 +1801,18 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             )}
 
             {/* Source review panel — renders inline when sourceReview question is active */}
-            {displayedQuestion?.field === "sourceReview" && (
+            {sourceReviewQuestion && (
               <div className={styles.sourceReviewPanel}>
                 <div className={styles.sourceReviewHeader}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                   </svg>
                   <span>Review Sources</span>
-                  <span className={styles.sourceReviewCount}>{displayedQuestion.sources?.length ?? 0} sources</span>
+                  <span className={styles.sourceReviewCount}>{sourceReviewQuestion.sources?.length ?? 0} sources</span>
                 </div>
 
                 <div className={styles.sourceReviewList}>
-                  {(displayedQuestion.sources ?? []).map((src) => {
+                  {(sourceReviewQuestion.sources ?? []).map((src) => {
                     const note = sourceNotes[src.url] ?? { focusNote: "", rejected: false };
                     return (
                       <div
@@ -2251,7 +2267,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       </div>
 
       {/* AI question dock — slides up from screen bottom (hidden for multiselect/sourceReview which renders inline) */}
-      {displayedQuestion && displayedQuestion.field !== "essayFocus" && displayedQuestion.field !== "sourceReview" ? (
+      {displayedQuestion && !essayFocusQuestion && !sourceReviewQuestion ? (
         <div className={`${styles.bottomQuestionDock} ${questionExiting ? styles.bottomQuestionDockExiting : ""}`}>
           <div className={styles.bottomQuestionCard}>
             <div className={styles.bottomQuestionMeta}>
