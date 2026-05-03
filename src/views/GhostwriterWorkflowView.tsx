@@ -968,6 +968,18 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
 
+  // Also scroll when an inline panel appears (sourceReview / essayFocus)
+  // because these render after the step items and don't trigger visibleSteps.
+  useEffect(() => {
+    if (!sourceReviewQuestion && !essayFocusQuestion) return;
+    const el = streamRef.current;
+    if (!el) return;
+    // Use rAF so the DOM is fully laid out before we measure scrollHeight.
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [sourceReviewQuestion, essayFocusQuestion]);
+
   // Timer — stops on both "finished" (success) and "error" (stuck/fatal).
   useEffect(() => {
     const isTerminal = runState?.status === "finished" || runState?.status === "error";
