@@ -1029,7 +1029,14 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
       const value = overrideValue !== undefined ? overrideValue : getAnswerValue(field, draftSettings, formatAnswers);
       if (!isLegacyMode) {
         await GhostwriterAgentClient.answer(runState.runId, field, value);
-        setRunState((prev) => prev ? { ...prev, pendingQuestion: null, status: "running" } : prev);
+        // Guard: only clear pendingQuestion if it's still the question we just
+        // answered. If an SSE question event arrived while the POST was in
+        // flight, the new pendingQuestion must NOT be clobbered.
+        setRunState((prev) => {
+          if (!prev) return prev;
+          if (prev.pendingQuestion?.field !== field) return prev;
+          return { ...prev, pendingQuestion: null, status: "running" };
+        });
       } else {
         const nextState = await GhostwriterOrchestrator.submitAnswer(runState.runId, field, value);
         setRunState(nextState);
