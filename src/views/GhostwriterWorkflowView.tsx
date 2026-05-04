@@ -962,23 +962,27 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     })();
   }, [draft, isLegacyMode, runState, retryTrigger, stepErrors]);
 
+  // Resolve the active question for inline panels. Fall back to
+  // runState.pendingQuestion so the panel renders immediately when the SSE
+  // event arrives, without waiting for the displayedQuestion useEffect to fire.
+  const sourceReviewQuestion =
+    displayedQuestion?.field === "sourceReview"
+      ? displayedQuestion
+      : runState?.pendingQuestion?.field === "sourceReview"
+        ? runState.pendingQuestion
+        : null;
+  const essayFocusQuestion =
+    displayedQuestion?.field === "essayFocus"
+      ? displayedQuestion
+      : runState?.pendingQuestion?.field === "essayFocus"
+        ? runState.pendingQuestion
+        : null;
+
   // Auto-scroll stream to bottom whenever new steps appear
   useEffect(() => {
     const el = streamRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
-
-  // Also scroll when an inline panel appears (sourceReview / essayFocus)
-  // because these render after the step items and don't trigger visibleSteps.
-  useEffect(() => {
-    if (!sourceReviewQuestion && !essayFocusQuestion) return;
-    const el = streamRef.current;
-    if (!el) return;
-    // Use rAF so the DOM is fully laid out before we measure scrollHeight.
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
-  }, [sourceReviewQuestion, essayFocusQuestion]);
 
   // Timer — stops on both "finished" (success) and "error" (stuck/fatal).
   useEffect(() => {
@@ -1390,22 +1394,6 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   // the humanization branch is actively running. Choosing "Skip" leaves the
   // original editor visible.
   const isHumanizing = humanizeInFlight || Boolean(humanizedExportDoc);
-
-  // Resolve the active question for inline panels. Fall back to
-  // runState.pendingQuestion so the panel renders immediately when the SSE
-  // event arrives, without waiting for the displayedQuestion useEffect to fire.
-  const sourceReviewQuestion =
-    displayedQuestion?.field === "sourceReview"
-      ? displayedQuestion
-      : runState?.pendingQuestion?.field === "sourceReview"
-        ? runState.pendingQuestion
-        : null;
-  const essayFocusQuestion =
-    displayedQuestion?.field === "essayFocus"
-      ? displayedQuestion
-      : runState?.pendingQuestion?.field === "essayFocus"
-        ? runState.pendingQuestion
-        : null;
 
   return (
     <div className={styles.workflowShell}>
