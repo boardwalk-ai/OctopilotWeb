@@ -3,7 +3,7 @@
 import { AuthService } from "@/services/AuthService";
 import { OrganizerState } from "@/services/OrganizerService";
 
-type WritingMode = "automation" | "manual" | "ghostwriter" | "octopilotslides";
+type WritingMode = "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter";
 
 type SessionPayload = {
   login_email?: string;

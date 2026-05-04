@@ -13,17 +13,21 @@ import {
 import styles from "./MethodologyViewMobile.module.css";
 
 interface MethodologyViewProps {
-  onSelect: (method: "automation" | "manual" | "ghostwriter" | "octopilotslides") => void;
+  onSelect: (method: "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter") => void;
 }
 
 type BetaAccessFeatures = {
   ghostwriter: boolean;
   octopilotSlides: boolean;
+  humanizerHub: boolean;
+  ghostCiter: boolean;
 };
 
 const DEFAULT_BETA_ACCESS: BetaAccessFeatures = {
   ghostwriter: false,
   octopilotSlides: false,
+  humanizerHub: false,
+  ghostCiter: false,
 };
 
 const automationFeatures = [
@@ -198,16 +202,109 @@ const ghostwriterFeatures = [
   },
 ];
 
+const humanizerHubFeatures = [
+  {
+    label: "Bypass AI detection",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Natural tone shaping",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Style customization",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" /><path d="M19.1 5A10 10 0 1 0 5 19" /><path d="M22 2 2 22" />
+      </svg>
+    ),
+  },
+  {
+    label: "Multiple rewrite passes",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v5h5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Readability tuning",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+  },
+];
+
+const ghostCiterFeatures = [
+  {
+    label: "Auto-source discovery",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+      </svg>
+    ),
+  },
+  {
+    label: "In-text citations",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Bibliography builder",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 17.6V2h12v15.6" /><path d="M6 2H4v18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Multiple citation styles",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="2" width="6" height="4" rx="1" /><path d="M9 12h6" /><path d="M9 16h6" />
+      </svg>
+    ),
+  },
+  {
+    label: "Citation accuracy check",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    ),
+  },
+];
+
 export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
-  const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides">(org.writingMode || "automation");
+  const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter">(org.writingMode || "automation");
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const [betaAccess, setBetaAccess] = useState<BetaAccessFeatures>(DEFAULT_BETA_ACCESS);
   const canSeeGhostwriter = betaAccess.ghostwriter;
   const canSeeOctopilotSlides = betaAccess.octopilotSlides;
+  const canSeeHumanizerHub = betaAccess.humanizerHub;
+  const canSeeGhostCiter = betaAccess.ghostCiter;
+  const visibleBetaCount = [canSeeGhostwriter, canSeeOctopilotSlides, canSeeHumanizerHub, canSeeGhostCiter].filter(Boolean).length;
+  const gridColsClass = (2 + visibleBetaCount) === 4 ? "md:grid-cols-2" : "md:grid-cols-3";
   const effectiveSelected = (() => {
     if (!canSeeGhostwriter && selected === "ghostwriter") return "automation" as const;
     if (!canSeeOctopilotSlides && selected === "octopilotslides") return "automation" as const;
+    if (!canSeeHumanizerHub && selected === "humanizerhub") return "automation" as const;
+    if (!canSeeGhostCiter && selected === "ghostciter") return "automation" as const;
     return selected;
   })();
 
@@ -247,6 +344,8 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
         setBetaAccess({
           ghostwriter: Boolean(payload.features?.ghostwriter),
           octopilotSlides: Boolean(payload.features?.octopilotSlides),
+          humanizerHub: Boolean(payload.features?.humanizerHub),
+          ghostCiter: Boolean(payload.features?.ghostCiter),
         });
       } catch {
         if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
@@ -287,7 +386,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
 
         {/* Two Column Cards Container */}
         <div className={`w-full flex-1 mt-4 ${styles.methodologySelection}`}>
-          <div className={`grid w-full grid-cols-1 gap-6 ${canSeeOctopilotSlides ? "md:grid-cols-2" : "md:grid-cols-3"} ${styles.methodologyGrid}`}>
+          <div className={`grid w-full grid-cols-1 gap-6 ${gridColsClass} ${styles.methodologyGrid}`}>
             {/* Automation Card */}
             <button
               onClick={() => setSelected("automation")}
@@ -425,6 +524,105 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
               </button>
             ) : null}
 
+            {canSeeHumanizerHub ? (
+              <button
+                onClick={() => setSelected("humanizerhub")}
+                className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "humanizerhub"
+                  ? "border-amber-500/40 bg-amber-500/[0.04]"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
+                  }`}
+              >
+                <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 ${styles.methodologyIconBox}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                  </div>
+                  <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Humanizer Hub</h2>
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-300">
+                        Beta
+                      </span>
+                    </div>
+                    <p className={`text-[13px] font-medium text-amber-400 mb-2 ${styles.methodologyLead}`}>Make AI writing sound human.</p>
+                    <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
+                      Run your text through advanced humanizing passes to bypass AI detection and preserve your authentic voice.
+                    </p>
+                  </div>
+                  <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "humanizerhub" ? "border-amber-500" : "border-white/20"
+                    }`}>
+                    {effectiveSelected === "humanizerhub" && <div className="h-3 w-3 rounded-full bg-amber-500" />}
+                  </div>
+                </div>
+
+                <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
+                  {humanizerHubFeatures.map((f) => (
+                    <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                      <span className={`text-amber-400 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                      <span>{f.label}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                  <span className={`rounded-full bg-amber-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 ${styles.methodologyBadge}`}>
+                    Beta
+                  </span>
+                </div>
+              </button>
+            ) : null}
+
+            {canSeeGhostCiter ? (
+              <button
+                onClick={() => setSelected("ghostciter")}
+                className={`flex flex-col relative rounded-[20px] border p-7 text-left transition-all duration-200 hover:scale-[1.02] ${styles.methodologyCard} ${effectiveSelected === "ghostciter"
+                  ? "border-sky-500/40 bg-sky-500/[0.04]"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/15"
+                  }`}
+              >
+                <div className={`mb-6 flex items-start gap-4 w-full relative ${styles.methodologyCardTop}`}>
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 ${styles.methodologyIconBox}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                      <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+                    </svg>
+                  </div>
+                  <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>GhostCiter</h2>
+                      <span className="rounded-full border border-sky-500/30 bg-sky-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-300">
+                        Beta
+                      </span>
+                    </div>
+                    <p className={`text-[13px] font-medium text-sky-400 mb-2 ${styles.methodologyLead}`}>Citations on autopilot.</p>
+                    <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
+                      Automatically discover sources, insert in-text citations, and build a formatted bibliography in any citation style.
+                    </p>
+                  </div>
+                  <div className={`absolute right-0 top-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${styles.methodologyRadio} ${effectiveSelected === "ghostciter" ? "border-sky-500" : "border-white/20"
+                    }`}>
+                    {effectiveSelected === "ghostciter" && <div className="h-3 w-3 rounded-full bg-sky-500" />}
+                  </div>
+                </div>
+
+                <ul className={`w-full grid grid-rows-3 grid-flow-col gap-x-2 gap-y-4 pt-4 mt-auto pb-6 ${styles.methodologyFeatures}`}>
+                  {ghostCiterFeatures.map((f) => (
+                    <li key={f.label} className={`flex items-center gap-3 text-[13.5px] font-medium text-white/80 ${styles.methodologyFeature}`}>
+                      <span className={`text-sky-400 opacity-80 ${styles.methodologyFeatureIcon}`}>{f.icon}</span>
+                      <span>{f.label}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
+                  <span className={`rounded-full bg-sky-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-sky-300 ${styles.methodologyBadge}`}>
+                    Beta
+                  </span>
+                </div>
+              </button>
+            ) : null}
+
             {canSeeGhostwriter ? (
               <button
                 onClick={() => {
@@ -487,6 +685,10 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
             className={`flex items-center gap-2.5 rounded-full px-8 py-3.5 text-[15px] font-bold tracking-wide text-white transition ${styles.methodologyCta} ${
               effectiveSelected === "octopilotslides"
                 ? "bg-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.4)] hover:bg-violet-400"
+                : effectiveSelected === "humanizerhub"
+                ? "bg-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:bg-amber-400"
+                : effectiveSelected === "ghostciter"
+                ? "bg-sky-500 shadow-[0_0_30px_rgba(14,165,233,0.4)] hover:bg-sky-400"
                 : "bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:bg-red-400"
             }`}
           >

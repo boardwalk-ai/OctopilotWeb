@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthService } from "@/services/AuthService";
 
-type BetaFeatureKey = "ghostwriter" | "octopilotSlides";
+type BetaFeatureKey = "ghostwriter" | "octopilotSlides" | "humanizerHub" | "ghostCiter";
 
 type BetaAccessEntry = {
   email: string;
@@ -24,9 +24,11 @@ type BetaAccessPanelProps = {
 const FEATURE_LABELS: Record<BetaFeatureKey, string> = {
   ghostwriter: "Ghostwriter",
   octopilotSlides: "OctopilotSlides",
+  humanizerHub: "Humanizer Hub",
+  ghostCiter: "GhostCiter",
 };
 
-const DEFAULT_FEATURES: BetaFeatureKey[] = ["ghostwriter", "octopilotSlides"];
+const DEFAULT_FEATURES: BetaFeatureKey[] = ["ghostwriter", "octopilotSlides", "humanizerHub", "ghostCiter"];
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const performFetch = async (forceRefresh: boolean) => {

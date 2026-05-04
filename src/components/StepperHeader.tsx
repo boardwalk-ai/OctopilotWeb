@@ -32,14 +32,14 @@ interface StepperHeaderProps {
   skipFormat?: boolean;
   skipWritingStyle?: boolean;
   className?: string;
-  writingMode?: "automation" | "manual" | "ghostwriter" | "octopilotslides";
+  writingMode?: "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter";
   progressOnly?: boolean;
 }
 
 export function getVisibleAutomationSteps(options?: {
   skipFormat?: boolean;
   skipWritingStyle?: boolean;
-  writingMode?: "automation" | "manual" | "ghostwriter" | "octopilotslides";
+  writingMode?: "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter";
 }): Array<{ id: AutomationStepId; label: string }> {
   const skipFormat = options?.skipFormat ?? false;
   const skipWritingStyle = options?.skipWritingStyle ?? false;
