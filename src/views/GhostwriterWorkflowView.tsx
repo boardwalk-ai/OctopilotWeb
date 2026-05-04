@@ -525,6 +525,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const originalPageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const humanizedPageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const streamRef = useRef<HTMLElement>(null);
+  const sourceReviewPanelRef = useRef<HTMLDivElement>(null);
   const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const agentDisconnectRef = useRef<(() => void) | null>(null);
   const agentStepIdsRef = useRef<Map<string, number>>(new Map());
@@ -983,6 +984,15 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     const el = streamRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [visibleSteps]);
+
+  // When the source review panel appears inside the stream, scroll it into view.
+  useEffect(() => {
+    if (!sourceReviewQuestion) return;
+    requestAnimationFrame(() => {
+      sourceReviewPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!sourceReviewQuestion]);
 
   // Timer — stops on both "finished" (success) and "error" (stuck/fatal).
   useEffect(() => {
@@ -2038,10 +2048,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
             )}
           </section>
 
-          {/* Source review panel — rendered as a direct child of mainColumn
-              so it's never hidden by workflowStream's scroll viewport */}
+          {/* Source review panel — outside the workflowStream so it is never
+              clipped by the stream's scroll viewport. scrollIntoView fires
+              when the panel mounts to bring it into sight. */}
           {sourceReviewQuestion && (
-            <div className={styles.sourceReviewPanel}>
+            <div className={styles.sourceReviewPanel} ref={sourceReviewPanelRef}>
               <div className={styles.sourceReviewHeader}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>

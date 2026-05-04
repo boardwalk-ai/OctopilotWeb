@@ -2449,9 +2449,9 @@ button.activityHeader {
 
 .sourceReviewPanel {
   flex-shrink: 0;
-  margin: 0 1.8rem 0;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px 14px 0 0;
+  margin: 0 1.8rem 0.8rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
   background: #16141f;
   overflow: hidden;
   position: relative;
