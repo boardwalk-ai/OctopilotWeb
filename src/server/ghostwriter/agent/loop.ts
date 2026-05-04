@@ -364,7 +364,7 @@ async function dispatchToolCall(args: {
             url: s.url,
             title: s.title,
             publisher: s.publisher,
-            contentPreview: s.fullContent?.slice(0, 400) ?? "",
+            contentPreview: s.fullContent?.slice(0, 6000) ?? "",
           }))
         : undefined;
 

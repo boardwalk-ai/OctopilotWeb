@@ -541,6 +541,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const [focusSelections, setFocusSelections] = useState<string[]>([]);
   // Source review state: url → { focusNote, rejected }
   const [sourceNotes, setSourceNotes] = useState<Record<string, { focusNote: string; rejected: boolean }>>({});
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   // Track locally-sent user messages to deduplicate SSE user_message events
   const pendingUserMessagesRef = useRef<Set<string>>(new Set());
 
@@ -1033,6 +1034,7 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
     // Reset multiselect + source review state when question changes
     setFocusSelections([]);
     setSourceNotes({});
+    setExpandedSources(new Set());
 
     if (displayedQuestion) {
       setQuestionExiting(true);
@@ -2098,9 +2100,37 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
 
                       {!note.rejected && (
                         <>
-                          {src.contentPreview && (
-                            <p className={styles.sourceCardPreview}>{src.contentPreview}…</p>
-                          )}
+                          {src.contentPreview && (() => {
+                            const isExpanded = expandedSources.has(src.url);
+                            const PREVIEW_LEN = 320;
+                            const needsToggle = src.contentPreview.length > PREVIEW_LEN;
+                            const displayText = isExpanded
+                              ? src.contentPreview
+                              : src.contentPreview.slice(0, PREVIEW_LEN);
+                            return (
+                              <div className={styles.sourceCardPreviewWrap}>
+                                <p className={styles.sourceCardPreview}>
+                                  {displayText}{!isExpanded && needsToggle ? "…" : ""}
+                                </p>
+                                {needsToggle && (
+                                  <button
+                                    type="button"
+                                    className={styles.sourceExpandBtn}
+                                    onClick={() =>
+                                      setExpandedSources((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(src.url)) next.delete(src.url);
+                                        else next.add(src.url);
+                                        return next;
+                                      })
+                                    }
+                                  >
+                                    {isExpanded ? "Collapse ↑" : "Expand ↓"}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <input
                             type="text"
                             className={styles.sourceFocusInput}
