@@ -11,6 +11,7 @@
 // that aren't worth debugging before the tool-dispatch path is solid.
 
 import { fetchFreshOpenRouterKey, getOpenRouterConfigForRun } from "@/server/backendConfig";
+import { callJson, parseJsonLoose } from "@/server/ghostwriter/shared/openrouter";
 import type { AgentEvent } from "./events";
 import type {
   AgentContext,
@@ -358,14 +359,21 @@ async function dispatchToolCall(args: {
           : true;
 
     // Auto-inject scraped sources when rendering the source review panel.
+    // Filter out URLs that were already auto-excluded by the quality filter
+    // so the user only sees sources with usable content.
+    const autoExcludedSet = new Set(
+      (run.context.autoExcludedUrls ?? []).map((u) => u.toLowerCase()),
+    );
     const sources =
       inputType === "sourceReview"
-        ? run.context.scrapedSources.map((s) => ({
-            url: s.url,
-            title: s.title,
-            publisher: s.publisher,
-            contentPreview: s.fullContent?.slice(0, 6000) ?? "",
-          }))
+        ? run.context.scrapedSources
+            .filter((s) => !autoExcludedSet.has(s.url.toLowerCase()))
+            .map((s) => ({
+              url: s.url,
+              title: s.title,
+              publisher: s.publisher,
+              contentPreview: s.fullContent?.slice(0, 6000) ?? "",
+            }))
         : undefined;
 
     if (!field || !question) {
@@ -407,6 +415,19 @@ async function dispatchToolCall(args: {
       timeoutMs,
       `${tool.name} exceeded ${timeoutMs}ms`,
     );
+
+    // After scraping finishes, auto-exclude low-quality sources (pure HTML,
+    // iframes, login walls, etc.) using the secondary Gemini model so the
+    // source review panel only shows clean, readable sources.
+    if (tool.name === "scrape_sources" && run.context.scrapedSources.length > 0) {
+      emit(run, { type: "step_progress", id: stepId, detail: "Auto-filtering low-quality sources…" });
+      try {
+        await autoExcludeLowQualitySources(run);
+      } catch {
+        // Non-fatal — source review still works without auto-exclusion.
+      }
+    }
+
     emit(run, { type: "step_done", id: stepId, summary: extractSummary(result) });
     return toolResultFrame(tc.id, result);
   } catch (err) {
@@ -680,6 +701,104 @@ function applyAnswerToContext(ctx: AgentContext, field: string, value: unknown):
 
 function isDraftSettingsField(field: string): field is Exclude<keyof AgentDraftSettings, "wordCount"> {
   return field === "citationStyle" || field === "tone" || field === "keywords";
+}
+
+// ── Source quality filter ────────────────────────────────────────────────────
+//
+// Runs after scrape_sources. Sends a truncated snippet of every scraped source
+// to the secondary Gemini model and asks it to identify pages with no usable
+// academic content (pure HTML, iframes, login walls, CAPTCHA pages, etc.).
+// Excluded URLs are written to ctx.autoExcludedUrls and pre-rejected in
+// ctx.sourceReviewNotes so the source review panel hides them automatically.
+//
+// A single batched call is used to keep latency low.
+const SOURCE_QUALITY_SYSTEM_PROMPT = `You are a source quality filter for an academic essay writing assistant.
+
+Your task is to identify scraped web pages that contain NO useful academic content.
+A source should be excluded when its content is primarily or entirely one of:
+- Raw HTML tags, CSS, or JavaScript code
+- <iframe> or <frame> elements with no surrounding text
+- Login walls, paywall notices, or "access denied" messages
+- CAPTCHA or bot-detection pages
+- Error pages (404, 500, etc.)
+- Redirect or blank pages with no readable body text
+- Cookie consent / GDPR banners with no article content
+
+A source should be KEPT even if it is behind a partial paywall, as long as it
+contains some readable text relevant to academic research.
+
+Return a JSON object with exactly one key:
+{"exclude": ["https://example.com/bad-page", ...]}
+
+If all sources are acceptable, return {"exclude": []}.
+Only exclude sources that clearly have no readable content. When in doubt, keep the source.`;
+
+async function autoExcludeLowQualitySources(run: AgentRun): Promise<void> {
+  const ctx = run.context;
+  const sources = ctx.scrapedSources;
+  if (sources.length === 0) return;
+
+  const { apiKey, model } = await getOpenRouterConfigForRun(run.openRouterKey, "secondary");
+
+  // Build a compact list — just enough for the model to judge quality.
+  const sourceList = sources.map((s, i) => ({
+    index: i,
+    url: s.url,
+    title: s.title || "Untitled",
+    // First 600 chars is enough to detect HTML-only / iframe-only pages.
+    snippet: (s.fullContent || "").slice(0, 600),
+  }));
+
+  const userMessage =
+    `Evaluate the following scraped sources. Return the URLs that should be excluded because they contain no useful academic content.\n\n` +
+    JSON.stringify(sourceList, null, 2) +
+    `\n\nReturn: {"exclude": ["url1", "url2", ...]}`;
+
+  const content = await callJson({
+    apiKey,
+    model,
+    messages: [
+      { role: "system", content: SOURCE_QUALITY_SYSTEM_PROMPT },
+      { role: "user", content: userMessage },
+    ],
+    temperature: 0.1,
+  });
+
+  const parsed = parseJsonLoose(content) as { exclude?: unknown } | null;
+  if (!parsed || !Array.isArray(parsed.exclude)) return;
+
+  const excludeLower = (parsed.exclude as unknown[])
+    .map((u) => String(u).trim().toLowerCase())
+    .filter(Boolean);
+
+  if (excludeLower.length === 0) return;
+
+  // Resolve lowercase matches back to the original URL casing.
+  const resolvedUrls = excludeLower
+    .map((low) => sources.find((s) => s.url.toLowerCase() === low)?.url ?? "")
+    .filter(Boolean);
+
+  ctx.autoExcludedUrls = [...(ctx.autoExcludedUrls ?? []), ...excludeLower];
+
+  // Pre-populate sourceReviewNotes so compact_sources skips them even if
+  // the agent skips the source review step.
+  const existingNotes = ctx.sourceReviewNotes ?? [];
+  const noteUrlSet = new Set(existingNotes.map((n) => n.url.toLowerCase()));
+
+  for (const url of resolvedUrls) {
+    const low = url.toLowerCase();
+    if (!noteUrlSet.has(low)) {
+      existingNotes.push({ url, rejected: true, autoExcluded: true });
+      noteUrlSet.add(low);
+    } else {
+      const existing = existingNotes.find((n) => n.url.toLowerCase() === low);
+      if (existing) {
+        existing.rejected = true;
+        existing.autoExcluded = true;
+      }
+    }
+  }
+  ctx.sourceReviewNotes = existingNotes;
 }
 
 function isFormatAnswersField(field: string): field is keyof AgentFormatAnswers {

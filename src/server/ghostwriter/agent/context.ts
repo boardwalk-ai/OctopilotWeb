@@ -153,7 +153,15 @@ export type AgentContext = {
     url: string;
     focusNote?: string;
     rejected?: boolean;
+    // true when the rejection was made automatically by the quality filter
+    // (as opposed to the user manually excluding a source).
+    autoExcluded?: boolean;
   }>;
+
+  // URLs auto-excluded by the source quality filter (Gemini) after scraping.
+  // Sources with no usable text (pure HTML/iframes/login walls) land here.
+  // The source review panel hides these so the user only sees clean sources.
+  autoExcludedUrls?: string[];
 
   // Mid-run user directives (pause/override). Updated only when the user
   // explicitly interrupts; omitted from normal turns to keep prompt tokens low.
