@@ -17,7 +17,7 @@ import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import type { AgentEvent } from "@/server/ghostwriter/agent/events";
-import { createThread, updateThread, subscribeThreadsAndFolders, type GwThread, type GwFolder } from "@/services/ThreadService";
+import { createThread, updateThread, subscribeThreadsAndFolders, getThread, type GwThread, type GwFolder } from "@/services/ThreadService";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -539,6 +539,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   // Thread persistence
   const threadIdRef = useRef<string | null>(null);
   const essayContentRef = useRef<string>("");
+  const timelineRef = useRef<Array<{ kind: "message"; id: string; role: "user" | "ai"; text: string } | { kind: "tool"; stepId: number }>>([]);
   // Mini editor
   const [miniEditorOpen, setMiniEditorOpen] = useState(false);
   const [miniEditorExiting, setMiniEditorExiting] = useState(false);
@@ -563,8 +564,67 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
     return subscribeThreadsAndFolders((t, f) => { setSidebarThreads(t); setSidebarFolders(f); });
   }, []);
 
-  // Keep essayContentRef in sync for thread auto-save
+  // ── Load a saved thread into the current view ─────────────────────────────
+  const [loadingThreadId, setLoadingThreadId] = useState<string | null>(null);
+
+  const handleLoadThread = async (threadId: string) => {
+    if (threadId === threadIdRef.current) return; // already viewing
+    setLoadingThreadId(threadId);
+    try {
+      const thread = await getThread(threadId);
+
+      // Disconnect any live agent connection first
+      agentDisconnectRef.current?.();
+      agentDisconnectRef.current = null;
+
+      // Populate essay
+      setEssayStreamContent(thread.essay ?? "");
+      essayContentRef.current = thread.essay ?? "";
+
+      // Populate timeline from saved messages (prepend the thread's prompt as
+      // the initial user bubble, then the saved chat messages after it)
+      const promptBubble: { kind: "message"; id: string; role: "user" | "ai"; text: string } = {
+        kind: "message",
+        id: "initial-prompt",
+        role: "user",
+        text: thread.prompt,
+      };
+      const savedMsgs = (thread.messages ?? []).map((m, i) => ({
+        kind: "message" as const,
+        id: `loaded-${i}`,
+        role: m.role,
+        text: m.text,
+      }));
+      setTimeline([promptBubble, ...savedMsgs]);
+
+      // Synthetic finished run state so the essay panel renders
+      setRunState({
+        runId: thread.runId,
+        status: "finished",
+        goal: AGENT_GOAL,
+        progress: { completed: 1, total: 1, percent: 100, label: "Finished" },
+        steps: [],
+        context: {
+          essayTopic: thread.title,
+          topic: thread.title,
+          wordCount: thread.wordCount ?? undefined,
+          citationStyle: thread.citationStyle ?? undefined,
+        },
+        pendingToolCall: null,
+        pendingQuestion: null,
+      });
+
+      // Mark as the current thread
+      threadIdRef.current = thread.id;
+      setFinalDuration(0);
+      setAssistantStreaming("");
+    } catch { /* non-fatal */ }
+    finally { setLoadingThreadId(null); }
+  };
+
+  // Keep refs in sync for thread auto-save
   useEffect(() => { essayContentRef.current = essayStreamContent; }, [essayStreamContent]);
+  useEffect(() => { timelineRef.current = timeline; }, [timeline]);
 
   // Play error sound whenever a new step error is recorded
   const stepErrorsSize = stepErrors.size;
@@ -580,9 +640,13 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
     const tid = threadIdRef.current;
     if (!tid) return;
     if (runStatus === "revision_mode" || runStatus === "finished") {
+      const messages = timelineRef.current
+        .filter((e): e is { kind: "message"; id: string; role: "user" | "ai"; text: string } => e.kind === "message")
+        .map(({ role, text }) => ({ role, text }));
       void updateThread(tid, {
         status: "finished",
         essay: essayContentRef.current || null,
+        messages,
       }).catch(() => {});
     } else if (runStatus === "error") {
       void updateThread(tid, { status: "error" }).catch(() => {});
@@ -1505,9 +1569,10 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                       {open && folderThreads.map((t) => (
                         <button key={t.id} type="button"
                           className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}
-                          style={{ paddingLeft: "1.4rem" }}>
+                          style={{ paddingLeft: "1.4rem", opacity: loadingThreadId === t.id ? 0.5 : 1 }}
+                          onClick={() => void handleLoadThread(t.id)}>
                           <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
-                          <span>{t.status}</span>
+                          <span>{t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished"}</span>
                         </button>
                       ))}
                     </div>
@@ -1523,7 +1588,9 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
             <div className={styles.threadList}>
               {sidebarThreads.filter((t) => !t.folderId).map((t) => (
                 <button key={t.id} type="button"
-                  className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}>
+                  className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}
+                  style={{ opacity: loadingThreadId === t.id ? 0.5 : 1 }}
+                  onClick={() => void handleLoadThread(t.id)}>
                   <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
                   <span>{t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished"}</span>
                 </button>
