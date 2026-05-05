@@ -1,0 +1,526 @@
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.018);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Collapsed icon-only strip */
+.collapsed {
+  width: 40px;
+  min-width: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 10px;
+  background: rgba(255,255,255,0.018);
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255,255,255,0.75);
+}
+
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.collapseBtn:hover {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.7);
+}
+
+/* ── New Thread button ──────────────────────────────────────────────────────── */
+
+.newBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 10px 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.08);
+  color: rgba(239,68,68,0.85);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+  flex-shrink: 0;
+}
+
+.newBtn:hover {
+  background: rgba(239,68,68,0.14);
+  border-color: rgba(239,68,68,0.4);
+}
+
+/* Collapsed variant of new thread button */
+.newBtnCollapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.08);
+  color: rgba(239,68,68,0.85);
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.newBtnCollapsed:hover {
+  background: rgba(239,68,68,0.18);
+}
+
+/* ── Scrollable list ─────────────────────────────────────────────────────────  */
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Folder row ─────────────────────────────────────────────────────────────── */
+
+.folderRow {
+  display: flex;
+  align-items: center;
+}
+
+.folderBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: color 120ms;
+}
+
+.folderBtn:hover {
+  color: rgba(255,255,255,0.85);
+}
+
+.folderDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.folderName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.folderCount {
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* Indented thread inside folder */
+.folderThread {
+  padding-left: 20px;
+}
+
+/* ── Unfiled section ─────────────────────────────────────────────────────────  */
+
+.unfiled {
+  margin-top: 2px;
+}
+
+.unfiledLabel {
+  padding: 8px 10px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+}
+
+/* ── Thread row ─────────────────────────────────────────────────────────────── */
+
+.threadRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms;
+}
+
+.threadRow:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.threadRowActive {
+  background: rgba(239,68,68,0.1);
+}
+
+.threadRowActive:hover {
+  background: rgba(239,68,68,0.14);
+}
+
+.threadTitle {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 450;
+  color: rgba(255,255,255,0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threadRowActive .threadTitle {
+  color: rgba(255,255,255,0.92);
+}
+
+.threadAge {
+  font-size: 10px;
+  color: rgba(255,255,255,0.22);
+  flex-shrink: 0;
+}
+
+/* Status dots */
+.dotRunning {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.dotError {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Rename inputs ───────────────────────────────────────────────────────────  */
+
+.renameInput {
+  flex: 1;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.9);
+  outline: none;
+  width: 100%;
+}
+
+.renameInput:focus {
+  border-color: rgba(239,68,68,0.5);
+}
+
+.renameInputIndent {
+  margin: 3px 10px 3px 0;
+}
+
+.renameInputThread {
+  margin: 3px 10px;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────────  */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 32px 16px 16px;
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255,255,255,0.2);
+  line-height: 1.5;
+}
+
+/* ── New folder form ─────────────────────────────────────────────────────────  */
+
+.newFolderForm {
+  margin: 6px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+}
+
+.newFolderInput {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.88);
+  outline: none;
+  width: 100%;
+}
+
+.newFolderInput::placeholder {
+  color: rgba(255,255,255,0.25);
+}
+
+.newFolderInput:focus {
+  border-color: rgba(239,68,68,0.45);
+}
+
+.colorPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+
+.swatch:hover {
+  transform: scale(1.15);
+}
+
+.swatchActive {
+  border-color: rgba(255,255,255,0.7);
+  transform: scale(1.1);
+}
+
+.newFolderActions {
+  display: flex;
+  gap: 6px;
+}
+
+.createBtn {
+  flex: 1;
+  padding: 4px 0;
+  border-radius: 5px;
+  border: none;
+  background: rgba(239,68,68,0.18);
+  color: rgba(239,68,68,0.9);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.createBtn:hover {
+  background: rgba(239,68,68,0.28);
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 4px 0;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: transparent;
+  color: rgba(255,255,255,0.35);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.cancelBtn:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.55);
+}
+
+/* ── New Folder footer button ────────────────────────────────────────────────  */
+
+.newFolderBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 10px 10px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.newFolderBtn:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.55);
+}
+
+/* ── Context menu ────────────────────────────────────────────────────────────  */
+
+.ctx {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  background: #1a1c22;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ctxItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  font-weight: 450;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms;
+}
+
+.ctxItem:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.ctxDanger {
+  color: rgba(239,68,68,0.85);
+}
+
+.ctxDanger:hover {
+  background: rgba(239,68,68,0.1);
+}
+
+.ctxDivider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin: 2px 0;
+}
+
+/* ── Folder picker (inside ctx menu) ────────────────────────────────────────  */
+
+.folderPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0;
+  padding: 4px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+}
+
+.fpItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-size: 11.5px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms;
+}
+
+.fpItem:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.fpDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

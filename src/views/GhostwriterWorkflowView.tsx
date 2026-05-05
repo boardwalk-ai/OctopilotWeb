@@ -17,11 +17,13 @@ import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import type { AgentEvent } from "@/server/ghostwriter/agent/events";
+import { createThread, updateThread } from "@/services/ThreadService";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
   draft: GhostwriterDraftInput;
   onBack: () => void;
+  onThreadCreated?: (threadId: string) => void;
 };
 
 type StepStatus = "pending" | "running" | "completed" | "blocked" | "error";
@@ -451,7 +453,7 @@ function ErrorIcon() {
   );
 }
 
-export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWorkflowViewProps) {
+export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated }: GhostwriterWorkflowViewProps) {
   // M8: agentic is now the default. Set NEXT_PUBLIC_GHOSTWRITER_MODE=legacy
   // to fall back to the legacy GhostwriterOrchestrator path during rollback.
   const configuredMode = (process.env.NEXT_PUBLIC_GHOSTWRITER_MODE || "agentic").toLowerCase();
@@ -534,6 +536,9 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   const agentDisconnectRef = useRef<(() => void) | null>(null);
   const agentStepIdsRef = useRef<Map<string, number>>(new Map());
   const agentStepCountRef = useRef(0);
+  // Thread persistence
+  const threadIdRef = useRef<string | null>(null);
+  const essayContentRef = useRef<string>("");
   // Mini editor
   const [miniEditorOpen, setMiniEditorOpen] = useState(false);
   const [miniEditorExiting, setMiniEditorExiting] = useState(false);
@@ -549,11 +554,32 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   // Track locally-sent user messages to deduplicate SSE user_message events
   const pendingUserMessagesRef = useRef<Set<string>>(new Set());
 
+  // Keep essayContentRef in sync for thread auto-save
+  useEffect(() => { essayContentRef.current = essayStreamContent; }, [essayStreamContent]);
+
   // Play error sound whenever a new step error is recorded
   const stepErrorsSize = stepErrors.size;
   useEffect(() => {
     if (stepErrorsSize > 0) playErrorSound();
   }, [stepErrorsSize]);
+
+  // Auto-save thread status on run completion / error.
+  // Note: the agentic path sets status to "revision_mode" (cast) when done;
+  // the legacy path sets "finished". We treat both as finished.
+  const runStatus = runState?.status as string | undefined;
+  useEffect(() => {
+    const tid = threadIdRef.current;
+    if (!tid) return;
+    if (runStatus === "revision_mode" || runStatus === "finished") {
+      void updateThread(tid, {
+        status: "finished",
+        essay: essayContentRef.current || null,
+      }).catch(() => {});
+    } else if (runStatus === "error") {
+      void updateThread(tid, { status: "error" }).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runStatus]);
 
   const topicSummary = useMemo(() => ({
     topic: runState?.context.topic || runState?.context.essayTopic || org.essayTopic || "Waiting for topic",
@@ -632,6 +658,19 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
           agentStepCountRef.current = 0;
           pendingThoughtsRef.current = [];
           setRunState(buildAgenticRunState(startedRun.runId));
+
+          // Persist thread to DB
+          try {
+            const thread = await createThread({
+              runId: startedRun.runId,
+              prompt: draft.prompt,
+              title: draft.prompt.slice(0, 80).trim() || "New Essay",
+              wordCount: draftSettings.wordCount ?? null,
+              citationStyle: draftSettings.citationStyle ?? null,
+            });
+            threadIdRef.current = thread.id;
+            onThreadCreated?.(thread.id);
+          } catch { /* non-fatal — sidebar will just miss this thread */ }
 
           agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
             if (event.type === "essay_delta") {
@@ -813,6 +852,10 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
                   next.context = { ...next.context, ...patch };
                   if (typeof patch.essayTopic === "string" && !next.context.topic) {
                     next.context.topic = patch.essayTopic;
+                  }
+                  // Update thread title when essay topic is detected
+                  if (typeof patch.essayTopic === "string" && threadIdRef.current) {
+                    void updateThread(threadIdRef.current, { title: patch.essayTopic as string }).catch(() => {});
                   }
                   if (patch.exportDoc) {
                     void paginateSnapshot(patch.exportDoc).then((snapshot) => {
