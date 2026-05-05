@@ -255,7 +255,7 @@ export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProp
   };
 
   return (
-    <div className={`absolute inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
+    <div className={`fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] ${styles.ghostwriterShell}`}>
       <AppHeader
         className={styles.ghostwriterHeader}
         left={<BackToHome onClick={onBack} />}

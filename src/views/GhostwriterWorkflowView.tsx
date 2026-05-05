@@ -17,7 +17,7 @@ import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import type { AgentEvent } from "@/server/ghostwriter/agent/events";
-import { createThread, updateThread } from "@/services/ThreadService";
+import { createThread, updateThread, subscribeThreadsAndFolders, type GwThread, type GwFolder } from "@/services/ThreadService";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -553,6 +553,15 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   // Track locally-sent user messages to deduplicate SSE user_message events
   const pendingUserMessagesRef = useRef<Set<string>>(new Set());
+
+  // ── Sidebar thread/folder state ───────────────────────────────────────────
+  const [sidebarThreads, setSidebarThreads] = useState<GwThread[]>([]);
+  const [sidebarFolders, setSidebarFolders] = useState<GwFolder[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    return subscribeThreadsAndFolders((t, f) => { setSidebarThreads(t); setSidebarFolders(f); });
+  }, []);
 
   // Keep essayContentRef in sync for thread auto-save
   useEffect(() => { essayContentRef.current = essayStreamContent; }, [essayStreamContent]);
@@ -1473,39 +1482,57 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
             <span>New chat</span>
           </button>
 
-          <nav className={styles.primaryNav}>
-            {["Search", "Plugins", "Automations"].map((item) => (
-              <button key={item} type="button" className={styles.navItem}>
-                <span>{item}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarSectionLabel}>Project Folders</div>
-            <div className={styles.threadList}>
-              <div className={styles.threadFolder}>
-                <strong>Octopilot Web</strong>
-                <span>Ghostwriter mode</span>
-              </div>
-              <div className={styles.threadFolder}>
-                <strong>Research Threads</strong>
-                <span>{topicSummary.topic}</span>
+          {/* Folders */}
+          {sidebarFolders.length > 0 && (
+            <div className={styles.sidebarSection}>
+              <div className={styles.sidebarSectionLabel}>Project Folders</div>
+              <div className={styles.threadList}>
+                {sidebarFolders.map((folder) => {
+                  const folderThreads = sidebarThreads.filter((t) => t.folderId === folder.id);
+                  const open = expandedFolders.has(folder.id);
+                  return (
+                    <div key={folder.id}>
+                      <button type="button" className={styles.threadFolder}
+                        onClick={() => setExpandedFolders((prev) => {
+                          const next = new Set(prev);
+                          next.has(folder.id) ? next.delete(folder.id) : next.add(folder.id);
+                          return next;
+                        })}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: folder.color, flexShrink: 0, display: "inline-block" }} />
+                        <strong style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder.name}</strong>
+                        <span style={{ opacity: 0.35, fontSize: 10 }}>{folderThreads.length}</span>
+                      </button>
+                      {open && folderThreads.map((t) => (
+                        <button key={t.id} type="button"
+                          className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}
+                          style={{ paddingLeft: "1.4rem" }}>
+                          <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
+                          <span>{t.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          )}
 
+          {/* Threads */}
           <div className={styles.sidebarSection}>
             <div className={styles.sidebarSectionLabel}>Threads</div>
             <div className={styles.threadList}>
-              <button type="button" className={`${styles.threadItem} ${styles.threadItemActive}`}>
-                <strong>{topicSummary.topic}</strong>
-                <span>{topicSummary.type}</span>
-              </button>
-              <button type="button" className={styles.threadItem}>
-                <strong>Ghostwriter draft</strong>
-                <span>{draft.attachments.length} attachment{draft.attachments.length === 1 ? "" : "s"}</span>
-              </button>
+              {sidebarThreads.filter((t) => !t.folderId).map((t) => (
+                <button key={t.id} type="button"
+                  className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}>
+                  <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
+                  <span>{t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished"}</span>
+                </button>
+              ))}
+              {sidebarThreads.length === 0 && (
+                <div className={styles.threadFolder} style={{ opacity: 0.35 }}>
+                  <span>No threads yet</span>
+                </div>
+              )}
             </div>
           </div>
         </aside>

@@ -22,7 +22,6 @@ import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import GhostwriterView from "@/views/GhostwriterView";
 import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
-import GhostwriterSidebar from "@/components/GhostwriterSidebar";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
@@ -56,8 +55,6 @@ export default function HomeView() {
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const stepScrollRef = useRef<HTMLDivElement>(null);
   const org = useOrganizer();
 
@@ -181,28 +178,13 @@ export default function HomeView() {
   if (page === "ghostwriter") {
     return (
       <>
-        <div style={{ display: "flex", height: "100dvh", overflow: "hidden" }}>
-          <GhostwriterSidebar
-            currentThreadId={currentThreadId}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
-            onNewThread={() => { /* already on new thread page */ }}
-            onOpenThread={(threadId) => {
-              setCurrentThreadId(threadId);
-              // TODO: load saved thread — for now keep on prompt page
-            }}
-          />
-          <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-            <GhostwriterView
-              onBack={() => setPage("methodology")}
-              onStart={(draft) => {
-                setGhostwriterDraft(draft);
-                setCurrentThreadId(null);
-                setPage("ghostwriter-workflow");
-              }}
-            />
-          </div>
-        </div>
+        <GhostwriterView
+          onBack={() => setPage("methodology")}
+          onStart={(draft) => {
+            setGhostwriterDraft(draft);
+            setPage("ghostwriter-workflow");
+          }}
+        />
         <OctoAssistant currentPage={page} />
       </>
     );
@@ -211,29 +193,10 @@ export default function HomeView() {
   if (page === "ghostwriter-workflow") {
     return (
       <>
-        <div style={{ display: "flex", height: "100dvh", overflow: "hidden" }}>
-          <GhostwriterSidebar
-            currentThreadId={currentThreadId}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
-            onNewThread={() => {
-              setCurrentThreadId(null);
-              setPage("ghostwriter");
-            }}
-            onOpenThread={(threadId) => {
-              setCurrentThreadId(threadId);
-              // TODO: load saved thread — for now go back to prompt page
-              setPage("ghostwriter");
-            }}
-          />
-          <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-            <GhostwriterWorkflowView
-              draft={ghostwriterDraft}
-              onBack={() => setPage("ghostwriter")}
-              onThreadCreated={(tid) => setCurrentThreadId(tid)}
-            />
-          </div>
-        </div>
+        <GhostwriterWorkflowView
+          draft={ghostwriterDraft}
+          onBack={() => setPage("ghostwriter")}
+        />
         <OctoAssistant currentPage={page} />
       </>
     );
