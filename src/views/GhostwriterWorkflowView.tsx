@@ -497,7 +497,11 @@ export default function GhostwriterWorkflowView({ draft, onBack }: GhostwriterWo
   type TimelineMessage = { kind: "message"; id: string; role: "user" | "ai"; text: string };
   type TimelineTool   = { kind: "tool"; stepId: number };
   type TimelineEntry  = TimelineMessage | TimelineTool;
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>(() => {
+    const promptText = (draft.prompt || "").trim();
+    if (!promptText) return [];
+    return [{ kind: "message", id: "initial-prompt", role: "user", text: promptText }];
+  });
   // Streaming assistant text accumulator (cleared when assistant_message fires).
   const [assistantStreaming, setAssistantStreaming] = useState("");
   // Legacy alias kept so downstream read-only usages still compile.
