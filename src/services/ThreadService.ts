@@ -12,6 +12,57 @@ import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
 export type GwThreadStatus = "running" | "finished" | "error";
 
+// ── Persisted run state snapshot ──────────────────────────────────────────────
+// Saved to DB after every tool completes. Stripped of large text blobs —
+// fullContent is replaced by a short snippet, essay lives in its own column.
+
+export type PersistedSourceMeta = {
+  url: string;
+  title?: string;
+  author?: string;
+  publishedYear?: string;
+  publisher?: string;
+  outlineMatchIndex?: number;
+  snippet?: string;   // first 400 chars of fullContent for AI context
+};
+
+export type PersistedCompactedSource = {
+  sourceIndex: number;
+  url: string;
+  kind?: string;
+  title?: string;
+  author?: string;
+  publishedYear?: string;
+  publisher?: string;
+  compactedContent: string;  // already compact — kept in full
+};
+
+export type PersistedRunState = {
+  savedAt: string;        // ISO timestamp
+  steps: Array<{ id: number; title: string; status: string }>;
+  context: {
+    essayTopic?: string;
+    essayType?: string;
+    wordCount?: number;
+    citationStyle?: string;
+    tone?: string;
+    keywords?: string;
+    scope?: string;
+    structure?: string;
+    outlines?: Array<{ id?: string; type?: string; title: string; description?: string }>;
+    selectedOutlines?: Array<{ id?: string; type?: string; title: string; description?: string }>;
+    critiqueIssues?: string[];
+    revisionHistory?: Array<{ instruction: string }>;
+  };
+  sources?: PersistedSourceMeta[];
+  compactedSources?: PersistedCompactedSource[];
+  toolHistory?: Array<{ name: string; completedAt: string }>;
+  humanizerInfo?: {
+    provider: string;
+    preText: string;    // essay text before humanization
+  };
+};
+
 /** Lightweight thread record — used for the sidebar list */
 export type GwThread = {
   id: string;
@@ -27,10 +78,11 @@ export type GwThread = {
   updatedAt: string;
 };
 
-/** Full thread — includes essay text and chat messages */
+/** Full thread — includes essay text, chat messages, and run state snapshot */
 export type GwThreadFull = GwThread & {
   essay: string | null;
   messages: Array<{ role: "user" | "ai"; text: string }>;
+  runState: PersistedRunState | null;
 };
 
 export type GwFolder = {
@@ -86,6 +138,7 @@ export async function updateThread(
     messages?: Array<{ role: "user" | "ai"; text: string }>;
     wordCount?: number | null;
     citationStyle?: string | null;
+    runState?: PersistedRunState | null;
   },
 ): Promise<GwThreadFull> {
   // Backend sentinel: pass "__unfiled__" when folderId is explicitly null

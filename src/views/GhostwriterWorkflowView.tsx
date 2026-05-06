@@ -17,7 +17,7 @@ import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import type { AgentEvent } from "@/server/ghostwriter/agent/events";
-import { createThread, updateThread, subscribeThreadsAndFolders, getThread, type GwThread, type GwFolder } from "@/services/ThreadService";
+import { createThread, updateThread, subscribeThreadsAndFolders, getThread, type GwThread, type GwFolder, type PersistedRunState } from "@/services/ThreadService";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -453,6 +453,87 @@ function ErrorIcon() {
   );
 }
 
+// ── Run-state snapshot builder ────────────────────────────────────────────────
+// Reads Organizer + current GhostwriterRunState and returns a compact JSON
+// snapshot suitable for DB storage.  Large blobs are stripped:
+//   • source.fullContent → first 400 chars as snippet
+//   • essay lives in its own DB column — not duplicated here
+//   • compactedContent is kept in full (it's already a summary)
+
+function buildRunStateSnapshot(
+  runState: GhostwriterRunState,
+  toolHistory: Array<{ name: string; completedAt: string }>,
+  humanizerInfo?: PersistedRunState["humanizerInfo"],
+): PersistedRunState {
+  const org = Organizer.get();
+
+  const sources: PersistedRunState["sources"] = (org.manualSources || [])
+    .filter((s) => s.url && s.status === "scraped")
+    .map((s) => ({
+      url: s.url,
+      title: s.title,
+      author: s.author,
+      publishedYear: s.publishedYear,
+      publisher: s.publisher,
+      outlineMatchIndex: s.outlineMatchIndex,
+      snippet: s.fullContent ? s.fullContent.slice(0, 400) : undefined,
+    }));
+
+  const compactedSources: PersistedRunState["compactedSources"] = (org.compactedSources || []).map(
+    (c) => ({
+      sourceIndex: c.sourceIndex,
+      url: c.url,
+      kind: c.kind,
+      title: c.title,
+      author: c.author,
+      publishedYear: c.publishedYear,
+      publisher: c.publisher,
+      compactedContent: c.compactedContent,
+    }),
+  );
+
+  const ctx = runState.context as Record<string, unknown>;
+
+  return {
+    savedAt: new Date().toISOString(),
+    steps: (runState.steps || []).map((s) => ({
+      id: s.id,
+      title: s.title,
+      status: s.status,
+    })),
+    context: {
+      essayTopic: (ctx.essayTopic || ctx.topic || org.essayTopic || "") as string,
+      essayType: (ctx.essayType || org.analyzedEssayType || org.essayType || "") as string,
+      wordCount: typeof org.wordCount === "number" ? org.wordCount : undefined,
+      citationStyle: org.citationStyle || undefined,
+      tone: org.tone || undefined,
+      keywords: org.keywords || undefined,
+      scope: (ctx.scope || org.scope || "") as string || undefined,
+      structure: (ctx.structure || org.structure || "") as string || undefined,
+      outlines: (org.outlines || []).map((o) => ({
+        id: o.id,
+        type: o.type,
+        title: o.title,
+        description: o.description,
+      })),
+      selectedOutlines: (org.selectedOutlines || []).map((o) => ({
+        id: (o as { id?: string }).id,
+        type: (o as { type?: string }).type,
+        title: o.title,
+        description: (o as { description?: string }).description,
+      })),
+      critiqueIssues: Array.isArray(ctx.critiqueIssues) ? (ctx.critiqueIssues as string[]) : undefined,
+      revisionHistory: Array.isArray(ctx.revisionHistory)
+        ? (ctx.revisionHistory as Array<{ instruction: string }>)
+        : undefined,
+    },
+    sources: sources.length > 0 ? sources : undefined,
+    compactedSources: compactedSources.length > 0 ? compactedSources : undefined,
+    toolHistory: toolHistory.length > 0 ? toolHistory : undefined,
+    humanizerInfo,
+  };
+}
+
 export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated }: GhostwriterWorkflowViewProps) {
   // M8: agentic is now the default. Set NEXT_PUBLIC_GHOSTWRITER_MODE=legacy
   // to fall back to the legacy GhostwriterOrchestrator path during rollback.
@@ -540,6 +621,9 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   const threadIdRef = useRef<string | null>(null);
   const essayContentRef = useRef<string>("");
   const timelineRef = useRef<Array<{ kind: "message"; id: string; role: "user" | "ai"; text: string } | { kind: "tool"; stepId: number }>>([]);
+  // Tool history for run_state persistence
+  const toolHistoryRef = useRef<Array<{ name: string; completedAt: string }>>([]);
+  const humanizerInfoRef = useRef<PersistedRunState["humanizerInfo"] | undefined>(undefined);
   // Mini editor
   const [miniEditorOpen, setMiniEditorOpen] = useState(false);
   const [miniEditorExiting, setMiniEditorExiting] = useState(false);
@@ -563,6 +647,23 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   useEffect(() => {
     return subscribeThreadsAndFolders((t, f) => { setSidebarThreads(t); setSidebarFolders(f); });
   }, []);
+
+  // ── Persist run state snapshot to DB ──────────────────────────────────────
+  // Called after each tool completes. Fire-and-forget — never blocks the run.
+  const saveRunStateSnapshot = (currentRunState: GhostwriterRunState) => {
+    const tid = threadIdRef.current;
+    if (!tid) return;
+    try {
+      const snapshot = buildRunStateSnapshot(
+        currentRunState,
+        toolHistoryRef.current,
+        humanizerInfoRef.current,
+      );
+      void updateThread(tid, { runState: snapshot }).catch(() => {});
+    } catch {
+      // Non-fatal — snapshot build errors must never crash the run.
+    }
+  };
 
   // ── Load a saved thread into the current view ─────────────────────────────
   const [loadingThreadId, setLoadingThreadId] = useState<string | null>(null);
@@ -597,18 +698,95 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
       }));
       setTimeline([promptBubble, ...savedMsgs]);
 
-      // Synthetic finished run state so the essay panel renders
+      // Restore Organizer state from persisted run snapshot (if available)
+      const rs = thread.runState;
+      if (rs) {
+        // Restore refs for future saves
+        toolHistoryRef.current = rs.toolHistory ?? [];
+        humanizerInfoRef.current = rs.humanizerInfo;
+
+        // Restore Organizer fields so panels render with correct data
+        Organizer.set({
+          essayTopic: rs.context.essayTopic ?? thread.title,
+          analyzedEssayType: rs.context.essayType ?? "",
+          essayType: rs.context.essayType ?? "",
+          tone: rs.context.tone ?? "",
+          keywords: rs.context.keywords ?? "",
+          citationStyle: rs.context.citationStyle ?? thread.citationStyle ?? "",
+          ...(typeof rs.context.wordCount === "number" && { wordCount: rs.context.wordCount }),
+          outlines: (rs.context.outlines ?? []).map((o, i) => ({
+            id: o.id ?? String(i),
+            type: o.type ?? "body",
+            title: o.title,
+            description: o.description ?? "",
+            selected: true,
+            hidden: false,
+            isNew: false,
+          })),
+          selectedOutlines: (rs.context.selectedOutlines ?? []).map((o, i) => ({
+            id: o.id ?? String(i),
+            type: o.type ?? "body",
+            title: o.title,
+            description: o.description ?? "",
+          })),
+          compactedSources: (rs.compactedSources ?? []).map((c) => ({
+            sourceIndex: c.sourceIndex,
+            url: c.url,
+            kind: (c.kind as "search" | "pdf" | "image" | "fieldwork" | "manual") ?? "search",
+            title: c.title,
+            author: c.author,
+            publishedYear: c.publishedYear,
+            publisher: c.publisher,
+            compactedContent: c.compactedContent,
+          })),
+          // Restore source list (metadata only — fullContent not persisted)
+          manualSources: (rs.sources ?? []).map((s) => ({
+            url: s.url,
+            title: s.title,
+            author: s.author,
+            publishedYear: s.publishedYear,
+            publisher: s.publisher,
+            outlineMatchIndex: s.outlineMatchIndex,
+            fullContent: s.snippet ?? "",  // snippet only
+            status: "scraped" as const,
+          })),
+        });
+      }
+
+      // Synthetic finished run state — richer when we have a persisted snapshot
       setRunState({
         runId: thread.runId,
         status: "finished",
         goal: AGENT_GOAL,
         progress: { completed: 1, total: 1, percent: 100, label: "Finished" },
-        steps: [],
+        steps: rs?.steps?.map((s) => ({
+          id: s.id,
+          title: s.title,
+          detail: "",
+          status: "completed" as StepStatus,
+          thoughts: [],
+          toolName: "",
+        })) ?? [],
         context: {
-          essayTopic: thread.title,
-          topic: thread.title,
-          wordCount: thread.wordCount ?? undefined,
-          citationStyle: thread.citationStyle ?? undefined,
+          essayTopic: rs?.context.essayTopic ?? thread.title,
+          topic: rs?.context.essayTopic ?? thread.title,
+          wordCount: rs?.context.wordCount ?? thread.wordCount ?? undefined,
+          citationStyle: rs?.context.citationStyle ?? thread.citationStyle ?? undefined,
+          essayType: rs?.context.essayType,
+          outlines: rs?.context.selectedOutlines?.map((o) => ({
+            id: o.id ?? "",
+            type: o.type ?? "body",
+            title: o.title,
+            description: o.description ?? "",
+          })),
+          compactedSources: rs?.compactedSources?.map((c) => ({
+            url: c.url,
+            title: c.title,
+            author: c.author,
+            publishedYear: c.publishedYear,
+            publisher: c.publisher,
+            summary: c.compactedContent,  // map compactedContent → summary for context type
+          })),
         },
         pendingToolCall: null,
         pendingQuestion: null,
@@ -730,6 +908,8 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
           agentStepIdsRef.current = new Map();
           agentStepCountRef.current = 0;
           pendingThoughtsRef.current = [];
+          toolHistoryRef.current = [];
+          humanizerInfoRef.current = undefined;
           setRunState(buildAgenticRunState(startedRun.runId));
 
           // Persist thread to DB
@@ -898,10 +1078,26 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                   if (step) {
                     step.status = "completed";
                     step.detail = event.summary ?? "";
+                    // Record completed tool in history
+                    toolHistoryRef.current = [
+                      ...toolHistoryRef.current,
+                      { name: step.toolName || String(event.id), completedAt: new Date().toISOString() },
+                    ];
+                    // Track humanizer info
+                    if (step.toolName === "humanize_essay") {
+                      humanizerInfoRef.current = {
+                        provider: (step.toolArgs as { provider?: string })?.provider || "Unknown",
+                        preText: (essayContentRef.current || "").slice(0, 8000),
+                      };
+                    }
                   }
                   next.pendingToolCall = null;
                   next.pendingQuestion = null;
                   next.status = "running";
+                  // Persist snapshot after step completes — pass computed next
+                  // via setTimeout so the ref/Organizer state is fully settled.
+                  const snapState = next;
+                  setTimeout(() => saveRunStateSnapshot(snapState), 0);
                   break;
                 }
                 case "step_error": {
@@ -1044,6 +1240,14 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
           const raw = Organizer.get().exportDocument;
           setHumanizedExportDoc(raw ? await paginateSnapshot(raw) : null);
         }
+        // Track humanizer info before it's overwritten
+        if (toolName === "humanize_essay" && result && typeof result === "object") {
+          const res = result as { humanized?: string; provider?: string };
+          humanizerInfoRef.current = {
+            provider: res.provider || "Unknown",
+            preText: (essayContentRef.current || "").slice(0, 8000), // cap at 8KB
+          };
+        }
 
         // ─── Submit result to engine (also retry on network blips) ───────
         let nextState: GhostwriterRunState | null = null;
@@ -1060,7 +1264,16 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
           }
         }
         if (submitError) throw submitError;
-        if (nextState) setRunState(nextState);
+
+        // ─── Persist run state snapshot after each successful tool ───────
+        if (nextState) {
+          toolHistoryRef.current = [
+            ...toolHistoryRef.current,
+            { name: toolName, completedAt: new Date().toISOString() },
+          ];
+          setRunState(nextState);
+          saveRunStateSnapshot(nextState);
+        }
       } catch (error) {
         setRetryingStep(null);
         const message = error instanceof Error ? error.message : "Tool execution failed.";
