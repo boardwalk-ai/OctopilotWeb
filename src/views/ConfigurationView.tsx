@@ -9,6 +9,7 @@ import { AccountStateService } from "@/services/AccountStateService";
 import { CitationTemplateService } from "@/services/CitationTemplateService";
 import { AlvinService } from "@/services/AlvinService";
 import { ScraperService } from "@/services/ScraperService";
+import { searchSourcesStreaming } from "@/services/SourceSearchService";
 import { ZulyService } from "@/services/ZulyService";
 import { SpoonieAuthorInput, SpoonieFieldworkCitationInput, SpoonieService } from "@/services/SpoonieService";
 import { TestService } from "@/services/TestService";
@@ -1577,53 +1578,70 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
     };
 
     const handleJasmineSearch = async () => {
+        const orgSnap = Organizer.get();
+        const topic = orgSnap.essayTopic || "";
+        const outlines =
+            orgSnap.selectedOutlines.length > 0 ? orgSnap.selectedOutlines : orgSnap.outlines;
+
+        // Snapshot empty slots at the start so we can fill them in order.
         const emptyIndices = manualSources
             .map((src, idx) => (src.url.trim() === "" ? idx : -1))
             .filter((idx) => idx !== -1);
 
-        if (emptyIndices.length === 0) {
-            alert("No empty source boxes available. Please clear some links or add a new box first.");
-            return;
-        }
-
         setIsSearching(true);
+        let placedCount = 0;
+
         try {
-            // Request 3× the empty-box count (minimum 15) so that scrape failures
-            // still leave plenty of good sources. Extra results beyond the empty
-            // boxes are appended as new rows rather than being thrown away.
-            const requestCount = Math.max(15, emptyIndices.length * 3);
-            const results = await AlvinService.searchSources(requestCount);
+            await searchSourcesStreaming({
+                essayTopic: topic,
+                outlines: outlines.map((o) => ({
+                    type: (o as { type?: string }).type,
+                    title: o.title,
+                    description: (o as { description?: string }).description,
+                })),
+                targetCount: 12,
+                onSource: (src) => {
+                    // Resolve outline match title from snapshot (avoids stale closure).
+                    const outlineMatchIndex = src.outlineIndex;
+                    const outlineMatchTitle =
+                        outlineMatchIndex != null
+                            ? (orgSnap.selectedOutlines[outlineMatchIndex - 1]?.title ??
+                              orgSnap.outlines[outlineMatchIndex - 1]?.title ??
+                              undefined)
+                            : undefined;
 
-            // Fill existing empty boxes first, then append the rest as new rows.
-            const newSources = [...manualSources];
-
-            results.forEach((res, i) => {
-                if (i < emptyIndices.length) {
-                    // Fill an existing empty box.
-                    const mappedIdx = emptyIndices[i];
-                    newSources[mappedIdx] = {
-                        ...newSources[mappedIdx],
-                        url: res.website_URL,
-                        status: "loading",
+                    const newSource: SourceData = {
+                        url: src.url,
+                        title: src.title || undefined,
+                        author: src.author || undefined,
+                        publishedYear: src.publishedYear || undefined,
+                        publisher: src.publisher || undefined,
+                        fullContent: src.fullContent,
+                        outlineMatchIndex,
+                        outlineMatchTitle,
+                        status: "scraped",
                     };
-                } else {
-                    // Append extra results as new source boxes.
-                    newSources.push({ url: res.website_URL, status: "loading" });
-                }
-            });
-            setManualSources(newSources);
 
-            // Fire scrapes for all results (existing boxes + new rows).
-            results.forEach((res, i) => {
-                const targetIdx = i < emptyIndices.length
-                    ? emptyIndices[i]
-                    : manualSources.length + (i - emptyIndices.length);
-                triggerScrape(targetIdx, res.website_URL, res);
+                    const slot = placedCount++;
+
+                    if (slot < emptyIndices.length) {
+                        // Fill an existing empty box — animate it in place.
+                        const targetIdx = emptyIndices[slot];
+                        setManualSources((prev) => {
+                            const next = [...prev];
+                            next[targetIdx] = newSource;
+                            return next;
+                        });
+                    } else {
+                        // Append a new row — it slides in at the bottom.
+                        setManualSources((prev) => [...prev, newSource]);
+                    }
+                },
             });
         } catch (err: unknown) {
             console.error(err);
             const message = err instanceof Error ? err.message : "Unknown error";
-            alert("Alvin failed to search: " + message);
+            alert("Source search failed: " + message);
         } finally {
             setIsSearching(false);
         }

@@ -4,6 +4,7 @@ import { HeinService } from "./HeinService";
 import { LilyService } from "./LilyService";
 import { AlvinService, AlvinSearchResult } from "./AlvinService";
 import { ScraperService } from "./ScraperService";
+import { searchSourcesStreaming } from "./SourceSearchService";
 import { ZulyService } from "./ZulyService";
 import { LucasService } from "./LucasService";
 import { FormatterService } from "./FormatterService";
@@ -224,68 +225,53 @@ export class GhostwriterOrchestrator {
      * Gather sources with retry loop:
      * - Search → scrape each source individually
      * - Remove failed scrapes
-     * - Loop until 5+ successful sources (max 4 rounds)
-     * - Deduplicate across rounds by URL
+     * Now powered by the unified /api/sources/search SSE endpoint — same
+     * adaptive AI strategy as Ghostwriter's agentic path.
      */
     static async gatherSourcesWithRetry(): Promise<{
         goodSources: SourceData[];
         allSearchResults: AlvinSearchResult[];
         compactedCount: number;
     }> {
-        const usedUrls = new Set<string>();
+        const state = Organizer.get();
         const goodSources: SourceData[] = [];
+        // allSearchResults kept for backward-compat with callers that display
+        // the raw search list in the sidebar. We synthesise it from good sources.
         const allSearchResults: AlvinSearchResult[] = [];
-        const MAX_ROUNDS = 6;
-        const TARGET_GOOD = 12;
 
-        for (let round = 0; round < MAX_ROUNDS && goodSources.length < TARGET_GOOD; round++) {
-            const targetCount = Math.max(10, (TARGET_GOOD - goodSources.length) * 2 + 2);
-            const results = await AlvinService.searchSources(targetCount);
+        await searchSourcesStreaming({
+            essayTopic: state.essayTopic || "",
+            outlines: state.selectedOutlines.length > 0 ? state.selectedOutlines : state.outlines,
+            targetCount: 12,
+            onSource: (src) => {
+                const source: SourceData = {
+                    url: src.url,
+                    title: src.title,
+                    author: src.author,
+                    publishedYear: src.publishedYear,
+                    publisher: src.publisher,
+                    fullContent: src.fullContent,
+                    status: "scraped",
+                };
+                goodSources.push(source);
+                // Keep sidebar updated as sources arrive one-by-one.
+                Organizer.set({
+                    manualSources: [...goodSources],
+                    selectedSourceCount: goodSources.length,
+                });
+                // Synthesise AlvinSearchResult for sidebar display.
+                allSearchResults.push({
+                    website_URL: src.url,
+                    Title: src.title,
+                    Author: src.author ?? "",
+                    "Published Year": src.publishedYear ?? "",
+                    Publisher: src.publisher ?? "",
+                    outline_index: src.outlineIndex,
+                });
+            },
+        });
 
-            // Filter duplicates
-            const newResults = results.filter((r) => !usedUrls.has(r.website_URL));
-            newResults.forEach((r) => usedUrls.add(r.website_URL));
-
-            if (newResults.length === 0) break;
-
-            // Track for sidebar display
-            allSearchResults.push(...newResults);
-
-            // Update organizer manualSources with loading placeholders
-            const loadingSlots: SourceData[] = newResults.map((r) => ({
-                url: r.website_URL,
-                title: r.Title,
-                author: r.Author,
-                publishedYear: r["Published Year"],
-                publisher: r.Publisher,
-                status: "loading",
-            }));
-            Organizer.set({ manualSources: [...goodSources, ...loadingSlots] });
-
-            // Scrape each one individually
-            for (const result of newResults) {
-                if (goodSources.length >= TARGET_GOOD) break;
-                try {
-                    const scraped = await ScraperService.scrape(result.website_URL);
-                    const source: SourceData = {
-                        url: result.website_URL,
-                        title: scraped.title || result.Title,
-                        author: result.Author,
-                        publishedYear: result["Published Year"],
-                        publisher: scraped.publisher || result.Publisher,
-                        fullContent: scraped.fullContent || "",
-                        status: "scraped",
-                    };
-                    goodSources.push(source);
-                } catch {
-                    // Skip failed — auto-removed by not adding to goodSources
-                }
-                // Update organizer with current good sources
-                Organizer.set({ manualSources: [...goodSources], selectedSourceCount: goodSources.length });
-            }
-        }
-
-        // Compact whatever we have
+        // Compact whatever we have.
         await ZulyService.compactAllSources();
         const compacted = Organizer.get().compactedSources;
 
