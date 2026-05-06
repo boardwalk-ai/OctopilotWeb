@@ -235,8 +235,8 @@ export class GhostwriterOrchestrator {
         const usedUrls = new Set<string>();
         const goodSources: SourceData[] = [];
         const allSearchResults: AlvinSearchResult[] = [];
-        const MAX_ROUNDS = 4;
-        const TARGET_GOOD = 8;
+        const MAX_ROUNDS = 6;
+        const TARGET_GOOD = 12;
 
         for (let round = 0; round < MAX_ROUNDS && goodSources.length < TARGET_GOOD; round++) {
             const targetCount = Math.max(10, (TARGET_GOOD - goodSources.length) * 2 + 2);

@@ -1588,28 +1588,37 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
 
         setIsSearching(true);
         try {
-            const results = await AlvinService.searchSources(emptyIndices.length);
+            // Request 3× the empty-box count (minimum 15) so that scrape failures
+            // still leave plenty of good sources. Extra results beyond the empty
+            // boxes are appended as new rows rather than being thrown away.
+            const requestCount = Math.max(15, emptyIndices.length * 3);
+            const results = await AlvinService.searchSources(requestCount);
 
-            // Populate boxes with loading status immediately
+            // Fill existing empty boxes first, then append the rest as new rows.
             const newSources = [...manualSources];
+
             results.forEach((res, i) => {
                 if (i < emptyIndices.length) {
+                    // Fill an existing empty box.
                     const mappedIdx = emptyIndices[i];
                     newSources[mappedIdx] = {
                         ...newSources[mappedIdx],
                         url: res.website_URL,
-                        status: "loading"
+                        status: "loading",
                     };
+                } else {
+                    // Append extra results as new source boxes.
+                    newSources.push({ url: res.website_URL, status: "loading" });
                 }
             });
             setManualSources(newSources);
 
-            // Fire fire-and-forget background scrapes
+            // Fire scrapes for all results (existing boxes + new rows).
             results.forEach((res, i) => {
-                if (i < emptyIndices.length) {
-                    const mappedIdx = emptyIndices[i];
-                    triggerScrape(mappedIdx, res.website_URL, res);
-                }
+                const targetIdx = i < emptyIndices.length
+                    ? emptyIndices[i]
+                    : manualSources.length + (i - emptyIndices.length);
+                triggerScrape(targetIdx, res.website_URL, res);
             });
         } catch (err: unknown) {
             console.error(err);

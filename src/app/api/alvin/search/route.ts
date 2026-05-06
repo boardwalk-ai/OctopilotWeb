@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-        const safeTargetCount = Math.max(1, Math.min(20, Number(targetCount) || 1));
+        const safeTargetCount = Math.max(1, Math.min(30, Number(targetCount) || 1));
         const { apiKey, model } = await getOpenRouterConfig("source_search");
 
         // Read Alvin's system prompt from the agent file
