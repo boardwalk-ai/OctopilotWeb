@@ -1000,6 +1000,8 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   // single source of truth for event → state transitions.
   const makeEventHandler = (runId: string) => (event: AgentEvent): void => {
     if (event.type === "essay_delta") {
+      // Update ref directly so it's current when step_done fires (don't wait for useEffect)
+      essayContentRef.current += event.chunk;
       setEssayStreamContent((prev) => prev + event.chunk);
       return;
     }
@@ -1102,6 +1104,12 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
             step.detail = event.summary ?? "";
             toolHistoryRef.current = [...toolHistoryRef.current, { name: step.toolName || String(event.id), completedAt: new Date().toISOString() }];
             if (step.toolName === "humanize_essay") humanizerInfoRef.current = { provider: (step.toolArgs as { provider?: string })?.provider || "Unknown", preText: (essayContentRef.current || "").slice(0, 8000) };
+            // Persist essay immediately when write_essay completes — don't wait for run end
+            if (step.toolName === "write_essay") {
+              const _tid = threadIdRef.current;
+              const _essay = essayContentRef.current;
+              if (_tid && _essay) setTimeout(() => void updateThread(_tid, { essay: _essay }).catch(() => {}), 0);
+            }
           }
           next.pendingToolCall = null;
           next.pendingQuestion = null;
@@ -2027,7 +2035,9 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                           next.has(folder.id) ? next.delete(folder.id) : next.add(folder.id);
                           return next;
                         })}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: folder.color, flexShrink: 0, display: "inline-block" }} />
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill={folder.color} stroke="none" style={{ flexShrink: 0 }}>
+                          <path d="M3 7a2 2 0 0 1 2-2h4.586a1 1 0 0 1 .707.293L11.707 6.7A1 1 0 0 0 12.414 7H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>
+                        </svg>
                         <strong style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder.name}</strong>
                         <span style={{ opacity: 0.35, fontSize: 10 }}>{folderThreads.length}</span>
                       </button>
