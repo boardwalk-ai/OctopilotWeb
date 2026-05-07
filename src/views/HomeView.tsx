@@ -23,6 +23,7 @@ import WritingChamberView from "@/views/WritingChamberView";
 import GhostwriterView from "@/views/GhostwriterView";
 import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
+import HumanizerHubView from "@/views/HumanizerHubView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
@@ -208,29 +209,21 @@ export default function HomeView() {
     );
   }
 
-  if (page === "humanizerhub" || page === "ghostciter") {
-    const isHumanizerHub = page === "humanizerhub";
-    const accentColor = isHumanizerHub ? "#f59e0b" : "#0ea5e9";
-    const label = isHumanizerHub ? "Humanizer Hub" : "GhostCiter";
+  if (page === "humanizerhub") {
+    return <HumanizerHubView onBack={() => setPage("methodology")} />;
+  }
+
+  if (page === "ghostciter") {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-center">
-        <div
-          className="flex h-16 w-16 items-center justify-center rounded-2xl"
-          style={{ background: `${accentColor}18` }}
-        >
-          {isHumanizerHub ? (
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          ) : (
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
-              <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
-            </svg>
-          )}
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: "#0ea5e918" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+            <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+          </svg>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">{label}</h1>
+          <h1 className="text-2xl font-bold text-white">GhostCiter</h1>
           <p className="mt-2 text-sm text-white/40">Coming soon — this feature is in active development.</p>
         </div>
         <button
