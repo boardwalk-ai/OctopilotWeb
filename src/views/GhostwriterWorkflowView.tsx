@@ -753,9 +753,12 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
         });
       }
 
-      // Synthetic finished run state — richer when we have a persisted snapshot
+      // Synthetic finished run state — richer when we have a persisted snapshot.
+      // runId is intentionally cleared: the original in-memory run no longer
+      // exists after a page reload / server restart, so we must not let the
+      // chat bar POST to that stale ID (which would 404).
       setRunState({
-        runId: thread.runId,
+        runId: "",
         status: "finished",
         goal: AGENT_GOAL,
         progress: { completed: 1, total: 1, percent: 100, label: "Finished" },
@@ -2567,6 +2570,8 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                   ? "Ask for different focus areas, or describe what to emphasize…"
                   : (runState?.status as string) === "revision_mode"
                   ? "Ask for revisions, or type \"done\" to finish…"
+                  : runState?.status === "finished" && !runState?.runId
+                  ? "Session ended — start a new essay to continue chatting"
                   : "Ask Ghostwriter anything about your essay…"
               }
               value={chatMessage}
