@@ -1952,18 +1952,27 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                 {/* Create folder */}
                 <div className={styles.threadCreateFolderWrap}>
                   {creatingFolder ? (
-                    <input
-                      autoFocus
-                      type="text"
-                      className={styles.threadCreateFolderInput}
-                      placeholder="Folder name…"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void handleCreateFolderAndMove(t.id);
-                        if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                      }}
-                    />
+                    <div className={styles.threadCreateFolderRow}>
+                      <input
+                        autoFocus
+                        type="text"
+                        className={styles.threadCreateFolderInput}
+                        placeholder="Folder name…"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void handleCreateFolderAndMove(t.id);
+                          if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className={styles.threadCreateFolderConfirm}
+                        onClick={() => void handleCreateFolderAndMove(t.id)}
+                      >
+                        Create
+                      </button>
+                    </div>
                   ) : (
                     <button
                       type="button"
