@@ -624,6 +624,9 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   // Tool history for run_state persistence
   const toolHistoryRef = useRef<Array<{ name: string; completedAt: string }>>([]);
   const humanizerInfoRef = useRef<PersistedRunState["humanizerInfo"] | undefined>(undefined);
+  // Tracks how many chat messages have already been persisted so the continuous-
+  // save effect only fires when new ones arrive (prevents re-saving on load).
+  const lastSavedMsgCountRef = useRef(0);
   // Mini editor
   const [miniEditorOpen, setMiniEditorOpen] = useState(false);
   const [miniEditorExiting, setMiniEditorExiting] = useState(false);
@@ -678,12 +681,24 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
       agentDisconnectRef.current?.();
       agentDisconnectRef.current = null;
 
+      // ── Part 2: fix orphaned "running" threads ────────────────────────────
+      // If the thread is still marked "running" in the DB it means the server
+      // restarted mid-run and the in-memory AgentRun is gone. Patch the status
+      // so the sidebar stops showing "Running…" indefinitely.
+      if (thread.status === "running") {
+        const fixedStatus = thread.essay ? "finished" : "error";
+        void updateThread(threadId, { status: fixedStatus }).catch(() => {});
+        thread.status = fixedStatus; // update local copy for the rest of this function
+      }
+
       // Populate essay
       setEssayStreamContent(thread.essay ?? "");
       essayContentRef.current = thread.essay ?? "";
 
       // Populate timeline from saved messages (prepend the thread's prompt as
-      // the initial user bubble, then the saved chat messages after it)
+      // the initial user bubble, then the saved chat messages after it).
+      // "initial-prompt" is stored in thread.prompt — excluded from thread.messages
+      // to avoid duplicates.
       const promptBubble: { kind: "message"; id: string; role: "user" | "ai"; text: string } = {
         kind: "message",
         id: "initial-prompt",
@@ -697,6 +712,10 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
         text: m.text,
       }));
       setTimeline([promptBubble, ...savedMsgs]);
+
+      // Tell the continuous-save effect that these messages are already in the
+      // DB so it doesn't immediately re-write them on mount.
+      lastSavedMsgCountRef.current = savedMsgs.length;
 
       // Restore Organizer state from persisted run snapshot (if available)
       const rs = thread.runState;
@@ -807,6 +826,28 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   useEffect(() => { essayContentRef.current = essayStreamContent; }, [essayStreamContent]);
   useEffect(() => { timelineRef.current = timeline; }, [timeline]);
 
+  // ── Continuous message persistence ───────────────────────────────────────────
+  // Every time a new chat message lands in the timeline (user or AI), we write
+  // the full messages array to the DB immediately — not just at run completion.
+  // This gives ChatGPT-style durability: reloading the thread always shows the
+  // full conversation regardless of when the server last restarted.
+  //
+  // We exclude the "initial-prompt" bubble (stored in thread.prompt already)
+  // and skip saves when no new messages have arrived (count guard).
+  useEffect(() => {
+    const tid = threadIdRef.current;
+    if (!tid) return;
+    const messages = timeline
+      .filter((e): e is { kind: "message"; id: string; role: "user" | "ai"; text: string } =>
+        e.kind === "message" && e.id !== "initial-prompt",
+      )
+      .map(({ role, text }) => ({ role, text }));
+    // Only write when new messages have appeared since the last save.
+    if (messages.length <= lastSavedMsgCountRef.current) return;
+    lastSavedMsgCountRef.current = messages.length;
+    void updateThread(tid, { messages }).catch(() => {});
+  }, [timeline]);
+
   // Play error sound whenever a new step error is recorded
   const stepErrorsSize = stepErrors.size;
   useEffect(() => {
@@ -913,6 +954,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
           pendingThoughtsRef.current = [];
           toolHistoryRef.current = [];
           humanizerInfoRef.current = undefined;
+          lastSavedMsgCountRef.current = 0; // fresh run — no messages saved yet
           setRunState(buildAgenticRunState(startedRun.runId));
 
           // Persist thread to DB
