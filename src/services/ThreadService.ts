@@ -191,7 +191,7 @@ export async function createFolder(
   const res = await fetchWithUserAuthorization("/api/ghostwriter/folders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, color, order: Date.now() }),
+    body: JSON.stringify({ name, color, order: Math.floor(Date.now() / 1000) }),
   });
   if (!res.ok) throw new Error(`Create folder failed: ${res.status}`);
   return res.json() as Promise<GwFolder>;
