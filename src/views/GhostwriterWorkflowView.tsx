@@ -711,14 +711,21 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
         role: m.role,
         text: m.text,
       }));
-      setTimeline([promptBubble, ...savedMsgs]);
-
       // Tell the continuous-save effect that these messages are already in the
       // DB so it doesn't immediately re-write them on mount.
       lastSavedMsgCountRef.current = savedMsgs.length;
 
       // Restore Organizer state from persisted run snapshot (if available)
       const rs = thread.runState;
+
+      // Reconstruct tool card entries from the persisted step list so that the
+      // step cards appear in the timeline just as they did during the live run.
+      // Steps go between the initial prompt bubble and the chat messages.
+      const toolEntries: TimelineEntry[] = (rs?.steps ?? []).map((s) => ({
+        kind: "tool" as const,
+        stepId: s.id,
+      }));
+      setTimeline([promptBubble, ...toolEntries, ...savedMsgs]);
       if (rs) {
         // Restore refs for future saves
         toolHistoryRef.current = rs.toolHistory ?? [];
@@ -931,6 +938,220 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
     }));
   }, [runState?.context.compactedSources, runState?.context.searchResults]);
 
+  // ── Shared SSE event handler ─────────────────────────────────────────────────
+  // Factory: returns the full agent event handler bound to a specific runId.
+  // Shared between the initial run start and any resume runs so there's a
+  // single source of truth for event → state transitions.
+  const makeEventHandler = (runId: string) => (event: AgentEvent): void => {
+    if (event.type === "essay_delta") {
+      setEssayStreamContent((prev) => prev + event.chunk);
+      return;
+    }
+    if (event.type === "assistant_delta") {
+      const delta = event.chunk || "";
+      if (delta) setAssistantStreaming((prev) => prev + delta);
+      return;
+    }
+    if (event.type === "user_message") {
+      const text = (event.text || "").trim();
+      if (text) {
+        if (pendingUserMessagesRef.current.has(text)) {
+          pendingUserMessagesRef.current.delete(text);
+        } else {
+          setTimeline((prev) => [...prev, { kind: "message", id: `u-${Date.now()}`, role: "user", text }]);
+        }
+      }
+      return;
+    }
+    if (event.type === "assistant_message") {
+      const text = (event.text || "").trim();
+      if (text) setTimeline((prev) => [...prev, { kind: "message", id: `ai-${Date.now()}`, role: "ai", text }]);
+      setAssistantStreaming("");
+      return;
+    }
+    if (event.type === "token_usage") {
+      setTotalTokensUsed((prev) => prev + event.totalTokens);
+      setPromptTokensUsed((prev) => prev + (event.promptTokens ?? 0));
+      setCompletionTokensUsed((prev) => prev + (event.completionTokens ?? 0));
+      return;
+    }
+    if (event.type === "done" && event.exportDoc) {
+      void paginateSnapshot(event.exportDoc).then((snapshot) => { setOriginalExportDoc(snapshot); });
+    }
+    if (event.type === "fatal") setRunError(event.error);
+
+    if (event.type === "step_error") {
+      const stepId = agentStepIdsRef.current.get(event.id);
+      if (stepId) {
+        setStepErrors((prev) => {
+          const next = new Map(prev);
+          next.set(stepId, { stepId, toolName: "", message: event.error, recovery: [{ kind: "restart", label: "Start over" }] });
+          return next;
+        });
+      }
+    }
+
+    if (event.type === "step_start") {
+      agentStepCountRef.current += 1;
+      const stepId = agentStepCountRef.current;
+      agentStepIdsRef.current.set(event.id, stepId);
+      const capturedThoughts = pendingThoughtsRef.current.slice();
+      pendingThoughtsRef.current = [];
+      setAssistantStreaming("");
+      setTimeline((prev) => [...prev, { kind: "tool", stepId }]);
+      if (event.tool === "write_essay") { setEssayStreamContent(""); setEditingOpen(true); }
+      setRunState((prev) => {
+        const current = prev || buildAgenticRunState(runId);
+        const next = { ...current, steps: [...current.steps] };
+        next.steps.push({ id: stepId, title: event.title, detail: "", status: "running", thoughts: capturedThoughts, toolName: event.tool, toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined });
+        next.pendingToolCall = { id: event.id, name: event.tool as GhostwriterToolCall["name"], args: (event.args as Record<string, unknown> | undefined) || undefined };
+        next.status = "running";
+        next.progress = buildDynamicProgress(next.steps);
+        return next;
+      });
+      return;
+    }
+
+    setRunState((prev) => {
+      const current = prev || buildAgenticRunState(runId);
+      const next = { ...current, context: { ...current.context }, steps: [...current.steps] };
+
+      switch (event.type) {
+        case "thought": {
+          const delta = event.text;
+          if (!delta) break;
+          const runningStep = next.steps.find((s) => s.status === "running");
+          if (runningStep) {
+            const thoughts = runningStep.thoughts ?? [];
+            if (thoughts.length > 0) { const updated = [...thoughts]; updated[updated.length - 1] = updated[updated.length - 1] + delta; runningStep.thoughts = updated; }
+            else runningStep.thoughts = [delta];
+          } else {
+            const pending = pendingThoughtsRef.current;
+            if (pending.length > 0) pending[pending.length - 1] = pending[pending.length - 1] + delta;
+            else pendingThoughtsRef.current = [delta];
+          }
+          break;
+        }
+        case "step_progress": {
+          const stepId = agentStepIdsRef.current.get(event.id);
+          const step = next.steps.find((item) => item.id === stepId);
+          if (step) step.detail = event.detail;
+          break;
+        }
+        case "step_done": {
+          const stepId = agentStepIdsRef.current.get(event.id);
+          const step = next.steps.find((item) => item.id === stepId);
+          if (step) {
+            step.status = "completed";
+            step.detail = event.summary ?? "";
+            toolHistoryRef.current = [...toolHistoryRef.current, { name: step.toolName || String(event.id), completedAt: new Date().toISOString() }];
+            if (step.toolName === "humanize_essay") humanizerInfoRef.current = { provider: (step.toolArgs as { provider?: string })?.provider || "Unknown", preText: (essayContentRef.current || "").slice(0, 8000) };
+          }
+          next.pendingToolCall = null;
+          next.pendingQuestion = null;
+          next.status = "running";
+          const snapState = next;
+          setTimeout(() => saveRunStateSnapshot(snapState), 0);
+          break;
+        }
+        case "step_error": {
+          const stepId = agentStepIdsRef.current.get(event.id);
+          const step = next.steps.find((item) => item.id === stepId);
+          if (step) step.detail = event.error;
+          next.pendingToolCall = null;
+          next.status = "error";
+          break;
+        }
+        case "question": {
+          const active = next.steps.find((step) => step.status === "running");
+          if (active) active.status = "blocked";
+          next.pendingQuestion = normalizeAgentQuestion(event);
+          next.pendingToolCall = null;
+          next.status = "waiting_for_user";
+          break;
+        }
+        case "context_update": {
+          const patch = event.patch as Partial<GhostwriterRunState["context"]>;
+          next.context = { ...next.context, ...patch };
+          if (typeof patch.essayTopic === "string" && !next.context.topic) next.context.topic = patch.essayTopic;
+          if (typeof patch.essayTopic === "string" && threadIdRef.current) void updateThread(threadIdRef.current, { title: patch.essayTopic as string }).catch(() => {});
+          if (patch.exportDoc) void paginateSnapshot(patch.exportDoc).then((s) => setOriginalExportDoc(s));
+          if (patch.humanizedExportDoc) void paginateSnapshot(patch.humanizedExportDoc).then((s) => setHumanizedExportDoc(s));
+          break;
+        }
+        case "done": {
+          next.status = "revision_mode" as typeof next.status;
+          next.pendingToolCall = null;
+          next.pendingQuestion = null;
+          next.steps = next.steps.map((s) => s.status === "running" ? { ...s, status: "completed" } : s);
+          break;
+        }
+        case "fatal": {
+          next.status = "error";
+          next.error = event.error;
+          break;
+        }
+        default: break;
+      }
+
+      next.progress = buildDynamicProgress(next.steps);
+      return next;
+    });
+  };
+
+  // ── Resume a dead thread by starting a fresh agent run ────────────────────────
+  // Called when the user sends a message on a loaded thread whose original
+  // in-memory run no longer exists. Builds a compact resume prompt (original
+  // request + existing essay + prior conversation) and spins up a new run that
+  // enters revision mode directly — no re-running of essay-writing steps.
+  const startResumeRun = async (firstMessage: string) => {
+    const tid = threadIdRef.current;
+    const essay = essayContentRef.current;
+
+    const history = timelineRef.current
+      .filter((e): e is { kind: "message"; id: string; role: "user" | "ai"; text: string } =>
+        e.kind === "message" && e.id !== "initial-prompt",
+      )
+      .map((e) => `${e.role === "user" ? "User" : "Ghostwriter"}: ${e.text}`)
+      .join("\n\n");
+
+    const resumeInstruction = [
+      "[RESUMED SESSION — essay already completed]",
+      `Original request: ${draft.prompt}`,
+      essay ? `\nCompleted essay:\n---\n${essay.slice(0, 10000)}\n---` : "",
+      history ? `\nConversation so far:\n${history}` : "",
+      `\nUser now says: ${firstMessage}`,
+      "\nYou are in revision mode. Do NOT re-run plan_essay, generate_outlines, search_sources, or write_essay unless the user explicitly requests a full rewrite. Respond to the user's message and help with any changes they need.",
+    ].filter(Boolean).join("\n");
+
+    try {
+      const startedRun = await GhostwriterAgentClient.start(
+        { instruction: resumeInstruction, detectedSettings: {} },
+        streamModeOverride,
+      );
+
+      agentStepIdsRef.current = new Map();
+      agentStepCountRef.current = 0;
+      pendingThoughtsRef.current = [];
+
+      setRunState((prev) =>
+        prev
+          ? { ...prev, runId: startedRun.runId, status: "running" as const }
+          : buildAgenticRunState(startedRun.runId),
+      );
+
+      agentDisconnectRef.current?.();
+      agentDisconnectRef.current = await GhostwriterAgentClient.connect(
+        startedRun.runId,
+        makeEventHandler(startedRun.runId),
+      );
+
+      if (tid) void updateThread(tid, { status: "running" }).catch(() => {});
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Failed to resume session.");
+    }
+  };
+
   useEffect(() => {
     if (hasStarted.current) return;
     hasStarted.current = true;
@@ -970,243 +1191,10 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
             onThreadCreated?.(thread.id);
           } catch { /* non-fatal — sidebar will just miss this thread */ }
 
-          agentDisconnectRef.current = await GhostwriterAgentClient.connect(startedRun.runId, (event) => {
-            if (event.type === "essay_delta") {
-              setEssayStreamContent((prev) => prev + event.chunk);
-              return;
-            }
-
-            if (event.type === "assistant_delta") {
-              const delta = event.chunk || "";
-              if (delta) setAssistantStreaming((prev) => prev + delta);
-              return;
-            }
-
-            if (event.type === "user_message") {
-              const text = (event.text || "").trim();
-              if (text) {
-                // If we already added this message locally (from the send handler),
-                // skip the SSE duplicate to prevent ordering issues.
-                if (pendingUserMessagesRef.current.has(text)) {
-                  pendingUserMessagesRef.current.delete(text);
-                } else {
-                  setTimeline((prev) => [...prev, { kind: "message", id: `u-${Date.now()}`, role: "user", text }]);
-                }
-              }
-              return;
-            }
-
-            if (event.type === "assistant_message") {
-              const text = (event.text || "").trim();
-              if (text) {
-                setTimeline((prev) => [...prev, { kind: "message", id: `ai-${Date.now()}`, role: "ai", text }]);
-              }
-              setAssistantStreaming("");
-              return;
-            }
-
-            if (event.type === "token_usage") {
-              setTotalTokensUsed((prev) => prev + event.totalTokens);
-              setPromptTokensUsed((prev) => prev + (event.promptTokens ?? 0));
-              setCompletionTokensUsed((prev) => prev + (event.completionTokens ?? 0));
-              return;
-            }
-
-            if (event.type === "done" && event.exportDoc) {
-              void paginateSnapshot(event.exportDoc).then((snapshot) => {
-                setOriginalExportDoc(snapshot);
-              });
-            }
-
-            if (event.type === "fatal") {
-              setRunError(event.error);
-            }
-
-            if (event.type === "step_error") {
-              const stepId = agentStepIdsRef.current.get(event.id);
-              if (stepId) {
-                setStepErrors((prev) => {
-                  const next = new Map(prev);
-                  next.set(stepId, {
-                    stepId,
-                    toolName: "",
-                    message: event.error,
-                    recovery: [{ kind: "restart", label: "Start over" }],
-                  });
-                  return next;
-                });
-              }
-            }
-
-            // step_start is handled outside setRunState so we can also update
-            // the unified timeline in the same render batch.
-            if (event.type === "step_start") {
-              agentStepCountRef.current += 1;
-              const stepId = agentStepCountRef.current;
-              agentStepIdsRef.current.set(event.id, stepId);
-              const capturedThoughts = pendingThoughtsRef.current.slice();
-              pendingThoughtsRef.current = [];
-              // Commit any streaming text before the tool card appears.
-              setAssistantStreaming("");
-              // Add tool reference to unified timeline.
-              setTimeline((prev) => [...prev, { kind: "tool", stepId }]);
-              if (event.tool === "write_essay") {
-                setEssayStreamContent("");
-                setEditingOpen(true);
-              }
-              setRunState((prev) => {
-                const current = prev || buildAgenticRunState(startedRun.runId);
-                const next = { ...current, steps: [...current.steps] };
-                next.steps.push({
-                  id: stepId,
-                  title: event.title,
-                  detail: "",
-                  status: "running",
-                  thoughts: capturedThoughts,
-                  toolName: event.tool,
-                  toolArgs: (event.args as Record<string, unknown> | undefined) ?? undefined,
-                });
-                next.pendingToolCall = {
-                  id: event.id,
-                  name: event.tool as GhostwriterToolCall["name"],
-                  args: (event.args as Record<string, unknown> | undefined) || undefined,
-                };
-                next.status = "running";
-                next.progress = buildDynamicProgress(next.steps);
-                return next;
-              });
-              return;
-            }
-
-            setRunState((prev) => {
-              const current = prev || buildAgenticRunState(startedRun.runId);
-              const next = { ...current, context: { ...current.context }, steps: [...current.steps] };
-
-              switch (event.type) {
-                case "thought": {
-                  // Streaming delta — append to the LAST thought entry rather than
-                  // creating a new one per token. The block stays open so the user
-                  // sees the text grow in real time.
-                  const delta = event.text;
-                  if (!delta) break;
-                  const runningStep = next.steps.find((s) => s.status === "running");
-                  if (runningStep) {
-                    const thoughts = runningStep.thoughts ?? [];
-                    if (thoughts.length > 0) {
-                      // Append to the current (last) entry.
-                      const updated = [...thoughts];
-                      updated[updated.length - 1] = updated[updated.length - 1] + delta;
-                      runningStep.thoughts = updated;
-                    } else {
-                      runningStep.thoughts = [delta];
-                    }
-                  } else {
-                    // Buffer until the next step_start captures it.
-                    const pending = pendingThoughtsRef.current;
-                    if (pending.length > 0) {
-                      pending[pending.length - 1] = pending[pending.length - 1] + delta;
-                    } else {
-                      pendingThoughtsRef.current = [delta];
-                    }
-                  }
-                  break;
-                }
-                case "step_progress": {
-                  const stepId = agentStepIdsRef.current.get(event.id);
-                  const step = next.steps.find((item) => item.id === stepId);
-                  if (step) step.detail = event.detail;
-                  break;
-                }
-                case "step_done": {
-                  const stepId = agentStepIdsRef.current.get(event.id);
-                  const step = next.steps.find((item) => item.id === stepId);
-                  if (step) {
-                    step.status = "completed";
-                    step.detail = event.summary ?? "";
-                    // Record completed tool in history
-                    toolHistoryRef.current = [
-                      ...toolHistoryRef.current,
-                      { name: step.toolName || String(event.id), completedAt: new Date().toISOString() },
-                    ];
-                    // Track humanizer info
-                    if (step.toolName === "humanize_essay") {
-                      humanizerInfoRef.current = {
-                        provider: (step.toolArgs as { provider?: string })?.provider || "Unknown",
-                        preText: (essayContentRef.current || "").slice(0, 8000),
-                      };
-                    }
-                  }
-                  next.pendingToolCall = null;
-                  next.pendingQuestion = null;
-                  next.status = "running";
-                  // Persist snapshot after step completes — pass computed next
-                  // via setTimeout so the ref/Organizer state is fully settled.
-                  const snapState = next;
-                  setTimeout(() => saveRunStateSnapshot(snapState), 0);
-                  break;
-                }
-                case "step_error": {
-                  const stepId = agentStepIdsRef.current.get(event.id);
-                  const step = next.steps.find((item) => item.id === stepId);
-                  if (step) step.detail = event.error;
-                  next.pendingToolCall = null;
-                  next.status = "error";
-                  break;
-                }
-                case "question": {
-                  const active = next.steps.find((step) => step.status === "running");
-                  if (active) active.status = "blocked";
-                  next.pendingQuestion = normalizeAgentQuestion(event);
-                  next.pendingToolCall = null;
-                  next.status = "waiting_for_user";
-                  break;
-                }
-                case "context_update": {
-                  const patch = event.patch as Partial<GhostwriterRunState["context"]>;
-                  next.context = { ...next.context, ...patch };
-                  if (typeof patch.essayTopic === "string" && !next.context.topic) {
-                    next.context.topic = patch.essayTopic;
-                  }
-                  // Update thread title when essay topic is detected
-                  if (typeof patch.essayTopic === "string" && threadIdRef.current) {
-                    void updateThread(threadIdRef.current, { title: patch.essayTopic as string }).catch(() => {});
-                  }
-                  if (patch.exportDoc) {
-                    void paginateSnapshot(patch.exportDoc).then((snapshot) => {
-                      setOriginalExportDoc(snapshot);
-                    });
-                  }
-                  if (patch.humanizedExportDoc) {
-                    void paginateSnapshot(patch.humanizedExportDoc).then((snapshot) => {
-                      setHumanizedExportDoc(snapshot);
-                    });
-                  }
-                  break;
-                }
-                case "done": {
-                  // Enter revision_mode — export is ready but the loop stays
-                  // alive so the user can request further changes.
-                  next.status = "revision_mode" as typeof next.status;
-                  next.pendingToolCall = null;
-                  next.pendingQuestion = null;
-                  next.steps = next.steps.map((s) =>
-                    s.status === "running" ? { ...s, status: "completed" } : s,
-                  );
-                  break;
-                }
-                case "fatal": {
-                  next.status = "error";
-                  next.error = event.error;
-                  break;
-                }
-                default:
-                  break;
-              }
-
-              next.progress = buildDynamicProgress(next.steps);
-              return next;
-            });
-          });
+          agentDisconnectRef.current = await GhostwriterAgentClient.connect(
+            startedRun.runId,
+            makeEventHandler(startedRun.runId),
+          );
         } else {
           // Legacy fallback (NEXT_PUBLIC_GHOSTWRITER_MODE=legacy)
           const startedRun = await GhostwriterOrchestrator.startRun(draft.prompt);
@@ -1502,7 +1490,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   };
 
   const handleChatSend = (text: string) => {
-    if (!text || !runState?.runId || isLegacyMode) return;
+    if (!text || isLegacyMode) return;
     setChatMessage("");
     primeAudioContext();
 
@@ -1514,11 +1502,19 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
       return;
     }
 
-    // Normal case: add immediately to local timeline (correct ordering),
-    // then POST to the agent. The SSE user_message echo is deduplicated.
+    // Add immediately to local timeline (correct ordering).
+    // The SSE user_message echo is deduplicated via pendingUserMessagesRef.
     pendingUserMessagesRef.current.add(text);
     setTimeline((prev) => [...prev, { kind: "message", id: `u-local-${Date.now()}`, role: "user", text }]);
 
+    // If there's no live run (loaded thread / server restarted), spin up a
+    // new resume run that enters revision mode with the existing essay context.
+    if (!runState?.runId) {
+      void startResumeRun(text);
+      return;
+    }
+
+    // Normal case: POST to the live agent run.
     void GhostwriterAgentClient.sendMessage(runState.runId, text).catch((err) => {
       setRunError(err instanceof Error ? err.message : "Message failed.");
     });
@@ -2613,7 +2609,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                   : (runState?.status as string) === "revision_mode"
                   ? "Ask for revisions, or type \"done\" to finish…"
                   : runState?.status === "finished" && !runState?.runId
-                  ? "Session ended — start a new essay to continue chatting"
+                  ? "Send a message to continue this conversation…"
                   : "Ask Ghostwriter anything about your essay…"
               }
               value={chatMessage}
@@ -2628,7 +2624,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
             <button
               type="button"
               className={styles.chatSendBtn}
-              disabled={!chatMessage.trim() || isLegacyMode || !runState?.runId}
+              disabled={!chatMessage.trim() || isLegacyMode}
               onClick={() => handleChatSend(chatMessage.trim())}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
