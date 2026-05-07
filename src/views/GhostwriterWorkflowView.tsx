@@ -17,7 +17,7 @@ import { ExportDocumentSnapshot, Organizer } from "@/services/OrganizerService";
 import { GhostwriterQuestionField, GhostwriterRunState, GhostwriterToolCall } from "@/lib/ghostwriterTypes";
 import { playErrorSound, playSuccessSound, primeAudioContext } from "@/lib/soundUtils";
 import type { AgentEvent } from "@/server/ghostwriter/agent/events";
-import { createThread, updateThread, subscribeThreadsAndFolders, getThread, type GwThread, type GwFolder, type PersistedRunState } from "@/services/ThreadService";
+import { createThread, updateThread, deleteThread, moveThreadToFolder, createFolder, subscribeThreadsAndFolders, getThread, type GwThread, type GwFolder, type PersistedRunState } from "@/services/ThreadService";
 import styles from "./GhostwriterWorkflowView.module.css";
 
 type GhostwriterWorkflowViewProps = {
@@ -646,6 +646,62 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   const [sidebarThreads, setSidebarThreads] = useState<GwThread[]>([]);
   const [sidebarFolders, setSidebarFolders] = useState<GwFolder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Context menu: which thread's menu is open, and which sub-mode it's in
+  type MenuMode = "actions" | "addTo";
+  const [threadMenu, setThreadMenu] = useState<{ threadId: string; mode: MenuMode } | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const threadMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!threadMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (threadMenuRef.current && !threadMenuRef.current.contains(e.target as Node)) {
+        setThreadMenu(null);
+        setCreatingFolder(false);
+        setNewFolderName("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [threadMenu]);
+
+  const handleDeleteThread = async (threadId: string) => {
+    setThreadMenu(null);
+    setSidebarThreads((prev) => prev.filter((t) => t.id !== threadId));
+    // If deleting the active thread, reset the view
+    if (threadIdRef.current === threadId) {
+      threadIdRef.current = null;
+      setRunState(null);
+      setTimeline([]);
+      setEssayStreamContent("");
+    }
+    try { await deleteThread(threadId); } catch { /* non-fatal */ }
+  };
+
+  const handleMoveToFolder = async (threadId: string, folderId: string | null) => {
+    setThreadMenu(null);
+    setSidebarThreads((prev) =>
+      prev.map((t) => t.id === threadId ? { ...t, folderId } : t),
+    );
+    try { await moveThreadToFolder(threadId, folderId); } catch { /* non-fatal */ }
+  };
+
+  const handleCreateFolderAndMove = async (threadId: string) => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    setCreatingFolder(false);
+    setNewFolderName("");
+    setThreadMenu(null);
+    try {
+      const folder = await createFolder(name);
+      setSidebarFolders((prev) => [...prev, folder]);
+      setExpandedFolders((prev) => new Set([...prev, folder.id]));
+      await handleMoveToFolder(threadId, folder.id);
+    } catch { /* non-fatal */ }
+  };
 
   useEffect(() => {
     return subscribeThreadsAndFolders((t, f) => { setSidebarThreads(t); setSidebarFolders(f); });
@@ -1781,6 +1837,152 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
   // original editor visible.
   const isHumanizing = humanizeInFlight || Boolean(humanizedExportDoc);
 
+  // ── Thread item renderer (with context menu) ──────────────────────────────
+  const renderThreadItem = (t: GwThread, paddingLeft?: string) => {
+    const isActive   = t.id === threadIdRef.current;
+    const menuOpen   = threadMenu?.threadId === t.id;
+    const inAddTo    = menuOpen && threadMenu?.mode === "addTo";
+    const statusLabel = t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished";
+
+    return (
+      <div
+        key={t.id}
+        className={`${styles.threadItemRow} ${isActive ? styles.threadItemActive : ""}`}
+        style={{ opacity: loadingThreadId === t.id ? 0.5 : 1, paddingLeft }}
+        ref={menuOpen ? threadMenuRef : undefined}
+      >
+        {/* Main click area */}
+        <button
+          type="button"
+          className={styles.threadItem}
+          onClick={() => void handleLoadThread(t.id)}
+        >
+          <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{t.title}</strong>
+          <span style={{ display: "block", marginTop: "0.18rem", fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}>{statusLabel}</span>
+        </button>
+
+        {/* "···" button */}
+        <button
+          type="button"
+          className={`${styles.threadMenuBtn} ${menuOpen ? styles.threadMenuBtnOpen : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (menuOpen) { setThreadMenu(null); setCreatingFolder(false); setNewFolderName(""); }
+            else { setThreadMenu({ threadId: t.id, mode: "actions" }); setCreatingFolder(false); setNewFolderName(""); }
+          }}
+          title="More options"
+        >
+          •••
+        </button>
+
+        {/* Dropdown */}
+        {menuOpen && (
+          <div className={styles.threadDropdown}>
+            {!inAddTo ? (
+              /* ── Actions view ── */
+              <>
+                <button
+                  type="button"
+                  className={styles.threadDropdownOption}
+                  onClick={() => setThreadMenu({ threadId: t.id, mode: "addTo" })}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Add to folder
+                </button>
+                <div className={styles.threadDropdownDivider} />
+                <button
+                  type="button"
+                  className={`${styles.threadDropdownOption} ${styles.threadDropdownDelete}`}
+                  onClick={() => void handleDeleteThread(t.id)}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+                  </svg>
+                  Delete thread
+                </button>
+              </>
+            ) : (
+              /* ── Add to folder view ── */
+              <>
+                <div className={styles.threadDropdownHeader}>
+                  <button
+                    type="button"
+                    className={styles.threadDropdownBack}
+                    onClick={() => { setThreadMenu({ threadId: t.id, mode: "actions" }); setCreatingFolder(false); setNewFolderName(""); }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    Back
+                  </button>
+                  <span style={{ flex: 1, textAlign: "right" }}>Move to folder</span>
+                </div>
+
+                {/* Existing folders */}
+                {sidebarFolders.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={styles.threadFolderPick}
+                    onClick={() => void handleMoveToFolder(t.id, f.id)}
+                  >
+                    <span className={styles.threadFolderDot} style={{ background: f.color }} />
+                    {f.name}
+                    {t.folderId === f.id && (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ marginLeft: "auto", opacity: 0.5 }}>
+                        <path d="M20 6 9 17l-5-5"/>
+                      </svg>
+                    )}
+                  </button>
+                ))}
+
+                {/* Remove from folder option */}
+                {t.folderId && (
+                  <button
+                    type="button"
+                    className={styles.threadFolderPick}
+                    style={{ color: "rgba(255,255,255,0.35)" }}
+                    onClick={() => void handleMoveToFolder(t.id, null)}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    Remove from folder
+                  </button>
+                )}
+
+                {/* Create folder */}
+                <div className={styles.threadCreateFolderWrap}>
+                  {creatingFolder ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      className={styles.threadCreateFolderInput}
+                      placeholder="Folder name…"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleCreateFolderAndMove(t.id);
+                        if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.threadCreateFolderBtn}
+                      onClick={() => setCreatingFolder(true)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                      Create new folder
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={styles.workflowShell}>
       <AppHeader
@@ -1820,15 +2022,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
                         <strong style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder.name}</strong>
                         <span style={{ opacity: 0.35, fontSize: 10 }}>{folderThreads.length}</span>
                       </button>
-                      {open && folderThreads.map((t) => (
-                        <button key={t.id} type="button"
-                          className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}
-                          style={{ paddingLeft: "1.4rem", opacity: loadingThreadId === t.id ? 0.5 : 1 }}
-                          onClick={() => void handleLoadThread(t.id)}>
-                          <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
-                          <span>{t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished"}</span>
-                        </button>
-                      ))}
+                      {open && folderThreads.map((t) => renderThreadItem(t, "1.4rem"))}
                     </div>
                   );
                 })}
@@ -1840,15 +2034,7 @@ export default function GhostwriterWorkflowView({ draft, onBack, onThreadCreated
           <div className={styles.sidebarSection}>
             <div className={styles.sidebarSectionLabel}>Threads</div>
             <div className={styles.threadList}>
-              {sidebarThreads.filter((t) => !t.folderId).map((t) => (
-                <button key={t.id} type="button"
-                  className={`${styles.threadItem} ${t.id === threadIdRef.current ? styles.threadItemActive : ""}`}
-                  style={{ opacity: loadingThreadId === t.id ? 0.5 : 1 }}
-                  onClick={() => void handleLoadThread(t.id)}>
-                  <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</strong>
-                  <span>{t.status === "running" ? "Running…" : t.status === "error" ? "Error" : "Finished"}</span>
-                </button>
-              ))}
+              {sidebarThreads.filter((t) => !t.folderId).map((t) => renderThreadItem(t))}
               {sidebarThreads.length === 0 && (
                 <div className={styles.threadFolder} style={{ opacity: 0.35 }}>
                   <span>No threads yet</span>
