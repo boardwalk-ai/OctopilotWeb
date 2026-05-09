@@ -121,7 +121,7 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
     educationLevel: "Standard",
     strength: "Medium",
     detector: "GPTZero",
-    rephrase: false,
+    rephrase: true,
   });
 
   // ── Processing / error
@@ -489,23 +489,7 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
                       options={["GPTZero", "Originality", "Turnitin"]}
                       onChange={(v) => setStealth((p) => ({ ...p, detector: v }))}
                     />
-                    {/* Rephrase toggle */}
-                    <div>
-                      <div className={styles.paramLabel}>Rephrase Mode</div>
-                      <div className={styles.toggleRow}>
-                        <span className={styles.toggleLabel}>Enable Rephrase</span>
-                        <div
-                          className={styles.toggleTrack}
-                          style={{ background: stealth.rephrase ? "#a855f7" : "rgba(255,255,255,0.12)" }}
-                          onClick={() => setStealth((p) => ({ ...p, rephrase: !p.rephrase }))}
-                        >
-                          <div
-                            className={styles.toggleThumb}
-                            style={{ transform: stealth.rephrase ? "translateX(18px)" : "translateX(3px)" }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    {/* Rephrase always enabled — no toggle shown */}
                   </div>
                 )}
               </div>
