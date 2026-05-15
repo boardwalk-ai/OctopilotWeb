@@ -97,7 +97,7 @@ export default function HumanizerView({ onNext }: HumanizerViewProps) {
         educationLevel: "Standard",
         strength: "Medium",
         detector: "GPTZero",
-        rephrase: false,
+        rephrase: true,
     });
 
     const [undetectableParams, setUndetectableParams] = useState({
@@ -398,19 +398,6 @@ export default function HumanizerView({ onNext }: HumanizerViewProps) {
                                         onChange={(val) => setStealthParams({ ...stealthParams, detector: val })}
                                         options={["Turnitin", "GPTZero"]}
                                     />
-                                </div>
-                                <div className={`mt-2 flex items-center justify-between ${styles.humanizerRephraseRow}`}>
-                                    <label className={`text-[13px] font-bold text-white/80 ${styles.humanizerFieldLabel}`}>Rephrase</label>
-                                    <button
-                                        disabled={selectedAIEngine !== "stealthgpt"}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStealthParams({ ...stealthParams, rephrase: !stealthParams.rephrase });
-                                        }}
-                                        className={`relative flex h-6 w-12 items-center rounded-full transition-colors ${styles.humanizerRephraseToggle} ${stealthParams.rephrase ? "bg-orange-500" : "bg-white/20"}`}
-                                    >
-                                        <div className={`absolute h-5 w-5 rounded-full bg-white transition-transform ${stealthParams.rephrase ? "translate-x-6" : "translate-x-1"}`} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
