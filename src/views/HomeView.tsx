@@ -25,6 +25,7 @@ import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import HumanizerHubView from "@/views/HumanizerHubView";
 import FormatterToolView from "@/views/FormatterToolView";
+import FormatStyleView, { type FormatStyleId } from "@/views/FormatStyleView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
@@ -44,7 +45,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -54,6 +55,8 @@ function hasWritingStyleAccess(plan?: string | null): boolean {
 
 export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
+  const [ghostciterContent, setGhostciterContent] = useState("");
+  const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
@@ -215,7 +218,28 @@ export default function HomeView() {
   }
 
   if (page === "ghostciter") {
-    return <FormatterToolView onBack={() => setPage("methodology")} />;
+    return (
+      <FormatterToolView
+        onBack={() => setPage("methodology")}
+        onContinue={(content) => {
+          setGhostciterContent(content);
+          setPage("ghostciter-style");
+        }}
+      />
+    );
+  }
+
+  if (page === "ghostciter-style") {
+    return (
+      <FormatStyleView
+        defaultStyle={ghostciterStyle}
+        onBack={() => setPage("ghostciter")}
+        onContinue={(style) => {
+          setGhostciterStyle(style);
+          // TODO: navigate to processing/results step
+        }}
+      />
+    );
   }
 
   if (page === "editor") {

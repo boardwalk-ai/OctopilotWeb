@@ -1,0 +1,304 @@
+/* ── FormatStyleView.module.css — Desktop layout ─────────────────────────
+   Mobile overrides live in FormatStyleViewMobile.module.css
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+.shell {
+  position: fixed;
+  inset: 0;
+  background: #080809;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top nav ─────────────────────────────────────────────────────────────── */
+.topNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  animation: fsv-fade-down 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.backBtn:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fff;
+  background: rgba(239, 68, 68, 0.08);
+  transform: translateX(-2px);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 100px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.07);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(239, 68, 68, 0.85);
+}
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: fsv-pulse 2s ease-in-out infinite;
+}
+
+/* ── Body — centered column ──────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.card {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fsv-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Step header ─────────────────────────────────────────────────────────── */
+.stepHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.stepNum {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.4);
+  font-family: var(--font-sora, inherit);
+}
+.stepTitle {
+  font-family: var(--font-sora, inherit);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0;
+}
+
+/* ── Subtitle ────────────────────────────────────────────────────────────── */
+.subtitle {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 18px 44px;
+}
+
+/* ── Option list ─────────────────────────────────────────────────────────── */
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+.optionRow:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+  transform: translateX(2px);
+}
+.optionRowSelected {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.08);
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.12), inset 0 0 24px rgba(239, 68, 68, 0.04);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+/* Letter badge */
+.fmtBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+  font-family: var(--font-sora, inherit);
+  letter-spacing: 0;
+}
+
+/* Label */
+.fmtLabel {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.01em;
+}
+.optionRowSelected .fmtLabel {
+  color: #fff;
+}
+
+/* Radio */
+.radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+.optionRow:hover .radio {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+.radioSelected {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.radioDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  animation: fsv-dot-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Info box ────────────────────────────────────────────────────────────── */
+.infoBox {
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.25);
+  margin-bottom: 24px;
+}
+.infoTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.38);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.infoList {
+  margin: 0;
+  padding: 0 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: disc;
+}
+.infoList li {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+}
+
+/* ── Continue button ─────────────────────────────────────────────────────── */
+.continueBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 20px;
+  border-radius: 14px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-sora, inherit);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 0 28px rgba(239, 68, 68, 0.28);
+}
+.continueBtn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.38);
+}
+.continueBtn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.continueBtnShine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease-out;
+}
+.continueBtn:hover:not(:disabled) .continueBtnShine {
+  transform: translateX(100%);
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes fsv-pulse    { 0%, 100% { opacity: 1 } 50% { opacity: 0.4 } }
+@keyframes fsv-fade-down { from { opacity: 0; transform: translateY(-10px) } to { opacity: 1; transform: none } }
+@keyframes fsv-rise     { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes fsv-dot-in   { from { opacity: 0; transform: scale(0.3) } to { opacity: 1; transform: scale(1) } }

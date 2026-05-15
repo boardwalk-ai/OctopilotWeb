@@ -1,0 +1,121 @@
+/* ── FormatStyleViewMobile.module.css — Mobile overrides ≤640px ─────────
+   Desktop base lives in FormatStyleView.module.css
+   ────────────────────────────────────────────────────────────────────── */
+
+/* Declare all class names for the merge helper */
+.shell {}
+.topNav {}
+.backBtn {}
+.badge {}
+.badgeDot {}
+.body {}
+.card {}
+.stepHeader {}
+.stepNum {}
+.stepTitle {}
+.subtitle {}
+.optionList {}
+.optionRow {}
+.optionRowSelected {}
+.fmtBadge {}
+.fmtLabel {}
+.radio {}
+.radioSelected {}
+.radioDot {}
+.infoBox {}
+.infoTitle {}
+.infoList {}
+.continueBtn {}
+.continueBtnShine {}
+
+@media (max-width: 640px) {
+  .topNav {
+    padding: 12px 16px;
+  }
+
+  .body {
+    align-items: flex-start;
+    padding: 20px 16px 32px;
+    /* allow scroll on very small screens */
+    overflow-y: auto;
+  }
+
+  .card {
+    max-width: 100%;
+  }
+
+  .stepHeader {
+    margin-bottom: 4px;
+  }
+
+  .stepNum {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .stepTitle {
+    font-size: 0.88rem;
+    letter-spacing: 0.06em;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+    margin: 0 0 14px 40px;
+  }
+
+  .optionList {
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+
+  .optionRow,
+  .optionRowSelected {
+    padding: 13px 14px;
+    border-radius: 12px;
+    gap: 12px;
+  }
+
+  .fmtBadge {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .fmtLabel {
+    font-size: 13.5px;
+  }
+
+  .radio,
+  .radioSelected {
+    width: 18px;
+    height: 18px;
+  }
+
+  .radioDot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .infoBox {
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+
+  .infoTitle {
+    font-size: 10.5px;
+    margin-bottom: 6px;
+  }
+
+  .infoList li {
+    font-size: 12px;
+  }
+
+  .continueBtn {
+    padding: 15px 20px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+}
