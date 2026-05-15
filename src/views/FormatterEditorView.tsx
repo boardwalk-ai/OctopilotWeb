@@ -11,7 +11,7 @@ interface GhostciterCitation { id: string; text: string; }
 
 interface EditorViewProps {
     onBack: () => void;
-    onFinish?: () => void;
+    onFinish?: (snapshot: ExportDocumentSnapshot) => void;
     content: string;
     citations?: GhostciterCitation[];
     formatStyle?: FormatStyleId;
@@ -1099,13 +1099,7 @@ export default function FormatterEditorView({ onBack, onFinish, content, citatio
 
     const handleExport = useCallback(() => {
         const snapshot = buildExportSnapshot();
-        const allPagesText = snapshot.pages.map((page, idx) => `Page ${idx + 1}\n${page.plainText}`).join("\n\n");
-        Organizer.set({
-            generatedEssay: allPagesText,
-            finalEssayTitle: snapshot.title,
-            exportDocument: snapshot,
-        });
-        onFinish?.();
+        onFinish?.(snapshot);
     }, [buildExportSnapshot, onFinish]);
 
 
@@ -1127,17 +1121,7 @@ export default function FormatterEditorView({ onBack, onFinish, content, citatio
             if ((e.metaKey || e.ctrlKey) && e.key === "s") {
                 e.preventDefault();
                 const parser = document.createElement("div");
-                const allPagesText = pages.map((page) => {
-                    const html = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
-                    parser.innerHTML = html;
-                    return parser.innerText.trim();
-                }).join("\n\n");
-                const snapshot = buildExportSnapshot();
-                Organizer.set({
-                    generatedEssay: allPagesText,
-                    finalEssayTitle: snapshot.title,
-                    exportDocument: snapshot,
-                });
+                // Cmd/Ctrl+S — no-op in standalone formatter flow (snapshot is built on export)
             }
         };
         window.addEventListener("keydown", handler);

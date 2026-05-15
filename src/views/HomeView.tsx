@@ -28,6 +28,8 @@ import FormatterToolView from "@/views/FormatterToolView";
 import FormatStyleView, { type FormatStyleId } from "@/views/FormatStyleView";
 import CitationView from "@/views/CitationView";
 import FormatterEditorView from "@/views/FormatterEditorView";
+import FormatterExportView from "@/views/FormatterExportView";
+import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
@@ -47,7 +49,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | "ghostciter-editor" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | "ghostciter-editor" | "ghostciter-export" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -60,6 +62,7 @@ export default function HomeView() {
   const [ghostciterContent, setGhostciterContent] = useState("");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
   const [ghostciterCitations, setGhostciterCitations] = useState<{ id: string; text: string }[]>([]);
+  const [ghostciterSnapshot, setGhostciterSnapshot] = useState<ExportDocumentSnapshot | null>(null);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
@@ -265,7 +268,24 @@ export default function HomeView() {
         citations={ghostciterCitations}
         formatStyle={ghostciterStyle}
         onBack={() => setPage("ghostciter-citations")}
-        onFinish={() => setPage("methodology")}
+        onFinish={(snapshot) => {
+          setGhostciterSnapshot(snapshot);
+          setPage("ghostciter-export");
+        }}
+      />
+    );
+  }
+
+  if (page === "ghostciter-export" && ghostciterSnapshot) {
+    return (
+      <FormatterExportView
+        snapshot={ghostciterSnapshot}
+        formatStyle={ghostciterStyle}
+        onBack={() => setPage("ghostciter-editor")}
+        onRestart={() => {
+          setGhostciterSnapshot(null);
+          setPage("ghostciter");
+        }}
       />
     );
   }

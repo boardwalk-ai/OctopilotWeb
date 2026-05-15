@@ -1,0 +1,33 @@
+/* ── FormatterExportViewMobile.module.css — Mobile overrides ≤640px ─────── */
+
+.shell {} .topNav {} .backBtn {} .badge {} .badgeDot {}
+.body {} .inner {} .docMeta {} .docTitle {} .metaPills {} .metaPill {} .metaPillStyle {}
+.cardsGrid {} .card {} .cardIconWrap {} .cardIconPdf {} .cardIconTxt {} .cardIconDocx {}
+.cardTitle {} .cardDesc {} .cardBtn {} .cardBtnPdf {} .btnShine {} .cardBtnSuccess {}
+.spinner {} .errorBar {} .bottomBar {} .restartBtn {} .doneNote {}
+.hiddenRenderer {} .pageNode {}
+
+@media (max-width: 640px) {
+  .topNav { padding: 12px 16px; }
+
+  .body { padding: 20px 16px 32px; align-items: flex-start; }
+
+  .docMeta { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .docTitle { font-size: 1.2rem; white-space: normal; }
+
+  .cardsGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .card { padding: 22px 18px 18px; border-radius: 16px; }
+
+  .cardIconWrap { width: 44px; height: 44px; border-radius: 12px; margin-bottom: 14px; }
+
+  .cardTitle { font-size: 0.95rem; }
+  .cardDesc { font-size: 12px; margin-bottom: 18px; }
+
+  .cardBtn { padding: 13px 14px; font-size: 13px; }
+
+  .bottomBar { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
