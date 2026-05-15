@@ -249,7 +249,7 @@ export default function HomeView() {
         formatStyle={ghostciterStyle}
         onBack={() => setPage("ghostciter-style")}
         onContinue={(_citations) => {
-          // TODO: navigate to processing/results step
+          setPage("editor");
         }}
       />
     );

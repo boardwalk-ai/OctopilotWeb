@@ -530,7 +530,7 @@ export default function CitationView({
             onClick={() => onContinue(citations)}
           >
             <span className={styles.continueBtnShine} aria-hidden />
-            Continue
+            Format &amp; Open in Editor
             <ArrowIcon />
           </button>
         </div>
