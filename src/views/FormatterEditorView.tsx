@@ -12,7 +12,18 @@ interface GhostciterCitation { id: string; text: string; }
 interface EditorViewProps {
     onBack: () => void;
     onFinish?: (snapshot: ExportDocumentSnapshot) => void;
+    // Raw essay body
     content: string;
+    // Parsed fields (from document parser)
+    bibliography?: string;
+    initialDocTitle?: string;
+    studentName?: string;
+    instructorName?: string;
+    institutionName?: string;
+    courseInfo?: string;
+    subjectCode?: string;
+    essayDate?: string;
+    // Legacy manual citations
     citations?: GhostciterCitation[];
     formatStyle?: FormatStyleId;
 }
@@ -154,19 +165,29 @@ function buildPageOutlineItems(text: string): PageOutlineItem[] {
         }));
 }
 
-export default function FormatterEditorView({ onBack, onFinish, content, citations = [], formatStyle = "mla" }: EditorViewProps) {
+export default function FormatterEditorView({
+    onBack, onFinish, content,
+    bibliography, initialDocTitle, studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate,
+    citations = [], formatStyle = "mla",
+}: EditorViewProps) {
+    // Combine parsed bibliography with any manually-added citations
+    const combinedBibliography = [
+        bibliography ?? "",
+        citations.map((c) => c.text).join("\n\n"),
+    ].filter(Boolean).join("\n\n");
+
     const org: OrganizerState = {
         writingMode: "ghostciter",
         generatedEssay: content,
-        generatedBibliography: citations.map((c) => c.text).join("\n\n"),
-        finalEssayTitle: "",
+        generatedBibliography: combinedBibliography,
+        finalEssayTitle: initialDocTitle ?? "",
         citationStyle: formatStyle,
-        studentName: "",
-        instructorName: "",
-        institutionName: "",
-        courseInfo: "",
-        subjectCode: "",
-        essayDate: "",
+        studentName: studentName ?? "",
+        instructorName: instructorName ?? "",
+        institutionName: institutionName ?? "",
+        courseInfo: courseInfo ?? "",
+        subjectCode: subjectCode ?? "",
+        essayDate: essayDate ?? "",
     } as unknown as OrganizerState;
     const [isMobileLayout, setIsMobileLayout] = useState(false);
     const [mobileViewportWidth, setMobileViewportWidth] = useState(816);

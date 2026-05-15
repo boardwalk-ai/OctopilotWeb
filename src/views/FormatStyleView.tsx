@@ -40,6 +40,7 @@ type FormatStyleViewProps = {
   onBack: () => void;
   onContinue: (style: FormatStyleId) => void;
   defaultStyle?: FormatStyleId;
+  detectedStyle?: FormatStyleId | "unknown";
 };
 
 /* ── Component ───────────────────────────────────────────────────────────── */
@@ -47,8 +48,12 @@ export default function FormatStyleView({
   onBack,
   onContinue,
   defaultStyle = "mla",
+  detectedStyle,
 }: FormatStyleViewProps) {
-  const [selected, setSelected] = useState<FormatStyleId>(defaultStyle);
+  // Pre-select detected style if valid, otherwise use defaultStyle
+  const initial: FormatStyleId =
+    detectedStyle && detectedStyle !== "unknown" ? detectedStyle : defaultStyle;
+  const [selected, setSelected] = useState<FormatStyleId>(initial);
 
   return (
     <div className={styles.shell}>
@@ -107,7 +112,24 @@ export default function FormatStyleView({
                   </div>
 
                   {/* Label */}
-                  <span className={styles.fmtLabel}>{fmt.label}</span>
+                  <span className={styles.fmtLabel}>
+                    {fmt.label}
+                    {detectedStyle === fmt.id && (
+                      <span style={{
+                        marginLeft: 8,
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "#86efac",
+                        background: "rgba(34,197,94,0.12)",
+                        border: "1px solid rgba(34,197,94,0.3)",
+                        borderRadius: 100,
+                        padding: "1px 7px",
+                        verticalAlign: "middle",
+                      }}>Detected</span>
+                    )}
+                  </span>
 
                   {/* Radio indicator */}
                   <div className={isSelected ? styles.radioSelected : styles.radio} aria-hidden>

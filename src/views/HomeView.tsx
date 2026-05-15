@@ -62,6 +62,7 @@ export default function HomeView() {
   const [ghostciterContent, setGhostciterContent] = useState("");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
   const [ghostciterCitations, setGhostciterCitations] = useState<{ id: string; text: string }[]>([]);
+  const [ghostciterParsed, setGhostciterParsed] = useState<import("@/app/api/formatter/parse/route").ParsedDocumentResult | null>(null);
   const [ghostciterSnapshot, setGhostciterSnapshot] = useState<ExportDocumentSnapshot | null>(null);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
@@ -227,8 +228,9 @@ export default function HomeView() {
     return (
       <FormatterToolView
         onBack={() => setPage("methodology")}
-        onContinue={(content) => {
+        onContinue={(content, parsed) => {
           setGhostciterContent(content);
+          setGhostciterParsed(parsed);
           setPage("ghostciter-style");
         }}
       />
@@ -239,22 +241,10 @@ export default function HomeView() {
     return (
       <FormatStyleView
         defaultStyle={ghostciterStyle}
+        detectedStyle={ghostciterParsed?.detectedStyle}
         onBack={() => setPage("ghostciter")}
         onContinue={(style) => {
           setGhostciterStyle(style);
-          setPage("ghostciter-citations");
-        }}
-      />
-    );
-  }
-
-  if (page === "ghostciter-citations") {
-    return (
-      <CitationView
-        formatStyle={ghostciterStyle}
-        onBack={() => setPage("ghostciter-style")}
-        onContinue={(citations) => {
-          setGhostciterCitations(citations);
           setPage("ghostciter-editor");
         }}
       />
@@ -262,12 +252,22 @@ export default function HomeView() {
   }
 
   if (page === "ghostciter-editor") {
+    const p = ghostciterParsed;
     return (
       <FormatterEditorView
-        content={ghostciterContent}
+        // Use parsed essay body if available, else full raw content
+        content={p?.essay ?? ghostciterContent}
+        bibliography={p?.bibliography ?? ""}
+        initialDocTitle={p?.finalEssayTitle ?? ""}
+        studentName={p?.studentName ?? ""}
+        instructorName={p?.instructorName ?? ""}
+        institutionName={p?.institutionName ?? ""}
+        courseInfo={p?.courseInfo ?? ""}
+        subjectCode={p?.subjectCode ?? ""}
+        essayDate={p?.essayDate ?? ""}
         citations={ghostciterCitations}
         formatStyle={ghostciterStyle}
-        onBack={() => setPage("ghostciter-citations")}
+        onBack={() => setPage("ghostciter-style")}
         onFinish={(snapshot) => {
           setGhostciterSnapshot(snapshot);
           setPage("ghostciter-export");
