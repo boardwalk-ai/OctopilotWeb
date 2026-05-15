@@ -1,0 +1,688 @@
+/* ── CitationView.module.css — Desktop layout ────────────────────────────
+   Mobile overrides live in CitationViewMobile.module.css
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+.shell {
+  position: fixed;
+  inset: 0;
+  background: #080809;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top nav ─────────────────────────────────────────────────────────────── */
+.topNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  animation: cv-fade-down 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.backBtn:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fff;
+  background: rgba(239, 68, 68, 0.08);
+  transform: translateX(-2px);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 100px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.07);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(239, 68, 68, 0.85);
+}
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: cv-pulse 2s ease-in-out infinite;
+}
+
+/* ── Body — 2-column split ───────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  overflow: hidden;
+}
+
+/* ── Left panel: Add Citations ───────────────────────────────────────────── */
+.bodyLeft {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 32px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-y: auto;
+  gap: 0;
+  animation: cv-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Right panel: Manage Sources ─────────────────────────────────────────── */
+.bodyRight {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.012);
+  gap: 0;
+  animation: cv-rise 0.5s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Step header ─────────────────────────────────────────────────────────── */
+.stepHeader {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.stepNum {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+  font-family: var(--font-sora, inherit);
+}
+.stepTitle {
+  font-family: var(--font-sora, inherit);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0;
+}
+.stepSubtitle {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 20px 41px;
+  flex-shrink: 0;
+}
+
+/* ── Tab toggle ──────────────────────────────────────────────────────────── */
+.tabWrap {
+  flex-shrink: 0;
+  margin-bottom: 22px;
+}
+.tabTrack {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.3);
+}
+.tabPill {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  bottom: 4px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+.tabPillRight {
+  transform: translateX(100%);
+}
+.tabBtn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+  transition: color 0.2s;
+  letter-spacing: 0.01em;
+}
+.tabBtnActive {
+  color: #fff;
+}
+.tabBtn:not(.tabBtnActive):hover {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ── Scrape panel ────────────────────────────────────────────────────────── */
+.scrapePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.scrapeCard {
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+.scrapeCardTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 8px 0;
+}
+.scrapeCardDesc {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+.scrapeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.urlInput {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.urlInput:focus {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.urlInput::placeholder {
+  color: rgba(255, 255, 255, 0.22);
+}
+.autoFillBtn {
+  position: relative;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, transform 0.15s;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.autoFillBtn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+.autoFillBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.scrapeError {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #fca5a5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.scrapeSuccess {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #86efac;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.orDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.orDivider::before,
+.orDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Manual panel ────────────────────────────────────────────────────────── */
+.manualPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.manualCard {
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+.manualCardTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 8px 0;
+}
+.manualCardDesc {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+/* Source type grid */
+.sourceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sourceCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s, transform 0.15s;
+  text-align: center;
+}
+.sourceCard:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+}
+.sourceCardActive {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.1) inset;
+}
+
+/* Fields */
+.fieldsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: cv-field-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.fieldLabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.03em;
+}
+.fieldInput {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.fieldInput:focus {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.fieldInput::placeholder {
+  color: rgba(255, 255, 255, 0.18);
+}
+
+/* Add to bibliography button */
+.addBtn {
+  position: relative;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  overflow: hidden;
+}
+.addBtn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.addBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: cv-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Citation count badge (right panel header) ───────────────────────────── */
+.countBadge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 100px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sora, inherit);
+}
+
+/* ── Citation list ───────────────────────────────────────────────────────── */
+.citationList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 14px;
+}
+
+/* Empty state */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.15);
+  margin-bottom: 14px;
+}
+.emptyIcon {
+  opacity: 0.2;
+  animation: cv-pulse 3s ease-in-out infinite;
+}
+.emptyText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.28);
+  text-align: center;
+  line-height: 1.5;
+  max-width: 180px;
+}
+
+/* Citation row */
+.citationRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.2s, background 0.2s;
+  animation: cv-item-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.citationRow:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+.citationNum {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ef4444;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: var(--font-sora, inherit);
+}
+.citationText {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+.citationText em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.85);
+}
+.citationActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.citationRow:hover .citationActions {
+  opacity: 1;
+}
+.actionIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.actionIcon:hover { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.15); }
+.actionIconDelete:hover { background: rgba(239,68,68,.15); color: #f87171; border-color: rgba(239,68,68,.3); }
+
+/* Edit textarea */
+.citationEditArea {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+}
+.citationEditArea:focus {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+.editActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.editSaveBtn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.editSaveBtn:hover { background: rgba(239, 68, 68, 0.22); color: #fff; }
+.editCancelBtn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.editCancelBtn:hover { color: rgba(255, 255, 255, 0.7); border-color: rgba(255, 255, 255, 0.15); }
+
+/* ── Add New Citation dashed button ──────────────────────────────────────── */
+.addNewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+.addNewBtn:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+/* ── Continue button ─────────────────────────────────────────────────────── */
+.continueBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-sora, inherit);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.25);
+  flex-shrink: 0;
+}
+.continueBtn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(239, 68, 68, 0.35);
+}
+.continueBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.continueBtnShine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease-out;
+}
+.continueBtn:hover:not(:disabled) .continueBtnShine {
+  transform: translateX(100%);
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes cv-pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes cv-fade-down{ from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:none} }
+@keyframes cv-rise     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+@keyframes cv-spin     { to{transform:rotate(360deg)} }
+@keyframes cv-field-in { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+@keyframes cv-item-in  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }

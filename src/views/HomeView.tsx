@@ -26,6 +26,7 @@ import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import HumanizerHubView from "@/views/HumanizerHubView";
 import FormatterToolView from "@/views/FormatterToolView";
 import FormatStyleView, { type FormatStyleId } from "@/views/FormatStyleView";
+import CitationView from "@/views/CitationView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
@@ -45,7 +46,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -236,6 +237,18 @@ export default function HomeView() {
         onBack={() => setPage("ghostciter")}
         onContinue={(style) => {
           setGhostciterStyle(style);
+          setPage("ghostciter-citations");
+        }}
+      />
+    );
+  }
+
+  if (page === "ghostciter-citations") {
+    return (
+      <CitationView
+        formatStyle={ghostciterStyle}
+        onBack={() => setPage("ghostciter-style")}
+        onContinue={(_citations) => {
           // TODO: navigate to processing/results step
         }}
       />

@@ -1,0 +1,72 @@
+/* ── CitationViewMobile.module.css — Mobile overrides ≤640px ────────────
+   Desktop base lives in CitationView.module.css
+   ────────────────────────────────────────────────────────────────────── */
+
+.shell {} .topNav {} .backBtn {} .badge {} .badgeDot {}
+.body {} .bodyLeft {} .bodyRight {}
+.stepHeader {} .stepNum {} .stepTitle {} .stepSubtitle {}
+.tabWrap {} .tabTrack {} .tabPill {} .tabPillRight {} .tabBtn {} .tabBtnActive {}
+.scrapePanel {} .scrapeCard {} .scrapeCardTitle {} .scrapeCardDesc {}
+.scrapeRow {} .urlInput {} .autoFillBtn {}
+.scrapeError {} .scrapeSuccess {} .orDivider {}
+.manualPanel {} .manualCard {} .manualCardTitle {} .manualCardDesc {}
+.sourceGrid {} .sourceCard {} .sourceCardActive {}
+.fieldsWrap {} .fieldRow {} .fieldLabel {} .fieldInput {}
+.addBtn {} .spinner {}
+.countBadge {} .citationList {} .emptyState {} .emptyIcon {} .emptyText {}
+.citationRow {} .citationNum {} .citationText {} .citationActions {}
+.actionIcon {} .actionIconDelete {}
+.citationEditArea {} .editActions {} .editSaveBtn {} .editCancelBtn {}
+.addNewBtn {} .continueBtn {} .continueBtnShine {}
+
+@media (max-width: 640px) {
+  .topNav { padding: 12px 16px; }
+
+  /* Stack panels */
+  .body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .bodyLeft {
+    padding: 20px 16px 12px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-y: visible;
+  }
+
+  .bodyRight {
+    padding: 20px 16px 28px;
+    background: transparent;
+    overflow-y: visible;
+  }
+
+  .stepSubtitle { margin-bottom: 14px; }
+
+  /* Tabs */
+  .tabBtn { font-size: 11.5px; padding: 9px 8px; }
+
+  /* Scrape */
+  .scrapeCard, .manualCard { padding: 14px 16px; border-radius: 14px; }
+  .scrapeRow { flex-direction: column; gap: 8px; }
+  .urlInput { width: 100%; height: 44px; }
+  .autoFillBtn { width: 100%; height: 44px; justify-content: center; }
+
+  /* Source grid */
+  .sourceGrid { grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .sourceCard { padding: 10px 6px; font-size: 10px; gap: 5px; }
+
+  .fieldInput { height: 42px; font-size: 14px; }
+  .addBtn { padding: 13px 20px; }
+
+  /* List */
+  .citationActions { opacity: 1; } /* always show on mobile */
+  .emptyState { padding: 24px 12px; }
+  .emptyText { font-size: 12px; }
+  .citationRow { padding: 11px 12px; }
+  .citationText { font-size: 11.5px; }
+
+  /* Continue */
+  .continueBtn { padding: 15px 20px; font-size: 14px; }
+}
