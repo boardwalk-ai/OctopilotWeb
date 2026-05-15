@@ -25,7 +25,7 @@ const FEATURE_LABELS: Record<BetaFeatureKey, string> = {
   ghostwriter: "Ghostwriter",
   octopilotSlides: "OctopilotSlides",
   humanizerHub: "Humanizer Hub",
-  ghostCiter: "GhostCiter",
+  ghostCiter: "Formatter Tool",
 };
 
 const DEFAULT_FEATURES: BetaFeatureKey[] = ["ghostwriter", "octopilotSlides", "humanizerHub", "ghostCiter"];
