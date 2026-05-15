@@ -27,6 +27,7 @@ import HumanizerHubView from "@/views/HumanizerHubView";
 import FormatterToolView from "@/views/FormatterToolView";
 import FormatStyleView, { type FormatStyleId } from "@/views/FormatStyleView";
 import CitationView from "@/views/CitationView";
+import FormatterEditorView from "@/views/FormatterEditorView";
 import { PlaceholderView } from "@/views/AutomationViews";
 import configMobileStyles from "./ConfigurationViewMobile.module.css";
 import editorMobileStyles from "./EditorViewMobile.module.css";
@@ -46,7 +47,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | "ghostciter-editor" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -58,6 +59,7 @@ export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
   const [ghostciterContent, setGhostciterContent] = useState("");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
+  const [ghostciterCitations, setGhostciterCitations] = useState<{ id: string; text: string }[]>([]);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
   const [ghostwriterDraft, setGhostwriterDraft] = useState<{ prompt: string; attachments: File[] }>({ prompt: "", attachments: [] });
@@ -248,9 +250,22 @@ export default function HomeView() {
       <CitationView
         formatStyle={ghostciterStyle}
         onBack={() => setPage("ghostciter-style")}
-        onContinue={(_citations) => {
-          setPage("editor");
+        onContinue={(citations) => {
+          setGhostciterCitations(citations);
+          setPage("ghostciter-editor");
         }}
+      />
+    );
+  }
+
+  if (page === "ghostciter-editor") {
+    return (
+      <FormatterEditorView
+        content={ghostciterContent}
+        citations={ghostciterCitations}
+        formatStyle={ghostciterStyle}
+        onBack={() => setPage("ghostciter-citations")}
+        onFinish={() => setPage("methodology")}
       />
     );
   }
