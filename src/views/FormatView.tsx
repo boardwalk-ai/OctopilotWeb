@@ -5,7 +5,14 @@ import { AutomationStepId } from "@/components/StepperHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { Organizer } from "@/services/OrganizerService";
 import { TestService } from "@/services/TestService";
-import styles from "./FormatViewMobile.module.css";
+import dStyles from "./FormatView.module.css";
+import mStyles from "./FormatViewMobile.module.css";
+
+/** Merge the scoped class names from both modules for a given key. */
+const s = (key: string): string =>
+  [(dStyles as Record<string, string>)[key], (mStyles as Record<string, string>)[key]]
+    .filter(Boolean)
+    .join(" ");
 
 interface FormatViewProps {
     onBack: () => void;
@@ -188,35 +195,34 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
     const requiredDot = <span className="text-red-500 ml-1">*</span>;
 
     return (
-        <div className={`flex w-full flex-col px-6 pt-32 pb-0 lg:px-10 2xl:px-14 ${styles.formatShell}`}>
-            <div className={styles.formatScrollViewport}>
+        <div className={`flex w-full flex-col px-6 pb-0 lg:px-10 2xl:px-14 ${s("formatShell")}`}>
+            <div className={s("formatScrollViewport")}>
                 {/* Header */}
-                <div className={`mb-10 ${styles.formatHero}`}>
-                    <h1 className={`mb-2 text-[42px] font-bold tracking-tight text-white ${styles.formatTitle}`}>Format Your Essay</h1>
-                    <p className={`mb-6 text-[20px] font-medium text-red-500 ${styles.formatLead}`}>
-                    Set up the formatting for your essay
+                <div className={`mb-10 ${s("formatHero")}`}>
+                    <h1 className={`mb-2 text-[42px] font-bold tracking-tight text-white ${s("formatTitle")}`}>Format Your Essay</h1>
+                    <p className={`mb-6 text-[20px] font-medium text-red-500 ${s("formatLead")}`}>
+                        Set up the formatting for your essay
                     </p>
-
-                    <div className={`flex items-center gap-2 ${styles.formatMeta}`}>
-                        <span className={`text-[18px] font-bold text-white ${styles.formatMetaType}`}>
+                    <div className={`flex items-center gap-2 ${s("formatMeta")}`}>
+                        <span className={`text-[18px] font-bold text-white ${s("formatMetaType")}`}>
                             {citationStyle} {isAPA ? "7th Edition" : isMLA ? "9th Edition" : ""}
                         </span>
                     </div>
                 </div>
 
                 {/* Format Section Title */}
-                <div className={`mb-8 ${styles.formatSection}`}>
-                    <h2 className={`mb-1 text-[22px] font-bold text-white ${styles.formatSectionTitle}`}>
+                <div className={`mb-8 ${s("formatSection")}`}>
+                    <h2 className={`mb-1 text-[22px] font-bold text-white ${s("formatSectionTitle")}`}>
                         {citationStyle} Format Information
                     </h2>
-                    <p className={`text-[14px] text-white/50 ${styles.formatSectionCopy}`}>
+                    <p className={`text-[14px] text-white/50 ${s("formatSectionCopy")}`}>
                         Please provide the following details for proper {citationStyle} formatting
                     </p>
                 </div>
 
-                {/* Final Essay Title */}
-                <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                    <label className={`${labelClass} ${styles.formatLabel}`}>Essay Title {requiredDot}</label>
+                {/* Final Essay Title — full width */}
+                <div className={`mb-6 ${s("formatFieldGroup")}`}>
+                    <label className={`${labelClass} ${s("formatLabel")}`}>Essay Title {requiredDot}</label>
                     <div className="relative">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -228,53 +234,53 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                             placeholder="Your essay title"
                             value={finalEssayTitle}
                             onChange={(e) => setFinalEssayTitle(e.target.value)}
-                            className={`${inputClass} pl-12 ${styles.formatInput}`}
+                            className={`${inputClass} pl-12 ${s("formatInput")}`}
                         />
                     </div>
                 </div>
 
-                {/* Student Name */}
-                <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                    <label className={`${labelClass} ${styles.formatLabel}`}>Student Name {requiredDot}</label>
-                    <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                            </svg>
+                {/* Student Name + Instructor Name — 2-column row on desktop */}
+                <div className={s("formatFieldRow")}>
+                    <div className={s("formatFieldGroup")}>
+                        <label className={`${labelClass} ${s("formatLabel")}`}>Student Name {requiredDot}</label>
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Your full name"
+                                value={studentName}
+                                onChange={(e) => setStudentName(e.target.value)}
+                                className={`${inputClass} pl-12 ${s("formatInput")}`}
+                            />
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Your full name"
-                            value={studentName}
-                            onChange={(e) => setStudentName(e.target.value)}
-                            className={`${inputClass} pl-12 ${styles.formatInput}`}
-                        />
                     </div>
-                </div>
-
-                {/* Instructor Name */}
-                <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                    <label className={`${labelClass} ${styles.formatLabel}`}>Instructor Name</label>
-                    <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
+                    <div className={s("formatFieldGroup")}>
+                        <label className={`${labelClass} ${s("formatLabel")}`}>Instructor Name</label>
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Your instructor's name"
+                                value={instructorName}
+                                onChange={(e) => setInstructorName(e.target.value)}
+                                className={`${inputClass} pl-12 ${s("formatInput")}`}
+                            />
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Your instructor's name"
-                            value={instructorName}
-                            onChange={(e) => setInstructorName(e.target.value)}
-                            className={`${inputClass} pl-12 ${styles.formatInput}`}
-                        />
                     </div>
                 </div>
 
-                {/* Institution (APA only) */}
+                {/* Institution (APA only) — full width */}
                 {isAPA && (
-                    <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                        <label className={`${labelClass} ${styles.formatLabel}`}>Institution</label>
+                    <div className={`mb-6 ${s("formatFieldGroup")}`}>
+                        <label className={`${labelClass} ${s("formatLabel")}`}>Institution</label>
                         <div className="relative">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -286,66 +292,66 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                                 placeholder="Your institution name"
                                 value={institutionName}
                                 onChange={(e) => setInstitutionName(e.target.value)}
-                                className={`${inputClass} pl-12 ${styles.formatInput}`}
+                                className={`${inputClass} pl-12 ${s("formatInput")}`}
                             />
                         </div>
                     </div>
                 )}
 
-                {/* Course Information */}
-                <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                    <label className={`${labelClass} ${styles.formatLabel}`}>Course Information {requiredDot}</label>
-                    <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                            </svg>
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Course name and number"
-                            value={courseInfo}
-                            onChange={(e) => setCourseInfo(e.target.value)}
-                            className={`${inputClass} pl-12 ${styles.formatInput}`}
-                        />
-                    </div>
-                </div>
-
-                {/* Subject Code (MLA only) */}
-                {isMLA && (
-                    <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                        <label className={`${labelClass} ${styles.formatLabel}`}>Subject Code</label>
+                {/* Course Information + Subject Code (MLA) — 2-col when both present */}
+                <div className={isMLA ? s("formatFieldRow") : `mb-6 ${s("formatFieldGroup")}`}>
+                    <div className={isMLA ? s("formatFieldGroup") : undefined}>
+                        <label className={`${labelClass} ${s("formatLabel")}`}>Course Information {requiredDot}</label>
                         <div className="relative">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                                 </svg>
                             </div>
                             <input
                                 type="text"
-                                placeholder="e.g. ENG101"
-                                value={subjectCode}
-                                onChange={(e) => setSubjectCode(e.target.value)}
-                                className={`${inputClass} pl-12 ${styles.formatInput}`}
+                                placeholder="Course name and number"
+                                value={courseInfo}
+                                onChange={(e) => setCourseInfo(e.target.value)}
+                                className={`${inputClass} pl-12 ${s("formatInput")}`}
                             />
                         </div>
                     </div>
-                )}
+                    {isMLA && (
+                        <div className={s("formatFieldGroup")}>
+                            <label className={`${labelClass} ${s("formatLabel")}`}>Subject Code</label>
+                            <div className="relative">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. ENG101"
+                                    value={subjectCode}
+                                    onChange={(e) => setSubjectCode(e.target.value)}
+                                    className={`${inputClass} pl-12 ${s("formatInput")}`}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-                {/* Date */}
-                <div className={`mb-6 ${styles.formatFieldGroup}`}>
-                    <label className={`${labelClass} ${styles.formatLabel}`}>Date</label>
-                    <div className={`rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${styles.formatDatePanel}`}>
-                        <div className={`mb-4 flex items-center justify-between gap-4 ${styles.formatDateHeader}`}>
+                {/* Date — full width */}
+                <div className={`mb-6 ${s("formatFieldGroup")}`}>
+                    <label className={`${labelClass} ${s("formatLabel")}`}>Date</label>
+                    <div className={`rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${s("formatDatePanel")}`}>
+                        <div className={`mb-4 flex items-center justify-between gap-4 ${s("formatDateHeader")}`}>
                             <div className="flex items-center gap-3">
-                                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-black/30 text-white/40 ${styles.formatDateIcon}`}>
+                                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-black/30 text-white/40 ${s("formatDateIcon")}`}>
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <div className={`text-[15px] font-bold text-white ${styles.formatDateTitle}`}>Submission Date</div>
-                                    <p className={`text-[13px] text-white/45 ${styles.formatDateCopy}`}>Type your own month, day, and year.</p>
+                                    <div className={`text-[15px] font-bold text-white ${s("formatDateTitle")}`}>Submission Date</div>
+                                    <p className={`text-[13px] text-white/45 ${s("formatDateCopy")}`}>Type your own month, day, and year.</p>
                                 </div>
                             </div>
                             <button
@@ -356,67 +362,40 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                                     setDay(current.day);
                                     setYear(current.year);
                                 }}
-                                className={`rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[12px] font-bold text-white/70 transition hover:bg-white/[0.08] hover:text-white ${styles.formatDateButton}`}
+                                className={`rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[12px] font-bold text-white/70 transition hover:bg-white/[0.08] hover:text-white ${s("formatDateButton")}`}
                             >
                                 Use Today
                             </button>
                         </div>
-
-                        <div className={`grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.9fr] ${styles.formatDateGrid}`}>
-                            <DateField
-                                label="Month"
-                                value={month}
-                                placeholder="March"
-                                options={months}
-                                onChange={(value) => setMonth(value)}
-                            />
-
-                            <DateField
-                                label="Day"
-                                value={day}
-                                placeholder="10"
-                                options={Array.from({ length: 31 }, (_, index) => String(index + 1))}
-                                inputMode="numeric"
-                                maxLength={2}
-                                onChange={(value) => setDay(value.replace(/[^\d]/g, "").slice(0, 2))}
-                            />
-
-                            <DateField
-                                label="Year"
-                                value={year}
-                                placeholder="2026"
-                                options={Array.from({ length: 12 }, (_, index) => String(new Date().getFullYear() - 4 + index))}
-                                inputMode="numeric"
-                                maxLength={4}
-                                onChange={(value) => setYear(value.replace(/[^\d]/g, "").slice(0, 4))}
-                            />
+                        <div className={`grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.9fr] ${s("formatDateGrid")}`}>
+                            <DateField label="Month" value={month} placeholder="March" options={months} onChange={(value) => setMonth(value)} />
+                            <DateField label="Day" value={day} placeholder="10" options={Array.from({ length: 31 }, (_, i) => String(i + 1))} inputMode="numeric" maxLength={2} onChange={(value) => setDay(value.replace(/[^\d]/g, "").slice(0, 2))} />
+                            <DateField label="Year" value={year} placeholder="2026" options={Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() - 4 + i))} inputMode="numeric" maxLength={4} onChange={(value) => setYear(value.replace(/[^\d]/g, "").slice(0, 4))} />
                         </div>
-
-                        <div className={`mt-4 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-[13px] text-white/55 ${styles.formatDatePreview}`}>
+                        <div className={`mt-4 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-[13px] text-white/55 ${s("formatDatePreview")}`}>
                             Preview: <span className="font-semibold text-white/80">{`${month || "Month"} ${day || "DD"} ${year || "YYYY"}`}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Fixed Bottom bar */}
-            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10 ${styles.formatFooter}`}>
-                <div className={`mx-auto flex w-full items-center justify-between py-5 gap-4 ${styles.formatFooterInner}`}>
+            {/* Fixed Bottom Bar */}
+            <div className={`fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[#0a0a0a]/95 px-6 backdrop-blur-md lg:px-10 ${s("formatFooter")}`}>
+                <div className={`mx-auto flex w-full items-center justify-between py-4 gap-4 ${s("formatFooterInner")}`}>
                     <button
                         onClick={onBack}
-                        className={`ml-20 flex min-w-[154px] items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-4 text-[15px] font-bold text-white/80 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] md:ml-24 ${styles.formatBackButton}`}
+                        className={`flex items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-[15px] font-bold text-white/80 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] ${s("formatBackButton")}`}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m15 18-6-6 6-6" />
                         </svg>
                         Back
                     </button>
-
                     <button
                         onClick={handleContinue}
-                        className={`group relative flex min-w-[250px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 md:flex-[2] ${styles.formatContinueButton}`}
+                        className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-3.5 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 ${s("formatContinueButton")}`}
                     >
-                        Generate Essay
+                        Continue
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
                             <path d="m9 18 6-6-6-6" />
                         </svg>
