@@ -245,6 +245,18 @@ export default function HomeView() {
         onBack={() => setPage("ghostciter")}
         onContinue={(style) => {
           setGhostciterStyle(style);
+          setPage("ghostciter-citations");
+        }}
+      />
+    );
+  }
+
+  if (page === "ghostciter-citations") {
+    return (
+      <CitationView
+        onBack={() => setPage("ghostciter-style")}
+        onContinue={(citations) => {
+          setGhostciterCitations(citations);
           setPage("ghostciter-editor");
         }}
       />
