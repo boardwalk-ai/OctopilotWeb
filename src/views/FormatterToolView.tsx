@@ -45,14 +45,20 @@ async function extractDocxText(file: File): Promise<string> {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  // Use existing PDF extract API
   const form = new FormData();
   form.append("file", file);
   const res = await fetch("/api/pdf/extract", { method: "POST", body: form });
   if (!res.ok) throw new Error("Could not extract PDF text.");
-  const data = (await res.json()) as { text?: string; error?: string };
-  if (!data.text) throw new Error(data.error ?? "PDF extraction returned empty text.");
-  return data.text;
+  const data = (await res.json()) as { pages?: string[]; text?: string; error?: string };
+  // API returns { pages: string[] } — join them into one string
+  if (data.pages && data.pages.length > 0) {
+    const joined = data.pages.join("\n\n").trim();
+    if (!joined) throw new Error("PDF extraction returned empty text.");
+    return joined;
+  }
+  // Fallback: some versions return { text }
+  if (data.text) return data.text;
+  throw new Error(data.error ?? "PDF extraction returned empty result.");
 }
 
 async function readUploadedFile(file: File): Promise<string> {
