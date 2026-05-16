@@ -221,8 +221,8 @@ export default function FormatterToolView({ onBack, onContinue }: FormatterToolV
           </svg>
           <span className={styles.parseText}>
             {label
-              ? `Detected: ${label} format · parsed by ${result.parsedBy === "ai" ? "AI" : "heuristic"}`
-              : `Structure parsed · parsed by ${result.parsedBy === "ai" ? "AI" : "heuristic"}`}
+              ? `Detected: ${label} format · analysed by AI`
+              : `Document structure analysed by AI`}
           </span>
         </div>
       );
