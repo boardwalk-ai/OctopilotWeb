@@ -1102,26 +1102,31 @@ export default function GhostciterDashboardView({ onBack, onContinue }: Ghostcit
                           ref={(el) => { gcShellRefs.current[page.id] = el; }}
                           className={styles.pageShell}
                         >
+                          {/* Padding wrapper — keeps contentEditable clientHeight = content area only */}
                           <div
-                            ref={(el) => {
-                              gcEditorRefs.current[page.id] = el;
-                              if (el && el.dataset.gcHydrated !== "1") {
-                                el.innerHTML = gcContentRef.current[page.id] || "<br/>";
-                                el.dataset.gcHydrated = "1";
-                              }
-                            }}
-                            contentEditable
-                            suppressContentEditableWarning
-                            onInput={() => gcHandleInput(page.id)}
-                            className={isCentered ? styles.pageEditableCentered : styles.pageEditable}
-                            style={{
-                              padding:    `${marginPx}px`,
-                              fontFamily: font,
-                              fontSize:   "12pt",
-                              lineHeight: String(lineH),
-                              textAlign,
-                            }}
-                          />
+                            className={styles.pageInner}
+                            style={{ padding: `${marginPx}px` }}
+                          >
+                            <div
+                              ref={(el) => {
+                                gcEditorRefs.current[page.id] = el;
+                                if (el && el.dataset.gcHydrated !== "1") {
+                                  el.innerHTML = gcContentRef.current[page.id] || "<br/>";
+                                  el.dataset.gcHydrated = "1";
+                                }
+                              }}
+                              contentEditable
+                              suppressContentEditableWarning
+                              onInput={() => gcHandleInput(page.id)}
+                              className={isCentered ? styles.pageEditableCentered : styles.pageEditable}
+                              style={{
+                                fontFamily: font,
+                                fontSize:   "12pt",
+                                lineHeight: String(lineH),
+                                textAlign,
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     );

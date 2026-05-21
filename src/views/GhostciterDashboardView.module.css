@@ -500,24 +500,35 @@
   position: relative;
 }
 
-/* ── Editable content area inside a page ─────────────────────────────────── */
-.pageEditable {
+/* ── Padding wrapper — fills pageShell, provides margin zone ────────────── */
+/* clientHeight of pageInner = 1056px (border-box)                          */
+/* Flex child (pageEditable) fills only the content area = 1056 - 2×margin  */
+.pageInner {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Editable content area — clientHeight = actual content area only ─────── */
+/* overflow detection: scrollHeight > clientHeight fires when text exceeds   */
+/* the content area (not the padding zone), so splits happen at the right px */
+.pageEditable {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   color: #000;
   outline: none;
   overflow: hidden;
-  white-space: pre-wrap;
   word-break: break-word;
-  display: block;
 }
 
 /* ── Centred variant (APA title page etc.) ───────────────────────────────── */
 .pageEditableCentered {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
-  box-sizing: border-box;
   color: #000;
   outline: none;
   overflow: hidden;
