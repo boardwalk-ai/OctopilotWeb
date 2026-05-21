@@ -24,7 +24,6 @@ import GhostwriterView from "@/views/GhostwriterView";
 import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import HumanizerHubView from "@/views/HumanizerHubView";
-import GhostciterDashboardView from "@/views/GhostciterDashboardView";
 import { type FormatStyleId } from "@/views/FormatStyleView";
 import FormatterEditorView from "@/views/FormatterEditorView";
 import FormatterExportView from "@/views/FormatterExportView";
@@ -58,10 +57,7 @@ function hasWritingStyleAccess(plan?: string | null): boolean {
 
 export default function HomeView() {
   const [page, setPage] = useState<Page>("home");
-  const [ghostciterContent, setGhostciterContent] = useState("");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
-  const [ghostciterCitations, setGhostciterCitations] = useState<{ id: string; text: string }[]>([]);
-  const [ghostciterParsed, setGhostciterParsed] = useState<import("@/app/api/formatter/parse/route").ParsedDocumentResult | null>(null);
   const [ghostciterSnapshot, setGhostciterSnapshot] = useState<ExportDocumentSnapshot | null>(null);
   const [isWorkspaceTopBarCollapsed, setIsWorkspaceTopBarCollapsed] = useState(false);
   const [accountPlan, setAccountPlan] = useState<string | null>(() => AccountStateService.read()?.plan ?? null);
@@ -223,40 +219,13 @@ export default function HomeView() {
     return <HumanizerHubView onBack={() => setPage("methodology")} />;
   }
 
-  if (page === "ghostciter") {
-    return (
-      <GhostciterDashboardView
-        onBack={() => setPage("methodology")}
-        onContinue={(content, parsed, citations, style) => {
-          setGhostciterContent(content);
-          setGhostciterParsed(parsed);
-          setGhostciterCitations(citations);
-          setGhostciterStyle(style);
-          setPage("ghostciter-editor");
-        }}
-      />
-    );
-  }
-
-  if (page === "ghostciter-editor") {
-    const p = ghostciterParsed;
+  if (page === "ghostciter" || page === "ghostciter-editor") {
     return (
       <FormatterEditorView
-        // Use parsed essay body if available, else full raw content
-        content={p?.essay ?? ghostciterContent}
-        bibliography={p?.bibliography ?? ""}
-        initialDocTitle={p?.finalEssayTitle ?? ""}
-        studentName={p?.studentName ?? ""}
-        instructorName={p?.instructorName ?? ""}
-        institutionName={p?.institutionName ?? ""}
-        courseInfo={p?.courseInfo ?? ""}
-        subjectCode={p?.subjectCode ?? ""}
-        essayDate={p?.essayDate ?? ""}
-        citations={ghostciterCitations}
-        formatStyle={ghostciterStyle}
-        onBack={() => setPage("ghostciter")}
-        onFinish={(snapshot) => {
+        onBack={() => setPage("methodology")}
+        onFinish={(snapshot, formatStyle) => {
           setGhostciterSnapshot(snapshot);
+          setGhostciterStyle(formatStyle);
           setPage("ghostciter-export");
         }}
       />
