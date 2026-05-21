@@ -656,7 +656,8 @@ export default function GhostciterDashboardView({ onBack, onContinue }: Ghostcit
       gcEditorRefs.current = {};
       gcShellRefs.current  = {};
       gcContentRef.current = {};
-      gcNextId.current     = 1;
+      // NOTE: do NOT reset gcNextId — IDs must stay unique across renders so
+      // React never reuses an old DOM element when format style changes.
       gcPagesRef.current   = [];
       setGcPages([]);
       setGcCurrentPage(1);
@@ -673,7 +674,10 @@ export default function GhostciterDashboardView({ onBack, onContinue }: Ghostcit
     gcEditorRefs.current = {};
     gcShellRefs.current  = {};
     gcContentRef.current = {};
-    gcNextId.current     = 1;
+    // Do NOT reset gcNextId here — always increment so every render cycle
+    // produces fresh IDs → React creates new DOM elements → ref callbacks
+    // fire on brand-new elements → data-gcHydrated is unset → content is
+    // re-injected correctly each time the format style changes.
 
     const initial: GcPage[] = formattedOutput.pages.map((sec, sectionIdx) => {
       const id = gcNextId.current++;
