@@ -24,9 +24,8 @@ import GhostwriterView from "@/views/GhostwriterView";
 import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
 import OctopilotSlidesView from "@/views/OctopilotSlidesView";
 import HumanizerHubView from "@/views/HumanizerHubView";
-import FormatterToolView from "@/views/FormatterToolView";
-import FormatStyleView, { type FormatStyleId } from "@/views/FormatStyleView";
-import CitationView from "@/views/CitationView";
+import GhostciterDashboardView from "@/views/GhostciterDashboardView";
+import { type FormatStyleId } from "@/views/FormatStyleView";
 import FormatterEditorView from "@/views/FormatterEditorView";
 import FormatterExportView from "@/views/FormatterExportView";
 import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
@@ -49,7 +48,7 @@ import {
   LogoNav,
 } from "@/components/header";
 
-type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-style" | "ghostciter-citations" | "ghostciter-editor" | "ghostciter-export" | AutomationStepId;
+type Page = "home" | "methodology" | "ghostwriter" | "ghostwriter-workflow" | "octopilotslides" | "humanizerhub" | "ghostciter" | "ghostciter-editor" | "ghostciter-export" | AutomationStepId;
 
 function hasWritingStyleAccess(plan?: string | null): boolean {
   if (!plan) return false;
@@ -226,37 +225,13 @@ export default function HomeView() {
 
   if (page === "ghostciter") {
     return (
-      <FormatterToolView
+      <GhostciterDashboardView
         onBack={() => setPage("methodology")}
-        onContinue={(content, parsed) => {
+        onContinue={(content, parsed, citations, style) => {
           setGhostciterContent(content);
           setGhostciterParsed(parsed);
-          setPage("ghostciter-style");
-        }}
-      />
-    );
-  }
-
-  if (page === "ghostciter-style") {
-    return (
-      <FormatStyleView
-        defaultStyle={ghostciterStyle}
-        detectedStyle={ghostciterParsed?.detectedStyle}
-        onBack={() => setPage("ghostciter")}
-        onContinue={(style) => {
-          setGhostciterStyle(style);
-          setPage("ghostciter-citations");
-        }}
-      />
-    );
-  }
-
-  if (page === "ghostciter-citations") {
-    return (
-      <CitationView
-        onBack={() => setPage("ghostciter-style")}
-        onContinue={(citations) => {
           setGhostciterCitations(citations);
+          setGhostciterStyle(style);
           setPage("ghostciter-editor");
         }}
       />
@@ -279,7 +254,7 @@ export default function HomeView() {
         essayDate={p?.essayDate ?? ""}
         citations={ghostciterCitations}
         formatStyle={ghostciterStyle}
-        onBack={() => setPage("ghostciter-style")}
+        onBack={() => setPage("ghostciter")}
         onFinish={(snapshot) => {
           setGhostciterSnapshot(snapshot);
           setPage("ghostciter-export");

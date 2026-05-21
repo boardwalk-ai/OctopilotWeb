@@ -112,7 +112,7 @@ const menuItems: MenuItem[] = [
   {
     id: "beta-access",
     label: "Beta Access",
-    description: "Gate Ghostwriter & OctopilotSlides per email",
+    description: "Gate OctopilotSlides per email",
     icon: <ShieldIcon />,
     columns: ["Status"],
     group: "Access Control",

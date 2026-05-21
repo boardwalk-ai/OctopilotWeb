@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthService } from "@/services/AuthService";
 
-type BetaFeatureKey = "ghostwriter" | "octopilotSlides" | "humanizerHub" | "ghostCiter";
+type BetaFeatureKey = "octopilotSlides" | "humanizerHub" | "ghostCiter";
 
 type BetaAccessEntry = {
   email: string;
@@ -22,13 +22,12 @@ type BetaAccessPanelProps = {
 };
 
 const FEATURE_LABELS: Record<BetaFeatureKey, string> = {
-  ghostwriter: "Ghostwriter",
   octopilotSlides: "OctopilotSlides",
   humanizerHub: "Humanizer Hub",
   ghostCiter: "Formatter Tool",
 };
 
-const DEFAULT_FEATURES: BetaFeatureKey[] = ["ghostwriter", "octopilotSlides", "humanizerHub", "ghostCiter"];
+const DEFAULT_FEATURES: BetaFeatureKey[] = ["octopilotSlides", "humanizerHub", "ghostCiter"];
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const performFetch = async (forceRefresh: boolean) => {
@@ -198,7 +197,7 @@ export default function BetaAccessPanel({ refreshKey }: BetaAccessPanelProps) {
         <div className="border-b border-white/8 px-5 py-4">
           <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Grant Beta Access</div>
           <div className="mt-2 text-sm leading-6 text-white/46">
-            Type an email below and click Add to give that account access to gated features (Ghostwriter, OctopilotSlides). The
+            Type an email below and click Add to give that account access to gated features (OctopilotSlides). The
             list also acts as a search filter for the table.
           </div>
         </div>

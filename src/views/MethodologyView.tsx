@@ -300,14 +300,13 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter">(org.writingMode || "automation");
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const [betaAccess, setBetaAccess] = useState<BetaAccessFeatures>(DEFAULT_BETA_ACCESS);
-  const canSeeGhostwriter = betaAccess.ghostwriter;
+  const canSeeGhostwriter = true;
   const canSeeOctopilotSlides = betaAccess.octopilotSlides;
   const canSeeHumanizerHub = betaAccess.humanizerHub;
   const canSeeFormatterTool = betaAccess.ghostCiter;
-  const visibleBetaCount = [canSeeGhostwriter, canSeeOctopilotSlides, canSeeHumanizerHub, canSeeFormatterTool].filter(Boolean).length;
-  const gridColsClass = (2 + visibleBetaCount) === 4 ? "md:grid-cols-2" : "md:grid-cols-3";
+  const visibleBetaCount = [canSeeOctopilotSlides, canSeeHumanizerHub, canSeeFormatterTool].filter(Boolean).length;
+  const gridColsClass = (3 + visibleBetaCount) === 4 ? "md:grid-cols-2" : "md:grid-cols-3";
   const effectiveSelected = (() => {
-    if (!canSeeGhostwriter && selected === "ghostwriter") return "automation" as const;
     if (!canSeeOctopilotSlides && selected === "octopilotslides") return "automation" as const;
     if (!canSeeHumanizerHub && selected === "humanizerhub") return "automation" as const;
     if (!canSeeFormatterTool && selected === "ghostciter") return "automation" as const;
@@ -629,8 +628,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
               </button>
             ) : null}
 
-            {canSeeGhostwriter ? (
-              <button
+            <button
                 onClick={() => {
                   setSelected("ghostwriter");
                   onSelect("ghostwriter");
@@ -651,7 +649,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                     <div className="mb-2 flex items-center gap-2">
                       <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Ghostwriter</h2>
                       <span className="rounded-full border border-emerald-500/30 bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300">
-                        Beta
+                        New
                       </span>
                     </div>
                     <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>You steer the idea. AI sharpens the prose.</p>
@@ -676,11 +674,10 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
 
                 <div className={`absolute bottom-7 right-7 ${styles.methodologyBadgeWrap}`}>
                   <span className={`rounded-full bg-emerald-500/20 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ${styles.methodologyBadge}`}>
-                    Beta
+                    New
                   </span>
                 </div>
               </button>
-            ) : null}
           </div>
         </div>
 

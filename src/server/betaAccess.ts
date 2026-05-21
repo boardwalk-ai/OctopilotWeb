@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from "@/server/backendConfig";
 import { resolveDefaultServiceAuthorization } from "@/server/serviceAuthorization";
 
-export type BetaFeatureKey = "ghostwriter" | "octopilotSlides" | "humanizerHub" | "ghostCiter";
+export type BetaFeatureKey = "octopilotSlides" | "humanizerHub" | "ghostCiter";
 
 export type BetaAccessEntry = {
   email: string;
@@ -10,7 +10,7 @@ export type BetaAccessEntry = {
   addedAt: string;
 };
 
-export const SUPPORTED_BETA_FEATURES: BetaFeatureKey[] = ["ghostwriter", "octopilotSlides", "humanizerHub", "ghostCiter"];
+export const SUPPORTED_BETA_FEATURES: BetaFeatureKey[] = ["octopilotSlides", "humanizerHub", "ghostCiter"];
 
 const BETA_ACCESS_SETTINGS_KEY = "beta_access_list";
 
@@ -193,7 +193,6 @@ export async function fetchBetaAccessForEmail(email: string): Promise<{
   features: Record<BetaFeatureKey, boolean>;
 }> {
   const features: Record<BetaFeatureKey, boolean> = {
-    ghostwriter: false,
     octopilotSlides: false,
     humanizerHub: false,
     ghostCiter: false,
