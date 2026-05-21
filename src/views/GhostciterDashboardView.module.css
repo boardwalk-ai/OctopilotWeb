@@ -1,0 +1,933 @@
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
+.shell {
+  position: fixed;
+  inset: 0;
+  background: #080809;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Top nav ────────────────────────────────────────────────────────────────── */
+.topNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  background: #080809;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+.backBtn:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.navBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.navBadgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.navSpacer {
+  flex: 1;
+}
+
+.saveDraftBtn {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.saveDraftBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.continueBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #4f46e5;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.continueBtn:hover {
+  background: #6366f1;
+}
+.continueBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── 3-column body ──────────────────────────────────────────────────────────── */
+.body {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.colLeft,
+.colMid,
+.colRight {
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.colLeft {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.colMid {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: #0f1011;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* internal scroll handled by midScrollArea */
+  padding: 0;       /* override shared padding rule */
+}
+
+.colRight {
+  /* no border-right needed */
+}
+
+/* ── Section headers ─────────────────────────────────────────────────────────── */
+.sectionHeader {
+  margin-bottom: 12px;
+}
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 2px 0;
+  letter-spacing: 0.01em;
+}
+.sectionSubtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────────── */
+.tabRow {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.tab {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tabActive {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Textarea ────────────────────────────────────────────────────────────────── */
+.textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.textarea:focus {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.textarea::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+.textareaDragOver {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* ── Word count row ──────────────────────────────────────────────────────────── */
+.wordCountRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+/* ── Upload zone ────────────────────────────────────────────────────────────── */
+.uploadZone {
+  border: 1.5px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.uploadZone:hover,
+.uploadZoneDrag {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.04);
+}
+.uploadZoneIcon {
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 4px;
+}
+.uploadZoneText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
+.uploadZoneHint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.22);
+  margin: 0;
+}
+
+/* ── Formats row ────────────────────────────────────────────────────────────── */
+.formatsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.formatsLabel {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0;
+}
+.formatBadge {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* ── Stats bar ──────────────────────────────────────────────────────────────── */
+.statsBar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.statItem {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 8px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.statLabel {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.statValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Divider ────────────────────────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 14px 0;
+}
+
+/* ── Format style radio list ─────────────────────────────────────────────────── */
+.styleList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.styleItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.12s, border-color 0.12s;
+}
+.styleItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.styleItemActive {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+.styleBadge {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.styleLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  flex: 1;
+}
+.styleItemActive .styleLabel {
+  color: rgba(255, 255, 255, 0.95);
+}
+.styleRadio {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: none;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s;
+}
+.styleRadioActive {
+  border-color: #6366f1;
+  background: #6366f1;
+  box-shadow: inset 0 0 0 3px #080809;
+}
+
+.styleNote {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+/* ── Parse status ────────────────────────────────────────────────────────────── */
+.parseStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 5px;
+  margin-bottom: 8px;
+}
+.parseStatusOk {
+  color: rgba(74, 222, 128, 0.75);
+}
+.parseStatusWarn {
+  color: rgba(251, 191, 36, 0.75);
+}
+.parseSpinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── File chip ──────────────────────────────────────────────────────────────── */
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chipClear {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.chipClear:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Middle column: editable document ───────────────────────────────────────── */
+.midHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.midTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollable area — gray gutter like Google Docs */
+.midScrollArea {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  background: #1a1c1f;
+}
+
+.paperContainer {
+  padding: 24px 24px 80px;
+  width: max-content;
+}
+
+.paperEmpty {
+  border: 1.5px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  min-height: 400px;
+  width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 13px;
+}
+.paperEmptyIcon {
+  opacity: 0.3;
+}
+
+/* ── Page stack — vertical list of real pages ─────────────────────────────── */
+.pageStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Individual page shell — fixed 816×1056, overflow hidden ──────────────── */
+.pageShell {
+  width: 816px;
+  height: 1056px;
+  background: #fff;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* ── Editable content area inside a page ─────────────────────────────────── */
+.pageEditable {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  color: #000;
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: block;
+}
+
+/* ── Centred variant (APA title page etc.) ───────────────────────────────── */
+.pageEditableCentered {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  color: #000;
+  outline: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ── Page separator — dark strip between logical sections (cover / body / refs) ─ */
+.pageSeparator {
+  display: block;
+  width: calc(100% + 64px);   /* bleed 32px past paper edges each side */
+  margin-left: -32px;
+  height: 32px;
+  background: #1a1c1f;
+  pointer-events: none;
+  position: relative;
+}
+/* Thin rule lines on top and bottom edges */
+.pageSeparator::before,
+.pageSeparator::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.pageSeparator::before { top: 4px; }
+.pageSeparator::after  { bottom: 4px; }
+
+/* ── Page navigation bar ─────────────────────────────────────────────────────── */
+.pageNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.pageNavBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.12s, color 0.12s;
+}
+.pageNavBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+}
+.pageNavBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pageNavText {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 52px;
+  text-align: center;
+}
+
+/* ── Right column inputs ─────────────────────────────────────────────────────── */
+.inputRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.input:focus {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  margin-bottom: 8px;
+}
+.select option {
+  background: #1a1c1f;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.autoFillBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(99, 102, 241, 0.8);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.autoFillBtn:hover {
+  background: rgba(99, 102, 241, 1);
+}
+.autoFillBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  margin-top: 6px;
+}
+
+.addBtn {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 9px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 4px;
+}
+.addBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.95);
+}
+.addBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Citation list ───────────────────────────────────────────────────────────── */
+.bibliographyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 8px;
+}
+.bibliographyTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+.manageAllBtn {
+  font-size: 10px;
+  color: rgba(99, 102, 241, 0.8);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.manageAllBtn:hover {
+  color: #818cf8;
+  text-decoration: underline;
+}
+
+.citationList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.citationItem {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  padding: 9px 10px;
+}
+.citationItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.citationTypeTag {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 2px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.citationActions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.citationActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.citationActionBtn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.75);
+}
+.citationActionBtnDanger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.8);
+}
+
+.citationText {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.citationEditTextarea {
+  width: 100%;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  min-height: 60px;
+  box-sizing: border-box;
+}
+.citationEditActions {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}
+.citationEditSave {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #4f46e5;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.citationEditCancel {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.addCitationDashed {
+  width: 100%;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  background: none;
+  border: 1.5px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 9px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.addCitationDashed:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── In-text citation section ────────────────────────────────────────────────── */
+.inTextSection {
+  margin-top: 4px;
+}
+.inTextTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inTextTitle::before,
+.inTextTitle::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.insertCitationBtn {
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #4f46e5;
+  border: none;
+  border-radius: 9px;
+  padding: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 8px;
+}
+.insertCitationBtn:hover {
+  background: #6366f1;
+}
+.insertCitationBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inTextNote {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.22);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+/* ── Feedback messages ───────────────────────────────────────────────────────── */
+.feedbackMsg {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  margin-bottom: 8px;
+}
+.feedbackOk {
+  color: rgba(74, 222, 128, 0.9);
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+}
+.feedbackErr {
+  color: rgba(251, 113, 133, 0.9);
+  background: rgba(251, 113, 133, 0.08);
+  border: 1px solid rgba(251, 113, 133, 0.15);
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 32, 36, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Hidden file input ───────────────────────────────────────────────────────── */
+.hiddenInput {
+  display: none;
+}
