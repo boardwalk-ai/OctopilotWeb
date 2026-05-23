@@ -634,17 +634,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 0%   { background-position: -200% center; }
                 100% { background-position: 200% center; }
               }
+              @keyframes octopilot-char-zoom {
+                0%   { transform: scale(1); }
+                10%  { transform: scale(1.28); }
+                24%  { transform: scale(1); }
+                100% { transform: scale(1); }
+              }
             `}</style>
-            <span className="text-[16px] font-extrabold italic tracking-tight leading-none">
+            <span className="font-extrabold italic tracking-tight leading-none">
               <span style={{
-                background: 'linear-gradient(90deg, #ff2200 0%, #ff2200 30%, #ffb0a0 50%, #ff2200 70%, #ff2200 100%)',
+                background: 'linear-gradient(90deg, #ff2200 0%, #ff2200 30%, #ffb8aa 50%, #ff2200 70%, #ff2200 100%)',
                 backgroundSize: '200% auto',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
                 animation: 'octopilot-scan 2.4s linear infinite',
-              }}>Octopilot</span>
-              <span className="text-[#e2e8f0]"> Formatter Tool</span>
+                fontSize: '21px',
+              }}>
+                {"Octopilot".split("").map((char, i) => (
+                  <span key={i} style={{
+                    display: 'inline-block',
+                    animation: 'octopilot-char-zoom 2.4s linear infinite',
+                    animationDelay: `${(i / 9) * 2.4}s`,
+                  }}>{char}</span>
+                ))}
+              </span>
+              <span style={{ fontSize: '14px' }} className="text-[#e2e8f0]"> Formatter Tool</span>
             </span>
           </div>
         </div>
