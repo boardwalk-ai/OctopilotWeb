@@ -630,31 +630,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           )}
           <div className="flex items-center">
             <style>{`
-              @keyframes octopilot-scan {
-                0%   { background-position: -200% center; }
-                100% { background-position: 200% center; }
-              }
-              @keyframes octopilot-char-zoom {
-                0%   { transform: scale(1); }
-                10%  { transform: scale(1.28); }
-                24%  { transform: scale(1); }
-                100% { transform: scale(1); }
+              @keyframes octopilot-char-scan {
+                0%   { color: #ff2200; transform: scale(1); }
+                8%   { color: #ffaa88; transform: scale(1.28); }
+                22%  { color: #ff2200; transform: scale(1); }
+                100% { color: #ff2200; transform: scale(1); }
               }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
-              <span style={{
-                background: 'linear-gradient(90deg, #ff2200 0%, #ff2200 30%, #ffb8aa 50%, #ff2200 70%, #ff2200 100%)',
-                backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                animation: 'octopilot-scan 2.4s linear infinite',
-                fontSize: '21px',
-              }}>
+              <span style={{ fontSize: '21px', color: '#ff2200' }}>
                 {"Octopilot".split("").map((char, i) => (
                   <span key={i} style={{
                     display: 'inline-block',
-                    animation: 'octopilot-char-zoom 2.4s linear infinite',
+                    animation: 'octopilot-char-scan 2.4s linear infinite',
                     animationDelay: `${(i / 9) * 2.4}s`,
                   }}>{char}</span>
                 ))}
