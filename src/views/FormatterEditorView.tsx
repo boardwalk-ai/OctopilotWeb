@@ -156,7 +156,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [citFormatPick, setCitFormatPick] = useState<FormatStyleId>("mla");
   const [citCards, setCitCards] = useState<CitationCard[]>([]);
   // Manual form fields
-  const [showManualForm, setShowManualForm] = useState(false);
+  const [citMode, setCitMode] = useState<"manual" | "auto">("manual");
   const [manualFormUrl, setManualFormUrl] = useState("");
   const [manualAuthor, setManualAuthor] = useState("");
   const [manualPublisher, setManualPublisher] = useState("");
@@ -423,7 +423,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setCitCards((prev) => [...prev, { id: crypto.randomUUID(), url, inText: data.inText!, bibliography: data.bibliography! }]);
       setCitUrlInput("");
       setCitPhase({ kind: "idle" });
-      setShowManualForm(false);
     } catch {
       setCitPhase({ kind: "error", url, message: "Network error while generating citation." });
     }
@@ -439,10 +438,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       publisher: manualPublisher || undefined,
     };
     await handleGenerateCitation(url, meta, citFormatPick);
-    if (showManualForm) {
-      setManualAuthor(""); setManualPublisher(""); setManualYear(""); setManualContent("");
-      setManualFormUrl(""); setShowManualForm(false);
-    }
+    setManualAuthor(""); setManualPublisher(""); setManualYear(""); setManualContent("");
+    setManualFormUrl("");
   };
 
   /* ── Citations: insert in-text at cursor ── */
@@ -963,13 +960,27 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
 
-              {/* ── URL Input ── */}
-              {!showManualForm && (
+              {/* ── Mode Switcher ── */}
+              <div className="mb-3 flex rounded-full bg-[#1a1f28] p-1">
+                {(["manual", "auto"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => { setCitMode(mode); setCitPhase({ kind: "idle" }); }}
+                    className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition active:scale-[0.97] ${citMode === mode ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#64748b] hover:text-[#94a3b8]"}`}
+                  >
+                    {mode === "manual" ? "Manual" : "Auto"}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Auto: URL scrape ── */}
+              {citMode === "auto" && (
                 <div className="mb-3">
                   <div className="flex gap-1.5">
                     <input
                       type="url"
-                      className="min-w-0 flex-1 rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#4b5563] outline-none focus:border-[#4b5563]"
+                      className="min-w-0 flex-1 rounded-2xl border border-[#2a2f38] bg-[#0f1218] px-3 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#4b5563] outline-none focus:border-[#4b5563]"
                       placeholder="Paste a URL to cite…"
                       value={citUrlInput}
                       onChange={(e) => { setCitUrlInput(e.target.value); if (citPhase.kind !== "idle") setCitPhase({ kind: "idle" }); }}
@@ -1027,7 +1038,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Generating spinner */}
                   {citPhase.kind === "generating" && (
-                    <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e2530] px-2 py-1.5 text-[11px] text-[#94a3b8]">
+                    <div className="mt-2 flex items-center gap-1.5 rounded-2xl bg-[#1e2530] px-3 py-1.5 text-[11px] text-[#94a3b8]">
                       <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-[#94a3b8] border-t-transparent" />
                       <span>Generating citation…</span>
                     </div>
@@ -1035,13 +1046,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Error */}
                   {citPhase.kind === "error" && (
-                    <div className="mt-2 rounded-[8px] border border-[#3a1f1f] bg-[#1e1208] p-2.5">
+                    <div className="mt-2 rounded-2xl border border-[#3a1f1f] bg-[#1e1208] p-2.5">
                       <p className="mb-1.5 text-[11px] text-[#fbbf24]">{citPhase.message}</p>
                       <button
                         type="button"
                         onClick={() => {
                           setManualFormUrl(citPhase.url);
-                          setShowManualForm(true);
+                          setCitMode("manual");
                           setCitPhase({ kind: "idle" });
                         }}
                         className="text-[11px] font-medium text-[#60a5fa] hover:text-[#93c5fd]"
@@ -1054,16 +1065,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               )}
 
               {/* ── Manual Form ── */}
-              {showManualForm && (
-                <div className="mb-3 rounded-[8px] border border-[#2a2f38] bg-[#161b23] p-2.5">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-[#e2e8f0]">Manual Entry</p>
-                    <button
-                      type="button"
-                      onClick={() => { setShowManualForm(false); setManualAuthor(""); setManualPublisher(""); setManualYear(""); setManualContent(""); setManualFormUrl(""); }}
-                      className="text-[11px] text-[#4b5563] hover:text-[#94a3b8]"
-                    >✕</button>
-                  </div>
+              {citMode === "manual" && (
+                <div className="mb-3">
                   {[
                     { label: "Author name", value: manualAuthor, set: setManualAuthor, ph: "e.g. John Smith" },
                     { label: "Publisher name", value: manualPublisher, set: setManualPublisher, ph: "e.g. Penguin Books" },
@@ -1073,7 +1076,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <p className="mb-0.5 text-[10px] text-[#4b5563]">{label}</p>
                       <input
                         type="text"
-                        className="w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
+                        className="w-full rounded-2xl border border-[#2a2f38] bg-[#0f1218] px-3 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
                         placeholder={ph}
                         value={value}
                         onChange={(e) => set(e.target.value)}
@@ -1083,7 +1086,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <div className="mb-2">
                     <p className="mb-0.5 text-[10px] text-[#4b5563]">Full content (helps AI)</p>
                     <textarea
-                      className="w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
+                      className="w-full rounded-2xl border border-[#2a2f38] bg-[#0f1218] px-3 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
                       placeholder="Paste a summary or excerpt…"
                       rows={4}
                       value={manualContent}
@@ -1122,19 +1125,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <span className="text-[11px] font-semibold text-[#94a3b8]">
                   Bibliography {citCards.length > 0 && `(${citCards.length})`}
                 </span>
-                {!showManualForm && citPhase.kind === "idle" && (
-                  <button
-                    type="button"
-                    onClick={() => setShowManualForm(true)}
-                    className="text-[10px] text-[#4b5563] hover:text-[#94a3b8]"
-                  >
-                    + Manual
-                  </button>
-                )}
               </div>
 
               {citCards.length === 0 && (
-                <p className="text-[10px] text-[#374151]">Scrape a URL above to generate citations.</p>
+                <p className="text-[10px] text-[#374151]">
+                  {citMode === "auto" ? "Scrape a URL above to generate citations." : "Fill in the form above to generate a citation."}
+                </p>
               )}
 
               <div className="flex flex-col gap-2">
