@@ -636,6 +636,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 22%  { color: #ff2200; transform: scale(1); }
                 100% { color: #ff2200; transform: scale(1); }
               }
+              @keyframes cit-card-in {
+                from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+                to   { opacity: 1; transform: translateY(0) scale(1); }
+              }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
               <span style={{ fontSize: '21px', color: '#ff2200' }}>
@@ -876,35 +880,35 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       type="button"
                       onClick={() => void handleScrapeUrl()}
                       disabled={citPhase.kind === "scraping" || citPhase.kind === "generating" || !citUrlInput.trim()}
-                      className="rounded-[6px] bg-[#1e252f] px-2.5 py-1.5 text-[11px] font-medium text-[#94a3b8] transition hover:bg-[#252c38] disabled:opacity-40"
+                      className="rounded-full bg-[#ea4335] px-4 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
                     >
                       {citPhase.kind === "scraping" ? (
-                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#94a3b8] border-t-transparent" />
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                       ) : "Scrape"}
                     </button>
                   </div>
 
                   {/* Scraped metadata + format picker */}
                   {citPhase.kind === "awaiting_format" && (
-                    <div className="mt-2 rounded-[8px] border border-[#2a2f38] bg-[#161b23] p-2.5">
-                      <div className="mb-2 flex items-start gap-1.5">
-                        <svg width="10" height="10" className="mt-0.5 flex-shrink-0 text-[#4ade80]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
-                        <div className="min-w-0">
-                          {citPhase.meta.title && <p className="truncate text-[10px] font-medium text-[#e2e8f0]">{citPhase.meta.title}</p>}
+                    <div className="mt-2 rounded-[16px] border border-[#2a2f38] bg-[#161b23] p-3" style={{ animation: 'cit-card-in 0.22s ease-out' }}>
+                      <div className="mb-2.5 flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          {citPhase.meta.title && <p className="truncate text-[11px] font-medium text-[#e2e8f0]">{citPhase.meta.title}</p>}
                           {citPhase.meta.author && <p className="truncate text-[10px] text-[#64748b]">{citPhase.meta.author}</p>}
                           {citPhase.meta.year && <p className="text-[10px] text-[#4b5563]">{citPhase.meta.year}</p>}
                         </div>
+                        <span className="flex-shrink-0 rounded-full bg-[#0d2218] px-2 py-0.5 text-[9px] font-semibold text-[#4ade80]">Scrape succeeded</span>
                       </div>
                       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Which format?</p>
-                      <div className="mb-2 flex flex-wrap gap-1">
+                      <div className="mb-2.5 flex flex-wrap gap-1.5">
                         {FORMAT_STYLES.map((s) => (
                           <button
                             key={s.id}
                             type="button"
                             onClick={() => setCitFormatPick(s.id)}
-                            className={`relative flex items-center gap-1 rounded-[6px] px-2 py-1 text-[10px] font-medium transition ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                            className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
                           >
-                            {s.abbr}
+                            {s.label.split(" (")[0]}
                             {s.id === currentEssayFormat && (
                               <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
                             )}
@@ -914,7 +918,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <button
                         type="button"
                         onClick={() => void handleGenerateCitation(citPhase.url, citPhase.meta, citFormatPick)}
-                        className="w-full rounded-[6px] bg-[#ea4335] py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626]"
+                        className="w-full rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)]"
                       >
                         Generate Citation
                       </button>
@@ -987,15 +991,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     />
                   </div>
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Which format?</p>
-                  <div className="mb-2 flex flex-wrap gap-1">
+                  <div className="mb-2.5 flex flex-wrap gap-1.5">
                     {FORMAT_STYLES.map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => setCitFormatPick(s.id)}
-                        className={`relative flex items-center gap-1 rounded-[6px] px-2 py-1 text-[10px] font-medium transition ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                        className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
                       >
-                        {s.abbr}
+                        {s.label.split(" (")[0]}
                         {s.id === currentEssayFormat && (
                           <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
                         )}
@@ -1006,7 +1010,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     type="button"
                     onClick={() => void handleManualGenerate()}
                     disabled={citPhase.kind === "generating" || (!manualAuthor.trim() && !manualPublisher.trim() && !manualContent.trim())}
-                    className="w-full rounded-[6px] bg-[#ea4335] py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] disabled:opacity-40"
+                    className="w-full rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
                   >
                     {citPhase.kind === "generating" ? "Generating…" : "Generate Citation"}
                   </button>
