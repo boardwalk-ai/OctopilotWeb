@@ -384,6 +384,7 @@ export default function FormatterExportView({
               fontSize: "12pt",
               lineHeight: profile.lineHeight ?? 2,
               textAlign: (page.textAlign ?? "left") as React.CSSProperties["textAlign"],
+              color: "#111827",
             }}
             dangerouslySetInnerHTML={{ __html: page.html }}
           />
