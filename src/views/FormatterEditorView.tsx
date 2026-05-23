@@ -132,6 +132,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Shutter entrance animation ── */
   const [shutterDone, setShutterDone] = useState(false);
 
+  /* ── Auth / credits ── */
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser());
+  const [humanizerCredits, setHumanizerCredits] = useState<number | null>(null);
+
   /* ── Document state ── */
   const [docTab, setDocTab] = useState<"paste" | "upload">("paste");
   const [rawContent, setRawContent] = useState("");
@@ -222,6 +226,22 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   useEffect(() => () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     if (parseTimerRef.current) clearTimeout(parseTimerRef.current);
+  }, []);
+
+  /* ── Auth state + credits listener ── */
+  useEffect(() => {
+    const unsub = AuthService.subscribe(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          const c = await CreditService.getAvailableCredits();
+          setHumanizerCredits(c.humanizer);
+        } catch { setHumanizerCredits(null); }
+      } else {
+        setHumanizerCredits(null);
+      }
+    });
+    return unsub;
   }, []);
 
   /* ── Track last editor selection for insert-at-cursor ── */
@@ -617,7 +637,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     <div className="flex h-screen flex-col overflow-hidden bg-[#11151b]">
 
       {/* ── Top bar ── */}
-      <div className="flex h-[40px] flex-shrink-0 items-center justify-between border-b border-[#2a2f38] bg-[#13161c] px-3">
+      <div className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-[#2a2f38] bg-[#13161c] px-4">
         <div className="flex items-center gap-2">
           {!IS_STANDALONE && (
             <>
@@ -671,15 +691,62 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          {/* Save Draft */}
           <button
             type="button"
             onClick={saveDraft}
             disabled={!rawContent.trim()}
-            className="rounded-[6px] px-2.5 py-1 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] disabled:opacity-40"
+            className="rounded-full px-3 py-1 text-[12px] font-medium text-[#64748b] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] disabled:opacity-40"
           >
             Save Draft
           </button>
+
+          <div className="h-4 w-px bg-[#2a2f38]" />
+
+          {/* Humanizer credits — logged in only */}
+          {currentUser && humanizerCredits !== null && (
+            <div className="flex items-center gap-1.5 rounded-full bg-[#1a1f28] px-2.5 py-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span className="text-[11px] font-semibold text-[#e2e8f0]">{humanizerCredits.toLocaleString()}</span>
+            </div>
+          )}
+
+          {/* Avatar */}
+          {currentUser ? (
+            currentUser.photoURL ? (
+              <img
+                src={currentUser.photoURL}
+                alt="Profile"
+                className="h-7 w-7 rounded-full object-cover ring-1 ring-[#2a2f38]"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#252c38] text-[11px] font-bold text-[#e2e8f0] ring-1 ring-[#3a4150]">
+                {((currentUser.displayName ?? currentUser.email ?? "?")[0] ?? "?").toUpperCase()}
+              </div>
+            )
+          ) : (
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1a1f28] text-[#4b5563]">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+              </svg>
+            </div>
+          )}
+
+          {/* Logout — logged in only */}
+          {currentUser && (
+            <button
+              type="button"
+              onClick={() => void AuthService.signOut()}
+              className="rounded-full px-2.5 py-1 text-[11px] font-medium text-[#4b5563] transition hover:bg-[#1e252f] hover:text-[#94a3b8] active:scale-95"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </div>
 
