@@ -652,6 +652,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 0%   { transform: translateY(0); }
                 100% { transform: translateY(100%); }
               }
+              @keyframes editor-enter {
+                from { opacity: 0; transform: translateY(16px) scale(0.985); }
+                to   { opacity: 1; transform: translateY(0)    scale(1);     }
+              }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
               <span style={{ fontSize: '21px', color: '#ff2200' }}>
@@ -815,8 +819,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {/* CENTER: editor or placeholder */}
         <div className="min-w-0 flex-1">
           {editorActive ? (
-            <FormatterEditorCore
+            <div
               key={editorKey}
+              className="h-full"
+              style={{ animation: 'editor-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both' }}
+            >
+            <FormatterEditorCore
               content={coreSnapshot.content}
               bibliography={coreSnapshot.bibliography}
               initialDocTitle={coreSnapshot.initialDocTitle}
@@ -831,6 +839,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               onFinish={onFinish ? handleCoreFinish : undefined}
               insertBibEntryRef={insertBibEntryRef}
             />
+            </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#11151b]">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1a1f28]">
