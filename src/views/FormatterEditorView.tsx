@@ -787,18 +787,27 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 ))}
               </div>
 
-              {/* ── Format Document ── pill + 3D press */}
-              <button
-                type="button"
-                onClick={applyDocument}
-                disabled={!canApply}
-                className="mt-4 w-full rounded-full bg-[#ea4335] py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {editorActive ? "Re-format Document" : "Format Document"}
-              </button>
-
-              {editorActive && (
-                <p className="mt-1.5 text-center text-[10px] text-[#4b5563]">Re-formatting will reset editor edits.</p>
+              {/* ── Format Document / New Session ── */}
+              {editorActive ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+                    window.location.reload();
+                  }}
+                  className="mt-4 w-full rounded-full border border-[#2a2f38] py-2.5 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
+                >
+                  Start a new session
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={applyDocument}
+                  disabled={!canApply}
+                  className="mt-4 w-full rounded-full bg-[#ea4335] py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Format Document
+                </button>
               )}
             </div>
           </div>
@@ -1129,7 +1138,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <button
                     type="button"
                     onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
-                    className="flex-1 rounded-[10px] border border-[#2a2f38] py-2.5 text-[13px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0]"
+                    className="flex-1 rounded-[10px] bg-[#ea4335] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px]"
                   >
                     Skip — Download Now
                   </button>
@@ -1142,7 +1151,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         setHumanizePhase({ kind: "pick_provider", snapshot: humanizePhase.snapshot });
                       }
                     }}
-                    className="flex-1 rounded-[10px] bg-[#ea4335] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626]"
+                    className="flex-1 rounded-[10px] border border-[#2a2f38] py-2.5 text-[13px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
                   >
                     Yes, Humanize →
                   </button>
