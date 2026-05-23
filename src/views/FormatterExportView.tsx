@@ -152,6 +152,8 @@ export default function FormatterExportView({
     setState("pdf", "busy");
     const fileName = makeFileName(title, "pdf");
     try {
+      // Wait for fonts to be ready before capturing
+      await document.fonts.ready;
       const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [816, 1056], compress: true });
       for (let i = 0; i < pages.length; i++) {
         const node = pageRefs.current[i];

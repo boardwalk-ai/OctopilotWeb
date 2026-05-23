@@ -325,7 +325,9 @@
   top: 0;
   width: 816px;
   pointer-events: none;
-  visibility: hidden;
+  /* visibility: hidden intentionally omitted — html2canvas cannot capture
+     elements with visibility:hidden, resulting in a blank PDF. Off-screen
+     positioning (left: -9999px) keeps it visually inaccessible. */
 }
 .pageNode {
   width: 816px;
