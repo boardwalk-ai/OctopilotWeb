@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
 import { getOpenRouterConfig } from "@/server/backendConfig";
-import { requireAuthenticatedRequest } from "@/server/routeAuth";
+import { requireAuthIfNotStandalone } from "@/server/standaloneMode";
 
 export const runtime = "nodejs";
 
@@ -217,7 +217,7 @@ async function callAI(
 /* ── Route handler ───────────────────────────────────────────────────────── */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuthenticatedRequest(request);
+    const auth = await requireAuthIfNotStandalone(request);
     if ("response" in auth) return auth.response;
 
     const { apiKey, model } = await getOpenRouterConfig("secondary");

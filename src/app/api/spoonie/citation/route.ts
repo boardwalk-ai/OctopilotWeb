@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { getOpenRouterConfig } from "@/server/backendConfig";
-import { requireAuthenticatedRequest } from "@/server/routeAuth";
+import { requireAuthIfNotStandalone } from "@/server/standaloneMode";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -85,12 +85,50 @@ function looksLikePromptLeak(text: string): boolean {
     ].some((pattern) => normalized.includes(pattern));
 }
 
+/**
+ * Calls the OpenRouter API with transparent exponential-backoff retry on 429.
+ * Rate-limited requests are queued server-side so the client never sees a 429.
+ */
+async function callOpenRouterWithRetry(
+    payload: object,
+    apiKey: string,
+    maxRetries = 3,
+): Promise<Response> {
+    let delayMs = 2000;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": "https://octopilotai.com",
+                "X-Title": "OctoPilot AI",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.status !== 429 || attempt === maxRetries) {
+            return response;
+        }
+
+        // Respect the Retry-After header if present, otherwise use backoff
+        const retryAfterHeader = response.headers.get("retry-after");
+        const waitMs = retryAfterHeader
+            ? Math.min(parseInt(retryAfterHeader, 10) * 1000, 30_000)
+            : delayMs;
+
+        await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+        delayMs = Math.min(delayMs * 2, 30_000);
+    }
+    // unreachable
+    throw new Error("callOpenRouterWithRetry: exhausted retries");
+}
+
 function buildMessages(
     taskPrompt: string,
     activeTask: "OCR_EXTRACT" | "CITATION_PREVIEW" | "FIELDWORK_CITATION" | "CITATION_FULL",
     input: Record<string, unknown>
-): OpenRouterMessage[] {
-    if (activeTask === "OCR_EXTRACT") {
+): OpenRouterMessage[] {    if (activeTask === "OCR_EXTRACT") {
         const imageDataUrl = asString(input.imageDataUrl);
         return [
             { role: "system", content: taskPrompt },
@@ -123,7 +161,7 @@ function buildMessages(
 
 export async function POST(request: NextRequest) {
     try {
-        const auth = await requireAuthenticatedRequest(request);
+        const auth = await requireAuthIfNotStandalone(request);
         if ("response" in auth) {
             return auth.response;
         }
@@ -157,21 +195,15 @@ export async function POST(request: NextRequest) {
         }
         const messages = buildMessages(taskPrompt, activeTask, input);
 
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://octopilotai.com",
-                "X-Title": "OctoPilot AI",
-            },
-            body: JSON.stringify({
+        const response = await callOpenRouterWithRetry(
+            {
                 model,
                 messages,
                 temperature: 0.2,
                 response_format: { type: "json_object" },
-            }),
-        });
+            },
+            apiKey,
+        );
 
         if (!response.ok) {
             const errorText = await response.text();
