@@ -59,7 +59,7 @@ const plans: PlanDef[] = [
     cta: "Included with every account",
     disabled: true,
     defaultCredits: { word: "50", humanizer: "50", source: "5" },
-    features: ["50 word credits", "50 humanizer credits", "5 source credits", "PDF + TXT export", "Automation mode", "Manual mode"],
+    features: ["50 word credits", "50 humanizer credits", "5 source credits", "PDF + TXT export", "Guided Generation", "Writing Chamber"],
   },
   {
     key: "pro",
@@ -72,7 +72,7 @@ const plans: PlanDef[] = [
     accentBorder: "border-amber-400/50",
     accentText: "text-amber-300",
     cta: "Choose Pro",
-    features: ["Everything in Guest", "Up to 1 000 word credits", "Up to 1 000 humanizer credits", "80 source credits", "PDF + TXT export", "Automation + Manual"],
+    features: ["Everything in Guest", "Up to 1 000 word credits", "Up to 1 000 humanizer credits", "80 source credits", "PDF + TXT export", "Guided Generation + Writing Chamber"],
     billing: [
       { key: "weekly", label: "Weekly", price: "$2.99", unit: "per week", credits: { word: "500", humanizer: "500", source: "20" } },
       { key: "monthly", label: "Monthly", price: "$9.99", unit: "per month", struck: "$14.99", badge: "Discounted", credits: { word: "1000", humanizer: "1000", source: "80" } },
@@ -91,7 +91,7 @@ const plans: PlanDef[] = [
     accentBorder: "border-violet-500/50",
     accentText: "text-violet-300",
     cta: "Choose Premium",
-    features: ["Everything in Guest", "3 000 word credits", "3 000 humanizer credits", "300 source credits", "PDF + TXT export", "Automation + Manual"],
+    features: ["Everything in Guest", "3 000 word credits", "3 000 humanizer credits", "300 source credits", "PDF + TXT export", "Guided Generation + Writing Chamber"],
     billing: [
       { key: "monthly", label: "Monthly", price: "$24.99", unit: "per month", struck: "$29.99", credits: { word: "3000", humanizer: "3000", source: "300" } },
       { key: "quarterly", label: "Quarterly", price: "$22.99", unit: "per month", struck: "$32.99", credits: { word: "3000", humanizer: "3000", source: "300" } },

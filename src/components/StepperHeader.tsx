@@ -163,7 +163,7 @@ export default function StepperHeader({
               transition: "color 1s ease",
             }}
           >
-            Writing Mode: {writingMode === "manual" ? "Manual" : writingMode === "ghostwriter" ? "Ghostwriter" : "Automation"}
+            Writing Mode: {writingMode === "manual" ? "Writing Chamber" : writingMode === "ghostwriter" ? "Ghostwriter" : "Guided Generation"}
           </div>
         </div>
       )}

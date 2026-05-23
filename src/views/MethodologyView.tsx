@@ -407,7 +407,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   </svg>
                 </div>
                 <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
-                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Automation Mode</h2>
+                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Guided Generation</h2>
                   <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>AI writes. You review.</p>
                   <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
                     Let AI generate a complete essay based on your outline and sources. Perfect for quick drafts.
@@ -451,7 +451,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   </svg>
                 </div>
                 <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
-                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Manual Writing Mode</h2>
+                  <h2 className={`text-xl font-bold text-white mb-0.5 ${styles.methodologyCardTitle}`}>Writing Chamber</h2>
                   <p className={`text-[13px] font-medium text-red-500 mb-2 ${styles.methodologyLead}`}>We give you the recipe, you do the cooking</p>
                   <p className={`text-[14px] text-white/60 leading-relaxed pr-2 ${styles.methodologyBody}`}>
                     Write section by section with AI assistance. Great for learning and skill development.
