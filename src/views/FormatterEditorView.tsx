@@ -148,10 +148,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [manualPublisher, setManualPublisher] = useState("");
   const [manualYear, setManualYear] = useState("");
   const [manualContent, setManualContent] = useState("");
-  const [insertFeedback, setInsertFeedback] = useState<string | null>(null);
-
-  /* ── Humanize state ── */
   const [humanizePhase, setHumanizePhase] = useState<HumanizePhase>({ kind: "idle" });
+
+  /* ── Selection tracking (for insert-at-cursor) ── */
+  const savedRangeRef = useRef<Range | null>(null);
+  const savedEditorElRef = useRef<HTMLElement | null>(null);
+  /* ── Bib entry insert ref (populated by FormatterEditorCore) ── */
+  const insertBibEntryRef = useRef<((text: string) => void) | null>(null);
 
   /* ── Editor re-init ── */
   const [editorKey, setEditorKey] = useState(0);
@@ -203,6 +206,29 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   useEffect(() => () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     if (parseTimerRef.current) clearTimeout(parseTimerRef.current);
+  }, []);
+
+  /* ── Track last editor selection for insert-at-cursor ── */
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const container = range.startContainer;
+      let el: Element | null = container.nodeType === Node.TEXT_NODE
+        ? container.parentElement
+        : container as Element;
+      while (el) {
+        if ((el as HTMLElement).contentEditable === "true") {
+          savedRangeRef.current = range.cloneRange();
+          savedEditorElRef.current = el as HTMLElement;
+          return;
+        }
+        el = el.parentElement;
+      }
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, []);
 
   /* ── Background parse ── */
@@ -383,13 +409,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   };
 
-  /* ── Citations: insert ── */
-  const handleInsert = (text: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setInsertFeedback(text);
-        setTimeout(() => setInsertFeedback(null), 1800);
-      }).catch(() => showToast("Could not copy to clipboard"));
+  /* ── Citations: insert in-text at cursor ── */
+  const handleInsertInText = (text: string) => {
+    const range = savedRangeRef.current;
+    const editorEl = savedEditorElRef.current;
+    if (range && editorEl && editorActive) {
+      editorEl.focus();
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+      document.execCommand("insertText", false, text);
+      showToast("In-text citation inserted ✓");
+    } else {
+      // Fallback: clipboard
+      navigator.clipboard?.writeText(text).catch(() => {/* ignore */});
+      showToast(editorActive ? "Click in the document first, then Insert." : "Format a document first, then Insert.");
+    }
+  };
+
+  /* ── Citations: insert bibliography entry to last page ── */
+  const handleInsertBib = (text: string) => {
+    if (insertBibEntryRef.current && editorActive) {
+      insertBibEntryRef.current(text);
+      showToast("Bibliography entry added ✓");
+    } else {
+      // Fallback: clipboard
+      navigator.clipboard?.writeText(text).catch(() => {/* ignore */});
+      showToast(editorActive ? "Could not reach bibliography page." : "Format a document first, then Insert.");
     }
   };
 
@@ -677,6 +722,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               formatStyle={coreSnapshot.formatStyle}
               onBack={onBack}
               onFinish={onFinish ? handleCoreFinish : undefined}
+              insertBibEntryRef={insertBibEntryRef}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#11151b]">
@@ -918,10 +964,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         <p className="min-w-0 flex-1 font-mono text-[10px] leading-relaxed text-[#93c5fd]">{card.inText}</p>
                         <button
                           type="button"
-                          onClick={() => handleInsert(card.inText)}
-                          className={`flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold transition ${insertFeedback === card.inText ? "bg-[#16a34a] text-white" : "bg-[#252c38] text-[#94a3b8] hover:bg-[#2e3647] hover:text-[#e2e8f0]"}`}
+                          onClick={() => handleInsertInText(card.inText)}
+                          className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]"
                         >
-                          {insertFeedback === card.inText ? "Copied!" : "Insert"}
+                          Insert
                         </button>
                       </div>
                     </div>
@@ -933,10 +979,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         <p className="min-w-0 flex-1 text-[10px] leading-relaxed text-[#94a3b8]">{card.bibliography}</p>
                         <button
                           type="button"
-                          onClick={() => handleInsert(card.bibliography)}
-                          className={`flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold transition ${insertFeedback === card.bibliography ? "bg-[#16a34a] text-white" : "bg-[#252c38] text-[#94a3b8] hover:bg-[#2e3647] hover:text-[#e2e8f0]"}`}
+                          onClick={() => handleInsertBib(card.bibliography)}
+                          className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]"
                         >
-                          {insertFeedback === card.bibliography ? "Copied!" : "Insert"}
+                          Insert
                         </button>
                       </div>
                     </div>

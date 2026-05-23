@@ -26,6 +26,8 @@ export interface EditorViewProps {
     // Legacy manual citations
     citations?: GhostciterCitation[];
     formatStyle?: FormatStyleId;
+    // Ref populated by Core so parent can append a single bib entry to the last page
+    insertBibEntryRef?: React.MutableRefObject<((text: string) => void) | null>;
 }
 
 interface DocPage {
@@ -141,6 +143,7 @@ export default function FormatterEditorCore({
     onBack, onFinish, content,
     bibliography, initialDocTitle, studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate,
     citations = [], formatStyle = "mla",
+    insertBibEntryRef,
 }: EditorViewProps) {
     // Combine parsed bibliography with any manually-added citations
     const combinedBibliography = [
@@ -286,6 +289,25 @@ export default function FormatterEditorCore({
     const pageShellRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const headerRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const pageContentRef = useRef<Record<number, string>>(initialPageContentMap);
+
+    // Expose bibliography-append function to parent via ref
+    useEffect(() => {
+        if (!insertBibEntryRef) return;
+        insertBibEntryRef.current = (text: string) => {
+            const lastPage = pagesRef.current[pagesRef.current.length - 1];
+            if (!lastPage) return;
+            const el = editorRefs.current[lastPage.id];
+            if (!el) return;
+            el.focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+            document.execCommand("insertText", false, "\n" + text);
+        };
+        return () => { insertBibEntryRef.current = null; };
+    }, [insertBibEntryRef]);
 
     useEffect(() => {
         pagesRef.current = pages;
