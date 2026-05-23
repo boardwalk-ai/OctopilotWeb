@@ -24,37 +24,44 @@ const FORMAT_STYLES: { id: FormatStyleId; label: string; abbr: string; color: st
   { id: "harvard", label: "Harvard",                abbr: "H", color: "#0369a1" },
 ];
 
-type SourceType = "website" | "book" | "journal" | "newspaper" | "video" | "other";
-
-const SOURCE_TYPES: { id: SourceType; label: string; fields: string[] }[] = [
-  { id: "website",   label: "Website",   fields: ["Author", "Page Title", "Website Name", "Published Date", "URL", "Access Date"] },
-  { id: "book",      label: "Book",      fields: ["Author(s)", "Title", "Publisher", "City", "Year", "Edition"] },
-  { id: "journal",   label: "Journal",   fields: ["Author(s)", "Article Title", "Journal Name", "Volume", "Issue", "Pages", "Year", "DOI"] },
-  { id: "newspaper", label: "Newspaper", fields: ["Author", "Article Title", "Newspaper Name", "Date", "Page"] },
-  { id: "video",     label: "Video",     fields: ["Creator / Director", "Title", "Platform", "Year", "URL"] },
-  { id: "other",     label: "Other",     fields: ["Author", "Title", "Source", "Year", "Notes"] },
-];
-
 type ParseStatus =
   | { kind: "idle" }
   | { kind: "parsing" }
   | { kind: "done"; result: ParsedDocumentResult }
   | { kind: "error"; message: string };
 
-function getInTextFormats(style: FormatStyleId): string[] {
-  if (style === "mla")     return ["Author Page", "Author", "Page"];
-  if (style === "apa")     return ["Author, Year", "Author", "Year"];
-  if (style === "chicago") return ["Author Year", "Author", "Year, Page"];
-  if (style === "ieee")    return ["[N]"];
-  if (style === "harvard") return ["Author Year", "Author", "Year"];
-  return ["Author Page"];
+interface CitationCard {
+  id: string;
+  url: string;
+  inText: string;
+  bibliography: string;
 }
+
+interface ScrapedMeta {
+  title?: string;
+  author?: string;
+  year?: string;
+  publisher?: string;
+}
+
+type CitPhase =
+  | { kind: "idle" }
+  | { kind: "scraping" }
+  | { kind: "awaiting_format"; url: string; meta: ScrapedMeta }
+  | { kind: "error"; url: string; message: string }
+  | { kind: "generating" };
+
+type HumanizePhase =
+  | { kind: "idle" }
+  | { kind: "ask"; snapshot: ExportDocumentSnapshot }
+  | { kind: "pick_provider"; snapshot: ExportDocumentSnapshot }
+  | { kind: "humanizing"; provider: "StealthGPT" | "UndetectableAI"; snapshot: ExportDocumentSnapshot }
+  | { kind: "error"; message: string; snapshot: ExportDocumentSnapshot }
+  | { kind: "done" };
 
 function countWordsRaw(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
-
-interface GhostciterCitation { id: string; text: string; }
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
 function UploadIcon() {
@@ -74,27 +81,11 @@ function FileIcon() {
     </svg>
   );
 }
-function EditIconSm() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
 function TrashIconSm() {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <polyline points="3 6 5 6 21 6" />
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    </svg>
-  );
-}
-function PlusIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
@@ -115,14 +106,13 @@ interface CoreSnapshot {
   courseInfo: string;
   subjectCode: string;
   essayDate: string;
-  citations: GhostciterCitation[];
   formatStyle: FormatStyleId;
 }
 
 const EMPTY_SNAPSHOT: CoreSnapshot = {
   content: "", bibliography: "", initialDocTitle: "", studentName: "",
   instructorName: "", institutionName: "", courseInfo: "", subjectCode: "",
-  essayDate: "", citations: [], formatStyle: "mla",
+  essayDate: "", formatStyle: "mla",
 };
 
 /* ─── Component ──────────────────────────────────────────────────────────────── */
@@ -147,19 +137,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Citation state ── */
   const [rightOpen, setRightOpen] = useState(true);
-  const [citTab, setCitTab] = useState<"scrape" | "manual">("scrape");
-  const [scrapeUrl, setScrapeUrl] = useState("");
-  const [scraping, setScraping] = useState(false);
-  const [scrapeMsg, setScrapeMsg] = useState<{ type: "error" | "ok"; text: string } | null>(null);
-  const [sourceType, setSourceType] = useState<SourceType>("website");
-  const [manualFields, setManualFields] = useState<Record<string, string>>({});
-  const [adding, setAdding] = useState(false);
-  const [addMsg, setAddMsg] = useState<{ type: "error" | "ok"; text: string } | null>(null);
-  const [citations, setCitations] = useState<GhostciterCitation[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
-  const [inTextSourceId, setInTextSourceId] = useState<string>("");
-  const [inTextFormat, setInTextFormat] = useState<string>("");
+  const [citUrlInput, setCitUrlInput] = useState("");
+  const [citPhase, setCitPhase] = useState<CitPhase>({ kind: "idle" });
+  const [citFormatPick, setCitFormatPick] = useState<FormatStyleId>("mla");
+  const [citCards, setCitCards] = useState<CitationCard[]>([]);
+  // Manual form fields
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualFormUrl, setManualFormUrl] = useState("");
+  const [manualAuthor, setManualAuthor] = useState("");
+  const [manualPublisher, setManualPublisher] = useState("");
+  const [manualYear, setManualYear] = useState("");
+  const [manualContent, setManualContent] = useState("");
+  const [insertFeedback, setInsertFeedback] = useState<string | null>(null);
+
+  /* ── Humanize state ── */
+  const [humanizePhase, setHumanizePhase] = useState<HumanizePhase>({ kind: "idle" });
 
   /* ── Editor re-init ── */
   const [editorKey, setEditorKey] = useState(0);
@@ -171,22 +163,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── Derived ── */
   const wordCount = useMemo(() => countWordsRaw(rawContent), [rawContent]);
   const charCount = rawContent.length;
   const pageCount = useMemo(() => (wordCount === 0 ? 0 : Math.max(1, Math.ceil(wordCount / 250))), [wordCount]);
   const parsedResult = parseStatus.kind === "done" ? parseStatus.result : null;
-  const inTextFormats = useMemo(() => getInTextFormats(formatStyle), [formatStyle]);
-  const currentSourceFields = SOURCE_TYPES.find((s) => s.id === sourceType)?.fields ?? [];
-  const canManualAdd = currentSourceFields.some((f) => manualFields[f]?.trim());
   const canApply = rawContent.trim().length > 0 && parseStatus.kind !== "parsing";
-
-  /* ── Sync inTextFormat / inTextSourceId ── */
-  useEffect(() => { setInTextFormat(inTextFormats[0] ?? ""); }, [inTextFormats]);
-  useEffect(() => {
-    if (citations.length > 0 && !citations.find((c) => c.id === inTextSourceId)) setInTextSourceId(citations[0]!.id);
-    if (citations.length === 0) setInTextSourceId("");
-  }, [citations, inTextSourceId]);
+  const currentEssayFormat: FormatStyleId = editorActive ? coreSnapshot.formatStyle : formatStyle;
 
   /* ── Toast ── */
   const showToast = useCallback((msg: string) => {
@@ -198,10 +180,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Draft save ── */
   const saveDraft = useCallback(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ content: rawContent, formatStyle, citations, fileName }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ content: rawContent, formatStyle, fileName }));
       showToast("Draft saved");
     } catch { showToast("Could not save draft"); }
-  }, [rawContent, formatStyle, citations, fileName, showToast]);
+  }, [rawContent, formatStyle, fileName, showToast]);
 
   /* ── Draft restore on mount ── */
   useEffect(() => {
@@ -209,12 +191,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as {
-        content?: string; formatStyle?: FormatStyleId;
-        citations?: GhostciterCitation[]; fileName?: string;
+        content?: string; formatStyle?: FormatStyleId; fileName?: string;
       };
       if (draft.content) { setRawContent(draft.content); setFileName(draft.fileName ?? null); triggerParse(draft.content); }
       if (draft.formatStyle) setFormatStyle(draft.formatStyle);
-      if (Array.isArray(draft.citations)) setCitations(draft.citations);
       setTimeout(() => showToast("Draft restored ✓"), 400);
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -296,7 +276,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Format Document → re-initialize editor ── */
   const applyDocument = useCallback(() => {
     const p = parsedResult;
-    const combinedBib = [p?.bibliography, citations.map((c) => c.text).join("\n\n")]
+    const combinedBib = [p?.bibliography, ...citCards.map((c) => c.bibliography)]
       .filter(Boolean).join("\n\n");
     setCoreSnapshot({
       content: p?.essay ?? rawContent,
@@ -308,55 +288,190 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       courseInfo: p?.courseInfo ?? "",
       subjectCode: p?.subjectCode ?? "",
       essayDate: p?.essayDate ?? "",
-      citations,
       formatStyle,
     });
     setEditorKey((k) => k + 1);
     setEditorActive(true);
-  }, [parsedResult, rawContent, citations, formatStyle]);
+  }, [parsedResult, rawContent, citCards, formatStyle]);
 
-  /* ── Citations: scrape ── */
-  const handleScrape = async () => {
-    if (!scrapeUrl.trim()) return;
-    setScraping(true); setScrapeMsg(null);
+  /* ── Citations: scrape URL ── */
+  const handleScrapeUrl = async () => {
+    const url = citUrlInput.trim();
+    if (!url) return;
+    setCitPhase({ kind: "scraping" });
+    setCitFormatPick(currentEssayFormat);
     try {
-      const res = await fetch("/api/spoonie/citation", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "CITATION_PREVIEW", input: { url: scrapeUrl.trim(), style: formatStyle.toUpperCase() } }),
-      });
-      const data = (await res.json()) as { citation?: string; error?: string };
-      if (!res.ok || !data.citation) { setScrapeMsg({ type: "error", text: data.error ?? "Could not extract citation." }); return; }
-      setCitations((prev) => [...prev, { id: crypto.randomUUID(), text: data.citation! }]);
-      setScrapeUrl(""); setScrapeMsg({ type: "ok", text: "Citation added!" });
-      setTimeout(() => setScrapeMsg(null), 2500);
-    } catch { setScrapeMsg({ type: "error", text: "Network error. Please try again." }); }
-    finally { setScraping(false); }
+      const res = await fetchWithUserAuthorization(`/api/scrape?url=${encodeURIComponent(url)}`);
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        setCitPhase({ kind: "error", url, message: err.error ?? `Scrape failed (${res.status})` });
+        return;
+      }
+      const data = await res.json() as {
+        title?: string; author?: string; publishedYear?: string; publisher?: string;
+        references?: { title?: string; authors?: string[]; publicationYear?: number; publisher?: string; source?: string }[];
+      };
+      // Normalise upstream v1 / v2
+      let meta: ScrapedMeta = {};
+      if (Array.isArray(data.references) && data.references.length > 0) {
+        const ref = data.references[0]!;
+        meta = {
+          title: ref.title,
+          author: ref.authors?.join(", "),
+          year: ref.publicationYear ? String(ref.publicationYear) : undefined,
+          publisher: ref.publisher ?? ref.source,
+        };
+      } else {
+        meta = { title: data.title, publisher: data.publisher, author: data.author, year: data.publishedYear };
+      }
+      if (!meta.title && !meta.publisher) {
+        setCitPhase({ kind: "error", url, message: "Scraper returned no usable metadata for this URL." });
+        return;
+      }
+      setCitPhase({ kind: "awaiting_format", url, meta });
+    } catch {
+      setCitPhase({ kind: "error", url, message: "Network error. Please try again." });
+    }
   };
 
-  /* ── Citations: manual ── */
-  const handleManualAdd = async () => {
-    setAdding(true); setAddMsg(null);
+  /* ── Citations: generate from scraped meta ── */
+  const handleGenerateCitation = async (url: string, meta: ScrapedMeta, style: FormatStyleId) => {
+    setCitPhase({ kind: "generating" });
     try {
-      const res = await fetch("/api/spoonie/citation", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "FIELDWORK_CITATION", input: { type: sourceType, style: formatStyle.toUpperCase(), ...manualFields } }),
+      const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "CITATION_FULL",
+          input: {
+            style: style.toUpperCase(),
+            url,
+            title: meta.title ?? "",
+            authors: meta.author ?? "",
+            year: meta.year ?? "",
+            publisher: meta.publisher ?? "",
+          },
+        }),
       });
-      const data = (await res.json()) as { citation?: string; error?: string };
-      if (!res.ok || !data.citation) { setAddMsg({ type: "error", text: data.error ?? "Could not format citation." }); return; }
-      setCitations((prev) => [...prev, { id: crypto.randomUUID(), text: data.citation! }]);
-      setManualFields({}); setAddMsg({ type: "ok", text: "Citation added!" });
-      setTimeout(() => setAddMsg(null), 2500);
-    } catch { setAddMsg({ type: "error", text: "Network error. Please try again." }); }
-    finally { setAdding(false); }
+      const data = (await res.json()) as { inText?: string; bibliography?: string; error?: string };
+      if (!res.ok || !data.inText || !data.bibliography) {
+        setCitPhase({ kind: "error", url, message: data.error ?? "AI could not generate citation." });
+        return;
+      }
+      setCitCards((prev) => [...prev, { id: crypto.randomUUID(), url, inText: data.inText!, bibliography: data.bibliography! }]);
+      setCitUrlInput("");
+      setCitPhase({ kind: "idle" });
+      setShowManualForm(false);
+    } catch {
+      setCitPhase({ kind: "error", url, message: "Network error while generating citation." });
+    }
   };
 
-  const startEdit = (c: GhostciterCitation) => { setEditingId(c.id); setEditText(c.text); };
-  const saveEdit = () => {
-    if (!editingId) return;
-    setCitations((prev) => prev.map((c) => c.id === editingId ? { ...c, text: editText.trim() || c.text } : c));
-    setEditingId(null);
+  /* ── Citations: manual generate ── */
+  const handleManualGenerate = async () => {
+    const url = manualFormUrl || citUrlInput.trim() || "manual";
+    const meta: ScrapedMeta = {
+      title: manualContent.slice(0, 120) || undefined,
+      author: manualAuthor || undefined,
+      year: manualYear || undefined,
+      publisher: manualPublisher || undefined,
+    };
+    await handleGenerateCitation(url, meta, citFormatPick);
+    if (showManualForm) {
+      setManualAuthor(""); setManualPublisher(""); setManualYear(""); setManualContent("");
+      setManualFormUrl(""); setShowManualForm(false);
+    }
   };
-  const deleteCitation = (id: string) => setCitations((prev) => prev.filter((c) => c.id !== id));
+
+  /* ── Citations: insert ── */
+  const handleInsert = (text: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        setInsertFeedback(text);
+        setTimeout(() => setInsertFeedback(null), 1800);
+      }).catch(() => showToast("Could not copy to clipboard"));
+    }
+  };
+
+  /* ── Citations: remove card ── */
+  const removeCitCard = (id: string) => setCitCards((prev) => prev.filter((c) => c.id !== id));
+
+  /* ── Humanize: re-apply document with humanized content ── */
+  const applyDocumentWithContent = useCallback((humanizedContent: string) => {
+    const p = parsedResult;
+    const combinedBib = [p?.bibliography, ...citCards.map((c) => c.bibliography)]
+      .filter(Boolean).join("\n\n");
+    setCoreSnapshot((prev) => ({ ...prev, content: humanizedContent, bibliography: combinedBib }));
+    setEditorKey((k) => k + 1);
+    setEditorActive(true);
+  }, [parsedResult, citCards]);
+
+  /* ── Humanize: poll Undetectable document ── */
+  const pollUndetectableDoc = useCallback(async (id: string): Promise<string> => {
+    for (let i = 0; i < 15; i++) {
+      if (i > 0) await new Promise<void>((r) => setTimeout(r, 3000));
+      const res = await fetchWithUserAuthorization("/api/humanize/undetectable/document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = (await res.json()) as { output?: string };
+      if (data.output?.trim()) return data.output.trim();
+    }
+    throw new Error("Undetectable AI timed out. Please try again.");
+  }, []);
+
+  /* ── Humanize: run selected provider ── */
+  const handleHumanize = useCallback(async (
+    provider: "StealthGPT" | "UndetectableAI",
+    snapshot: ExportDocumentSnapshot,
+  ) => {
+    setHumanizePhase({ kind: "humanizing", provider, snapshot });
+    const essayText = snapshot.pages.map((p) => p.plainText ?? "").join("\n\n").trim();
+    try {
+      let humanizedText = "";
+      if (provider === "StealthGPT") {
+        const res = await fetchWithUserAuthorization("/api/humanize/stealthgpt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: essayText, rephrase: false }),
+        });
+        const data = (await res.json()) as { result?: string; error?: string };
+        if (!res.ok || !data.result) throw new Error(data.error ?? "StealthGPT returned empty result.");
+        humanizedText = data.result.trim();
+      } else {
+        const res = await fetchWithUserAuthorization("/api/humanize/undetectable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: essayText, readability: "University", purpose: "Essay", strength: "More Human" }),
+        });
+        const sub = (await res.json()) as { output?: string; id?: string; documentId?: string; error?: string };
+        if (!res.ok) throw new Error(sub.error ?? "Undetectable AI submission failed.");
+        if (sub.output?.trim()) {
+          humanizedText = sub.output.trim();
+        } else {
+          const docId = sub.id ?? sub.documentId;
+          if (!docId) throw new Error("Undetectable AI did not return a document ID.");
+          humanizedText = await pollUndetectableDoc(String(docId));
+        }
+      }
+      if (!humanizedText) throw new Error("Humanizer returned empty text.");
+      applyDocumentWithContent(humanizedText);
+      setHumanizePhase({ kind: "done" });
+      showToast("Humanized ✓ — Review the document, then click Finish to download.");
+    } catch (err) {
+      setHumanizePhase({ kind: "error", message: err instanceof Error ? err.message : "Humanization failed.", snapshot });
+    }
+  }, [pollUndetectableDoc, applyDocumentWithContent, showToast]);
+
+  /* ── Humanize: intercept Finish button ── */
+  const handleCoreFinish = useCallback((snapshot: ExportDocumentSnapshot) => {
+    if (humanizePhase.kind === "done") {
+      if (onFinish) onFinish(snapshot, coreSnapshot.formatStyle);
+      return;
+    }
+    setHumanizePhase({ kind: "ask", snapshot });
+  }, [humanizePhase.kind, onFinish, coreSnapshot.formatStyle]);
 
   /* ── Parse status ── */
   function renderParseStatus() {
@@ -559,10 +674,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               courseInfo={coreSnapshot.courseInfo}
               subjectCode={coreSnapshot.subjectCode}
               essayDate={coreSnapshot.essayDate}
-              citations={coreSnapshot.citations}
               formatStyle={coreSnapshot.formatStyle}
               onBack={onBack}
-              onFinish={onFinish ? (snapshot) => onFinish(snapshot, coreSnapshot.formatStyle) : undefined}
+              onFinish={onFinish ? handleCoreFinish : undefined}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#11151b]">
@@ -598,9 +712,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {/* RIGHT PANEL */}
         <div
           className="flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c] transition-[width] duration-300"
-          style={{ width: rightOpen ? 260 : 0 }}
+          style={{ width: rightOpen ? 272 : 0 }}
         >
-          <div className={`flex h-full min-h-0 w-[260px] flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          <div className={`flex h-full min-h-0 w-[272px] flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-[#2a2f38] px-3 py-2">
               <button onClick={() => setRightOpen(false)} className="flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
@@ -609,185 +724,350 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-              {/* Citation tabs */}
-              <div className="mb-3 flex rounded-[8px] bg-[#1a1f28] p-0.5">
-                {(["scrape", "manual"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setCitTab(tab)}
-                    className={`flex-1 rounded-[6px] py-1 text-[11px] font-medium transition ${citTab === tab ? "bg-[#252c38] text-[#e2e8f0]" : "text-[#64748b] hover:text-[#94a3b8]"}`}
-                  >
-                    {tab === "scrape" ? "Find / Scrape" : "Manual Entry"}
-                  </button>
-                ))}
-              </div>
 
-              {/* Scrape tab */}
-              {citTab === "scrape" && (
-                <>
-                  <div className="mb-2 flex gap-1.5">
+              {/* ── URL Input ── */}
+              {!showManualForm && (
+                <div className="mb-3">
+                  <div className="flex gap-1.5">
                     <input
                       type="url"
                       className="min-w-0 flex-1 rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#4b5563] outline-none focus:border-[#4b5563]"
-                      placeholder="Paste a URL…"
-                      value={scrapeUrl}
-                      onChange={(e) => setScrapeUrl(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") void handleScrape(); }}
+                      placeholder="Paste a URL to cite…"
+                      value={citUrlInput}
+                      onChange={(e) => { setCitUrlInput(e.target.value); if (citPhase.kind !== "idle") setCitPhase({ kind: "idle" }); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && citUrlInput.trim()) void handleScrapeUrl(); }}
+                      disabled={citPhase.kind === "scraping" || citPhase.kind === "generating"}
                     />
                     <button
                       type="button"
-                      onClick={() => void handleScrape()}
-                      disabled={scraping || !scrapeUrl.trim()}
+                      onClick={() => void handleScrapeUrl()}
+                      disabled={citPhase.kind === "scraping" || citPhase.kind === "generating" || !citUrlInput.trim()}
                       className="rounded-[6px] bg-[#1e252f] px-2.5 py-1.5 text-[11px] font-medium text-[#94a3b8] transition hover:bg-[#252c38] disabled:opacity-40"
                     >
-                      {scraping ? "…" : "✦ Auto"}
+                      {citPhase.kind === "scraping" ? (
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#94a3b8] border-t-transparent" />
+                      ) : "Scrape"}
                     </button>
                   </div>
-                  {scrapeMsg && (
-                    <div className={`mb-2 rounded-[6px] px-2 py-1.5 text-[11px] ${scrapeMsg.type === "ok" ? "bg-[#0d2218] text-[#4ade80]" : "bg-[#1e1208] text-[#fbbf24]"}`}>
-                      {scrapeMsg.text}
+
+                  {/* Scraped metadata + format picker */}
+                  {citPhase.kind === "awaiting_format" && (
+                    <div className="mt-2 rounded-[8px] border border-[#2a2f38] bg-[#161b23] p-2.5">
+                      <div className="mb-2 flex items-start gap-1.5">
+                        <svg width="10" height="10" className="mt-0.5 flex-shrink-0 text-[#4ade80]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                        <div className="min-w-0">
+                          {citPhase.meta.title && <p className="truncate text-[10px] font-medium text-[#e2e8f0]">{citPhase.meta.title}</p>}
+                          {citPhase.meta.author && <p className="truncate text-[10px] text-[#64748b]">{citPhase.meta.author}</p>}
+                          {citPhase.meta.year && <p className="text-[10px] text-[#4b5563]">{citPhase.meta.year}</p>}
+                        </div>
+                      </div>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Which format?</p>
+                      <div className="mb-2 flex flex-wrap gap-1">
+                        {FORMAT_STYLES.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setCitFormatPick(s.id)}
+                            className={`relative flex items-center gap-1 rounded-[6px] px-2 py-1 text-[10px] font-medium transition ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                          >
+                            {s.abbr}
+                            {s.id === currentEssayFormat && (
+                              <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateCitation(citPhase.url, citPhase.meta, citFormatPick)}
+                        className="w-full rounded-[6px] bg-[#ea4335] py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626]"
+                      >
+                        Generate Citation
+                      </button>
                     </div>
                   )}
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[#4b5563]">Source Type</p>
-                  <select
-                    className="mb-2 w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] outline-none"
-                    value={sourceType}
-                    onChange={(e) => setSourceType(e.target.value as SourceType)}
-                  >
-                    {SOURCE_TYPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                </>
+
+                  {/* Generating spinner */}
+                  {citPhase.kind === "generating" && (
+                    <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e2530] px-2 py-1.5 text-[11px] text-[#94a3b8]">
+                      <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-[#94a3b8] border-t-transparent" />
+                      <span>Generating citation…</span>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {citPhase.kind === "error" && (
+                    <div className="mt-2 rounded-[8px] border border-[#3a1f1f] bg-[#1e1208] p-2.5">
+                      <p className="mb-1.5 text-[11px] text-[#fbbf24]">{citPhase.message}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManualFormUrl(citPhase.url);
+                          setShowManualForm(true);
+                          setCitPhase({ kind: "idle" });
+                        }}
+                        className="text-[11px] font-medium text-[#60a5fa] hover:text-[#93c5fd]"
+                      >
+                        Enter details manually →
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Manual tab */}
-              {citTab === "manual" && (
-                <>
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[#4b5563]">Source Type</p>
-                  <select
-                    className="mb-2 w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] outline-none"
-                    value={sourceType}
-                    onChange={(e) => { setSourceType(e.target.value as SourceType); setManualFields({}); }}
-                  >
-                    {SOURCE_TYPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                  {currentSourceFields.map((field) => (
-                    <div key={field} className="mb-1.5">
-                      <p className="mb-0.5 text-[10px] text-[#4b5563]">{field}</p>
+              {/* ── Manual Form ── */}
+              {showManualForm && (
+                <div className="mb-3 rounded-[8px] border border-[#2a2f38] bg-[#161b23] p-2.5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-[#e2e8f0]">Manual Entry</p>
+                    <button
+                      type="button"
+                      onClick={() => { setShowManualForm(false); setManualAuthor(""); setManualPublisher(""); setManualYear(""); setManualContent(""); setManualFormUrl(""); }}
+                      className="text-[11px] text-[#4b5563] hover:text-[#94a3b8]"
+                    >✕</button>
+                  </div>
+                  {[
+                    { label: "Author name", value: manualAuthor, set: setManualAuthor, ph: "e.g. John Smith" },
+                    { label: "Publisher name", value: manualPublisher, set: setManualPublisher, ph: "e.g. Penguin Books" },
+                    { label: "Published year", value: manualYear, set: setManualYear, ph: "e.g. 2023" },
+                  ].map(({ label, value, set, ph }) => (
+                    <div key={label} className="mb-1.5">
+                      <p className="mb-0.5 text-[10px] text-[#4b5563]">{label}</p>
                       <input
                         type="text"
                         className="w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
-                        placeholder={field}
-                        value={manualFields[field] ?? ""}
-                        onChange={(e) => setManualFields((prev) => ({ ...prev, [field]: e.target.value }))}
+                        placeholder={ph}
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
                       />
                     </div>
                   ))}
-                  {addMsg && (
-                    <div className={`mb-2 rounded-[6px] px-2 py-1.5 text-[11px] ${addMsg.type === "ok" ? "bg-[#0d2218] text-[#4ade80]" : "bg-[#1e1208] text-[#fbbf24]"}`}>
-                      {addMsg.text}
-                    </div>
-                  )}
+                  <div className="mb-2">
+                    <p className="mb-0.5 text-[10px] text-[#4b5563]">Full content (helps AI)</p>
+                    <textarea
+                      className="w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#4b5563]"
+                      placeholder="Paste a summary or excerpt…"
+                      rows={4}
+                      value={manualContent}
+                      onChange={(e) => setManualContent(e.target.value)}
+                    />
+                  </div>
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Which format?</p>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {FORMAT_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setCitFormatPick(s.id)}
+                        className={`relative flex items-center gap-1 rounded-[6px] px-2 py-1 text-[10px] font-medium transition ${citFormatPick === s.id ? "bg-[#252c38] text-[#e2e8f0] ring-1 ring-[#3a4150]" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                      >
+                        {s.abbr}
+                        {s.id === currentEssayFormat && (
+                          <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     type="button"
-                    onClick={() => void handleManualAdd()}
-                    disabled={adding || !canManualAdd}
-                    className="w-full rounded-[8px] bg-[#1e252f] py-1.5 text-[11px] font-medium text-[#94a3b8] transition hover:bg-[#252c38] disabled:opacity-40"
+                    onClick={() => void handleManualGenerate()}
+                    disabled={citPhase.kind === "generating" || (!manualAuthor.trim() && !manualPublisher.trim() && !manualContent.trim())}
+                    className="w-full rounded-[6px] bg-[#ea4335] py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] disabled:opacity-40"
                   >
-                    {adding ? "Adding…" : "Add Citation"}
+                    {citPhase.kind === "generating" ? "Generating…" : "Generate Citation"}
                   </button>
-                </>
+                </div>
               )}
 
-              <div className="my-3 h-px bg-[#2a2f38]" />
-
-              {/* Bibliography */}
+              {/* ── Citation Cards ── */}
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#94a3b8]">Bibliography ({citations.length})</span>
+                <span className="text-[11px] font-semibold text-[#94a3b8]">
+                  Bibliography {citCards.length > 0 && `(${citCards.length})`}
+                </span>
+                {!showManualForm && citPhase.kind === "idle" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowManualForm(true)}
+                    className="text-[10px] text-[#4b5563] hover:text-[#94a3b8]"
+                  >
+                    + Manual
+                  </button>
+                )}
               </div>
 
+              {citCards.length === 0 && (
+                <p className="text-[10px] text-[#374151]">Scrape a URL above to generate citations.</p>
+              )}
+
               <div className="flex flex-col gap-2">
-                {citations.map((cit) => (
-                  <div key={cit.id} className="rounded-[8px] bg-[#1a1f28] p-2.5">
-                    {editingId === cit.id ? (
-                      <>
-                        <textarea
-                          className="w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] outline-none"
-                          rows={3}
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                        />
-                        <div className="mt-1.5 flex gap-1.5">
-                          <button type="button" onClick={saveEdit} className="rounded-[5px] bg-[#252c38] px-2 py-1 text-[10px] text-[#e2e8f0]">Save</button>
-                          <button type="button" onClick={() => setEditingId(null)} className="rounded-[5px] bg-[#1e252f] px-2 py-1 text-[10px] text-[#64748b]">Cancel</button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <span className="rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-medium text-[#94a3b8]">
-                            {SOURCE_TYPES.find((s) => s.id === sourceType)?.label ?? "Source"}
-                          </span>
-                          <div className="flex gap-1.5">
-                            <button type="button" onClick={() => startEdit(cit)} className="text-[#4b5563] transition hover:text-[#94a3b8]"><EditIconSm /></button>
-                            <button type="button" onClick={() => deleteCitation(cit.id)} className="text-[#4b5563] transition hover:text-[#ef4444]"><TrashIconSm /></button>
-                          </div>
-                        </div>
-                        <p className="text-[11px] leading-relaxed text-[#94a3b8]"><RichText text={cit.text} /></p>
-                      </>
-                    )}
+                {citCards.map((card, idx) => (
+                  <div key={card.id} className="rounded-[8px] bg-[#1a1f28] p-2.5">
+                    {/* Card header */}
+                    <div className="mb-2 flex items-center justify-between gap-1">
+                      <span className="flex-shrink-0 rounded-full bg-[#252c38] px-1.5 py-0.5 text-[9px] font-bold text-[#94a3b8]">{idx + 1}</span>
+                      <p className="min-w-0 flex-1 truncate text-[9px] text-[#4b5563]">{card.url}</p>
+                      <button type="button" onClick={() => removeCitCard(card.id)} className="flex-shrink-0 text-[#4b5563] hover:text-[#ef4444]">
+                        <TrashIconSm />
+                      </button>
+                    </div>
+
+                    {/* In-text */}
+                    <div className="mb-1.5">
+                      <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">In-text citation</p>
+                      <div className="flex items-start gap-1.5 rounded-[6px] bg-[#0f1218] px-2 py-1.5">
+                        <p className="min-w-0 flex-1 font-mono text-[10px] leading-relaxed text-[#93c5fd]">{card.inText}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleInsert(card.inText)}
+                          className={`flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold transition ${insertFeedback === card.inText ? "bg-[#16a34a] text-white" : "bg-[#252c38] text-[#94a3b8] hover:bg-[#2e3647] hover:text-[#e2e8f0]"}`}
+                        >
+                          {insertFeedback === card.inText ? "Copied!" : "Insert"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bibliography */}
+                    <div>
+                      <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Bibliography</p>
+                      <div className="flex items-start gap-1.5 rounded-[6px] bg-[#0f1218] px-2 py-1.5">
+                        <p className="min-w-0 flex-1 text-[10px] leading-relaxed text-[#94a3b8]">{card.bibliography}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleInsert(card.bibliography)}
+                          className={`flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold transition ${insertFeedback === card.bibliography ? "bg-[#16a34a] text-white" : "bg-[#252c38] text-[#94a3b8] hover:bg-[#2e3647] hover:text-[#e2e8f0]"}`}
+                        >
+                          {insertFeedback === card.bibliography ? "Copied!" : "Insert"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setCitTab("scrape")}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-[8px] border border-dashed border-[#2a2f38] py-2 text-[11px] text-[#4b5563] transition hover:border-[#3a4150] hover:text-[#64748b]"
-              >
-                <PlusIcon /> Add Citation
-              </button>
-
-              <div className="my-3 h-px bg-[#2a2f38]" />
-
-              {/* In-text citation */}
-              <p className="mb-2 text-[11px] font-semibold text-[#94a3b8]">Insert In-Text</p>
-              {citations.length === 0 ? (
-                <p className="text-[10px] text-[#374151]">Add citations above first.</p>
-              ) : (
-                <>
-                  <p className="mb-0.5 text-[10px] text-[#4b5563]">Select Source</p>
-                  <select
-                    className="mb-2 w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] outline-none"
-                    value={inTextSourceId}
-                    onChange={(e) => setInTextSourceId(e.target.value)}
-                  >
-                    {citations.map((c, i) => (
-                      <option key={c.id} value={c.id}>Source {i + 1}: {c.text.slice(0, 35)}…</option>
-                    ))}
-                  </select>
-                  <p className="mb-0.5 text-[10px] text-[#4b5563]">Format</p>
-                  <select
-                    className="mb-2 w-full rounded-[6px] border border-[#2a2f38] bg-[#0f1218] px-2 py-1.5 text-[11px] text-[#e2e8f0] outline-none"
-                    value={inTextFormat}
-                    onChange={(e) => setInTextFormat(e.target.value)}
-                  >
-                    {inTextFormats.map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!inTextSourceId}
-                    className="w-full rounded-[8px] bg-[#1e252f] py-1.5 text-[11px] font-medium text-[#94a3b8] transition hover:bg-[#252c38] disabled:opacity-40"
-                  >
-                    Insert Citation
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </div>
 
       </div>
+
+      {/* Humanize Modal */}
+      {(humanizePhase.kind === "ask" || humanizePhase.kind === "pick_provider" || humanizePhase.kind === "humanizing" || humanizePhase.kind === "error") && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[2px]">
+          <div className="w-[400px] rounded-[18px] border border-[#2a2f38] bg-[#13161c] p-6 shadow-2xl">
+
+            {/* ── Ask: Humanize? ── */}
+            {humanizePhase.kind === "ask" && (
+              <>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e252f]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" /></svg>
+                </div>
+                <h2 className="mb-1 text-[15px] font-semibold text-[#e2e8f0]">Humanize before exporting?</h2>
+                <p className="mb-5 text-[13px] leading-relaxed text-[#64748b]">Run your essay through an AI bypass humanizer to make it undetectable before downloading.</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
+                    className="flex-1 rounded-[10px] border border-[#2a2f38] py-2.5 text-[13px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0]"
+                  >
+                    Skip — Download Now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHumanizePhase({ kind: "pick_provider", snapshot: humanizePhase.snapshot })}
+                    className="flex-1 rounded-[10px] bg-[#ea4335] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626]"
+                  >
+                    Yes, Humanize →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── Pick Provider ── */}
+            {humanizePhase.kind === "pick_provider" && (
+              <>
+                <h2 className="mb-1 text-[15px] font-semibold text-[#e2e8f0]">Choose a humanizer</h2>
+                <p className="mb-4 text-[13px] text-[#64748b]">Select which AI bypass service to use.</p>
+                <div className="mb-4 flex gap-3">
+                  {/* Undetectable AI */}
+                  <button
+                    type="button"
+                    onClick={() => void handleHumanize("UndetectableAI", humanizePhase.snapshot)}
+                    className="flex flex-1 flex-col items-center gap-2 rounded-[12px] border border-[#2a2f38] bg-[#161b23] px-3 py-4 transition hover:border-[#3a4150] hover:bg-[#1a1f28]"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d2218] text-[#4ade80]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M8 12s1.5-2 4-2 4 2 4 2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
+                    </div>
+                    <span className="text-[12px] font-semibold text-[#e2e8f0]">Undetectable AI</span>
+                    <span className="text-center text-[10px] text-[#4b5563]">Async · University level</span>
+                  </button>
+                  {/* StealthGPT */}
+                  <button
+                    type="button"
+                    onClick={() => void handleHumanize("StealthGPT", humanizePhase.snapshot)}
+                    className="flex flex-1 flex-col items-center gap-2 rounded-[12px] border border-[#2a2f38] bg-[#161b23] px-3 py-4 transition hover:border-[#3a4150] hover:bg-[#1a1f28]"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e2a1a] text-[#86efac]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>
+                    </div>
+                    <span className="text-[12px] font-semibold text-[#e2e8f0]">StealthGPT</span>
+                    <span className="text-center text-[10px] text-[#4b5563]">Instant · Standard tone</span>
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHumanizePhase({ kind: "ask", snapshot: humanizePhase.snapshot })}
+                  className="w-full rounded-[10px] py-2 text-[12px] text-[#4b5563] transition hover:text-[#94a3b8]"
+                >
+                  ← Back
+                </button>
+              </>
+            )}
+
+            {/* ── Humanizing ── */}
+            {humanizePhase.kind === "humanizing" && (
+              <>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e252f]">
+                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-[3px] border-[#ea4335] border-t-transparent" />
+                </div>
+                <h2 className="mb-1 text-[15px] font-semibold text-[#e2e8f0]">Humanizing with {humanizePhase.provider === "StealthGPT" ? "StealthGPT" : "Undetectable AI"}…</h2>
+                <p className="text-[13px] text-[#64748b]">
+                  {humanizePhase.provider === "UndetectableAI"
+                    ? "Submitting to Undetectable AI and polling for results. This may take up to a minute."
+                    : "Sending your essay to StealthGPT. Usually completes in a few seconds."}
+                </p>
+              </>
+            )}
+
+            {/* ── Error ── */}
+            {humanizePhase.kind === "error" && (
+              <>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e1208]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                </div>
+                <h2 className="mb-1 text-[15px] font-semibold text-[#e2e8f0]">Humanization failed</h2>
+                <p className="mb-4 text-[13px] text-[#fbbf24]">{humanizePhase.message}</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHumanizePhase({ kind: "pick_provider", snapshot: humanizePhase.snapshot })}
+                    className="flex-1 rounded-[10px] bg-[#1e252f] py-2.5 text-[13px] font-medium text-[#94a3b8] transition hover:bg-[#252c38]"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
+                    className="flex-1 rounded-[10px] border border-[#2a2f38] py-2.5 text-[13px] font-medium text-[#64748b] transition hover:text-[#94a3b8]"
+                  >
+                    Skip — Download
+                  </button>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
