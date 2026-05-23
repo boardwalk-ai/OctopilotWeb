@@ -628,10 +628,22 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <div className="h-4 w-px bg-[#2a2f38]" />
             </>
           )}
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-full bg-[#ea4335]" />
+          <div className="flex items-center">
+            <style>{`
+              @keyframes octopilot-scan {
+                0%   { background-position: -200% center; }
+                100% { background-position: 200% center; }
+              }
+            `}</style>
             <span className="text-[16px] font-extrabold italic tracking-tight leading-none">
-              <span className="bg-gradient-to-r from-[#ea4335] to-[#ff7961] bg-clip-text text-transparent">Octopilot</span>
+              <span style={{
+                background: 'linear-gradient(90deg, #ff2200 0%, #ff2200 30%, #ffb0a0 50%, #ff2200 70%, #ff2200 100%)',
+                backgroundSize: '200% auto',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                animation: 'octopilot-scan 2.4s linear infinite',
+              }}>Octopilot</span>
               <span className="text-[#e2e8f0]"> Formatter Tool</span>
             </span>
           </div>
