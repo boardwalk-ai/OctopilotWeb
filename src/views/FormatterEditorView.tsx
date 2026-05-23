@@ -129,6 +129,9 @@ interface Props {
 }
 
 export default function FormatterEditorView({ onBack, onFinish }: Props) {
+  /* ── Shutter entrance animation ── */
+  const [shutterDone, setShutterDone] = useState(false);
+
   /* ── Document state ── */
   const [docTab, setDocTab] = useState<"paste" | "upload">("paste");
   const [rawContent, setRawContent] = useState("");
@@ -639,6 +642,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               @keyframes cit-card-in {
                 from { opacity: 0; transform: translateY(-8px) scale(0.97); }
                 to   { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              @keyframes shutter-top {
+                0%   { transform: translateY(0); }
+                100% { transform: translateY(-100%); }
+              }
+              @keyframes shutter-bottom {
+                0%   { transform: translateY(0); }
+                100% { transform: translateY(100%); }
               }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
@@ -1305,6 +1316,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       {toast && (
         <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-[8px] bg-[#252c38] px-4 py-2 text-[12px] font-medium text-[#e2e8f0] shadow-lg">
           {toast}
+        </div>
+      )}
+
+      {/* ── Cinematic shutter entrance ── */}
+      {!shutterDone && (
+        <div className="pointer-events-none fixed inset-0 z-[200] overflow-hidden">
+          <div
+            className="absolute left-0 right-0 top-0 h-1/2 bg-[#0a0d11]"
+            style={{ animation: 'shutter-top 0.72s cubic-bezier(0.76, 0, 0.24, 1) 0.12s both' }}
+            onAnimationEnd={() => setShutterDone(true)}
+          />
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#0a0d11]"
+            style={{ animation: 'shutter-bottom 0.72s cubic-bezier(0.76, 0, 0.24, 1) 0.12s both' }}
+          />
         </div>
       )}
     </div>
