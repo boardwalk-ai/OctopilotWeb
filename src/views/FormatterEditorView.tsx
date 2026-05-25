@@ -79,6 +79,47 @@ const TONE_META: { id: ToneId; label: string }[] = [
 
 interface ChatMsg { id: string; role: "user" | "assistant"; text: string; }
 
+/* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
+function parseInline(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    if (match[1] !== undefined) {
+      parts.push(<strong key={key++} className="font-bold text-[#f1f5f9]">{match[1]}</strong>);
+    } else if (match[2] !== undefined) {
+      parts.push(<em key={key++} className="not-italic font-semibold text-[#93c5fd]">{match[2]}</em>);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : [text];
+}
+
+function OctoMarkdown({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let key = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("### ")) {
+      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[12px] font-bold text-[#e2e8f0]">{parseInline(line.slice(4))}</p>);
+    } else if (line.startsWith("## ")) {
+      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[13px] font-bold text-[#f1f5f9]">{parseInline(line.slice(3))}</p>);
+    } else if (line.startsWith("# ")) {
+      nodes.push(<p key={key++} className="mt-2 mb-1 text-[14px] font-bold text-[#f1f5f9]">{parseInline(line.slice(2))}</p>);
+    } else if (line.trim() === "") {
+      nodes.push(<div key={key++} className="h-2" />);
+    } else {
+      nodes.push(<p key={key++} className="leading-relaxed">{parseInline(line)}</p>);
+    }
+  }
+  return <>{nodes}</>;
+}
+
 function countWordsRaw(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -707,7 +748,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Render ── */
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#11151b]">
+    <div className="fmt-root flex h-screen flex-col overflow-hidden bg-[#11151b]">
 
       {/* ── Top bar ── */}
       <div className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-[#2a2f38] bg-[#13161c] px-4">
@@ -757,6 +798,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 0%, 60%, 100% { transform: translateY(0); }
                 30%           { transform: translateY(-4px); }
               }
+              /* Hide all scrollbars, keep scroll functional */
+              .fmt-root *::-webkit-scrollbar { display: none; }
+              .fmt-root * { -ms-overflow-style: none; scrollbar-width: none; }
+              /* Disable text selection everywhere except editable areas */
+              .fmt-root { user-select: none; -webkit-user-select: none; }
+              .fmt-root [contenteditable="true"],
+              .fmt-root textarea,
+              .fmt-root input[type="text"],
+              .fmt-root input[type="email"],
+              .fmt-root input[type="password"],
+              .fmt-root input[type="url"],
+              .fmt-root input[type="number"] { user-select: text; -webkit-user-select: text; }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
               <span style={{ fontSize: '21px', color: '#ff2200' }}>
@@ -1003,13 +1056,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           style={{ animation: "chat-msg-in 0.22s ease-out both" }}
                         >
                           <div
-                            className={`max-w-[85%] whitespace-pre-wrap break-words px-3 py-2 text-[12px] leading-relaxed ${
+                            className={`max-w-[85%] px-3 py-2 text-[12px] ${
                               msg.role === "user"
-                                ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white"
-                                : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#e2e8f0]"
+                                ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed"
+                                : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"
                             }`}
                           >
-                            {msg.text}
+                            {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
                           </div>
                         </div>
                       ))}
