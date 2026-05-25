@@ -765,52 +765,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
 
-              {/* ── Tabs ── pill style */}
-              <div className="mb-3 flex rounded-full bg-[#1a1f28] p-1">
-                {(["paste", "upload"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setDocTab(tab)}
-                    className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition active:scale-[0.97] ${docTab === tab ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#64748b] hover:text-[#94a3b8]"}`}
-                  >
-                    {tab === "paste" ? "Paste Text" : "Upload File"}
-                  </button>
-                ))}
+              {/* ── Upload zone ── */}
+              <div
+                className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-7 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
+                onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
+                onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
+              >
+                <div className="text-[#374151]"><UploadIcon /></div>
+                <p className="text-[11px] text-[#64748b]">
+                  {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
+                </p>
+                <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
               </div>
-
-              {/* ── Paste tab ── */}
-              {docTab === "paste" && (
-                <textarea
-                  className={`w-full resize-none rounded-2xl border bg-[#0f1218] px-3 py-2.5 text-[11px] text-[#e2e8f0] placeholder-[#4b5563] outline-none transition ${dragOver ? "border-[#ea4335]" : "border-[#2a2f38] focus:border-[#4b5563]"}`}
-                  rows={9}
-                  value={rawContent}
-                  onChange={handleTextChange}
-                  placeholder="Paste or type your document here…"
-                  onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleTextAreaDrop}
-                />
-              )}
-
-              {/* ── Upload tab ── disabled while locked */}
-              {docTab === "upload" && (
-                <div
-                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-7 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
-                  onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
-                  onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
-                >
-                  <div className="text-[#374151]"><UploadIcon /></div>
-                  <p className="text-[11px] text-[#64748b]">
-                    {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
-                  </p>
-                  <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
-                </div>
-              )}
 
               <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
 
