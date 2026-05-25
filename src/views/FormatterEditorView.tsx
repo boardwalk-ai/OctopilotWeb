@@ -247,6 +247,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fmtRootRef = useRef<HTMLDivElement>(null);
 
   const wordCount = useMemo(() => countWordsRaw(rawContent), [rawContent]);
   const charCount = rawContent.length;
@@ -522,6 +523,82 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   };
 
+  /* ── Drag-to-scroll with momentum ── */
+  useEffect(() => {
+    const root = fmtRootRef.current;
+    if (!root) return;
+
+    const SKIP = new Set(["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT"]);
+    let isDown = false, hasDragged = false;
+    let scrollEl: Element | null = null;
+    let startX = 0, startY = 0, startSL = 0, startST = 0;
+    let lastX = 0, lastY = 0, lastT = 0;
+    let velX = 0, velY = 0, rafId = 0;
+
+    const getScrollable = (el: Element | null): Element | null => {
+      while (el && root.contains(el)) {
+        const s = window.getComputedStyle(el);
+        const canX = (s.overflowX === "auto" || s.overflowX === "scroll") && el.scrollWidth > el.clientWidth + 1;
+        const canY = (s.overflowY === "auto" || s.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1;
+        if (canX || canY) return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const t = e.target as Element;
+      if (SKIP.has(t.tagName) || t.closest('[contenteditable="true"],input,textarea,button,a,select')) return;
+      const sc = getScrollable(t);
+      if (!sc) return;
+      cancelAnimationFrame(rafId);
+      isDown = true; hasDragged = false; scrollEl = sc;
+      startX = lastX = e.clientX; startY = lastY = e.clientY;
+      startSL = sc.scrollLeft; startST = sc.scrollTop;
+      lastT = performance.now(); velX = velY = 0;
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!isDown || !scrollEl) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!hasDragged && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      hasDragged = true;
+      root.classList.add("fmt-dragging");
+      scrollEl.scrollLeft = startSL - dx;
+      scrollEl.scrollTop  = startST - dy;
+      const now = performance.now(), dt = now - lastT;
+      if (dt > 0) { velX = (e.clientX - lastX) / dt; velY = (e.clientY - lastY) / dt; }
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+    };
+
+    const onUp = () => {
+      if (!isDown) return;
+      isDown = false;
+      root.classList.remove("fmt-dragging");
+      if (!hasDragged || !scrollEl) { scrollEl = null; return; }
+      const el = scrollEl; scrollEl = null;
+      let mx = velX * 120, my = velY * 120;
+      const tick = () => {
+        if (Math.abs(mx) < 0.4 && Math.abs(my) < 0.4) return;
+        el.scrollLeft -= mx; el.scrollTop -= my;
+        mx *= 0.87; my *= 0.87;
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    };
+
+    root.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      root.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   /* ── Octo bot: auto-scroll chat ── */
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -748,7 +825,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Render ── */
   return (
-    <div className="fmt-root flex h-screen flex-col overflow-hidden bg-[#11151b]">
+    <div ref={fmtRootRef} className="fmt-root flex h-screen flex-col overflow-hidden bg-[#11151b]">
 
       {/* ── Top bar ── */}
       <div className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-[#2a2f38] bg-[#13161c] px-4">
@@ -801,6 +878,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               /* Hide all scrollbars, keep scroll functional */
               .fmt-root *::-webkit-scrollbar { display: none; }
               .fmt-root * { -ms-overflow-style: none; scrollbar-width: none; }
+              /* Grabbing cursor while drag-scrolling */
+              .fmt-root.fmt-dragging,
+              .fmt-root.fmt-dragging * { cursor: grabbing !important; user-select: none !important; }
               /* Disable text selection everywhere except editable areas */
               .fmt-root { user-select: none; -webkit-user-select: none; }
               .fmt-root [contenteditable="true"],
