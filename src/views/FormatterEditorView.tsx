@@ -889,14 +889,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </button>
         )}
 
-        {/* CENTER: editor or placeholder */}
+        {/* CENTER: editor (always mounted; empty until Format Document is clicked) */}
         <div className="min-w-0 flex-1">
-          {editorActive ? (
-            <div
-              key={editorKey}
-              className="h-full"
-              style={{ animation: 'editor-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both' }}
-            >
+          <div
+            key={editorKey}
+            className="h-full"
+            style={editorActive ? { animation: 'editor-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both' } : undefined}
+          >
             <FormatterEditorCore
               content={coreSnapshot.content}
               bibliography={coreSnapshot.bibliography}
@@ -912,72 +911,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               onFinish={onFinish ? handleCoreFinish : undefined}
               insertBibEntryRef={insertBibEntryRef}
             />
-            </div>
-          ) : (
-            /* ── Blank document preview ── */
-            <div className="flex h-full items-start justify-center overflow-y-auto bg-[#11151b] py-10">
-              <div className="w-full max-w-[680px] px-6">
-
-                {/* Page 1 */}
-                <div className="w-full bg-white shadow-[0_8px_48px_rgba(0,0,0,0.55)]" style={{ minHeight: '880px', borderRadius: '2px' }}>
-                  <div className="px-14 py-12">
-                    {/* Header block — name / institution / course lines */}
-                    <div className="mb-7 space-y-2">
-                      {[48, 42, 50, 38].map((w, i) => (
-                        <div key={i} className="h-[11px] rounded-full bg-[#efefef]" style={{ width: `${w}%` }} />
-                      ))}
-                    </div>
-                    {/* Title */}
-                    <div className="mb-7 flex justify-center">
-                      <div className="h-[14px] w-[62%] rounded-full bg-[#e8e8e8]" />
-                    </div>
-                    {/* Body paragraphs */}
-                    {[
-                      [100, 100, 100, 100, 72],
-                      [100, 100, 100, 100, 58],
-                      [100, 100, 100, 100, 83],
-                      [100, 100, 100, 100, 66],
-                      [100, 100, 100, 100, 45],
-                    ].map((lines, pi) => (
-                      <div key={pi} className="mb-5">
-                        {lines.map((w, li) => (
-                          <div
-                            key={li}
-                            className="mb-[7px] h-[9px] rounded-full"
-                            style={{ width: `${w}%`, background: li % 3 === 0 ? '#f3f3f3' : '#f7f7f7' }}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Page 2 — partial */}
-                <div className="mt-4 w-full bg-white shadow-[0_8px_48px_rgba(0,0,0,0.4)]" style={{ minHeight: '320px', borderRadius: '2px' }}>
-                  <div className="px-14 py-12">
-                    {[
-                      [100, 100, 100, 100, 60],
-                      [100, 100, 100, 78],
-                    ].map((lines, pi) => (
-                      <div key={pi} className="mb-5">
-                        {lines.map((w, li) => (
-                          <div
-                            key={li}
-                            className="mb-[7px] h-[9px] rounded-full"
-                            style={{ width: `${w}%`, background: '#f5f5f5' }}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <p className="mt-5 text-center text-[11px] text-[#2a3040]">
-                  Format your document to see it here
-                </p>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Right re-open tab */}
