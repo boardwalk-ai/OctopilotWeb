@@ -77,7 +77,8 @@ const TONE_META: { id: ToneId; label: string }[] = [
   { id: "no_nonsense", label: "No Nonsense" },
 ];
 
-interface ChatMsg { id: string; role: "user" | "assistant"; text: string; }
+interface OctoSuggestion { icon: string; title: string; fix: string; }
+interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; }
 
 /* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
 function parseInline(text: string): React.ReactNode[] {
@@ -118,6 +119,39 @@ function OctoMarkdown({ text }: { text: string }) {
     }
   }
   return <>{nodes}</>;
+}
+
+function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
+  return (
+    <div className="mt-2.5 flex flex-col gap-1.5">
+      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#334155]">How to improve</p>
+      {suggestions.map((s, i) => (
+        <div
+          key={i}
+          className="rounded-[10px] border border-[#1e3a5f] bg-[#0d1e30] px-2.5 py-2"
+          style={{ animation: `chat-msg-in 0.28s ease-out ${0.12 + i * 0.09}s both` }}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="text-[14px] leading-none">{s.icon}</span>
+            <span className="text-[10.5px] font-semibold text-[#93c5fd]">{s.title}</span>
+          </div>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-[#475569]">{s.fix}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function parseSuggestions(text: string): { cleanText: string; suggestions: OctoSuggestion[] } {
+  const match = text.match(/\[SUGGESTIONS_JSON\]\s*([\s\S]*?)\s*\[\/SUGGESTIONS_JSON\]/);
+  if (!match) return { cleanText: text, suggestions: [] };
+  const cleanText = text.slice(0, text.indexOf("[SUGGESTIONS_JSON]")).trimEnd();
+  try {
+    const parsed = JSON.parse(match[1].trim()) as { suggestions?: OctoSuggestion[] };
+    return { cleanText, suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [] };
+  } catch {
+    return { cleanText, suggestions: [] };
+  }
 }
 
 function countWordsRaw(text: string) {
@@ -643,6 +677,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           prev.map((m) => m.id === assistantId ? { ...m, text: m.text + chunk } : m)
         );
       }
+
+      // Parse suggestions out of the completed response
+      setChatMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== assistantId) return m;
+          const { cleanText, suggestions } = parseSuggestions(m.text);
+          return { ...m, text: cleanText, suggestions: suggestions.length > 0 ? suggestions : undefined };
+        })
+      );
     } catch {
       setChatMessages((prev) => [...prev, {
         id: crypto.randomUUID(), role: "assistant",
@@ -1132,18 +1175,22 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {chatMessages.map((msg) => (
                         <div
                           key={msg.id}
-                          className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                           style={{ animation: "chat-msg-in 0.22s ease-out both" }}
                         >
-                          <div
-                            className={`max-w-[85%] px-3 py-2 text-[12px] ${
-                              msg.role === "user"
-                                ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed"
-                                : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"
-                            }`}
-                          >
-                            {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
+                          <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                            <div
+                              className={`max-w-[85%] px-3 py-2 text-[12px] ${
+                                msg.role === "user"
+                                  ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed"
+                                  : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"
+                              }`}
+                            >
+                              {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
+                            </div>
                           </div>
+                          {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                            <SuggestionCards suggestions={msg.suggestions} />
+                          )}
                         </div>
                       ))}
                       {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
