@@ -914,19 +914,67 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             />
             </div>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#11151b]">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1a1f28]">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.3">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <line x1="10" y1="9" x2="8" y2="9" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="text-[14px] font-medium text-[#374151]">No document yet</p>
-                <p className="mt-1 text-[12px] text-[#2a2f38]">Upload or paste a document in the left panel,<br />then click <span className="text-[#64748b]">Format Document</span></p>
+            /* ── Blank document preview ── */
+            <div className="flex h-full items-start justify-center overflow-y-auto bg-[#11151b] py-10">
+              <div className="w-full max-w-[680px] px-6">
+
+                {/* Page 1 */}
+                <div className="w-full bg-white shadow-[0_8px_48px_rgba(0,0,0,0.55)]" style={{ minHeight: '880px', borderRadius: '2px' }}>
+                  <div className="px-14 py-12">
+                    {/* Header block — name / institution / course lines */}
+                    <div className="mb-7 space-y-2">
+                      {[48, 42, 50, 38].map((w, i) => (
+                        <div key={i} className="h-[11px] rounded-full bg-[#efefef]" style={{ width: `${w}%` }} />
+                      ))}
+                    </div>
+                    {/* Title */}
+                    <div className="mb-7 flex justify-center">
+                      <div className="h-[14px] w-[62%] rounded-full bg-[#e8e8e8]" />
+                    </div>
+                    {/* Body paragraphs */}
+                    {[
+                      [100, 100, 100, 100, 72],
+                      [100, 100, 100, 100, 58],
+                      [100, 100, 100, 100, 83],
+                      [100, 100, 100, 100, 66],
+                      [100, 100, 100, 100, 45],
+                    ].map((lines, pi) => (
+                      <div key={pi} className="mb-5">
+                        {lines.map((w, li) => (
+                          <div
+                            key={li}
+                            className="mb-[7px] h-[9px] rounded-full"
+                            style={{ width: `${w}%`, background: li % 3 === 0 ? '#f3f3f3' : '#f7f7f7' }}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Page 2 — partial */}
+                <div className="mt-4 w-full bg-white shadow-[0_8px_48px_rgba(0,0,0,0.4)]" style={{ minHeight: '320px', borderRadius: '2px' }}>
+                  <div className="px-14 py-12">
+                    {[
+                      [100, 100, 100, 100, 60],
+                      [100, 100, 100, 78],
+                    ].map((lines, pi) => (
+                      <div key={pi} className="mb-5">
+                        {lines.map((w, li) => (
+                          <div
+                            key={li}
+                            className="mb-[7px] h-[9px] rounded-full"
+                            style={{ width: `${w}%`, background: '#f5f5f5' }}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="mt-5 text-center text-[11px] text-[#2a3040]">
+                  Format your document to see it here
+                </p>
               </div>
             </div>
           )}
