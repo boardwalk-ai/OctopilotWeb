@@ -66,6 +66,19 @@ type HumanizePhase =
   | { kind: "error"; message: string; snapshot: ExportDocumentSnapshot }
   | { kind: "done" };
 
+type ToneId = "positive" | "sweet" | "neutral" | "direct" | "no_nonsense" | "roast";
+
+const TONE_META: { id: ToneId; label: string }[] = [
+  { id: "roast",       label: "Roast 🔥" },
+  { id: "positive",    label: "Positive" },
+  { id: "sweet",       label: "Sweet" },
+  { id: "neutral",     label: "Neutral" },
+  { id: "direct",      label: "Direct" },
+  { id: "no_nonsense", label: "No Nonsense" },
+];
+
+interface ChatMsg { id: string; role: "user" | "assistant"; text: string; }
+
 function countWordsRaw(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -169,6 +182,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
+  /* ── Left tab & Octo bot chat ── */
+  const [leftTab, setLeftTab] = useState<"octo" | "upload">("upload");
+  const [chatTone, setChatTone] = useState<ToneId>("roast");
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatStarted, setChatStarted] = useState(false);
+
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
   const savedEditorElRef = useRef<HTMLElement | null>(null);
@@ -184,6 +205,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const wordCount = useMemo(() => countWordsRaw(rawContent), [rawContent]);
   const charCount = rawContent.length;
@@ -459,6 +481,60 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   };
 
+  /* ── Octo bot: auto-scroll chat ── */
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
+
+  /* ── Octo bot: send message (streaming) ── */
+  const sendChat = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || chatLoading) return;
+
+    const userMsg: ChatMsg = { id: crypto.randomUUID(), role: "user", text: trimmed };
+    const assistantId = crypto.randomUUID();
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
+    setChatStarted(true);
+    setChatLoading(true);
+
+    try {
+      const essayCtx = rawContent.trim() || coreSnapshot.content.trim();
+      const history = [...chatMessages, userMsg].map((m) => ({ role: m.role, content: m.text }));
+
+      const res = await fetchWithUserAuthorization("/api/octobot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Stream unavailable.");
+
+      // Insert empty assistant bubble — typing dots disappear, streaming text appears
+      setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "" }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setChatMessages((prev) =>
+          prev.map((m) => m.id === assistantId ? { ...m, text: m.text + chunk } : m)
+        );
+      }
+    } catch {
+      setChatMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), role: "assistant",
+        text: "Hmm, something went wrong. Try again? 😅",
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatLoading, chatMessages, chatTone, coreSnapshot.content, rawContent]);
+
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
     if (insertBibEntryRef.current && editorActive) {
@@ -673,6 +749,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 from { opacity: 0; transform: translateY(16px) scale(0.985); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);     }
               }
+              @keyframes chat-msg-in {
+                from { opacity: 0; transform: translateY(8px) scale(0.96); }
+                to   { opacity: 1; transform: translateY(0)   scale(1);    }
+              }
+              @keyframes typing-bounce {
+                0%, 60%, 100% { transform: translateY(0); }
+                30%           { transform: translateY(-4px); }
+              }
             `}</style>
             <span className="font-extrabold italic tracking-tight leading-none">
               <span style={{ fontSize: '21px', color: '#ff2200' }}>
@@ -756,6 +840,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           style={{ width: leftOpen ? 260 : 0 }}
         >
           <div className={`flex h-full min-h-0 w-[260px] flex-col transition-opacity duration-200 ${leftOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+            {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[#2a2f38] px-3 py-2.5">
               <span className="text-[13px] font-bold tracking-wide text-[#e2e8f0]">1 · Document</span>
               <button onClick={() => setLeftOpen(false)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
@@ -763,86 +848,224 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-
-              {/* ── Upload zone ── */}
-              <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-7 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
-                onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
-                onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
-              >
-                <div className="text-[#374151]"><UploadIcon /></div>
-                <p className="text-[11px] text-[#64748b]">
-                  {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
-                </p>
-                <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
-              </div>
-
-              <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
-
-              {/* ── File chip ── pill */}
-              {rawContent && !isUploading && (
-                <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
-                  <span className="text-[#4b5563]"><FileIcon /></span>
-                  <span className="flex-1 truncate text-[11px] text-[#94a3b8]">{fileName ?? "Pasted document"}</span>
-                  <button type="button" onClick={clearDocument} className="text-[#4b5563] transition hover:text-[#ef4444] active:scale-90">×</button>
-                </div>
-              )}
-
-              {renderParseStatus()}
-
-              {/* ── Stats ── */}
-              <div className="mt-2.5 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-2 text-[10px] text-[#4b5563]">
-                <span>{wordCount.toLocaleString()} words</span>
-                <span>{charCount.toLocaleString()} chars</span>
-                <span>~{pageCount} pages</span>
-              </div>
-
-              <div className="my-3 h-px bg-[#2a2f38]" />
-
-              {/* ── Format Style ── */}
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
-              <div className="flex flex-col gap-1">
-                {FORMAT_STYLES.map((s) => (
+            {/* Tab Switcher */}
+            <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-2">
+              <div className="flex rounded-full bg-[#1a1f28] p-1">
+                {(["octo", "upload"] as const).map((tab) => (
                   <button
-                    key={s.id}
+                    key={tab}
                     type="button"
-                    onClick={() => setFormatStyle(s.id)}
-                    className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left transition active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.25)] ${formatStyle === s.id ? "bg-[#1e252f] ring-1 ring-[#3a4150]" : "hover:bg-[#181d24]"}`}
+                    onClick={() => setLeftTab(tab)}
+                    className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition active:scale-[0.97] ${leftTab === tab ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#64748b] hover:text-[#94a3b8]"}`}
                   >
-                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
-                    <span className={`flex-1 text-[11px] ${formatStyle === s.id ? "text-[#e2e8f0]" : "text-[#64748b]"}`}>{s.label}</span>
-                    {formatStyle === s.id && <div className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" />}
+                    {tab === "octo" ? "Octo the Bot" : "Upload"}
                   </button>
                 ))}
               </div>
-
-              {/* ── Format Document / New Session ── */}
-              {editorActive ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-                    window.location.reload();
-                  }}
-                  className="mt-4 w-full rounded-full border border-[#2a2f38] py-2.5 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
-                >
-                  Start a new session
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={applyDocument}
-                  disabled={!canApply}
-                  className="mt-4 w-full rounded-full bg-[#ea4335] py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Format Document
-                </button>
-              )}
             </div>
+
+            {/* ── Upload tab ── */}
+            {leftTab === "upload" && (
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+
+                {/* Upload zone */}
+                <div
+                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-7 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
+                  onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
+                  onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                  onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
+                >
+                  <div className="text-[#374151]"><UploadIcon /></div>
+                  <p className="text-[11px] text-[#64748b]">
+                    {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
+                  </p>
+                  <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
+                </div>
+
+                <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
+
+                {/* File chip */}
+                {rawContent && !isUploading && (
+                  <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
+                    <span className="text-[#4b5563]"><FileIcon /></span>
+                    <span className="flex-1 truncate text-[11px] text-[#94a3b8]">{fileName ?? "Pasted document"}</span>
+                    <button type="button" onClick={clearDocument} className="text-[#4b5563] transition hover:text-[#ef4444] active:scale-90">×</button>
+                  </div>
+                )}
+
+                {renderParseStatus()}
+
+                {/* Stats */}
+                <div className="mt-2.5 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-2 text-[10px] text-[#4b5563]">
+                  <span>{wordCount.toLocaleString()} words</span>
+                  <span>{charCount.toLocaleString()} chars</span>
+                  <span>~{pageCount} pages</span>
+                </div>
+
+                <div className="my-3 h-px bg-[#2a2f38]" />
+
+                {/* Format Style */}
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
+                <div className="flex flex-col gap-1">
+                  {FORMAT_STYLES.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setFormatStyle(s.id)}
+                      className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left transition active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.25)] ${formatStyle === s.id ? "bg-[#1e252f] ring-1 ring-[#3a4150]" : "hover:bg-[#181d24]"}`}
+                    >
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
+                      <span className={`flex-1 text-[11px] ${formatStyle === s.id ? "text-[#e2e8f0]" : "text-[#64748b]"}`}>{s.label}</span>
+                      {formatStyle === s.id && <div className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" />}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Format Document / New Session */}
+                {editorActive ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+                      window.location.reload();
+                    }}
+                    className="mt-4 w-full rounded-full border border-[#2a2f38] py-2.5 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
+                  >
+                    Start a new session
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={applyDocument}
+                    disabled={!canApply}
+                    className="mt-4 w-full rounded-full bg-[#ea4335] py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Format Document
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Octo Bot tab ── */}
+            {leftTab === "octo" && (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+
+                {/* Tone selector */}
+                <div className="flex-shrink-0 overflow-x-auto border-b border-[#2a2f38] px-3 py-2">
+                  <div className="flex gap-1.5 pb-0.5">
+                    {TONE_META.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setChatTone(t.id)}
+                        className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                  {!chatStarted ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-4 pb-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1a1f28] ring-1 ring-[#2a2f38]">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
+                          <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                          <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+                          <rect x="10.75" y="17.25" width="2.5" height="1" rx="0.5" fill="#ea4335" />
+                        </svg>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[12px] font-medium text-[#e2e8f0]">Octo is ready</p>
+                        <p className="mt-0.5 text-[10px] text-[#4b5563]">
+                          {chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void sendChat("Yo Octo, criticize my essay")}
+                        className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
+                      >
+                        "Yo Octo, criticize my essay"
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {chatMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                          style={{ animation: "chat-msg-in 0.22s ease-out both" }}
+                        >
+                          <div
+                            className={`max-w-[85%] whitespace-pre-wrap break-words px-3 py-2 text-[12px] leading-relaxed ${
+                              msg.role === "user"
+                                ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white"
+                                : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#e2e8f0]"
+                            }`}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      ))}
+                      {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
+                        <div className="flex justify-start" style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
+                          <div className="flex items-center gap-1 rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-3">
+                            {[0, 1, 2].map((i) => (
+                              <span
+                                key={i}
+                                className="h-1.5 w-1.5 rounded-full bg-[#64748b]"
+                                style={{ animation: `typing-bounce 1.1s ease-in-out ${i * 0.18}s infinite` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Input */}
+                {chatStarted && (
+                  <div className="flex-shrink-0 border-t border-[#2a2f38] px-3 py-2.5">
+                    <div className="flex items-end gap-1.5">
+                      <textarea
+                        rows={1}
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            void sendChat(chatInput);
+                          }
+                        }}
+                        placeholder="Message Octo…"
+                        disabled={chatLoading}
+                        className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#3a4150] disabled:opacity-50"
+                        style={{ maxHeight: "80px" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void sendChat(chatInput)}
+                        disabled={chatLoading || !chatInput.trim()}
+                        className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13" />
+                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
