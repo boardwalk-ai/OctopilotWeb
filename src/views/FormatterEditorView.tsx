@@ -124,18 +124,18 @@ function OctoMarkdown({ text }: { text: string }) {
 function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
   return (
     <div className="mt-2.5 flex flex-col gap-1.5">
-      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#334155]">How to improve</p>
+      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#4b1a17]">How to improve</p>
       {suggestions.map((s, i) => (
         <div
           key={i}
-          className="rounded-[10px] border border-[#1e3a5f] bg-[#0d1e30] px-2.5 py-2"
+          className="rounded-[10px] border border-[#ea4335]/30 bg-[#0f1115] px-2.5 py-2"
           style={{ animation: `chat-msg-in 0.28s ease-out ${0.12 + i * 0.09}s both` }}
         >
           <div className="flex items-center gap-1.5">
             <span className="text-[14px] leading-none">{s.icon}</span>
-            <span className="text-[10.5px] font-semibold text-[#93c5fd]">{s.title}</span>
+            <span className="text-[10.5px] font-semibold text-[#ea4335]">{s.title}</span>
           </div>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-[#475569]">{s.fix}</p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-[#64748b]">{s.fix}</p>
         </div>
       ))}
     </div>
