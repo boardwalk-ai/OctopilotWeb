@@ -80,6 +80,16 @@ const TONE_META: { id: ToneId; label: string }[] = [
 interface OctoSuggestion { icon: string; title: string; fix: string; }
 interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; }
 
+/* ─── Dictionary / Thesaurus types ──────────────────────────────────────────── */
+interface DictApiPhonetic { text?: string; audio?: string; }
+interface DictApiDefinition { definition: string; example?: string; synonyms?: string[]; antonyms?: string[]; }
+interface DictApiMeaning { partOfSpeech: string; definitions: DictApiDefinition[]; synonyms: string[]; antonyms: string[]; }
+interface DictApiEntry { word: string; phonetic?: string; phonetics: DictApiPhonetic[]; meanings: DictApiMeaning[]; }
+interface DictMeaning { partOfSpeech: string; definitions: { definition: string; example?: string }[]; synonyms: string[]; antonyms: string[]; }
+interface DictResult { word: string; phonetic?: string; audioUrl?: string; meanings: DictMeaning[]; }
+interface ThesWord { word: string; score: number; }
+interface ThesResult { word: string; synonyms: ThesWord[]; antonyms: ThesWord[]; }
+
 /* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
 function parseInline(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -264,6 +274,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
+
+  /* ── Right tab ── */
+  const [rightTab, setRightTab] = useState<"citations" | "dictionary" | "thesaurus">("citations");
+  /* ── Dictionary ── */
+  const [dictInput, setDictInput] = useState("");
+  const [dictLoading, setDictLoading] = useState(false);
+  const [dictResult, setDictResult] = useState<DictResult | null>(null);
+  const [dictError, setDictError] = useState<string | null>(null);
+  const [copiedWord, setCopiedWord] = useState<string | null>(null);
+  /* ── Thesaurus ── */
+  const [thesInput, setThesInput] = useState("");
+  const [thesLoading, setThesLoading] = useState(false);
+  const [thesResult, setThesResult] = useState<ThesResult | null>(null);
+  const [thesError, setThesError] = useState<string | null>(null);
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -696,6 +720,65 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   }, [chatLoading, chatMessages, chatTone, coreSnapshot.content, rawContent]);
 
+  /* ── Dictionary search ── */
+  const searchDictionary = useCallback(async (word: string) => {
+    const q = word.trim().toLowerCase();
+    if (!q) return;
+    setDictLoading(true); setDictError(null); setDictResult(null);
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(q)}`);
+      if (!res.ok) { setDictError("Word not found. Try another spelling."); return; }
+      const data = (await res.json()) as DictApiEntry[];
+      const entry = data[0];
+      if (!entry) { setDictError("No results found."); return; }
+      const phoneticEntry = entry.phonetics?.find(p => p.audio && p.text) ?? entry.phonetics?.find(p => p.text) ?? null;
+      const allSyn = new Set<string>();
+      const allAnt = new Set<string>();
+      entry.meanings?.forEach(m => {
+        m.synonyms?.forEach(s => allSyn.add(s));
+        m.antonyms?.forEach(a => allAnt.add(a));
+        m.definitions?.forEach(d => { d.synonyms?.forEach(s => allSyn.add(s)); d.antonyms?.forEach(a => allAnt.add(a)); });
+      });
+      setDictResult({
+        word: entry.word,
+        phonetic: phoneticEntry?.text ?? entry.phonetic,
+        audioUrl: phoneticEntry?.audio,
+        meanings: (entry.meanings ?? []).slice(0, 4).map(m => ({
+          partOfSpeech: m.partOfSpeech,
+          definitions: (m.definitions ?? []).slice(0, 3).map(d => ({ definition: d.definition, example: d.example })),
+          synonyms: [...new Set([...(m.synonyms ?? [])])].slice(0, 8),
+          antonyms: [...new Set([...(m.antonyms ?? [])])].slice(0, 8),
+        })),
+      });
+    } catch { setDictError("Network error. Please try again."); }
+    finally { setDictLoading(false); }
+  }, []);
+
+  /* ── Thesaurus search ── */
+  const searchThesaurus = useCallback(async (word: string) => {
+    const q = word.trim().toLowerCase();
+    if (!q) return;
+    setThesLoading(true); setThesError(null); setThesResult(null);
+    try {
+      const [synRes, antRes] = await Promise.all([
+        fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(q)}&max=40`),
+        fetch(`https://api.datamuse.com/words?rel_ant=${encodeURIComponent(q)}&max=24`),
+      ]);
+      const synonyms = (await synRes.json()) as ThesWord[];
+      const antonyms = (await antRes.json()) as ThesWord[];
+      if (synonyms.length === 0 && antonyms.length === 0) { setThesError("No results found for this word."); return; }
+      setThesResult({ word: q, synonyms, antonyms });
+    } catch { setThesError("Network error. Please try again."); }
+    finally { setThesLoading(false); }
+  }, []);
+
+  /* ── Copy word chip ── */
+  const copyWord = useCallback((word: string) => {
+    navigator.clipboard?.writeText(word).catch(() => {});
+    setCopiedWord(word);
+    setTimeout(() => setCopiedWord(null), 1200);
+  }, []);
+
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
     if (insertBibEntryRef.current && editorActive) {
@@ -917,6 +1000,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               @keyframes typing-bounce {
                 0%, 60%, 100% { transform: translateY(0); }
                 30%           { transform: translateY(-4px); }
+              }
+              @keyframes dict-in {
+                from { opacity: 0; transform: translateY(12px) scale(0.98); }
+                to   { opacity: 1; transform: translateY(0)    scale(1);    }
+              }
+              @keyframes chip-pop {
+                0%   { transform: scale(1); }
+                40%  { transform: scale(0.88); }
+                100% { transform: scale(1); }
               }
               /* Hide all scrollbars, keep scroll functional */
               .fmt-root *::-webkit-scrollbar { display: none; }
@@ -1304,14 +1396,34 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           style={{ width: rightOpen ? 272 : 0 }}
         >
           <div className={`flex h-full min-h-0 w-[272px] flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[#2a2f38] px-3 py-2.5">
               <button onClick={() => setRightOpen(false)} className="absolute left-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <span className="text-[13px] font-bold tracking-wide text-[#e2e8f0]">3 · Citations</span>
+              <span className="text-[13px] font-bold tracking-wide text-[#e2e8f0]">3 · Tools</span>
             </div>
 
+            {/* ── Tab bar ── */}
+            <div className="flex flex-shrink-0 border-b border-[#2a2f38]">
+              {(["citations", "dictionary", "thesaurus"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setRightTab(tab)}
+                  className={`relative flex-1 py-2.5 text-[10.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[#f1f5f9]" : "text-[#4b5563] hover:text-[#94a3b8]"}`}
+                >
+                  {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : "Thesaurus"}
+                  {rightTab === tab && (
+                    <span className="absolute bottom-0 left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full bg-[#ea4335]" style={{ animation: "dict-in 0.18s ease-out both" }} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* ══════════════ CITATIONS TAB ══════════════ */}
+            {rightTab === "citations" && (
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
 
               {/* ── Mode Switcher ── */}
@@ -1498,34 +1610,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         <TrashIconSm />
                       </button>
                     </div>
-
                     {/* In-text */}
                     <div className="mb-1.5">
                       <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">In-text citation</p>
                       <div className="flex items-start gap-1.5 rounded-[6px] bg-[#0f1218] px-2 py-1.5">
                         <p className="min-w-0 flex-1 font-mono text-[10px] leading-relaxed text-[#93c5fd]">{card.inText}</p>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertInText(card.inText)}
-                          className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]"
-                        >
-                          Insert
-                        </button>
+                        <button type="button" onClick={() => handleInsertInText(card.inText)} className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]">Insert</button>
                       </div>
                     </div>
-
                     {/* Bibliography */}
                     <div>
                       <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Bibliography</p>
                       <div className="flex items-start gap-1.5 rounded-[6px] bg-[#0f1218] px-2 py-1.5">
                         <p className="min-w-0 flex-1 text-[10px] leading-relaxed text-[#94a3b8]">{card.bibliography}</p>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertBib(card.bibliography)}
-                          className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]"
-                        >
-                          Insert
-                        </button>
+                        <button type="button" onClick={() => handleInsertBib(card.bibliography)} className="flex-shrink-0 rounded-[4px] bg-[#252c38] px-1.5 py-0.5 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#2e3647] hover:text-[#e2e8f0]">Insert</button>
                       </div>
                     </div>
                   </div>
@@ -1533,6 +1631,256 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </div>
 
             </div>
+            )} {/* end citations tab */}
+
+            {/* ══════════════ DICTIONARY TAB ══════════════ */}
+            {rightTab === "dictionary" && (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+
+                {/* Search bar */}
+                <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-3">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={dictInput}
+                      onChange={(e) => setDictInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void searchDictionary(dictInput); }}
+                      placeholder="Search a word…"
+                      className="min-w-0 flex-1 rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none transition focus:border-[#ea4335]/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void searchDictionary(dictInput)}
+                      disabled={dictLoading || !dictInput.trim()}
+                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.92] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] disabled:opacity-40"
+                    >
+                      {dictLoading
+                        ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+
+                {/* Results */}
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+
+                  {/* Idle state */}
+                  {!dictResult && !dictError && !dictLoading && (
+                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2a2f38" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                      <p className="text-[11px] text-[#374151]">Type a word and press Enter</p>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {dictError && (
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                      {dictError}
+                    </div>
+                  )}
+
+                  {/* Result */}
+                  {dictResult && (
+                    <div style={{ animation: "dict-in 0.25s ease-out" }}>
+
+                      {/* Word + phonetic */}
+                      <div className="mb-3">
+                        <h2 className="text-[20px] font-bold tracking-tight text-[#f1f5f9]">{dictResult.word}</h2>
+                        {dictResult.phonetic && (
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <span className="text-[12px] text-[#64748b]">{dictResult.phonetic}</span>
+                            {dictResult.audioUrl && (
+                              <button
+                                type="button"
+                                onClick={() => { try { new Audio(dictResult.audioUrl!).play(); } catch { /* ignore */ } }}
+                                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1a1f28] text-[#ea4335] transition hover:bg-[#ea4335] hover:text-white active:scale-[0.88]"
+                                title="Play pronunciation"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-[#1e252f] mb-3" />
+
+                      {/* Meanings */}
+                      {dictResult.meanings.map((m, mi) => (
+                        <div key={mi} className="mb-4" style={{ animation: `dict-in 0.25s ease-out ${mi * 0.06}s both` }}>
+
+                          {/* Part of speech badge */}
+                          <span className="mb-2 inline-block rounded-md bg-[#ea4335]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">
+                            {m.partOfSpeech}
+                          </span>
+
+                          {/* Definitions */}
+                          <ol className="mb-2 flex flex-col gap-1.5 pl-1">
+                            {m.definitions.map((d, di) => (
+                              <li key={di} className="flex gap-2">
+                                <span className="mt-[2px] flex-shrink-0 text-[9px] font-bold text-[#374151]">{di + 1}.</span>
+                                <div>
+                                  <p className="text-[11px] leading-relaxed text-[#cbd5e1]">{d.definition}</p>
+                                  {d.example && (
+                                    <p className="mt-0.5 text-[10px] italic leading-relaxed text-[#475569]">"{d.example}"</p>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+
+                          {/* Synonyms */}
+                          {m.synonyms.length > 0 && (
+                            <div className="mb-1.5">
+                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#374151]">Synonyms</p>
+                              <div className="flex flex-wrap gap-1">
+                                {m.synonyms.map((w) => (
+                                  <button
+                                    key={w}
+                                    type="button"
+                                    onClick={() => copyWord(w)}
+                                    className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#94a3b8] hover:bg-[#ea4335]/20 hover:text-[#f1f5f9]"}`}
+                                    style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
+                                    title="Click to copy"
+                                  >{w}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Antonyms */}
+                          {m.antonyms.length > 0 && (
+                            <div>
+                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#374151]">Antonyms</p>
+                              <div className="flex flex-wrap gap-1">
+                                {m.antonyms.map((w) => (
+                                  <button
+                                    key={w}
+                                    type="button"
+                                    onClick={() => copyWord(w)}
+                                    className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#f87171] hover:bg-[#ea4335]/20 hover:text-[#fca5a5]"}`}
+                                    style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
+                                    title="Click to copy"
+                                  >{w}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {mi < dictResult.meanings.length - 1 && <div className="mt-3 h-px bg-[#1a1f28]" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )} {/* end dictionary tab */}
+
+            {/* ══════════════ THESAURUS TAB ══════════════ */}
+            {rightTab === "thesaurus" && (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+
+                {/* Search bar */}
+                <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-3">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={thesInput}
+                      onChange={(e) => setThesInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void searchThesaurus(thesInput); }}
+                      placeholder="Find synonyms…"
+                      className="min-w-0 flex-1 rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none transition focus:border-[#ea4335]/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void searchThesaurus(thesInput)}
+                      disabled={thesLoading || !thesInput.trim()}
+                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.92] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] disabled:opacity-40"
+                    >
+                      {thesLoading
+                        ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+
+                {/* Results */}
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+
+                  {/* Idle */}
+                  {!thesResult && !thesError && !thesLoading && (
+                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2a2f38" strokeWidth="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      <p className="text-[11px] text-[#374151]">Type a word to find alternatives</p>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {thesError && (
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                      {thesError}
+                    </div>
+                  )}
+
+                  {/* Result */}
+                  {thesResult && (
+                    <div style={{ animation: "dict-in 0.25s ease-out" }}>
+
+                      <h2 className="mb-1 text-[18px] font-bold tracking-tight text-[#f1f5f9]">{thesResult.word}</h2>
+                      <p className="mb-3 text-[9px] text-[#374151]">Click any word to copy it</p>
+
+                      {/* Synonyms */}
+                      {thesResult.synonyms.length > 0 && (
+                        <div className="mb-4">
+                          <div className="mb-2 flex items-center gap-2">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-[#374151]">Synonyms</p>
+                            <span className="rounded-full bg-[#1a1f28] px-1.5 py-0.5 text-[9px] text-[#4b5563]">{thesResult.synonyms.length}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {thesResult.synonyms.map((w, i) => (
+                              <button
+                                key={w.word}
+                                type="button"
+                                onClick={() => copyWord(w.word)}
+                                style={{ animation: `dict-in 0.2s ease-out ${i * 0.018}s both`, ...(copiedWord === w.word ? { animation: "chip-pop 0.25s ease-out" } : {}) }}
+                                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[#161b23] text-[#94a3b8] ring-1 ring-[#2a2f38] hover:bg-[#ea4335]/15 hover:text-[#f1f5f9] hover:ring-[#ea4335]/30"}`}
+                                title="Click to copy"
+                              >{w.word}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Antonyms */}
+                      {thesResult.antonyms.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-2">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-[#374151]">Antonyms</p>
+                            <span className="rounded-full bg-[#1a1f28] px-1.5 py-0.5 text-[9px] text-[#4b5563]">{thesResult.antonyms.length}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {thesResult.antonyms.map((w, i) => (
+                              <button
+                                key={w.word}
+                                type="button"
+                                onClick={() => copyWord(w.word)}
+                                style={{ animation: `dict-in 0.2s ease-out ${i * 0.018}s both`, ...(copiedWord === w.word ? { animation: "chip-pop 0.25s ease-out" } : {}) }}
+                                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[#161b23] text-[#f87171] ring-1 ring-[#2a2f38] hover:bg-[#ea4335]/15 hover:text-[#fca5a5] hover:ring-[#ea4335]/30"}`}
+                                title="Click to copy"
+                              >{w.word}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+                </div>
+              </div>
+            )} {/* end thesaurus tab */}
+
           </div>
         </div>
 
