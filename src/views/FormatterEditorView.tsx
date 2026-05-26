@@ -85,8 +85,8 @@ interface DictApiPhonetic { text?: string; audio?: string; }
 interface DictApiDefinition { definition: string; example?: string; synonyms?: string[]; antonyms?: string[]; }
 interface DictApiMeaning { partOfSpeech: string; definitions: DictApiDefinition[]; synonyms: string[]; antonyms: string[]; }
 interface DictApiEntry { word: string; phonetic?: string; phonetics: DictApiPhonetic[]; meanings: DictApiMeaning[]; }
-interface DictMeaning { partOfSpeech: string; definitions: { definition: string; example?: string }[]; synonyms: string[]; antonyms: string[]; }
-interface DictResult { word: string; phonetic?: string; audioUrl?: string; meanings: DictMeaning[]; }
+interface DictMeaning { partOfSpeech: string; definitions: { definition: string; example?: string }[]; }
+interface DictResult { word: string; phonetic?: string; audioUrl?: string; meanings: DictMeaning[]; synonyms: string[]; antonyms: string[]; }
 interface ThesWord { word: string; score: number; }
 interface ThesResult { word: string; synonyms: ThesWord[]; antonyms: ThesWord[]; }
 
@@ -726,19 +726,36 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     if (!q) return;
     setDictLoading(true); setDictError(null); setDictResult(null);
     try {
-      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(q)}`);
-      if (!res.ok) { setDictError("Word not found. Try another spelling."); return; }
-      const data = (await res.json()) as DictApiEntry[];
+      const [dictRes, synRes, antRes] = await Promise.all([
+        fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(q)}`),
+        fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(q)}&max=14`),
+        fetch(`https://api.datamuse.com/words?rel_ant=${encodeURIComponent(q)}&max=10`),
+      ]);
+
+      if (!dictRes.ok) { setDictError("Word not found. Try another spelling."); return; }
+
+      const data = (await dictRes.json()) as DictApiEntry[];
+      const dataSyn = synRes.ok ? (await synRes.json()) as ThesWord[] : [];
+      const dataAnt = antRes.ok ? (await antRes.json()) as ThesWord[] : [];
+
       const entry = data[0];
       if (!entry) { setDictError("No results found."); return; }
+
       const phoneticEntry = entry.phonetics?.find(p => p.audio && p.text) ?? entry.phonetics?.find(p => p.text) ?? null;
-      const allSyn = new Set<string>();
-      const allAnt = new Set<string>();
+
+      // Collect API-level synonyms/antonyms
+      const apiSyn = new Set<string>();
+      const apiAnt = new Set<string>();
       entry.meanings?.forEach(m => {
-        m.synonyms?.forEach(s => allSyn.add(s));
-        m.antonyms?.forEach(a => allAnt.add(a));
-        m.definitions?.forEach(d => { d.synonyms?.forEach(s => allSyn.add(s)); d.antonyms?.forEach(a => allAnt.add(a)); });
+        m.synonyms?.forEach(s => apiSyn.add(s));
+        m.antonyms?.forEach(a => apiAnt.add(a));
+        m.definitions?.forEach(d => { d.synonyms?.forEach(s => apiSyn.add(s)); d.antonyms?.forEach(a => apiAnt.add(a)); });
       });
+
+      // Prefer API synonyms; fall back to Datamuse if API has none
+      const finalSyn = apiSyn.size > 0 ? [...apiSyn].slice(0, 14) : dataSyn.map(w => w.word).slice(0, 14);
+      const finalAnt = apiAnt.size > 0 ? [...apiAnt].slice(0, 10) : dataAnt.map(w => w.word).slice(0, 10);
+
       setDictResult({
         word: entry.word,
         phonetic: phoneticEntry?.text ?? entry.phonetic,
@@ -746,15 +763,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         meanings: (entry.meanings ?? []).slice(0, 4).map(m => ({
           partOfSpeech: m.partOfSpeech,
           definitions: (m.definitions ?? []).slice(0, 3).map(d => ({ definition: d.definition, example: d.example })),
-          synonyms: [...new Set([
-            ...(m.synonyms ?? []),
-            ...(m.definitions ?? []).flatMap(d => d.synonyms ?? []),
-          ])].slice(0, 10),
-          antonyms: [...new Set([
-            ...(m.antonyms ?? []),
-            ...(m.definitions ?? []).flatMap(d => d.antonyms ?? []),
-          ])].slice(0, 10),
         })),
+        synonyms: finalSyn,
+        antonyms: finalAnt,
       });
     } catch { setDictError("Network error. Please try again."); }
     finally { setDictLoading(false); }
@@ -1736,47 +1747,43 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             ))}
                           </ol>
 
-                          {/* Synonyms */}
-                          {m.synonyms.length > 0 && (
-                            <div className="mb-1.5">
-                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#374151]">Synonyms</p>
-                              <div className="flex flex-wrap gap-1">
-                                {m.synonyms.map((w) => (
-                                  <button
-                                    key={w}
-                                    type="button"
-                                    onClick={() => copyWord(w)}
-                                    className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#94a3b8] hover:bg-[#ea4335]/20 hover:text-[#f1f5f9]"}`}
-                                    style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
-                                    title="Click to copy"
-                                  >{w}</button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Antonyms */}
-                          {m.antonyms.length > 0 && (
-                            <div>
-                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#374151]">Antonyms</p>
-                              <div className="flex flex-wrap gap-1">
-                                {m.antonyms.map((w) => (
-                                  <button
-                                    key={w}
-                                    type="button"
-                                    onClick={() => copyWord(w)}
-                                    className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#f87171] hover:bg-[#ea4335]/20 hover:text-[#fca5a5]"}`}
-                                    style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
-                                    title="Click to copy"
-                                  >{w}</button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
                           {mi < dictResult.meanings.length - 1 && <div className="mt-3 h-px bg-[#1a1f28]" />}
                         </div>
                       ))}
+
+                      {/* Synonyms — result level */}
+                      {dictResult.synonyms.length > 0 && (
+                        <div className="mt-3" style={{ animation: "dict-in 0.28s ease-out 0.15s both" }}>
+                          <div className="h-px bg-[#1a1f28] mb-3" />
+                          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#374151]">Synonyms</p>
+                          <div className="flex flex-wrap gap-1">
+                            {dictResult.synonyms.map((w) => (
+                              <button key={w} type="button" onClick={() => copyWord(w)}
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#94a3b8] hover:bg-[#ea4335]/20 hover:text-[#f1f5f9]"}`}
+                                style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
+                                title="Click to copy"
+                              >{w}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Antonyms — result level */}
+                      {dictResult.antonyms.length > 0 && (
+                        <div className="mt-3" style={{ animation: "dict-in 0.28s ease-out 0.22s both" }}>
+                          <div className="h-px bg-[#1a1f28] mb-3" />
+                          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#374151]">Antonyms</p>
+                          <div className="flex flex-wrap gap-1">
+                            {dictResult.antonyms.map((w) => (
+                              <button key={w} type="button" onClick={() => copyWord(w)}
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#f87171] hover:bg-[#ea4335]/20 hover:text-[#fca5a5]"}`}
+                                style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
+                                title="Click to copy"
+                              >{w}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
