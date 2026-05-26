@@ -746,8 +746,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         meanings: (entry.meanings ?? []).slice(0, 4).map(m => ({
           partOfSpeech: m.partOfSpeech,
           definitions: (m.definitions ?? []).slice(0, 3).map(d => ({ definition: d.definition, example: d.example })),
-          synonyms: [...new Set([...(m.synonyms ?? [])])].slice(0, 8),
-          antonyms: [...new Set([...(m.antonyms ?? [])])].slice(0, 8),
+          synonyms: [...new Set([
+            ...(m.synonyms ?? []),
+            ...(m.definitions ?? []).flatMap(d => d.synonyms ?? []),
+          ])].slice(0, 10),
+          antonyms: [...new Set([
+            ...(m.antonyms ?? []),
+            ...(m.definitions ?? []).flatMap(d => d.antonyms ?? []),
+          ])].slice(0, 10),
         })),
       });
     } catch { setDictError("Network error. Please try again."); }
