@@ -275,7 +275,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [chatStarted, setChatStarted] = useState(false);
 
   /* ── Right tab ── */
-  const [rightTab, setRightTab] = useState<"citations" | "dictionary" | "thesaurus">("citations");
+  const [rightTab, setRightTab] = useState<"citations" | "dictionary" | "thesaurus" | "source">("citations");
   /* ── Dictionary ── */
   const [dictInput, setDictInput] = useState("");
   const [dictLoading, setDictLoading] = useState(false);
@@ -1384,16 +1384,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             {/* ── Tab bar ── */}
             <div className="flex flex-shrink-0 border-b border-[#2a2f38]">
-              {(["citations", "dictionary", "thesaurus"] as const).map((tab) => (
+              {(["citations", "dictionary", "thesaurus", "source"] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setRightTab(tab)}
-                  className={`relative flex-1 py-2.5 text-[10.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[#f1f5f9]" : "text-[#4b5563] hover:text-[#94a3b8]"}`}
+                  className={`relative flex-1 py-2.5 text-[9.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[#f1f5f9]" : "text-[#4b5563] hover:text-[#94a3b8]"}`}
                 >
-                  {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : "Thesaurus"}
+                  {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : tab === "thesaurus" ? "Thesaurus" : "Source"}
                   {rightTab === tab && (
-                    <span className="absolute bottom-0 left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full bg-[#ea4335]" style={{ animation: "dict-in 0.18s ease-out both" }} />
+                    <span className="absolute bottom-0 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full bg-[#ea4335]" style={{ animation: "dict-in 0.18s ease-out both" }} />
                   )}
                 </button>
               ))}
@@ -1853,6 +1853,27 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
               </div>
             )} {/* end thesaurus tab */}
+
+            {/* ══════════════ SOURCE TAB ══════════════ */}
+            {rightTab === "source" && (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1a1f28] ring-1 ring-[#2a2f38]">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                        <path d="M11 8v6M8 11h6" strokeWidth="1.8"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#475569]">Source</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-[#2a2f38]">Coming soon</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )} {/* end source tab */}
 
           </div>
         </div>
