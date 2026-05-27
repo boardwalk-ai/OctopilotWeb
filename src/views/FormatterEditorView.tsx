@@ -267,8 +267,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
-  /* ── Left tab & Octo bot chat ── */
-  const [leftTab, setLeftTab] = useState<"octo" | "upload">("upload");
+  /* ── Octo bot chat ── */
   const [chatTone, setChatTone] = useState<ToneId>("roast");
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -1133,29 +1132,122 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
             </div>
 
-            {/* Tab Switcher */}
-            <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-2">
-              <div className="flex rounded-full bg-[#1a1f28] p-1">
-                {(["octo", "upload"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setLeftTab(tab)}
-                    className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition active:scale-[0.97] ${leftTab === tab ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#64748b] hover:text-[#94a3b8]"}`}
-                  >
-                    {tab === "octo" ? "Octo the Bot" : "Upload"}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── Single scrollable column: Bot on top, Upload below ── */}
+            <div className="min-h-0 flex-1 overflow-y-auto">
 
-            {/* ── Upload tab ── */}
-            {leftTab === "upload" && (
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+              {/* ════ OCTO THE BOT ════ */}
+              <div className="border-b border-[#2a2f38]">
+
+                {/* Section label */}
+                <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
+                </div>
+
+                {/* Tone pills */}
+                <div className="overflow-x-auto px-3 pb-2">
+                  <div className="flex gap-1.5 pb-0.5">
+                    {TONE_META.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setChatTone(t.id)}
+                        className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chat messages */}
+                <div className="overflow-y-auto px-3 pb-2" style={{ maxHeight: "260px" }}>
+                  {!chatStarted ? (
+                    <div className="flex flex-col items-center gap-3 py-5 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a1f28] ring-1 ring-[#2a2f38]">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
+                          <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                          <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+                          <rect x="10.75" y="17.25" width="2.5" height="1" rx="0.5" fill="#ea4335" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-medium text-[#e2e8f0]">Octo is ready</p>
+                        <p className="mt-0.5 text-[10px] text-[#4b5563]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void sendChat("Yo Octo, criticize my essay")}
+                        className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
+                      >
+                        "Yo Octo, criticize my essay"
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5 pt-1">
+                      {chatMessages.map((msg) => (
+                        <div key={msg.id} style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
+                          <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] px-3 py-2 text-[12px] ${msg.role === "user" ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed" : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"}`}>
+                              {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
+                            </div>
+                          </div>
+                          {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                            <SuggestionCards suggestions={msg.suggestions} />
+                          )}
+                        </div>
+                      ))}
+                      {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
+                        <div className="flex justify-start" style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
+                          <div className="flex items-center gap-1 rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-3">
+                            {[0, 1, 2].map((i) => (
+                              <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#64748b]" style={{ animation: `typing-bounce 1.1s ease-in-out ${i * 0.18}s infinite` }} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Input bar */}
+                {chatStarted && (
+                  <div className="border-t border-[#2a2f38] px-3 py-2.5">
+                    <div className="flex items-end gap-1.5">
+                      <textarea
+                        rows={1}
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(chatInput); } }}
+                        placeholder="Message Octo…"
+                        disabled={chatLoading}
+                        className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#3a4150] disabled:opacity-50"
+                        style={{ maxHeight: "80px" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void sendChat(chatInput)}
+                        disabled={chatLoading || !chatInput.trim()}
+                        className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ════ UPLOAD ════ */}
+              <div className="px-3 py-3">
+
+                <div className="mb-2.5 flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#4b5563]">Upload</span>
+                </div>
 
                 {/* Upload zone */}
                 <div
-                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-7 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-6 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
                   onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
                   onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
                   onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
@@ -1171,7 +1263,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
 
-                {/* File chip */}
                 {rawContent && !isUploading && (
                   <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
                     <span className="text-[#4b5563]"><FileIcon /></span>
@@ -1182,7 +1273,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 {renderParseStatus()}
 
-                {/* Stats */}
                 <div className="mt-2.5 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-2 text-[10px] text-[#4b5563]">
                   <span>{wordCount.toLocaleString()} words</span>
                   <span>{charCount.toLocaleString()} chars</span>
@@ -1191,7 +1281,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 <div className="my-3 h-px bg-[#2a2f38]" />
 
-                {/* Format Style */}
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
                 <div className="flex flex-col gap-1">
                   {FORMAT_STYLES.map((s) => (
@@ -1208,14 +1297,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   ))}
                 </div>
 
-                {/* Format Document / New Session */}
                 {editorActive ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-                      window.location.reload();
-                    }}
+                    onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
                     className="mt-4 w-full rounded-full border border-[#2a2f38] py-2.5 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
                   >
                     Start a new session
@@ -1230,131 +1315,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     Format Document
                   </button>
                 )}
+
+                {/* bottom breathing room */}
+                <div className="h-4" />
               </div>
-            )}
 
-            {/* ── Octo Bot tab ── */}
-            {leftTab === "octo" && (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-
-                {/* Tone selector */}
-                <div className="flex-shrink-0 overflow-x-auto border-b border-[#2a2f38] px-3 py-2">
-                  <div className="flex gap-1.5 pb-0.5">
-                    {TONE_META.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setChatTone(t.id)}
-                        className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                  {!chatStarted ? (
-                    <div className="flex h-full flex-col items-center justify-center gap-4 pb-4">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1a1f28] ring-1 ring-[#2a2f38]">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
-                          <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
-                          <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
-                          <rect x="10.75" y="17.25" width="2.5" height="1" rx="0.5" fill="#ea4335" />
-                        </svg>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[12px] font-medium text-[#e2e8f0]">Octo is ready</p>
-                        <p className="mt-0.5 text-[10px] text-[#4b5563]">
-                          {chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void sendChat("Yo Octo, criticize my essay")}
-                        className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
-                      >
-                        "Yo Octo, criticize my essay"
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      {chatMessages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          style={{ animation: "chat-msg-in 0.22s ease-out both" }}
-                        >
-                          <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                            <div
-                              className={`max-w-[85%] px-3 py-2 text-[12px] ${
-                                msg.role === "user"
-                                  ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed"
-                                  : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"
-                              }`}
-                            >
-                              {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
-                            </div>
-                          </div>
-                          {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
-                            <SuggestionCards suggestions={msg.suggestions} />
-                          )}
-                        </div>
-                      ))}
-                      {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
-                        <div className="flex justify-start" style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
-                          <div className="flex items-center gap-1 rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-3">
-                            {[0, 1, 2].map((i) => (
-                              <span
-                                key={i}
-                                className="h-1.5 w-1.5 rounded-full bg-[#64748b]"
-                                style={{ animation: `typing-bounce 1.1s ease-in-out ${i * 0.18}s infinite` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div ref={chatEndRef} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Input */}
-                {chatStarted && (
-                  <div className="flex-shrink-0 border-t border-[#2a2f38] px-3 py-2.5">
-                    <div className="flex items-end gap-1.5">
-                      <textarea
-                        rows={1}
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            void sendChat(chatInput);
-                          }
-                        }}
-                        placeholder="Message Octo…"
-                        disabled={chatLoading}
-                        className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#3a4150] disabled:opacity-50"
-                        style={{ maxHeight: "80px" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void sendChat(chatInput)}
-                        disabled={chatLoading || !chatInput.trim()}
-                        className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="22" y1="2" x2="11" y2="13" />
-                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            </div> {/* end single scroll column */}
           </div>
         </div>
 
