@@ -89,6 +89,7 @@ interface DictMeaning { partOfSpeech: string; definitions: { definition: string;
 interface DictResult { word: string; phonetic?: string; audioUrl?: string; meanings: DictMeaning[]; synonyms: string[]; antonyms: string[]; }
 interface ThesWord { word: string; score: number; }
 interface ThesResult { word: string; synonyms: ThesWord[]; antonyms: ThesWord[]; }
+interface SourceResult { url: string; title: string; author?: string; publishedYear?: string; publisher?: string; fullContent: string; }
 
 /* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
 function parseInline(text: string): React.ReactNode[] {
@@ -152,6 +153,88 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
   );
 }
 
+interface SourceCardProps {
+  source: SourceResult;
+  index: number;
+  expandedQuoteUrl: string | null;
+  quoteText: string;
+  setQuoteText: (t: string) => void;
+  setExpandedQuoteUrl: (u: string | null) => void;
+  onInsertQuote: (quote: string, source: SourceResult) => void;
+}
+function SourceCard({ source, index, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote }: SourceCardProps) {
+  const isExpanded = expandedQuoteUrl === source.url;
+  const domain = getDomain(source.url);
+  const { label: typeLabel, color: typeColor } = getSourceType(source.url);
+  const authorShort = source.author ? source.author.split(",")[0]!.trim() : "";
+  return (
+    <div
+      className="mb-2 rounded-[12px] border border-[#1a1f28] bg-[#0f1218] p-3"
+      style={{ animation: `dict-in 0.25s ease-out ${index * 0.07}s both` }}
+    >
+      {/* Header row: type badge + title */}
+      <div className="mb-1.5 flex items-start gap-2">
+        <span
+          className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+          style={{ background: `${typeColor}22`, color: typeColor }}
+        >{typeLabel}</span>
+        <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-[#cbd5e1]">
+          {source.title || domain}
+        </p>
+      </div>
+      {/* Meta */}
+      <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[9.5px] text-[#4b5563]">
+        {authorShort && <span>{authorShort}</span>}
+        {authorShort && source.publishedYear && <span>·</span>}
+        {source.publishedYear && <span>{source.publishedYear}</span>}
+        {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
+        {source.publisher && <span className="text-[#374151]">{source.publisher.slice(0, 28)}</span>}
+      </div>
+      {/* Domain */}
+      <div className="mb-2.5 flex items-center gap-1 text-[9px] text-[#2a2f38]">
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span className="truncate">{domain}</span>
+      </div>
+      {/* Quote button (collapsed) */}
+      {!isExpanded && (
+        <button
+          type="button"
+          onClick={() => { setExpandedQuoteUrl(source.url); setQuoteText(""); }}
+          className="rounded-full border border-[#2a2f38] px-2.5 py-1 text-[10px] font-medium text-[#64748b] transition hover:border-[#ea4335]/40 hover:text-[#ea4335] active:scale-[0.95]"
+        >
+          Quote
+        </button>
+      )}
+      {/* Expanded quote input */}
+      {isExpanded && (
+        <div className="flex flex-col gap-1.5 pt-1">
+          <textarea
+            autoFocus
+            value={quoteText}
+            onChange={(e) => setQuoteText(e.target.value)}
+            placeholder="Paste or type the exact quote…"
+            rows={3}
+            className="w-full resize-none rounded-xl border border-[#2a2f38] bg-[#161b23] px-2.5 py-2 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#ea4335]/40"
+          />
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setExpandedQuoteUrl(null)}
+              className="flex-1 rounded-full border border-[#2a2f38] py-1.5 text-[10px] text-[#4b5563] transition hover:text-[#94a3b8] active:scale-[0.96]"
+            >Cancel</button>
+            <button
+              type="button"
+              onClick={() => onInsertQuote(quoteText, source)}
+              disabled={!quoteText.trim()}
+              className="flex-1 rounded-full bg-[#ea4335] py-1.5 text-[10px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.96] disabled:opacity-40"
+            >Insert ✓</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function parseSuggestions(text: string): { cleanText: string; suggestions: OctoSuggestion[] } {
   const match = text.match(/\[SUGGESTIONS_JSON\]\s*([\s\S]*?)\s*\[\/SUGGESTIONS_JSON\]/);
   if (!match) return { cleanText: text, suggestions: [] };
@@ -166,6 +249,20 @@ function parseSuggestions(text: string): { cleanText: string; suggestions: OctoS
 
 function countWordsRaw(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getDomain(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); }
+  catch { return url.slice(0, 30); }
+}
+
+function getSourceType(url: string): { label: string; color: string } {
+  const d = getDomain(url);
+  if (d.endsWith(".edu") || d.includes(".ac.")) return { label: "Academic", color: "#3b82f6" };
+  if (d.endsWith(".gov")) return { label: "Government", color: "#22c55e" };
+  if (["nature.com","science.org","pubmed.ncbi","journals.sagepub","academic.oup","tandfonline","wiley","springer","elsevier"].some(k => d.includes(k)))
+    return { label: "Journal", color: "#a78bfa" };
+  return { label: "Web", color: "#4b5563" };
 }
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
@@ -287,6 +384,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [thesLoading, setThesLoading] = useState(false);
   const [thesResult, setThesResult] = useState<ThesResult | null>(null);
   const [thesError, setThesError] = useState<string | null>(null);
+  /* ── Source tab ── */
+  const [sourceSubTab, setSourceSubTab] = useState<"auto" | "keyword" | "intelligence">("auto");
+  const [sourceKeyword, setSourceKeyword] = useState("");
+  const [sourceResults, setSourceResults] = useState<SourceResult[]>([]);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceStatus, setSourceStatus] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [sourceQuery, setSourceQuery] = useState<string | null>(null);
+  const [selectedEditorText, setSelectedEditorText] = useState("");
+  const [expandedQuoteUrl, setExpandedQuoteUrl] = useState<string | null>(null);
+  const [quoteText, setQuoteText] = useState("");
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -379,6 +487,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         if ((el as HTMLElement).contentEditable === "true") {
           savedRangeRef.current = range.cloneRange();
           savedEditorElRef.current = el as HTMLElement;
+          // Capture selected text for Search Intelligence
+          const selText = sel.toString().trim();
+          if (selText.length > 3) setSelectedEditorText(selText);
           return;
         }
         el = el.parentElement;
@@ -794,6 +905,108 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setCopiedWord(word);
     setTimeout(() => setCopiedWord(null), 1200);
   }, []);
+
+  /* ── Source: search ── */
+  const runSourceSearch = useCallback(async (mode: "auto" | "keyword" | "intelligence") => {
+    const essayText = rawContent.trim() || coreSnapshot.content.trim();
+    let topic = "";
+    if (mode === "auto") {
+      topic = essayText;
+      if (topic.length < 50) { setSourceError("Write more essay content before searching."); return; }
+    } else if (mode === "keyword") {
+      topic = sourceKeyword.trim();
+      if (!topic) return;
+    } else {
+      topic = selectedEditorText.trim();
+      if (!topic) { setSourceError("Select some text in your essay first."); return; }
+    }
+
+    setSourceLoading(true);
+    setSourceError(null);
+    setSourceResults([]);
+    setSourceQuery(null);
+    setSourceStatus(null);
+    setExpandedQuoteUrl(null);
+
+    try {
+      const isAuto = mode === "auto";
+      const endpoint = isAuto ? "/api/sources/auto-search" : "/api/sources/search";
+      const body = isAuto
+        ? { essayContent: topic.slice(0, 8000) }
+        : { essayTopic: topic, outlines: [], targetCount: 6 };
+
+      const res = await fetchWithUserAuthorization(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `Search failed (${res.status})`);
+      }
+      if (!res.body) throw new Error("No response body.");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const parsed = JSON.parse(trimmed.slice(6)) as {
+              type: string; source?: SourceResult; message?: string; query?: string;
+            };
+            if (parsed.type === "source" && parsed.source) {
+              setSourceResults((prev) => [...prev, parsed.source!]);
+            } else if (parsed.type === "status") {
+              setSourceStatus(parsed.message ?? null);
+            } else if (parsed.type === "query") {
+              setSourceQuery(parsed.query ?? null);
+              setSourceStatus(null);
+            } else if (parsed.type === "error") {
+              setSourceError(parsed.message ?? "Search failed.");
+            }
+          } catch { /* skip malformed chunk */ }
+        }
+      }
+    } catch (err) {
+      setSourceError(err instanceof Error ? err.message : "Search failed.");
+    } finally {
+      setSourceLoading(false);
+      setSourceStatus(null);
+    }
+  }, [rawContent, coreSnapshot.content, sourceKeyword, selectedEditorText]);
+
+  /* ── Source: insert quote at cursor ── */
+  const insertQuote = useCallback((quote: string, source: SourceResult) => {
+    const authorPart = source.author ? source.author.split(",")[0]!.trim() : (source.publisher ?? "Source");
+    const yearPart = source.publishedYear ?? "";
+    const citation = yearPart ? `(${authorPart}, ${yearPart})` : `(${authorPart})`;
+    const insertText = `"${quote.trim()}" ${citation}`;
+
+    const range = savedRangeRef.current;
+    const editorEl = savedEditorElRef.current;
+    if (range && editorEl && editorActive) {
+      editorEl.focus();
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+      document.execCommand("insertText", false, insertText);
+      showToast("Quote inserted ✓");
+    } else {
+      navigator.clipboard?.writeText(insertText).catch(() => {});
+      showToast(editorActive ? "Click in the document first, then Insert." : "Copied to clipboard ✓");
+    }
+    setExpandedQuoteUrl(null);
+    setQuoteText("");
+  }, [editorActive, showToast]);
 
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
@@ -1857,21 +2070,192 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             {/* ══════════════ SOURCE TAB ══════════════ */}
             {rightTab === "source" && (
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1a1f28] ring-1 ring-[#2a2f38]">
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="m21 21-4.35-4.35"/>
-                        <path d="M11 8v6M8 11h6" strokeWidth="1.8"/>
-                      </svg>
+
+                {/* ── Auth gate ── */}
+                {!currentUser ? (
+                  <div className="flex flex-col items-center gap-4 px-5 py-14 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1a1f28] ring-1 ring-[#2a2f38]">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <div>
-                      <p className="text-[13px] font-semibold text-[#475569]">Source</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-[#2a2f38]">Coming soon</p>
+                      <p className="text-[13px] font-semibold text-[#e2e8f0]">Sign in to use Source</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-[#374151]">Citations, Dictionary &amp; Thesaurus<br/>are free to use</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void AuthService.signInWithGoogle().catch(() => showToast("Sign-in failed."))}
+                      className="flex items-center gap-2 rounded-full border border-[#2a2f38] bg-[#1a1f28] px-4 py-2 text-[12px] font-medium text-[#e2e8f0] transition hover:bg-[#252c38] active:scale-[0.97]"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                      Sign in with Google
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* ── Sub-tab pills ── */}
+                    <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-2.5">
+                      <div className="flex rounded-full bg-[#1a1f28] p-0.5">
+                        {(["auto", "keyword", "intelligence"] as const).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setSourceSubTab(st)}
+                            className={`flex-1 rounded-full py-1.5 text-[9.5px] font-medium transition active:scale-[0.97] ${sourceSubTab === st ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#4b5563] hover:text-[#94a3b8]"}`}
+                          >
+                            {st === "auto" ? "Auto Search" : st === "keyword" ? "Keyword" : "Intelligence"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Input area ── */}
+                    <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-3">
+
+                      {sourceSubTab === "auto" && (
+                        <div className="flex flex-col gap-2.5">
+                          <p className="text-[10.5px] leading-relaxed text-[#475569]">
+                            AI reads your essay and finds the most relevant academic sources — no keyword needed.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void runSourceSearch("auto")}
+                            disabled={sourceLoading}
+                            className="flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-50"
+                          >
+                            {sourceLoading ? (
+                              <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />Searching…</>
+                            ) : (
+                              <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Auto Search</>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {sourceSubTab === "keyword" && (
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={sourceKeyword}
+                            onChange={(e) => setSourceKeyword(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") void runSourceSearch("keyword"); }}
+                            placeholder="Search for sources…"
+                            disabled={sourceLoading}
+                            className="min-w-0 flex-1 rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none transition focus:border-[#ea4335]/50 disabled:opacity-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void runSourceSearch("keyword")}
+                            disabled={sourceLoading || !sourceKeyword.trim()}
+                            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.92] disabled:opacity-40"
+                          >
+                            {sourceLoading
+                              ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            }
+                          </button>
+                        </div>
+                      )}
+
+                      {sourceSubTab === "intelligence" && (
+                        <div className="flex flex-col gap-2">
+                          <p className="text-[10.5px] text-[#475569]">Select any text in your essay to find supporting sources.</p>
+                          <div className="min-h-[52px] rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2">
+                            {selectedEditorText
+                              ? <p className="line-clamp-3 text-[11px] leading-relaxed text-[#94a3b8]">"{selectedEditorText}"</p>
+                              : <p className="text-[11px] italic text-[#374151]">Highlight text in your essay…</p>
+                            }
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void runSourceSearch("intelligence")}
+                            disabled={!selectedEditorText || sourceLoading}
+                            className="flex items-center justify-center gap-2 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-40"
+                          >
+                            {sourceLoading
+                              ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335] border-t-transparent" />Searching…</>
+                              : "Search for sources"
+                            }
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Status bar ── */}
+                    {(sourceStatus || sourceQuery) && (
+                      <div className="flex-shrink-0 border-b border-[#2a2f38] bg-[#0a0d12] px-3 py-2">
+                        {sourceStatus && (
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 animate-spin rounded-full border-2 border-[#4b5563] border-t-transparent" />
+                            <span className="text-[10px] text-[#4b5563]">{sourceStatus}</span>
+                          </div>
+                        )}
+                        {sourceQuery && (
+                          <div className="text-[10px]">
+                            <span className="text-[#374151]">AI query: </span>
+                            <span className="text-[#64748b] italic">{sourceQuery}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Results area ── */}
+                    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+
+                      {/* Error */}
+                      {sourceError && (
+                        <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                          {sourceError}
+                        </div>
+                      )}
+
+                      {/* Idle state */}
+                      {!sourceLoading && !sourceError && sourceResults.length === 0 && (
+                        <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-center">
+                          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2a2f38" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                          <p className="text-[11px] text-[#2a2f38]">
+                            {sourceSubTab === "auto" ? "Press Auto Search to find sources" : sourceSubTab === "keyword" ? "Type a keyword and search" : "Select text in your essay above"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Loading skeleton while waiting for first result */}
+                      {sourceLoading && sourceResults.length === 0 && (
+                        <div className="flex flex-col gap-2">
+                          {[0, 1, 2].map((i) => (
+                            <div key={i} className="rounded-[12px] border border-[#1a1f28] bg-[#0f1218] p-3" style={{ opacity: 1 - i * 0.25 }}>
+                              <div className="mb-2 h-2.5 w-14 animate-pulse rounded-full bg-[#1a1f28]" />
+                              <div className="mb-1.5 h-3 w-full animate-pulse rounded-full bg-[#1a1f28]" />
+                              <div className="h-3 w-2/3 animate-pulse rounded-full bg-[#1a1f28]" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Source cards */}
+                      {sourceResults.map((source, idx) => (
+                        <SourceCard
+                          key={source.url}
+                          source={source}
+                          index={idx}
+                          expandedQuoteUrl={expandedQuoteUrl}
+                          quoteText={quoteText}
+                          setQuoteText={setQuoteText}
+                          setExpandedQuoteUrl={setExpandedQuoteUrl}
+                          onInsertQuote={insertQuote}
+                        />
+                      ))}
+
+                      {/* "Finding more…" indicator when sources are already streaming */}
+                      {sourceLoading && sourceResults.length > 0 && (
+                        <div className="flex items-center gap-2 py-2 text-[10px] text-[#374151]">
+                          <span className="h-2 w-2 animate-spin rounded-full border-2 border-[#374151] border-t-transparent" />
+                          Finding more sources…
+                        </div>
+                      )}
+
+                    </div>
+                  </>
+                )}
               </div>
             )} {/* end source tab */}
 
