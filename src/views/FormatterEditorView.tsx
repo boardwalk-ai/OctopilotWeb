@@ -1135,10 +1135,84 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             {/* ── Single scrollable column: Bot on top, Upload below ── */}
             <div className="min-h-0 flex-1 overflow-y-auto">
 
-              {/* ════ OCTO THE BOT ════ */}
-              <div className="border-b border-[#2a2f38]">
+              {/* ════ 1. UPLOAD ════ */}
+              <div className="border-b border-[#2a2f38] px-3 py-3">
 
-                {/* Section label */}
+                {/* Upload zone */}
+                <div
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-3 py-5 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
+                  onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
+                  onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                  onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
+                >
+                  <div className="text-[#374151]"><UploadIcon /></div>
+                  <p className="text-[11px] text-[#64748b]">
+                    {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
+                  </p>
+                  <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
+                </div>
+
+                <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
+
+                {rawContent && !isUploading && (
+                  <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
+                    <span className="text-[#4b5563]"><FileIcon /></span>
+                    <span className="flex-1 truncate text-[11px] text-[#94a3b8]">{fileName ?? "Pasted document"}</span>
+                    <button type="button" onClick={clearDocument} className="text-[#4b5563] transition hover:text-[#ef4444] active:scale-90">×</button>
+                  </div>
+                )}
+
+                {renderParseStatus()}
+
+                <div className="mt-2 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-1.5 text-[10px] text-[#4b5563]">
+                  <span>{wordCount.toLocaleString()} words</span>
+                  <span>{charCount.toLocaleString()} chars</span>
+                  <span>~{pageCount} pages</span>
+                </div>
+              </div>
+
+              {/* ════ 2. FORMAT STYLE (compact) ════ */}
+              <div className="border-b border-[#2a2f38] px-3 py-2.5">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
+                <div className="flex flex-col gap-0.5">
+                  {FORMAT_STYLES.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setFormatStyle(s.id)}
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1 text-left transition active:translate-y-[1px] active:shadow-[inset_0_1px_3px_rgba(0,0,0,0.25)] ${formatStyle === s.id ? "bg-[#1e252f] ring-1 ring-[#3a4150]" : "hover:bg-[#181d24]"}`}
+                    >
+                      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
+                      <span className={`flex-1 text-[10.5px] ${formatStyle === s.id ? "text-[#e2e8f0]" : "text-[#64748b]"}`}>{s.label}</span>
+                      {formatStyle === s.id && <div className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" />}
+                    </button>
+                  ))}
+                </div>
+
+                {editorActive ? (
+                  <button
+                    type="button"
+                    onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
+                    className="mt-2.5 w-full rounded-full border border-[#2a2f38] py-2 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
+                  >
+                    Start a new session
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={applyDocument}
+                    disabled={!canApply}
+                    className="mt-2.5 w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Format Document
+                  </button>
+                )}
+              </div>
+
+              {/* ════ 3. OCTO THE BOT ════ */}
+              <div>
                 <div className="flex items-center gap-2 px-3 pt-3 pb-2">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
                 </div>
@@ -1236,87 +1310,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* ════ UPLOAD ════ */}
-              <div className="px-3 py-3">
-
-                <div className="mb-2.5 flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#4b5563]">Upload</span>
-                </div>
-
-                {/* Upload zone */}
-                <div
-                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-3 py-6 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
-                  onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
-                  onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
-                >
-                  <div className="text-[#374151]"><UploadIcon /></div>
-                  <p className="text-[11px] text-[#64748b]">
-                    {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
-                  </p>
-                  <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
-                </div>
-
-                <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
-
-                {rawContent && !isUploading && (
-                  <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
-                    <span className="text-[#4b5563]"><FileIcon /></span>
-                    <span className="flex-1 truncate text-[11px] text-[#94a3b8]">{fileName ?? "Pasted document"}</span>
-                    <button type="button" onClick={clearDocument} className="text-[#4b5563] transition hover:text-[#ef4444] active:scale-90">×</button>
-                  </div>
-                )}
-
-                {renderParseStatus()}
-
-                <div className="mt-2.5 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-2 text-[10px] text-[#4b5563]">
-                  <span>{wordCount.toLocaleString()} words</span>
-                  <span>{charCount.toLocaleString()} chars</span>
-                  <span>~{pageCount} pages</span>
-                </div>
-
-                <div className="my-3 h-px bg-[#2a2f38]" />
-
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
-                <div className="flex flex-col gap-1">
-                  {FORMAT_STYLES.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setFormatStyle(s.id)}
-                      className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left transition active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.25)] ${formatStyle === s.id ? "bg-[#1e252f] ring-1 ring-[#3a4150]" : "hover:bg-[#181d24]"}`}
-                    >
-                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
-                      <span className={`flex-1 text-[11px] ${formatStyle === s.id ? "text-[#e2e8f0]" : "text-[#64748b]"}`}>{s.label}</span>
-                      {formatStyle === s.id && <div className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" />}
-                    </button>
-                  ))}
-                </div>
-
-                {editorActive ? (
-                  <button
-                    type="button"
-                    onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
-                    className="mt-4 w-full rounded-full border border-[#2a2f38] py-2.5 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
-                  >
-                    Start a new session
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={applyDocument}
-                    disabled={!canApply}
-                    className="mt-4 w-full rounded-full bg-[#ea4335] py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Format Document
-                  </button>
-                )}
-
-                {/* bottom breathing room */}
                 <div className="h-4" />
               </div>
 
