@@ -90,6 +90,14 @@ interface DictResult { word: string; phonetic?: string; audioUrl?: string; meani
 interface ThesWord { word: string; score: number; }
 interface ThesResult { word: string; synonyms: ThesWord[]; antonyms: ThesWord[]; }
 interface SourceResult { url: string; title: string; author?: string; publishedYear?: string; publisher?: string; fullContent: string; }
+type SourceCitStyle = { inText: string; bibliography: string };
+interface SourceModalState {
+  source: SourceResult;
+  citations: Partial<Record<FormatStyleId, SourceCitStyle>>;
+  citLoading: boolean;
+  citError: string | null;
+  activeStyle: FormatStyleId;
+}
 
 /* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
 function parseInline(text: string): React.ReactNode[] {
@@ -161,8 +169,9 @@ interface SourceCardProps {
   setQuoteText: (t: string) => void;
   setExpandedQuoteUrl: (u: string | null) => void;
   onInsertQuote: (quote: string, source: SourceResult) => void;
+  onOpenModal: (source: SourceResult) => void;
 }
-function SourceCard({ source, index, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote }: SourceCardProps) {
+function SourceCard({ source, index, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote, onOpenModal }: SourceCardProps) {
   const isExpanded = expandedQuoteUrl === source.url;
   const domain = getDomain(source.url);
   const { label: typeLabel, color: typeColor } = getSourceType(source.url);
@@ -172,29 +181,37 @@ function SourceCard({ source, index, expandedQuoteUrl, quoteText, setQuoteText, 
       className="mb-2 rounded-[12px] border border-[#1a1f28] bg-[#0f1218] p-3"
       style={{ animation: `dict-in 0.25s ease-out ${index * 0.07}s both` }}
     >
-      {/* Header row: type badge + title */}
-      <div className="mb-1.5 flex items-start gap-2">
-        <span
-          className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
-          style={{ background: `${typeColor}22`, color: typeColor }}
-        >{typeLabel}</span>
-        <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-[#cbd5e1]">
-          {source.title || domain}
-        </p>
-      </div>
-      {/* Meta */}
-      <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[9.5px] text-[#4b5563]">
-        {authorShort && <span>{authorShort}</span>}
-        {authorShort && source.publishedYear && <span>·</span>}
-        {source.publishedYear && <span>{source.publishedYear}</span>}
-        {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
-        {source.publisher && <span className="text-[#374151]">{source.publisher.slice(0, 28)}</span>}
-      </div>
-      {/* Domain */}
-      <div className="mb-2.5 flex items-center gap-1 text-[9px] text-[#2a2f38]">
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <span className="truncate">{domain}</span>
-      </div>
+      {/* Clickable header → opens modal */}
+      <button
+        type="button"
+        onClick={() => onOpenModal(source)}
+        className="mb-2 w-full text-left transition hover:opacity-80 active:opacity-60"
+      >
+        {/* Header row: type badge + title */}
+        <div className="mb-1.5 flex items-start gap-2">
+          <span
+            className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+            style={{ background: `${typeColor}22`, color: typeColor }}
+          >{typeLabel}</span>
+          <p className="line-clamp-2 flex-1 text-[11px] font-semibold leading-snug text-[#cbd5e1]">
+            {source.title || domain}
+          </p>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" className="mt-[2px] flex-shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+        {/* Meta */}
+        <div className="mb-1 flex flex-wrap items-center gap-1 text-[9.5px] text-[#4b5563]">
+          {authorShort && <span>{authorShort}</span>}
+          {authorShort && source.publishedYear && <span>·</span>}
+          {source.publishedYear && <span>{source.publishedYear}</span>}
+          {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
+          {source.publisher && <span className="text-[#374151]">{source.publisher.slice(0, 28)}</span>}
+        </div>
+        {/* Domain */}
+        <div className="flex items-center gap-1 text-[9px] text-[#2a2f38]">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span className="truncate">{domain}</span>
+        </div>
+      </button>
       {/* Quote button (collapsed) */}
       {!isExpanded && (
         <button
@@ -395,6 +412,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [expandedQuoteUrl, setExpandedQuoteUrl] = useState<string | null>(null);
   const [quoteText, setQuoteText] = useState("");
+  const [sourceModal, setSourceModal] = useState<SourceModalState | null>(null);
+  const [contentSelection, setContentSelection] = useState("");
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -1007,6 +1026,45 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setExpandedQuoteUrl(null);
     setQuoteText("");
   }, [editorActive, showToast]);
+
+  /* ── Source: open modal + load all 5 citation styles ── */
+  const openSourceModal = useCallback(async (source: SourceResult) => {
+    setSourceModal({ source, citations: {}, citLoading: true, citError: null, activeStyle: currentEssayFormat });
+    setContentSelection("");
+    const styles: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
+    try {
+      const results = await Promise.all(
+        styles.map(async (style) => {
+          try {
+            const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                task: "CITATION_FULL",
+                input: {
+                  style: style.toUpperCase(),
+                  url: source.url,
+                  title: source.title ?? "",
+                  authors: source.author ?? "",
+                  year: source.publishedYear ?? "",
+                  publisher: source.publisher ?? "",
+                },
+              }),
+            });
+            const data = (await res.json()) as { inText?: string; bibliography?: string };
+            return { style, inText: data.inText ?? "", bibliography: data.bibliography ?? "" };
+          } catch {
+            return { style, inText: "", bibliography: "" };
+          }
+        })
+      );
+      const citMap: Partial<Record<FormatStyleId, SourceCitStyle>> = {};
+      results.forEach((r) => { if (r.inText || r.bibliography) citMap[r.style] = { inText: r.inText, bibliography: r.bibliography }; });
+      setSourceModal((prev) => prev ? { ...prev, citations: citMap, citLoading: false } : null);
+    } catch {
+      setSourceModal((prev) => prev ? { ...prev, citLoading: false, citError: "Could not generate citations." } : null);
+    }
+  }, [currentEssayFormat]);
 
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
@@ -2242,6 +2300,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           setQuoteText={setQuoteText}
                           setExpandedQuoteUrl={setExpandedQuoteUrl}
                           onInsertQuote={insertQuote}
+                          onOpenModal={openSourceModal}
                         />
                       ))}
 
@@ -2263,6 +2322,193 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         </div>
 
       </div>
+
+      {/* ══ Source Detail Modal ══ */}
+      {sourceModal && (() => {
+        const { source, citations, citLoading, citError, activeStyle } = sourceModal;
+        const domain = getDomain(source.url);
+        const { label: typeLabel, color: typeColor } = getSourceType(source.url);
+        const activeCit = citations[activeStyle];
+        const STYLES: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
+        const STYLE_LABELS: Record<FormatStyleId, string> = { mla: "MLA", apa: "APA", chicago: "Chicago", ieee: "IEEE", harvard: "Harvard" };
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) { setSourceModal(null); setContentSelection(""); } }}
+          >
+            <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col rounded-[20px] border border-[#2a2f38] bg-[#13161c] shadow-2xl"
+              style={{ animation: "editor-enter 0.22s cubic-bezier(0.22,1,0.36,1) both" }}
+            >
+              {/* Modal header */}
+              <div className="flex flex-shrink-0 items-start gap-3 border-b border-[#2a2f38] px-5 py-4">
+                <span
+                  className="mt-[3px] flex-shrink-0 rounded-[5px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+                  style={{ background: `${typeColor}22`, color: typeColor }}
+                >{typeLabel}</span>
+                <p className="flex-1 text-[13px] font-semibold leading-snug text-[#e2e8f0]">{source.title || domain}</p>
+                <button
+                  type="button"
+                  onClick={() => { setSourceModal(null); setContentSelection(""); }}
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[#4b5563] transition hover:bg-[#1e252f] hover:text-[#94a3b8]"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+
+                {/* ── Source info ── */}
+                <div className="border-b border-[#1e252f] px-5 py-4">
+                  <div className="flex flex-col gap-1.5">
+                    {source.author && (
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="text-[#374151]">Author</span>
+                        <span className="text-[#94a3b8]">{source.author}</span>
+                      </div>
+                    )}
+                    {source.publishedYear && (
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="text-[#374151]">Year</span>
+                        <span className="text-[#94a3b8]">{source.publishedYear}</span>
+                      </div>
+                    )}
+                    {source.publisher && (
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="text-[#374151]">Publisher</span>
+                        <span className="text-[#94a3b8]">{source.publisher}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="text-[#374151]">URL</span>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 truncate text-[#ea4335] hover:underline"
+                      >{source.url}</a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Full content ── */}
+                <div className="border-b border-[#1e252f] px-5 py-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#374151]">Full Content</span>
+                    {contentSelection && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(contentSelection).catch(() => {});
+                          setContentSelection("");
+                          showToast("Copied ✓");
+                        }}
+                        className="flex items-center gap-1 rounded-full bg-[#ea4335] px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.95]"
+                        style={{ animation: "chip-pop 0.18s ease-out" }}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copy selected
+                      </button>
+                    )}
+                  </div>
+                  <div
+                    className="max-h-[200px] overflow-y-auto rounded-xl border border-[#1e252f] bg-[#0a0d12] px-3 py-2.5 text-[11px] leading-relaxed text-[#64748b]"
+                    style={{ userSelect: "text", WebkitUserSelect: "text" }}
+                    onMouseUp={() => {
+                      const sel = window.getSelection()?.toString().trim() ?? "";
+                      setContentSelection(sel.length > 2 ? sel : "");
+                    }}
+                  >
+                    {source.fullContent || "No content available."}
+                  </div>
+                </div>
+
+                {/* ── Citations ── */}
+                <div className="px-5 py-4">
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#374151]">Citations</p>
+
+                  {/* Style pills */}
+                  <div className="mb-4 flex gap-1.5 flex-wrap">
+                    {STYLES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSourceModal((prev) => prev ? { ...prev, activeStyle: s } : null)}
+                        className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#4b5563] hover:text-[#94a3b8]"}`}
+                      >
+                        {STYLE_LABELS[s]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Loading */}
+                  {citLoading && (
+                    <div className="flex items-center gap-2 py-4 text-[11px] text-[#4b5563]">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#4b5563] border-t-transparent" />
+                      Generating citations for all styles…
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {citError && !citLoading && (
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]">{citError}</div>
+                  )}
+
+                  {/* Citation boxes */}
+                  {!citLoading && activeCit && (
+                    <div className="flex flex-col gap-3">
+                      {/* In-text */}
+                      <div>
+                        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#374151]">In-text Citation</p>
+                        <div className="flex items-start gap-2 rounded-xl border border-[#1e252f] bg-[#0a0d12] px-3 py-2.5">
+                          <p className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed text-[#93c5fd]">{activeCit.inText}</p>
+                          <div className="flex flex-shrink-0 flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard?.writeText(activeCit.inText).catch(() => {}); showToast("In-text citation copied ✓"); }}
+                              className="rounded-[5px] bg-[#1e252f] px-2 py-0.5 text-[9px] font-semibold text-[#64748b] transition hover:text-[#e2e8f0]"
+                            >Copy</button>
+                            <button
+                              type="button"
+                              onClick={() => { handleInsertInText(activeCit.inText); setSourceModal(null); }}
+                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[9px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
+                            >Insert</button>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Bibliography */}
+                      <div>
+                        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#374151]">Bibliography</p>
+                        <div className="flex items-start gap-2 rounded-xl border border-[#1e252f] bg-[#0a0d12] px-3 py-2.5">
+                          <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[#94a3b8]">{activeCit.bibliography}</p>
+                          <div className="flex flex-shrink-0 flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard?.writeText(activeCit.bibliography).catch(() => {}); showToast("Bibliography copied ✓"); }}
+                              className="rounded-[5px] bg-[#1e252f] px-2 py-0.5 text-[9px] font-semibold text-[#64748b] transition hover:text-[#e2e8f0]"
+                            >Copy</button>
+                            <button
+                              type="button"
+                              onClick={() => { handleInsertBib(activeCit.bibliography); setSourceModal(null); }}
+                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[9px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
+                            >Insert</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No citation for this style yet */}
+                  {!citLoading && !activeCit && !citError && (
+                    <p className="text-[11px] text-[#374151]">No citation generated for {STYLE_LABELS[activeStyle]}.</p>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Humanize Modal */}
       {(humanizePhase.kind === "ask" || humanizePhase.kind === "pick_provider" || humanizePhase.kind === "humanizing" || humanizePhase.kind === "error" || humanizePhase.kind === "login_required" || humanizePhase.kind === "insufficient_credits") && (
