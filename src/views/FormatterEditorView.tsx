@@ -93,6 +93,7 @@ interface SourceResult { url: string; title: string; author?: string; publishedY
 type SourceCitStyle = { inText: string; bibliography: string };
 interface SourceModalState {
   source: SourceResult;
+  color: string;
   citations: Partial<Record<FormatStyleId, SourceCitStyle>>;
   citLoading: boolean;
   citError: string | null;
@@ -164,90 +165,149 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
 interface SourceCardProps {
   source: SourceResult;
   index: number;
+  color: string;
   expandedQuoteUrl: string | null;
   quoteText: string;
   setQuoteText: (t: string) => void;
   setExpandedQuoteUrl: (u: string | null) => void;
   onInsertQuote: (quote: string, source: SourceResult) => void;
-  onOpenModal: (source: SourceResult) => void;
+  onOpenModal: (source: SourceResult, color: string) => void;
+  onColorChange: (url: string, color: string) => void;
 }
-function SourceCard({ source, index, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote, onOpenModal }: SourceCardProps) {
+function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote, onOpenModal, onColorChange }: SourceCardProps) {
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const isExpanded = expandedQuoteUrl === source.url;
   const domain = getDomain(source.url);
-  const { label: typeLabel, color: typeColor } = getSourceType(source.url);
+  const { label: typeLabel } = getSourceType(source.url);
   const authorShort = source.author ? source.author.split(",")[0]!.trim() : "";
   return (
     <div
-      className="mb-2 rounded-[12px] border border-[#1a1f28] bg-[#0f1218] p-3"
-      style={{ animation: `dict-in 0.25s ease-out ${index * 0.07}s both` }}
+      className="mb-2 flex overflow-hidden rounded-[12px]"
+      style={{
+        border: `1px solid ${color}35`,
+        background: "#0f1218",
+        animation: `dict-in 0.25s ease-out ${index * 0.07}s both`,
+      }}
     >
-      {/* Clickable header → opens modal */}
-      <button
-        type="button"
-        onClick={() => onOpenModal(source)}
-        className="mb-2 w-full text-left transition hover:opacity-80 active:opacity-60"
-      >
-        {/* Header row: type badge + title */}
-        <div className="mb-1.5 flex items-start gap-2">
-          <span
-            className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
-            style={{ background: `${typeColor}22`, color: typeColor }}
-          >{typeLabel}</span>
-          <p className="line-clamp-2 flex-1 text-[11px] font-semibold leading-snug text-[#cbd5e1]">
-            {source.title || domain}
-          </p>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" className="mt-[2px] flex-shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </div>
-        {/* Meta */}
-        <div className="mb-1 flex flex-wrap items-center gap-1 text-[9.5px] text-[#4b5563]">
-          {authorShort && <span>{authorShort}</span>}
-          {authorShort && source.publishedYear && <span>·</span>}
-          {source.publishedYear && <span>{source.publishedYear}</span>}
-          {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
-          {source.publisher && <span className="text-[#374151]">{source.publisher.slice(0, 28)}</span>}
-        </div>
-        {/* Domain */}
-        <div className="flex items-center gap-1 text-[9px] text-[#2a2f38]">
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <span className="truncate">{domain}</span>
-        </div>
-      </button>
-      {/* Quote button (collapsed) */}
-      {!isExpanded && (
+      {/* Left color strip */}
+      <div className="w-[3px] flex-shrink-0" style={{ background: color }} />
+
+      <div className="flex-1 p-3">
+        {/* Clickable header → opens modal */}
         <button
           type="button"
-          onClick={() => { setExpandedQuoteUrl(source.url); setQuoteText(""); }}
-          className="rounded-full border border-[#2a2f38] px-2.5 py-1 text-[10px] font-medium text-[#64748b] transition hover:border-[#ea4335]/40 hover:text-[#ea4335] active:scale-[0.95]"
+          onClick={() => { setPickerOpen(false); onOpenModal(source, color); }}
+          className="mb-2 w-full text-left transition hover:opacity-80 active:opacity-60"
         >
-          Quote
+          <div className="mb-1.5 flex items-start gap-2">
+            <span
+              className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+              style={{ background: `${color}22`, color }}
+            >{typeLabel}</span>
+            <p className="line-clamp-2 flex-1 text-[11px] font-semibold leading-snug text-[#cbd5e1]">
+              {source.title || domain}
+            </p>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" className="mt-[2px] flex-shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </div>
+          <div className="mb-1 flex flex-wrap items-center gap-1 text-[9.5px] text-[#4b5563]">
+            {authorShort && <span>{authorShort}</span>}
+            {authorShort && source.publishedYear && <span>·</span>}
+            {source.publishedYear && <span>{source.publishedYear}</span>}
+            {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
+            {source.publisher && <span className="text-[#374151]">{source.publisher.slice(0, 28)}</span>}
+          </div>
+          <div className="flex items-center gap-1 text-[9px] text-[#2a2f38]">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span className="truncate">{domain}</span>
+          </div>
         </button>
-      )}
-      {/* Expanded quote input */}
-      {isExpanded && (
-        <div className="flex flex-col gap-1.5 pt-1">
-          <textarea
-            autoFocus
-            value={quoteText}
-            onChange={(e) => setQuoteText(e.target.value)}
-            placeholder="Paste or type the exact quote…"
-            rows={3}
-            className="w-full resize-none rounded-xl border border-[#2a2f38] bg-[#161b23] px-2.5 py-2 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#ea4335]/40"
-          />
-          <div className="flex gap-1.5">
+
+        {/* Bottom row: Quote + Color picker */}
+        <div className="flex items-center gap-2">
+          {!isExpanded && (
             <button
               type="button"
-              onClick={() => setExpandedQuoteUrl(null)}
-              className="flex-1 rounded-full border border-[#2a2f38] py-1.5 text-[10px] text-[#4b5563] transition hover:text-[#94a3b8] active:scale-[0.96]"
-            >Cancel</button>
+              onClick={() => { setPickerOpen(false); setExpandedQuoteUrl(source.url); setQuoteText(""); }}
+              className="rounded-full border px-2.5 py-1 text-[10px] font-medium transition hover:text-white active:scale-[0.95]"
+              style={{ borderColor: `${color}40`, color }}
+            >
+              Quote
+            </button>
+          )}
+
+          {/* Color dot → picker */}
+          <div className="relative ml-auto">
             <button
               type="button"
-              onClick={() => onInsertQuote(quoteText, source)}
-              disabled={!quoteText.trim()}
-              className="flex-1 rounded-full bg-[#ea4335] py-1.5 text-[10px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.96] disabled:opacity-40"
-            >Insert ✓</button>
+              onClick={(e) => { e.stopPropagation(); setPickerOpen(!pickerOpen); }}
+              className="flex h-4 w-4 items-center justify-center rounded-full ring-1 ring-white/10 transition hover:ring-white/30 active:scale-[0.9]"
+              style={{ background: color }}
+              title="Change card color"
+            />
+            {pickerOpen && (
+              <div
+                className="absolute bottom-6 right-0 z-20 flex flex-wrap gap-1 rounded-[10px] border border-[#2a2f38] bg-[#161b23] p-2 shadow-xl"
+                style={{ width: 130 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {SOURCE_PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => { onColorChange(source.url, c); setPickerOpen(false); }}
+                    className="h-4 w-4 rounded-full transition hover:scale-125 active:scale-90"
+                    style={{
+                      background: c,
+                      outline: color === c ? "2px solid white" : "none",
+                      outlineOffset: 1,
+                    }}
+                    title={c}
+                  />
+                ))}
+                {/* Custom color input */}
+                <label className="relative flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-[#2a2f38] text-[8px] text-[#64748b] hover:bg-[#374151]" title="Custom color">
+                  <span>＋</span>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => onColorChange(source.url, e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Expanded quote input */}
+        {isExpanded && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            <textarea
+              autoFocus
+              value={quoteText}
+              onChange={(e) => setQuoteText(e.target.value)}
+              placeholder="Paste or type the exact quote…"
+              rows={3}
+              className="w-full resize-none rounded-xl border border-[#2a2f38] bg-[#161b23] px-2.5 py-2 text-[11px] text-[#e2e8f0] placeholder-[#374151] outline-none"
+              style={{ borderColor: `${color}40` }}
+            />
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setExpandedQuoteUrl(null)}
+                className="flex-1 rounded-full border border-[#2a2f38] py-1.5 text-[10px] text-[#4b5563] transition hover:text-[#94a3b8] active:scale-[0.96]"
+              >Cancel</button>
+              <button
+                type="button"
+                onClick={() => onInsertQuote(quoteText, source)}
+                disabled={!quoteText.trim()}
+                className="flex-1 rounded-full py-1.5 text-[10px] font-semibold text-white transition active:scale-[0.96] disabled:opacity-40"
+                style={{ background: color }}
+              >Insert ✓</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -267,6 +327,11 @@ function parseSuggestions(text: string): { cleanText: string; suggestions: OctoS
 function countWordsRaw(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
+
+const SOURCE_PALETTE = [
+  "#ea4335","#f59e0b","#10b981","#3b82f6","#8b5cf6",
+  "#ec4899","#06b6d4","#f97316","#84cc16","#e11d48",
+];
 
 function getDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); }
@@ -412,6 +477,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [expandedQuoteUrl, setExpandedQuoteUrl] = useState<string | null>(null);
   const [quoteText, setQuoteText] = useState("");
+  const [sourceColors, setSourceColors] = useState<Record<string, string>>({});
   const [sourceModal, setSourceModal] = useState<SourceModalState | null>(null);
   const [contentSelection, setContentSelection] = useState("");
 
@@ -943,6 +1009,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setSourceLoading(true);
     setSourceError(null);
     setSourceResults([]);
+    setSourceColors({});
     setSourceQuery(null);
     setSourceStatus(null);
     setExpandedQuoteUrl(null);
@@ -984,7 +1051,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               type: string; source?: SourceResult; message?: string; query?: string;
             };
             if (parsed.type === "source" && parsed.source) {
-              setSourceResults((prev) => [...prev, parsed.source!]);
+              setSourceResults((prev) => {
+                const idx = prev.length;
+                const assignedColor = SOURCE_PALETTE[idx % SOURCE_PALETTE.length]!;
+                setSourceColors((c) => ({ ...c, [parsed.source!.url]: assignedColor }));
+                return [...prev, parsed.source!];
+              });
             } else if (parsed.type === "status") {
               setSourceStatus(parsed.message ?? null);
             } else if (parsed.type === "query") {
@@ -1028,8 +1100,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   }, [editorActive, showToast]);
 
   /* ── Source: open modal + load all 5 citation styles ── */
-  const openSourceModal = useCallback(async (source: SourceResult) => {
-    setSourceModal({ source, citations: {}, citLoading: true, citError: null, activeStyle: currentEssayFormat });
+  const handleSourceColorChange = useCallback((url: string, color: string) => {
+    setSourceColors((prev) => ({ ...prev, [url]: color }));
+    setSourceModal((prev) => prev && prev.source.url === url ? { ...prev, color } : prev);
+  }, []);
+
+  const openSourceModal = useCallback(async (source: SourceResult, color: string) => {
+    setSourceModal({ source, color, citations: {}, citLoading: true, citError: null, activeStyle: currentEssayFormat });
     setContentSelection("");
     const styles: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
     try {
@@ -2295,12 +2372,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           key={source.url}
                           source={source}
                           index={idx}
+                          color={sourceColors[source.url] ?? SOURCE_PALETTE[idx % SOURCE_PALETTE.length]!}
                           expandedQuoteUrl={expandedQuoteUrl}
                           quoteText={quoteText}
                           setQuoteText={setQuoteText}
                           setExpandedQuoteUrl={setExpandedQuoteUrl}
                           onInsertQuote={insertQuote}
                           onOpenModal={openSourceModal}
+                          onColorChange={handleSourceColorChange}
                         />
                       ))}
 
@@ -2325,9 +2404,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
       {/* ══ Source Detail Modal ══ */}
       {sourceModal && (() => {
-        const { source, citations, citLoading, citError, activeStyle } = sourceModal;
+        const { source, color: modalColor, citations, citLoading, citError, activeStyle } = sourceModal;
         const domain = getDomain(source.url);
-        const { label: typeLabel, color: typeColor } = getSourceType(source.url);
+        const { label: typeLabel } = getSourceType(source.url);
         const activeCit = citations[activeStyle];
         const STYLES: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
         const STYLE_LABELS: Record<FormatStyleId, string> = { mla: "MLA", apa: "APA", chicago: "Chicago", ieee: "IEEE", harvard: "Harvard" };
@@ -2336,14 +2415,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
             onClick={(e) => { if (e.target === e.currentTarget) { setSourceModal(null); setContentSelection(""); } }}
           >
-            <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col rounded-[20px] border border-[#2a2f38] bg-[#13161c] shadow-2xl"
-              style={{ animation: "editor-enter 0.22s cubic-bezier(0.22,1,0.36,1) both" }}
+            <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col rounded-[20px] bg-[#13161c] shadow-2xl"
+              style={{ border: `1px solid ${modalColor}40`, animation: "editor-enter 0.22s cubic-bezier(0.22,1,0.36,1) both" }}
             >
               {/* Modal header */}
-              <div className="flex flex-shrink-0 items-start gap-3 border-b border-[#2a2f38] px-5 py-4">
+              <div className="flex flex-shrink-0 items-start gap-3 border-b px-5 py-4" style={{ borderColor: `${modalColor}30` }}>
                 <span
                   className="mt-[3px] flex-shrink-0 rounded-[5px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
-                  style={{ background: `${typeColor}22`, color: typeColor }}
+                  style={{ background: `${modalColor}22`, color: modalColor }}
                 >{typeLabel}</span>
                 <p className="flex-1 text-[13px] font-semibold leading-snug text-[#e2e8f0]">{source.title || domain}</p>
                 <button
@@ -2434,7 +2513,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         key={s}
                         type="button"
                         onClick={() => setSourceModal((prev) => prev ? { ...prev, activeStyle: s } : null)}
-                        className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#4b5563] hover:text-[#94a3b8]"}`}
+                        className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "text-white" : "bg-[#1a1f28] text-[#4b5563] hover:text-[#94a3b8]"}`}
+                        style={activeStyle === s ? { background: modalColor } : undefined}
                       >
                         {STYLE_LABELS[s]}
                       </button>
