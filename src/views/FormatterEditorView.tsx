@@ -426,6 +426,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Format style ── */
   const [formatStyle, setFormatStyle] = useState<FormatStyleId>("mla");
 
+  /* ── Humanizer panel config ── */
+  const [humProvider, setHumProvider] = useState<"StealthGPT" | "UndetectableAI">("StealthGPT");
+  const [stealthRephrase, setStealthRephrase] = useState(false);
+  const [uaiReadability, setUaiReadability] = useState("University");
+  const [uaiPurpose, setUaiPurpose] = useState("Essay");
+  const [uaiStrength, setUaiStrength] = useState("More Human");
+
   /* ── Citation state ── */
   const [rightOpen, setRightOpen] = useState(true);
   const [citUrlInput, setCitUrlInput] = useState("");
@@ -486,6 +493,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const savedEditorElRef = useRef<HTMLElement | null>(null);
   /* ── Bib entry insert ref (populated by FormatterEditorCore) ── */
   const insertBibEntryRef = useRef<((text: string) => void) | null>(null);
+  /* ── Snapshot ref (populated by FormatterEditorCore for left-panel humanize) ── */
+  const getSnapshotRef = useRef<(() => import("@/services/OrganizerService").ExportDocumentSnapshot) | null>(null);
 
   /* ── Editor re-init ── */
   const [editorKey, setEditorKey] = useState(0);
@@ -1187,6 +1196,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const handleHumanize = useCallback(async (
     provider: "StealthGPT" | "UndetectableAI",
     snapshot: ExportDocumentSnapshot,
+    opts?: { rephrase?: boolean; readability?: string; purpose?: string; strength?: string },
   ) => {
     setHumanizePhase({ kind: "humanizing", provider, snapshot });
     const essayText = snapshot.pages.map((p) => p.plainText ?? "").join("\n\n").trim();
@@ -1201,7 +1211,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         const res = await fetchWithUserAuthorization("/api/humanize/stealthgpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: essayText, rephrase: false }),
+          body: JSON.stringify({ prompt: essayText, rephrase: opts?.rephrase ?? false }),
         });
         const data = (await res.json()) as { result?: string; error?: string };
         if (!res.ok || !data.result) throw new Error(data.error ?? "StealthGPT returned empty result.");
@@ -1210,7 +1220,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         const res = await fetchWithUserAuthorization("/api/humanize/undetectable", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: essayText, readability: "University", purpose: "Essay", strength: "More Human" }),
+          body: JSON.stringify({ content: essayText, readability: opts?.readability ?? "University", purpose: opts?.purpose ?? "Essay", strength: opts?.strength ?? "More Human" }),
         });
         const sub = (await res.json()) as { output?: string; id?: string; documentId?: string; error?: string };
         if (!res.ok) throw new Error(sub.error ?? "Undetectable AI submission failed.");
@@ -1288,6 +1298,34 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setLoginError(err instanceof Error ? err.message : "Authentication failed.");
     } finally { setLoginLoading(false); }
   }, [loginEmail, loginPassword, humanizePhase, handleStandaloneHumanizeGate]);
+
+  /* ── Humanize: triggered from left panel ── */
+  const handlePanelHumanize = useCallback(async () => {
+    if (!editorActive) { showToast("Format your document first."); return; }
+    const snapshot = getSnapshotRef.current?.();
+    if (!snapshot) { showToast("Editor not ready."); return; }
+    const opts = {
+      rephrase: stealthRephrase,
+      readability: uaiReadability,
+      purpose: uaiPurpose,
+      strength: uaiStrength,
+    };
+    if (IS_STANDALONE) {
+      const user = AuthService.getCurrentUser();
+      if (!user) { setHumanizePhase({ kind: "login_required", snapshot }); return; }
+      const essayText = snapshot.pages.map((p) => p.plainText ?? "").join("\n\n").trim();
+      const wc = countWordsRaw(essayText);
+      const required = CreditService.creditsFromWords(wc);
+      try {
+        await CreditService.ensureSufficientHumanizerCreditsForWords(wc);
+      } catch {
+        const available = (await CreditService.getAvailableCredits()).humanizer;
+        setHumanizePhase({ kind: "insufficient_credits", required, available, snapshot });
+        return;
+      }
+    }
+    void handleHumanize(humProvider, snapshot, opts);
+  }, [editorActive, humProvider, stealthRephrase, uaiReadability, uaiPurpose, uaiStrength, handleHumanize, showToast]);
 
   /* ── Parse status ── */
   function renderParseStatus() {
@@ -1519,44 +1557,122 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <span>{charCount.toLocaleString()} chars</span>
                   <span>~{pageCount} pages</span>
                 </div>
+
+                {/* Format / New session button */}
+                <div className="mt-2.5">
+                  {editorActive ? (
+                    <button
+                      type="button"
+                      onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
+                      className="w-full rounded-full border border-[#2a2f38] py-2 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
+                    >
+                      Start a new session
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={applyDocument}
+                      disabled={!canApply}
+                      className="w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Format Document
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* ════ 2. FORMAT STYLE (compact) ════ */}
+              {/* ════ 2. HUMANIZER ════ */}
               <div className="border-b border-[#2a2f38] px-3 py-2.5">
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Format Style</p>
-                <div className="flex flex-col gap-0.5">
-                  {FORMAT_STYLES.map((s) => (
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Humanizer</p>
+                  {humanizerCredits !== null && (
+                    <span className="rounded-full bg-[#1a1f28] px-2 py-0.5 text-[9px] text-[#64748b]">{humanizerCredits} cr</span>
+                  )}
+                </div>
+
+                {/* Provider toggle */}
+                <div className="mb-2.5 flex rounded-full bg-[#1a1f28] p-[3px]">
+                  {(["StealthGPT", "UndetectableAI"] as const).map((p) => (
                     <button
-                      key={s.id}
+                      key={p}
                       type="button"
-                      onClick={() => setFormatStyle(s.id)}
-                      className={`flex items-center gap-2 rounded-lg px-2 py-1 text-left transition active:translate-y-[1px] active:shadow-[inset_0_1px_3px_rgba(0,0,0,0.25)] ${formatStyle === s.id ? "bg-[#1e252f] ring-1 ring-[#3a4150]" : "hover:bg-[#181d24]"}`}
+                      onClick={() => setHumProvider(p)}
+                      className={`flex-1 rounded-full py-1 text-[10px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[#64748b] hover:text-[#94a3b8]"}`}
                     >
-                      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
-                      <span className={`flex-1 text-[10.5px] ${formatStyle === s.id ? "text-[#e2e8f0]" : "text-[#64748b]"}`}>{s.label}</span>
-                      {formatStyle === s.id && <div className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" />}
+                      {p === "StealthGPT" ? "StealthGPT" : "Undetectable"}
                     </button>
                   ))}
                 </div>
 
-                {editorActive ? (
-                  <button
-                    type="button"
-                    onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
-                    className="mt-2.5 w-full rounded-full border border-[#2a2f38] py-2 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
-                  >
-                    Start a new session
-                  </button>
+                {/* Provider-specific params */}
+                {humProvider === "StealthGPT" ? (
+                  <div className="flex items-center justify-between rounded-xl bg-[#1a1f28] px-3 py-2">
+                    <span className="text-[10.5px] text-[#94a3b8]">Rephrase mode</span>
+                    <button
+                      type="button"
+                      onClick={() => setStealthRephrase((v) => !v)}
+                      className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${stealthRephrase ? "bg-[#ea4335]" : "bg-[#2a2f38]"}`}
+                    >
+                      <span className={`absolute top-[2px] h-4 w-4 rounded-full bg-white shadow transition-all ${stealthRephrase ? "left-[18px]" : "left-[2px]"}`} />
+                    </button>
+                  </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={applyDocument}
-                    disabled={!canApply}
-                    className="mt-2.5 w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Format Document
-                  </button>
+                  <div className="flex flex-col gap-1.5">
+                    {/* Readability */}
+                    <div>
+                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Readability</p>
+                      <div className="flex flex-wrap gap-1">
+                        {["High School", "University", "Doctorate", "Journalist", "Marketing"].map((v) => (
+                          <button key={v} type="button" onClick={() => setUaiReadability(v)}
+                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiReadability === v ? "bg-[#ea4335] text-white" : "bg-[#1e252f] text-[#64748b] hover:text-[#94a3b8]"}`}
+                          >{v}</button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Purpose */}
+                    <div>
+                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Purpose</p>
+                      <div className="flex flex-wrap gap-1">
+                        {["Essay", "Article", "Marketing", "Story", "Cover Letter", "Report"].map((v) => (
+                          <button key={v} type="button" onClick={() => setUaiPurpose(v)}
+                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiPurpose === v ? "bg-[#ea4335] text-white" : "bg-[#1e252f] text-[#64748b] hover:text-[#94a3b8]"}`}
+                          >{v}</button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Strength */}
+                    <div>
+                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Strength</p>
+                      <div className="flex flex-wrap gap-1">
+                        {["More Human", "Balanced", "More Readable"].map((v) => (
+                          <button key={v} type="button" onClick={() => setUaiStrength(v)}
+                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiStrength === v ? "bg-[#ea4335] text-white" : "bg-[#1e252f] text-[#64748b] hover:text-[#94a3b8]"}`}
+                          >{v}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 )}
+
+                {/* Humanize button */}
+                <button
+                  type="button"
+                  onClick={() => void handlePanelHumanize()}
+                  disabled={!editorActive || humanizePhase.kind === "humanizing"}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#1e252f] py-2 text-[12px] font-semibold text-[#94a3b8] ring-1 ring-[#2a2f38] transition hover:bg-[#252c38] hover:text-[#e2e8f0] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {humanizePhase.kind === "humanizing" ? (
+                    <>
+                      <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                      Humanizing…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10"/><path d="M12 8v4l3 3"/></svg>
+                      Humanize Document
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* ════ 3. OCTO THE BOT ════ */}
@@ -1696,6 +1812,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               subjectCode={coreSnapshot.subjectCode}
               essayDate={coreSnapshot.essayDate}
               formatStyle={coreSnapshot.formatStyle}
+              onFormatStyleChange={(id) => setCoreSnapshot((prev) => ({ ...prev, formatStyle: id }))}
+              getSnapshotRef={getSnapshotRef}
               onBack={onBack}
               onFinish={onFinish ? handleCoreFinish : undefined}
               insertBibEntryRef={insertBibEntryRef}

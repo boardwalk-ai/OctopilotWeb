@@ -26,6 +26,10 @@ export interface EditorViewProps {
     // Legacy manual citations
     citations?: GhostciterCitation[];
     formatStyle?: FormatStyleId;
+    // Called when user switches format style from the toolbar pill bar
+    onFormatStyleChange?: (id: FormatStyleId) => void;
+    // Ref populated by Core so parent can call buildExportSnapshot() directly
+    getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
     insertBibEntryRef?: React.MutableRefObject<((text: string) => void) | null>;
 }
@@ -124,6 +128,14 @@ const ToolbarDropdown = ({
 
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
 
+const EDITOR_FORMAT_STYLES: { id: FormatStyleId; label: string; color: string }[] = [
+    { id: "mla",     label: "MLA",     color: "#7c3aed" },
+    { id: "apa",     label: "APA",     color: "#2563eb" },
+    { id: "chicago", label: "Chicago", color: "#ea580c" },
+    { id: "ieee",    label: "IEEE",    color: "#16a34a" },
+    { id: "harvard", label: "Harvard", color: "#0369a1" },
+];
+
 function getLeadingElement(root: HTMLElement | null): HTMLElement | null {
     if (!root) return null;
     const children = Array.from(root.children) as HTMLElement[];
@@ -143,6 +155,8 @@ export default function FormatterEditorCore({
     onBack, onFinish, content,
     bibliography, initialDocTitle, studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate,
     citations = [], formatStyle = "mla",
+    onFormatStyleChange,
+    getSnapshotRef,
     insertBibEntryRef,
 }: EditorViewProps) {
     // Combine parsed bibliography with any manually-added citations
@@ -999,6 +1013,12 @@ export default function FormatterEditorCore({
         onFinish?.(snapshot);
     }, [buildExportSnapshot, onFinish]);
 
+    // Expose buildExportSnapshot to parent via ref (for left-panel humanize)
+    useEffect(() => {
+        if (!getSnapshotRef) return;
+        getSnapshotRef.current = buildExportSnapshot;
+        return () => { getSnapshotRef.current = null; };
+    }, [getSnapshotRef, buildExportSnapshot]);
 
     useEffect(() => {
         updateStats();
@@ -1492,7 +1512,26 @@ export default function FormatterEditorCore({
                 </button>
             </div>
 
-            <div className="mx-3 mt-1 flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
+            {/* ── Format Style pill bar ── */}
+            <div className="mx-3 mt-1 flex h-[32px] flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[#2a2f38] bg-[#13161c] px-3">
+                <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[#3a3f47]">Style</span>
+                {EDITOR_FORMAT_STYLES.map((s) => (
+                    <button
+                        key={s.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onFormatStyleChange?.(s.id)}
+                        className="flex-shrink-0 rounded-full px-3 py-[3px] text-[10px] font-semibold transition active:scale-[0.95]"
+                        style={formatStyle === s.id
+                            ? { background: s.color, color: "#fff" }
+                            : { background: "#1a1f28", color: "#64748b" }}
+                    >
+                        {s.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="mx-3 flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                 <TbSep />
