@@ -661,11 +661,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   const clearDocument = () => { setRawContent(""); setFileName(null); setParseStatus({ kind: "idle" }); };
 
-  /* ── Format Document → re-initialize editor ── */
-  const applyDocument = useCallback(() => {
+  /* ── Format Document → re-initialize editor with chosen style ── */
+  const applyDocumentWithStyle = useCallback((style: FormatStyleId) => {
     const p = parsedResult;
     const combinedBib = [p?.bibliography, ...citCards.map((c) => c.bibliography)]
       .filter(Boolean).join("\n\n");
+    setFormatStyle(style);
     setCoreSnapshot({
       content: p?.essay ?? rawContent,
       bibliography: combinedBib,
@@ -676,11 +677,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       courseInfo: p?.courseInfo ?? "",
       subjectCode: p?.subjectCode ?? "",
       essayDate: p?.essayDate ?? "",
-      formatStyle,
+      formatStyle: style,
     });
     setEditorKey((k) => k + 1);
     setEditorActive(true);
-  }, [parsedResult, rawContent, citCards, formatStyle]);
+  }, [parsedResult, rawContent, citCards]);
 
   /* ── Citations: scrape URL ── */
   const handleScrapeUrl = async () => {
@@ -1557,28 +1558,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <span>{charCount.toLocaleString()} chars</span>
                   <span>~{pageCount} pages</span>
                 </div>
-
-                {/* Format / New session button */}
-                <div className="mt-2.5">
-                  {editorActive ? (
-                    <button
-                      type="button"
-                      onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } window.location.reload(); }}
-                      className="w-full rounded-full border border-[#2a2f38] py-2 text-[12px] font-medium text-[#94a3b8] transition hover:bg-[#1e252f] hover:text-[#e2e8f0] active:translate-y-[1px]"
-                    >
-                      Start a new session
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={applyDocument}
-                      disabled={!canApply}
-                      className="w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Format Document
-                    </button>
-                  )}
-                </div>
               </div>
 
               {/* ════ 2. HUMANIZER ════ */}
@@ -1811,8 +1790,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               courseInfo={coreSnapshot.courseInfo}
               subjectCode={coreSnapshot.subjectCode}
               essayDate={coreSnapshot.essayDate}
-              formatStyle={coreSnapshot.formatStyle}
-              onFormatStyleChange={(id) => setCoreSnapshot((prev) => ({ ...prev, formatStyle: id }))}
+              formatStyle={formatStyle}
+              onReformat={(id) => applyDocumentWithStyle(id)}
+              canReformat={canApply}
               getSnapshotRef={getSnapshotRef}
               onBack={onBack}
               onFinish={onFinish ? handleCoreFinish : undefined}

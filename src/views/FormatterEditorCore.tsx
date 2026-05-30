@@ -26,8 +26,10 @@ export interface EditorViewProps {
     // Legacy manual citations
     citations?: GhostciterCitation[];
     formatStyle?: FormatStyleId;
-    // Called when user switches format style from the toolbar pill bar
-    onFormatStyleChange?: (id: FormatStyleId) => void;
+    // Called when user picks a style pill + clicks Format Document
+    onReformat?: (id: FormatStyleId) => void;
+    // Whether the parent has content ready to format
+    canReformat?: boolean;
     // Ref populated by Core so parent can call buildExportSnapshot() directly
     getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
@@ -155,7 +157,8 @@ export default function FormatterEditorCore({
     onBack, onFinish, content,
     bibliography, initialDocTitle, studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate,
     citations = [], formatStyle = "mla",
-    onFormatStyleChange,
+    onReformat,
+    canReformat = false,
     getSnapshotRef,
     insertBibEntryRef,
 }: EditorViewProps) {
@@ -178,6 +181,12 @@ export default function FormatterEditorCore({
         subjectCode: subjectCode ?? "",
         essayDate: essayDate ?? "",
     } as unknown as OrganizerState;
+    // Tracks which style pill the user has selected in the toolbar
+    const [selectedStyle, setSelectedStyle] = useState<FormatStyleId>(formatStyle);
+
+    // Keep selectedStyle in sync when parent re-mounts with a new formatStyle
+    useEffect(() => { setSelectedStyle(formatStyle); }, [formatStyle]);
+
     const [isMobileLayout, setIsMobileLayout] = useState(false);
     const [mobileViewportWidth, setMobileViewportWidth] = useState(816);
     const [keyboardInset, setKeyboardInset] = useState(0);
@@ -1512,23 +1521,39 @@ export default function FormatterEditorCore({
                 </button>
             </div>
 
-            {/* ── Format Style pill bar ── */}
-            <div className="mx-3 mt-1 flex h-[32px] flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[#2a2f38] bg-[#13161c] px-3">
-                <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[#3a3f47]">Style</span>
-                {EDITOR_FORMAT_STYLES.map((s) => (
+            {/* ── Format Style pill bar + Format Document button ── */}
+            <div className="mx-3 mt-1 flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-[#2a2f38] bg-[#13161c] px-3">
+                {/* Style pills — scroll if needed */}
+                <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                    <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[#3a3f47]">Style</span>
+                    {EDITOR_FORMAT_STYLES.map((s) => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setSelectedStyle(s.id)}
+                            className="flex-shrink-0 rounded-full px-3 py-[3px] text-[10px] font-semibold transition active:scale-[0.95]"
+                            style={selectedStyle === s.id
+                                ? { background: s.color, color: "#fff" }
+                                : { background: "#1a1f28", color: "#64748b" }}
+                        >
+                            {s.label}
+                        </button>
+                    ))}
+                </div>
+                {/* Format Document — always visible on right */}
+                {onReformat && (
                     <button
-                        key={s.id}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => onFormatStyleChange?.(s.id)}
-                        className="flex-shrink-0 rounded-full px-3 py-[3px] text-[10px] font-semibold transition active:scale-[0.95]"
-                        style={formatStyle === s.id
-                            ? { background: s.color, color: "#fff" }
-                            : { background: "#1a1f28", color: "#64748b" }}
+                        onClick={() => onReformat(selectedStyle)}
+                        disabled={!canReformat}
+                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-[#ea4335] px-3 py-[4px] text-[10px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        {s.label}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M4 9a9 9 0 0 1 15-3.8M20 15a9 9 0 0 1-15 3.8"/></svg>
+                        Format
                     </button>
-                ))}
+                )}
             </div>
 
             <div className="mx-3 flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
