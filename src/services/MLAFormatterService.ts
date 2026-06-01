@@ -3,6 +3,7 @@ import { composePages, getDateDayMonthYear, getLastName, getTitle, paragraphHtml
 
 export class MLAFormatterService implements EssayFormatter {
     format(input: FormatterInput): FormatterOutput {
+        const MLA_FIELDS = ["studentName", "instructorName", "courseInfo", "essayDate"] as const;
         const headingLines = [
             input.studentName?.trim() || "Student Name",
             input.instructorName?.trim() || "Instructor Name",
@@ -11,12 +12,17 @@ export class MLAFormatterService implements EssayFormatter {
         ];
 
         const firstPage = [
-            ...headingLines.map((line) => paragraphHtml(line, { align: "left", marginBottomEm: 0.8 })),
-            paragraphHtml(getTitle(input), { align: "center", marginBottomEm: 1.4 }),
+            ...headingLines.map((line, i) => paragraphHtml(line, {
+                align: "left",
+                marginBottomEm: 0.8,
+                dataField: MLA_FIELDS[i],
+            })),
+            paragraphHtml(getTitle(input), { align: "center", marginBottomEm: 1.4, dataField: "essayTitle" }),
             paragraphsHtml(input.essay, {
                 align: "left",
                 indentFirstLine: true,
                 marginBottomEm: 1.2,
+                dataField: "essay",
             }),
         ].join("");
 

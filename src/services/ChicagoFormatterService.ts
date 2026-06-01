@@ -12,12 +12,14 @@ export class ChicagoFormatterService implements EssayFormatter {
         ], {
             boldFirstLine: false,
             lineGapEm: 1.3,
+            dataFields: ["essayTitle", "studentName", "courseInfo", "instructorName", "essayDate"],
         });
 
         const bodyPage = paragraphsHtml(input.essay, {
             align: "left",
             indentFirstLine: true,
             marginBottomEm: 1.1,
+            dataField: "essay",
         });
         const bibliographyPage = referencesHtml("Bibliography", input.bibliography, {
             headingBold: false,

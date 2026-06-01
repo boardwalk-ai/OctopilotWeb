@@ -30,6 +30,9 @@ export interface EditorViewProps {
     onReformat?: (id: FormatStyleId) => void;
     // Whether the parent has content ready to format
     canReformat?: boolean;
+    // APA abstract page fields
+    abstract?: string;
+    keywords?: string;
     // Ref populated by Core so parent can call buildExportSnapshot() directly
     getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
@@ -161,6 +164,8 @@ export default function FormatterEditorCore({
     canReformat = false,
     getSnapshotRef,
     insertBibEntryRef,
+    abstract,
+    keywords,
 }: EditorViewProps) {
     // Combine parsed bibliography with any manually-added citations
     const combinedBibliography = [
@@ -180,6 +185,8 @@ export default function FormatterEditorCore({
         courseInfo: courseInfo ?? "",
         subjectCode: subjectCode ?? "",
         essayDate: essayDate ?? "",
+        abstract: abstract ?? "",
+        keywords: keywords ?? "",
     } as unknown as OrganizerState;
     // Tracks which style pill the user has selected in the toolbar
     const [selectedStyle, setSelectedStyle] = useState<FormatStyleId>(formatStyle);

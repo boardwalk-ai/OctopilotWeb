@@ -5,21 +5,20 @@ export class IEEEFormatterService implements EssayFormatter {
     format(input: FormatterInput): FormatterOutput {
         const headerBlock = [
             paragraphHtml(getTitle(input), {
-                align: "center",
-                bold: true,
-                marginBottomEm: 1.2,
+                align: "center", bold: true, marginBottomEm: 1.2,
+                dataField: "essayTitle",
             }),
             paragraphHtml(input.studentName?.trim() || "Author", {
-                align: "center",
-                marginBottomEm: 0.5,
+                align: "center", marginBottomEm: 0.5,
+                dataField: "studentName",
             }),
             paragraphHtml(input.institutionName?.trim() || "Institution", {
-                align: "center",
-                marginBottomEm: 0.5,
+                align: "center", marginBottomEm: 0.5,
+                dataField: "institutionName",
             }),
             paragraphHtml(getDate(input), {
-                align: "center",
-                marginBottomEm: 1.2,
+                align: "center", marginBottomEm: 1.2,
+                dataField: "essayDate",
             }),
         ].join("");
 
@@ -29,6 +28,7 @@ export class IEEEFormatterService implements EssayFormatter {
                 align: "left",
                 indentFirstLine: false,
                 marginBottomEm: 0.9,
+                dataField: "essay",
             }),
         ].join("");
 

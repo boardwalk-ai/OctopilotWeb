@@ -86,13 +86,16 @@ export function paragraphHtml(
         indentFirstLine?: boolean;
         bold?: boolean;
         marginBottomEm?: number;
+        /** data-field attribute for re-format extraction */
+        dataField?: string;
     }
 ): string {
     const align = opts?.align || "left";
     const indent = opts?.indentFirstLine ? "text-indent:0.5in;" : "";
     const weight = opts?.bold ? "font-weight:700;" : "";
     const margin = `margin:0 0 ${opts?.marginBottomEm ?? 1}em 0;`;
-    return `<p style="${margin}text-align:${align};${indent}${weight}">${escapeHtml(text)}</p>`;
+    const field = opts?.dataField ? ` data-field="${opts.dataField}"` : "";
+    return `<p${field} style="${margin}text-align:${align};${indent}${weight}">${escapeHtml(text)}</p>`;
 }
 
 export function paragraphsHtml(
@@ -101,15 +104,18 @@ export function paragraphsHtml(
         align?: "left" | "center" | "right" | "justify";
         indentFirstLine?: boolean;
         marginBottomEm?: number;
+        /** Tag every essay paragraph for re-format extraction */
+        dataField?: string;
     }
 ): string {
     const paragraphs = splitParagraphs(text);
-    if (!paragraphs.length) return "<p><br/></p>";
+    if (!paragraphs.length) return `<p${opts?.dataField ? ` data-field="${opts.dataField}"` : ""}><br/></p>`;
     return paragraphs
         .map((p) => paragraphHtml(p, {
             align: opts?.align,
             indentFirstLine: opts?.indentFirstLine,
             marginBottomEm: opts?.marginBottomEm,
+            dataField: opts?.dataField,
         }))
         .join("");
 }
@@ -119,6 +125,8 @@ export function centeredTitlePageHtml(
     opts?: {
         boldFirstLine?: boolean;
         lineGapEm?: number;
+        /** Per-line data-field names (index-matched to lines) */
+        dataFields?: string[];
     }
 ): string {
     const gap = opts?.lineGapEm ?? 1;
@@ -128,6 +136,7 @@ export function centeredTitlePageHtml(
             align: "center",
             bold: Boolean(opts?.boldFirstLine && index === 0),
             marginBottomEm: gap,
+            dataField: opts?.dataFields?.[index],
         }))
         .join("");
 }
@@ -183,11 +192,11 @@ export function referencesHtml(
 export function apaAbstractPageHtml(abstract?: string, keywords?: string): string {
     const heading = `<p style="margin:0 0 1.6em 0;text-align:center;font-weight:700;">Abstract</p>`;
     const body = abstract?.trim()
-        ? `<p style="margin:0 0 1.2em 0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
-        : `<p style="margin:0 0 1.2em 0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;
+        ? `<p data-field="abstract" style="margin:0 0 1.2em 0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
+        : `<p data-field="abstract" style="margin:0 0 1.2em 0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;
     const kwLine = keywords?.trim()
-        ? `<p style="margin:0;text-align:left;"><em>Keywords:</em> ${escapeHtml(keywords.trim())}</p>`
-        : `<p style="margin:0;text-align:left;color:#9ca3af;"><em>Keywords:</em> keyword1, keyword2, keyword3</p>`;
+        ? `<p data-field="keywords" style="margin:0;text-align:left;"><em>Keywords:</em> ${escapeHtml(keywords.trim())}</p>`
+        : `<p data-field="keywords" style="margin:0;text-align:left;color:#9ca3af;"><em>Keywords:</em> keyword1, keyword2, keyword3</p>`;
     return `${heading}${body}${kwLine}`;
 }
 

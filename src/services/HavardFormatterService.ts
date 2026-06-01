@@ -13,6 +13,7 @@ export class HavardFormatterService implements EssayFormatter {
         ], {
             boldFirstLine: true,
             lineGapEm: 1.2,
+            dataFields: ["essayTitle", "studentName", "institutionName", "courseInfo", "instructorName", "essayDate"],
         });
 
         const bodyPage = [
@@ -20,11 +21,13 @@ export class HavardFormatterService implements EssayFormatter {
                 align: "center",
                 bold: true,
                 marginBottomEm: 1.6,
+                dataField: "essayTitle",
             }),
             paragraphsHtml(input.essay, {
                 align: "left",
                 indentFirstLine: true,
                 marginBottomEm: 1.1,
+                dataField: "essay",
             }),
         ].join("");
 

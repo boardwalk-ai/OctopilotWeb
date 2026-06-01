@@ -26,6 +26,7 @@ export class FormatterService {
     }
 
     static formatFromOrganizer(org: OrganizerState): FormatterOutput {
+        const extOrg = org as unknown as Record<string, unknown>;
         const input: FormatterInput = {
             essay: org.generatedEssay || "",
             bibliography: org.generatedBibliography || "",
@@ -36,6 +37,8 @@ export class FormatterService {
             courseInfo: org.courseInfo,
             subjectCode: org.subjectCode,
             essayDate: org.essayDate,
+            abstract: typeof extOrg.abstract === "string" ? extOrg.abstract : undefined,
+            keywords: typeof extOrg.keywords === "string" ? extOrg.keywords : undefined,
         };
 
         const formatter = this.getFormatter(org.citationStyle);

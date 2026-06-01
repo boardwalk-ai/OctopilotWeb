@@ -390,13 +390,15 @@ interface CoreSnapshot {
   courseInfo: string;
   subjectCode: string;
   essayDate: string;
+  abstract: string;
+  keywords: string;
   formatStyle: FormatStyleId;
 }
 
 const EMPTY_SNAPSHOT: CoreSnapshot = {
   content: "", bibliography: "", initialDocTitle: "", studentName: "",
   instructorName: "", institutionName: "", courseInfo: "", subjectCode: "",
-  essayDate: "", formatStyle: "mla",
+  essayDate: "", abstract: "", keywords: "", formatStyle: "mla",
 };
 
 /* ─── Component ──────────────────────────────────────────────────────────────── */
@@ -671,18 +673,46 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const applyDocumentWithStyle = useCallback((style: FormatStyleId) => {
     setFormatStyle(style);
 
-    // If editor has content the user typed, preserve it — grab HTML pages from snapshot
     const snap = getSnapshotRef.current?.();
-    const hasEditorContent = snap && snap.pages.some(p => (p.html ?? "").replace(/<br\s*\/?>/gi, "").trim());
+    const allHtml = snap?.pages.map(p => p.html ?? "").join("") ?? "";
 
-    if (hasEditorContent && snap) {
-      // Reconstruct page-separated content from editor's current HTML
-      const content = snap.pages.map(p => p.html ?? "").join("\f");
-      setCoreSnapshot(prev => ({ ...prev, content, formatStyle: style }));
-    } else {
-      setCoreSnapshot(prev => ({ ...prev, content: "", formatStyle: style }));
+    // Parse data-field attributes from current editor HTML to carry over
+    // what the user typed into the new format template.
+    const extracted: Partial<CoreSnapshot> = {};
+    if (allHtml && typeof window !== "undefined") {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(allHtml, "text/html");
+
+      const getField = (name: string) =>
+        doc.querySelector(`[data-field="${name}"]`)?.textContent?.trim() ?? "";
+
+      // Metadata fields
+      const studentName   = getField("studentName");
+      const instructorName = getField("instructorName");
+      const institutionName = getField("institutionName");
+      const courseInfo    = getField("courseInfo");
+      const essayDate     = getField("essayDate");
+      const essayTitle    = getField("essayTitle");
+      const abstract      = getField("abstract");
+      const keywords      = getField("keywords");
+
+      if (studentName)    extracted.studentName    = studentName;
+      if (instructorName) extracted.instructorName = instructorName;
+      if (institutionName) extracted.institutionName = institutionName;
+      if (courseInfo)     extracted.courseInfo     = courseInfo;
+      if (essayDate)      extracted.essayDate      = essayDate;
+      if (essayTitle)     extracted.initialDocTitle = essayTitle;
+      if (abstract)       extracted.abstract       = abstract;
+      if (keywords)       extracted.keywords       = keywords;
+
+      // Essay body — join all [data-field="essay"] paragraphs as plain text
+      const essayParas = Array.from(doc.querySelectorAll('[data-field="essay"]'))
+        .map(el => el.textContent?.trim())
+        .filter(Boolean);
+      if (essayParas.length) extracted.content = essayParas.join("\n\n");
     }
 
+    setCoreSnapshot(prev => ({ ...prev, ...extracted, formatStyle: style }));
     setEditorKey((k) => k + 1);
   }, []);
 
@@ -1811,6 +1841,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               onBack={onBack}
               onFinish={onFinish ? handleCoreFinish : undefined}
               insertBibEntryRef={insertBibEntryRef}
+              abstract={coreSnapshot.abstract}
+              keywords={coreSnapshot.keywords}
             />
           </div>
         </div>

@@ -15,10 +15,10 @@ export class APAFormatterService implements EssayFormatter {
         const titlePage = centeredTitlePageHtml(titlePageLines, {
             boldFirstLine: true,
             lineGapEm: 1.25,
+            dataFields: ["essayTitle", "studentName", "institutionName", "courseInfo", "instructorName", "essayDate"],
         });
 
-        // APA 7th: Abstract is page 2 (required for professional papers,
-        // recommended for student papers)
+        // APA 7th: Abstract is page 2
         const abstractPage = apaAbstractPageHtml(input.abstract, input.keywords);
 
         const bodyPage = [
@@ -26,11 +26,13 @@ export class APAFormatterService implements EssayFormatter {
                 align: "center",
                 bold: true,
                 marginBottomEm: 1.8,
+                dataField: "essayTitle",
             }),
             paragraphsHtml(input.essay, {
                 align: "left",
                 indentFirstLine: true,
                 marginBottomEm: 1.2,
+                dataField: "essay",
             }),
         ].join("");
 
