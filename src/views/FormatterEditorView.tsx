@@ -499,7 +499,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Editor re-init ── */
   const [editorKey, setEditorKey] = useState(0);
   const [coreSnapshot, setCoreSnapshot] = useState<CoreSnapshot>(EMPTY_SNAPSHOT);
-  const [editorActive, setEditorActive] = useState(false);
+  // Editor is always active — users type directly without uploading
+  const editorActive = true;
 
   /* ── Refs ── */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -663,25 +664,22 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Format Document → re-initialize editor with chosen style ── */
   const applyDocumentWithStyle = useCallback((style: FormatStyleId) => {
-    const p = parsedResult;
-    const combinedBib = [p?.bibliography, ...citCards.map((c) => c.bibliography)]
-      .filter(Boolean).join("\n\n");
     setFormatStyle(style);
-    setCoreSnapshot({
-      content: p?.essay ?? rawContent,
-      bibliography: combinedBib,
-      initialDocTitle: p?.finalEssayTitle ?? "",
-      studentName: p?.studentName ?? "",
-      instructorName: p?.instructorName ?? "",
-      institutionName: p?.institutionName ?? "",
-      courseInfo: p?.courseInfo ?? "",
-      subjectCode: p?.subjectCode ?? "",
-      essayDate: p?.essayDate ?? "",
-      formatStyle: style,
-    });
+
+    // If editor has content the user typed, preserve it — grab HTML pages from snapshot
+    const snap = getSnapshotRef.current?.();
+    const hasEditorContent = snap && snap.pages.some(p => (p.html ?? "").replace(/<br\s*\/?>/gi, "").trim());
+
+    if (hasEditorContent && snap) {
+      // Reconstruct page-separated content from editor's current HTML
+      const content = snap.pages.map(p => p.html ?? "").join("\f");
+      setCoreSnapshot(prev => ({ ...prev, content, formatStyle: style }));
+    } else {
+      setCoreSnapshot(prev => ({ ...prev, content: "", formatStyle: style }));
+    }
+
     setEditorKey((k) => k + 1);
-    setEditorActive(true);
-  }, [parsedResult, rawContent, citCards]);
+  }, []);
 
   /* ── Citations: scrape URL ── */
   const handleScrapeUrl = async () => {
@@ -1175,7 +1173,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       .filter(Boolean).join("\n\n");
     setCoreSnapshot((prev) => ({ ...prev, content: humanizedContent, bibliography: combinedBib }));
     setEditorKey((k) => k + 1);
-    setEditorActive(true);
   }, [parsedResult, citCards]);
 
   /* ── Humanize: poll Undetectable document ── */
@@ -1519,48 +1516,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
             </div>
 
-            {/* ── Single scrollable column: Bot on top, Upload below ── */}
+            {/* ── Single scrollable column ── */}
             <div className="min-h-0 flex-1 overflow-y-auto">
 
-              {/* ════ 1. UPLOAD ════ */}
-              <div className="border-b border-[#2a2f38] px-3 py-3">
-
-                {/* Upload zone */}
-                <div
-                  className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-3 py-5 text-center transition ${isDocLocked ? "cursor-not-allowed border-[#2a2f38] opacity-40" : dragOver ? "cursor-pointer border-[#ea4335] bg-[#ea4335]/6" : "cursor-pointer border-[#2a2f38] hover:border-[#3a4150]"}`}
-                  onClick={() => { if (!isDocLocked) fileInputRef.current?.click(); }}
-                  onDragEnter={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragOver={(e) => { if (!isDocLocked) { e.preventDefault(); setDragOver(true); } }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!isDocLocked) { const f = e.dataTransfer.files?.[0]; if (f) void applyFile(f); } }}
-                >
-                  <div className="text-[#374151]"><UploadIcon /></div>
-                  <p className="text-[11px] text-[#64748b]">
-                    {isUploading ? "Reading file…" : isDocLocked ? "Analysing document…" : "Drop file or click to browse"}
-                  </p>
-                  <p className="text-[10px] text-[#374151]">.docx · .txt · .pdf</p>
-                </div>
-
-                <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.txt,.pdf" onChange={handleFileChange} disabled={isDocLocked} />
-
-                {rawContent && !isUploading && (
-                  <div className="mt-2 flex items-center gap-2 rounded-full bg-[#1a1f28] px-3 py-1.5">
-                    <span className="text-[#4b5563]"><FileIcon /></span>
-                    <span className="flex-1 truncate text-[11px] text-[#94a3b8]">{fileName ?? "Pasted document"}</span>
-                    <button type="button" onClick={clearDocument} className="text-[#4b5563] transition hover:text-[#ef4444] active:scale-90">×</button>
-                  </div>
-                )}
-
-                {renderParseStatus()}
-
-                <div className="mt-2 flex justify-between rounded-2xl bg-[#1a1f28] px-3 py-1.5 text-[10px] text-[#4b5563]">
-                  <span>{wordCount.toLocaleString()} words</span>
-                  <span>{charCount.toLocaleString()} chars</span>
-                  <span>~{pageCount} pages</span>
-                </div>
-              </div>
-
-              {/* ════ 2. HUMANIZER ════ */}
+              {/* ════ 1. HUMANIZER ════ */}
               <div className="border-b border-[#2a2f38] px-3 py-2.5">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Humanizer</p>
@@ -1792,7 +1751,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               essayDate={coreSnapshot.essayDate}
               formatStyle={formatStyle}
               onReformat={(id) => applyDocumentWithStyle(id)}
-              canReformat={canApply}
+              canReformat={true}
               getSnapshotRef={getSnapshotRef}
               onBack={onBack}
               onFinish={onFinish ? handleCoreFinish : undefined}
