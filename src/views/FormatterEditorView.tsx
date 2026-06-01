@@ -1876,7 +1876,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             {/* ── Tab bar ── */}
             <div className="flex flex-shrink-0 border-b border-[#2a2f38]">
-              {(["citations", "dictionary", "thesaurus", "source"] as const).map((tab) => (
+              {(["citations", "source", "dictionary", "thesaurus"] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
