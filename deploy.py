@@ -113,6 +113,9 @@ def deploy_instance(
     # 2. Backup current .next
     run(c, f"rm -rf {path}/.next.bak && cp -a {path}/.next {path}/.next.bak 2>&1 || true")
 
+    # Remove stale lock file so build doesn't abort immediately
+    run(c, f"rm -f {path}/.next/lock 2>/dev/null || true")
+
     # 3. Build  (long — keepalive keeps session alive)
     print("  Building…")
     code, out = run(c, f"cd {path} && npm run build 2>&1", timeout=360)
