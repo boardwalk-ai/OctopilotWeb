@@ -1,5 +1,5 @@
 import { EssayFormatter, FormatterInput, FormatterOutput } from "./FormatterTypes";
-import { centeredTitlePageHtml, composePages, getDate, getTitle, paragraphHtml, paragraphsHtml, referencesHtml } from "./FormatterUtils";
+import { apaAbstractPageHtml, centeredTitlePageHtml, composePages, getDate, getTitle, paragraphHtml, paragraphsHtml, referencesHtml } from "./FormatterUtils";
 
 export class APAFormatterService implements EssayFormatter {
     format(input: FormatterInput): FormatterOutput {
@@ -16,6 +16,10 @@ export class APAFormatterService implements EssayFormatter {
             boldFirstLine: true,
             lineGapEm: 1.25,
         });
+
+        // APA 7th: Abstract is page 2 (required for professional papers,
+        // recommended for student papers)
+        const abstractPage = apaAbstractPageHtml(input.abstract, input.keywords);
 
         const bodyPage = [
             paragraphHtml(getTitle(input), {
@@ -40,6 +44,12 @@ export class APAFormatterService implements EssayFormatter {
                 content: titlePage,
                 textAlign: "center" as const,
                 centerVertically: true,
+                showPageNumber: true,
+                lineHeight: 2,
+            },
+            {
+                content: abstractPage,
+                textAlign: "left" as const,
                 showPageNumber: true,
                 lineHeight: 2,
             },

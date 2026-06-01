@@ -8,10 +8,13 @@ export interface FormatterInput {
     courseInfo?: string;
     subjectCode?: string;
     essayDate?: string;
+    abstract?: string;      // APA: abstract page content
+    keywords?: string;      // APA: keywords line below abstract
 }
 
 export interface FormatterProfile {
     defaultFont: string;
+    defaultFontSize?: number;   // pt — defaults to 12 if omitted
     lineHeight: number;
     marginInch: number;
     showPageNumber: boolean;

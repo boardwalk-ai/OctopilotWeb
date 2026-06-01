@@ -276,6 +276,7 @@ export default function FormatterEditorCore({
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
     const [textStyle, setTextStyle] = useState("p");
     const [fontFamily, setFontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    const [baseFontSizePt] = useState(formattedDoc.profile.defaultFontSize ?? 12);
     const [lineHeight] = useState(formattedDoc.profile.lineHeight || 1.5);
     const [zoom, setZoom] = useState(100);
     const [wordCount, setWordCount] = useState(0);
@@ -1831,7 +1832,7 @@ export default function FormatterEditorCore({
                                             className="min-h-0 w-full flex-1 overflow-hidden outline-none"
                                             style={{
                                                 fontFamily,
-                                                fontSize: `${12 * (zoom / 100)}pt`,
+                                                fontSize: `${baseFontSizePt * (zoom / 100)}pt`,
                                                 lineHeight: String(pageLineHeight),
                                                 color: "#1f1f1f",
                                                 whiteSpace: "pre-wrap",

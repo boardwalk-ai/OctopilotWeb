@@ -58,6 +58,7 @@ export class IEEEFormatterService implements EssayFormatter {
             pages,
             profile: {
                 defaultFont: "Times New Roman",
+                defaultFontSize: 10,
                 lineHeight: 1.15,
                 marginInch: 1,
                 showPageNumber: false,

@@ -175,6 +175,22 @@ export function referencesHtml(
     return `${heading}${body}`;
 }
 
+/**
+ * APA 7th edition abstract page.
+ * Shows placeholder text when abstract/keywords are empty so the user
+ * can type directly into the editor page.
+ */
+export function apaAbstractPageHtml(abstract?: string, keywords?: string): string {
+    const heading = `<p style="margin:0 0 1.6em 0;text-align:center;font-weight:700;">Abstract</p>`;
+    const body = abstract?.trim()
+        ? `<p style="margin:0 0 1.2em 0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
+        : `<p style="margin:0 0 1.2em 0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;
+    const kwLine = keywords?.trim()
+        ? `<p style="margin:0;text-align:left;"><em>Keywords:</em> ${escapeHtml(keywords.trim())}</p>`
+        : `<p style="margin:0;text-align:left;color:#9ca3af;"><em>Keywords:</em> keyword1, keyword2, keyword3</p>`;
+    return `${heading}${body}${kwLine}`;
+}
+
 export function appendBibliography(sectionTitle: string, bibliography?: string): string {
     const bib = normalizeText(bibliography || "");
     if (!bib) return "";
