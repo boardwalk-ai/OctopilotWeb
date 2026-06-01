@@ -426,12 +426,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Format style ── */
   const [formatStyle, setFormatStyle] = useState<FormatStyleId>("mla");
 
-  /* ── Humanizer panel config ── */
+  /* ── Humanizer panel ── */
   const [humProvider, setHumProvider] = useState<"StealthGPT" | "UndetectableAI">("StealthGPT");
   const [stealthRephrase, setStealthRephrase] = useState(false);
   const [uaiReadability, setUaiReadability] = useState("University");
   const [uaiPurpose, setUaiPurpose] = useState("Essay");
   const [uaiStrength, setUaiStrength] = useState("More Human");
+  const [humInput, setHumInput] = useState("");
+  const [humOutput, setHumOutput] = useState("");
+  const [humPanelLoading, setHumPanelLoading] = useState(false);
+  const [humPanelError, setHumPanelError] = useState<string | null>(null);
+  const [humCopied, setHumCopied] = useState(false);
 
   /* ── Citation state ── */
   const [rightOpen, setRightOpen] = useState(true);
@@ -1297,33 +1302,40 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally { setLoginLoading(false); }
   }, [loginEmail, loginPassword, humanizePhase, handleStandaloneHumanizeGate]);
 
-  /* ── Humanize: triggered from left panel ── */
+  /* ── Humanize: standalone panel tool (input → output) ── */
   const handlePanelHumanize = useCallback(async () => {
-    if (!editorActive) { showToast("Format your document first."); return; }
-    const snapshot = getSnapshotRef.current?.();
-    if (!snapshot) { showToast("Editor not ready."); return; }
-    const opts = {
-      rephrase: stealthRephrase,
-      readability: uaiReadability,
-      purpose: uaiPurpose,
-      strength: uaiStrength,
-    };
-    if (IS_STANDALONE) {
-      const user = AuthService.getCurrentUser();
-      if (!user) { setHumanizePhase({ kind: "login_required", snapshot }); return; }
-      const essayText = snapshot.pages.map((p) => p.plainText ?? "").join("\n\n").trim();
-      const wc = countWordsRaw(essayText);
-      const required = CreditService.creditsFromWords(wc);
-      try {
-        await CreditService.ensureSufficientHumanizerCreditsForWords(wc);
-      } catch {
-        const available = (await CreditService.getAvailableCredits()).humanizer;
-        setHumanizePhase({ kind: "insufficient_credits", required, available, snapshot });
-        return;
+    const text = humInput.trim();
+    if (!text) { showToast("Enter text to humanize."); return; }
+    setHumPanelLoading(true);
+    setHumPanelError(null);
+    setHumOutput("");
+    try {
+      if (humProvider === "StealthGPT") {
+        const res = await fetchWithUserAuthorization("/api/humanize/stealthgpt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: text, rephrase: stealthRephrase }),
+        });
+        const data = (await res.json()) as { result?: string; error?: string };
+        if (!res.ok || !data.result) throw new Error(data.error ?? "StealthGPT returned empty result.");
+        setHumOutput(data.result.trim());
+      } else {
+        const res = await fetchWithUserAuthorization("/api/humanize/undetectable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text, readability: uaiReadability, purpose: uaiPurpose, strength: uaiStrength }),
+        });
+        const data = (await res.json()) as { result?: string; output?: string; error?: string };
+        const result = data.result ?? data.output ?? "";
+        if (!res.ok || !result) throw new Error(data.error ?? "UndetectableAI returned empty result.");
+        setHumOutput(result.trim());
       }
+    } catch (e) {
+      setHumPanelError(e instanceof Error ? e.message : "Humanization failed.");
+    } finally {
+      setHumPanelLoading(false);
     }
-    void handleHumanize(humProvider, snapshot, opts);
-  }, [editorActive, humProvider, stealthRephrase, uaiReadability, uaiPurpose, uaiStrength, handleHumanize, showToast]);
+  }, [humInput, humProvider, stealthRephrase, uaiReadability, uaiPurpose, uaiStrength, showToast]);
 
   /* ── Parse status ── */
   function renderParseStatus() {
@@ -1521,6 +1533,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
               {/* ════ 1. HUMANIZER ════ */}
               <div className="border-b border-[#2a2f38] px-3 py-2.5">
+
+                {/* Header */}
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Humanizer</p>
                   {humanizerCredits !== null && (
@@ -1528,13 +1542,22 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   )}
                 </div>
 
+                {/* Input box */}
+                <textarea
+                  value={humInput}
+                  onChange={(e) => { setHumInput(e.target.value); setHumOutput(""); setHumPanelError(null); }}
+                  placeholder="Paste or type text to humanize…"
+                  rows={5}
+                  className="w-full resize-none rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[11px] leading-relaxed text-[#cbd5e1] placeholder-[#374151] outline-none transition focus:border-[#ea4335]/40 focus:ring-1 focus:ring-[#ea4335]/20"
+                />
+
                 {/* Provider toggle */}
-                <div className="mb-2.5 flex rounded-full bg-[#1a1f28] p-[3px]">
+                <div className="my-2 flex rounded-full bg-[#1a1f28] p-[3px]">
                   {(["StealthGPT", "UndetectableAI"] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setHumProvider(p)}
+                      onClick={() => { setHumProvider(p); setHumOutput(""); setHumPanelError(null); }}
                       className={`flex-1 rounded-full py-1 text-[10px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[#64748b] hover:text-[#94a3b8]"}`}
                     >
                       {p === "StealthGPT" ? "StealthGPT" : "Undetectable"}
@@ -1556,7 +1579,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5">
-                    {/* Readability */}
                     <div>
                       <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Readability</p>
                       <div className="flex flex-wrap gap-1">
@@ -1567,7 +1589,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         ))}
                       </div>
                     </div>
-                    {/* Purpose */}
                     <div>
                       <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Purpose</p>
                       <div className="flex flex-wrap gap-1">
@@ -1578,7 +1599,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         ))}
                       </div>
                     </div>
-                    {/* Strength */}
                     <div>
                       <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[#4b5563]">Strength</p>
                       <div className="flex flex-wrap gap-1">
@@ -1596,21 +1616,56 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <button
                   type="button"
                   onClick={() => void handlePanelHumanize()}
-                  disabled={!editorActive || humanizePhase.kind === "humanizing"}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#1e252f] py-2 text-[12px] font-semibold text-[#94a3b8] ring-1 ring-[#2a2f38] transition hover:bg-[#252c38] hover:text-[#e2e8f0] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={humPanelLoading || !humInput.trim()}
+                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {humanizePhase.kind === "humanizing" ? (
+                  {humPanelLoading ? (
                     <>
-                      <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                      <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
                       Humanizing…
                     </>
                   ) : (
                     <>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10"/><path d="M12 8v4l3 3"/></svg>
-                      Humanize Document
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      Humanize
                     </>
                   )}
                 </button>
+
+                {/* Error */}
+                {humPanelError && (
+                  <p className="mt-2 rounded-xl bg-[#2a1010] px-3 py-2 text-[10.5px] text-[#f87171]">{humPanelError}</p>
+                )}
+
+                {/* Output box */}
+                {humOutput && (
+                  <div className="mt-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-[9px] font-semibold uppercase tracking-wide text-[#4b5563]">Result</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(humOutput);
+                          setHumCopied(true);
+                          setTimeout(() => setHumCopied(false), 2000);
+                        }}
+                        className="flex items-center gap-1 rounded-full bg-[#1a1f28] px-2 py-[3px] text-[9.5px] font-medium text-[#64748b] transition hover:text-[#e2e8f0] active:scale-95"
+                      >
+                        {humCopied ? (
+                          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg><span className="text-[#4ade80]">Copied</span></>
+                        ) : (
+                          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</>
+                        )}
+                      </button>
+                    </div>
+                    <textarea
+                      readOnly
+                      value={humOutput}
+                      rows={6}
+                      className="w-full resize-none rounded-xl border border-[#2a2f38] bg-[#0a0d11] px-3 py-2 text-[11px] leading-relaxed text-[#94a3b8] outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* ════ 3. OCTO THE BOT ════ */}
