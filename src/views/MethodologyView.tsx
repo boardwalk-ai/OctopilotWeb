@@ -595,7 +595,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
                   </div>
                   <div className={`flex-1 pr-6 ${styles.methodologyCopy}`}>
                     <div className="mb-2 flex items-center gap-2">
-                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Formatter Tool</h2>
+                      <h2 className={`text-xl font-bold text-white ${styles.methodologyCardTitle}`}>Doc Oct</h2>
                       <span className="rounded-full border border-red-500/30 bg-red-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-red-300">
                         Beta
                       </span>

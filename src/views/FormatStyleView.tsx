@@ -67,7 +67,7 @@ export default function FormatStyleView({
         </button>
         <div className={styles.badge}>
           <span className={styles.badgeDot} />
-          Formatter Tool
+          Doc Oct
         </div>
       </div>
 

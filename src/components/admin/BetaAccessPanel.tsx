@@ -24,7 +24,7 @@ type BetaAccessPanelProps = {
 const FEATURE_LABELS: Record<BetaFeatureKey, string> = {
   octopilotSlides: "OctopilotSlides",
   humanizerHub: "Humanizer Hub",
-  ghostCiter: "Formatter Tool",
+  ghostCiter: "Doc Oct",
 };
 
 const DEFAULT_FEATURES: BetaFeatureKey[] = ["octopilotSlides", "humanizerHub", "ghostCiter"];

@@ -256,7 +256,7 @@ export default function FormatterToolView({ onBack, onContinue }: FormatterToolV
         </button>
         <div className={styles.badge}>
           <span className={styles.badgeDot} />
-          Formatter Tool
+          Doc Oct
         </div>
       </div>
 

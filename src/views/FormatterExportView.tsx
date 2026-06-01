@@ -215,7 +215,7 @@ export default function FormatterExportView({
         </button>
         <div className={styles.badge}>
           <span className={styles.badgeDot} />
-          Formatter Tool
+          Doc Oct
         </div>
       </div>
 

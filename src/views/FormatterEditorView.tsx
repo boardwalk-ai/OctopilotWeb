@@ -1439,7 +1439,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   }}>{char}</span>
                 ))}
               </span>
-              <span style={{ fontSize: '14px' }} className="text-[#e2e8f0]"> Formatter Tool</span>
+              <span style={{ fontSize: '14px' }} className="text-[#e2e8f0]"> Doc Oct</span>
             </span>
           </div>
         </div>

@@ -872,7 +872,7 @@ export default function GhostciterDashboardView({ onBack, onContinue }: Ghostcit
 
         <div className={styles.navBadge}>
           <span className={styles.navBadgeDot} />
-          Formatter Tool
+          Doc Oct
         </div>
 
         <div className={styles.navSpacer} />
