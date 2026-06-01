@@ -148,6 +148,8 @@ export function referencesHtml(
         numbered?: boolean;
         hangingIndent?: boolean;
         headingBold?: boolean;
+        /** Always render the page even when bibliography is empty */
+        alwaysShow?: boolean;
     }
 ): string {
     const entries = normalizeText(bibliography || "")
@@ -169,17 +171,19 @@ export function referencesHtml(
         if (headingAliases.has(first)) entries.shift();
     }
 
-    if (!entries.length) return "";
+    if (!entries.length && !opts?.alwaysShow) return "";
 
     const heading = `<p data-keep-with-next="1" data-reference-heading="1" style="margin:0 0 1.8em 0;text-align:center;${opts?.headingBold ? "font-weight:700;" : ""}">${escapeHtml(title)}</p>`;
 
-    const body = entries
-        .map((entry, index) => {
-            const numbered = opts?.numbered ? `[${index + 1}] ${entry.replace(/^\[\d+\]\s*/, "")}` : entry;
-            const hanging = opts?.hangingIndent !== false ? "padding-left:0.5in;text-indent:-0.5in;" : "";
-            return `<p style="margin:0 0 1em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
-        })
-        .join("");
+    const body = entries.length
+        ? entries
+              .map((entry, index) => {
+                  const numbered = opts?.numbered ? `[${index + 1}] ${entry.replace(/^\[\d+\]\s*/, "")}` : entry;
+                  const hanging = opts?.hangingIndent !== false ? "padding-left:0.5in;text-indent:-0.5in;" : "";
+                  return `<p style="margin:0 0 1em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
+              })
+              .join("")
+        : `<p style="margin:0;color:#9ca3af;">Add your references here.</p>`;
 
     return `${heading}${body}`;
 }

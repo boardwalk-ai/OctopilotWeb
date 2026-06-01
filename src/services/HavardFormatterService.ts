@@ -34,6 +34,7 @@ export class HavardFormatterService implements EssayFormatter {
         const referencesPage = referencesHtml("Reference List", input.bibliography, {
             headingBold: true,
             hangingIndent: true,
+            alwaysShow: true,
         });
 
         const pages = [
@@ -50,12 +51,12 @@ export class HavardFormatterService implements EssayFormatter {
                 showPageNumber: true,
                 lineHeight: 1.5,
             },
-            ...(referencesPage ? [{
+            {
                 content: referencesPage,
                 textAlign: "left" as const,
                 showPageNumber: true,
                 lineHeight: 1.5,
-            }] : []),
+            },
         ];
 
         return {

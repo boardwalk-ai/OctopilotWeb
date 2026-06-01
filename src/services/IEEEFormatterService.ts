@@ -36,6 +36,7 @@ export class IEEEFormatterService implements EssayFormatter {
             numbered: true,
             headingBold: true,
             hangingIndent: false,
+            alwaysShow: true,
         });
 
         const pages = [
@@ -45,12 +46,12 @@ export class IEEEFormatterService implements EssayFormatter {
                 showPageNumber: false,
                 lineHeight: 1.15,
             },
-            ...(referencesPage ? [{
+            {
                 content: referencesPage,
                 textAlign: "left" as const,
                 showPageNumber: false,
                 lineHeight: 1.15,
-            }] : []),
+            },
         ];
 
         return {

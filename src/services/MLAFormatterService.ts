@@ -29,6 +29,7 @@ export class MLAFormatterService implements EssayFormatter {
         const worksCitedPage = referencesHtml("Works Cited", input.bibliography, {
             headingBold: false,
             hangingIndent: true,
+            alwaysShow: true,
         });
         const lastName = getLastName(input.studentName);
 
@@ -39,12 +40,12 @@ export class MLAFormatterService implements EssayFormatter {
                 showPageNumber: true,
                 lineHeight: 2,
             },
-            ...(worksCitedPage ? [{
+            {
                 content: worksCitedPage,
                 textAlign: "left" as const,
                 showPageNumber: true,
                 lineHeight: 2,
-            }] : []),
+            },
         ];
 
         return {

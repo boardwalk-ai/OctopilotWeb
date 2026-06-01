@@ -39,6 +39,7 @@ export class APAFormatterService implements EssayFormatter {
         const referencesPage = referencesHtml("References", input.bibliography, {
             headingBold: true,
             hangingIndent: true,
+            alwaysShow: true,
         });
 
         const pages = [
@@ -61,12 +62,12 @@ export class APAFormatterService implements EssayFormatter {
                 showPageNumber: true,
                 lineHeight: 2,
             },
-            ...(referencesPage ? [{
+            {
                 content: referencesPage,
                 textAlign: "left" as const,
                 showPageNumber: true,
                 lineHeight: 2,
-            }] : []),
+            },
         ];
 
         return {

@@ -24,6 +24,7 @@ export class ChicagoFormatterService implements EssayFormatter {
         const bibliographyPage = referencesHtml("Bibliography", input.bibliography, {
             headingBold: false,
             hangingIndent: true,
+            alwaysShow: true,
         });
 
         const pages = [
@@ -40,12 +41,12 @@ export class ChicagoFormatterService implements EssayFormatter {
                 showPageNumber: true,
                 lineHeight: 2,
             },
-            ...(bibliographyPage ? [{
+            {
                 content: bibliographyPage,
                 textAlign: "left" as const,
                 showPageNumber: true,
                 lineHeight: 2,
-            }] : []),
+            },
         ];
 
         return {
