@@ -149,7 +149,7 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
         <div
           key={i}
           className="rounded-[10px] border border-[#ea4335]/30 bg-[#0f1115] px-2.5 py-2"
-          style={{ animation: `chat-msg-in 0.28s ease-out ${0.12 + i * 0.09}s both` }}
+          style={{ animation: `chat-msg-in 0.42s ease-out ${0.18 + i * 0.13}s both` }}
         >
           <div className="flex items-center gap-1.5">
             <span className="text-[14px] leading-none">{s.icon}</span>
@@ -186,7 +186,7 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
       style={{
         border: `1px solid ${color}35`,
         background: "#0f1218",
-        animation: `dict-in 0.25s ease-out ${index * 0.07}s both`,
+        animation: `dict-in 0.38s ease-out ${index * 0.10}s both`,
       }}
     >
       {/* Left color strip */}
@@ -548,7 +548,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       if (opts?.topic !== undefined) setOnboardingTopic(opts.topic);
       setViewState(next);
       setViewExiting(false);
-    }, 320);
+    }, 480);
   }, []);
 
   /* ── Draft save ── */
@@ -1440,7 +1440,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 100% { color: #ff2200; transform: scale(1); }
               }
               @keyframes cit-card-in {
-                from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+                from { opacity: 0; transform: translateY(-10px) scale(0.97); }
                 to   { opacity: 1; transform: translateY(0) scale(1); }
               }
               @keyframes shutter-top {
@@ -1452,19 +1452,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 100% { transform: translateY(100%); }
               }
               @keyframes editor-enter {
-                from { opacity: 0; transform: translateY(16px) scale(0.985); }
+                from { opacity: 0; transform: translateY(22px) scale(0.982); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);     }
               }
               @keyframes chat-msg-in {
-                from { opacity: 0; transform: translateY(8px) scale(0.96); }
-                to   { opacity: 1; transform: translateY(0)   scale(1);    }
+                from { opacity: 0; transform: translateY(10px) scale(0.96); }
+                to   { opacity: 1; transform: translateY(0)    scale(1);    }
               }
               @keyframes typing-bounce {
                 0%, 60%, 100% { transform: translateY(0); }
-                30%           { transform: translateY(-4px); }
+                30%           { transform: translateY(-5px); }
               }
               @keyframes dict-in {
-                from { opacity: 0; transform: translateY(12px) scale(0.98); }
+                from { opacity: 0; transform: translateY(16px) scale(0.97); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);    }
               }
               @keyframes chip-pop {
@@ -1566,7 +1566,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         {/* LEFT PANEL */}
         <div
-          className="relative flex flex-shrink-0 flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c] transition-[width] duration-300"
+          className="relative flex flex-shrink-0 flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c] transition-[width] duration-500"
           style={{ width: leftOpen ? 260 : 0 }}
         >
           <div className={`flex h-full min-h-0 w-[260px] flex-col transition-opacity duration-200 ${leftOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
@@ -1861,18 +1861,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
 
                 {/* Headline */}
-                <h1 className="ob-item mb-3 text-[32px] font-bold leading-[1.15] tracking-tight text-white" style={{ animationDelay: "60ms" }}>
+                <h1 className="ob-item mb-3 text-[32px] font-bold leading-[1.15] tracking-tight text-white" style={{ animationDelay: "90ms" }}>
                   Write with precision.<br />
                   <span className="text-[#ea4335]">Cite with confidence.</span>
                 </h1>
 
                 {/* Subtext */}
-                <p className="ob-item mb-10 text-[14px] leading-relaxed text-[#64748b]" style={{ animationDelay: "120ms" }}>
+                <p className="ob-item mb-10 text-[14px] leading-relaxed text-[#64748b]" style={{ animationDelay: "180ms" }}>
                   Format your academic essays to exact style guidelines — MLA, APA, Chicago, IEEE, Harvard — every margin, indent, and citation handled automatically.
                 </p>
 
                 {/* CTA buttons */}
-                <div className="ob-item flex flex-col gap-3" style={{ animationDelay: "200ms" }}>
+                <div className="ob-item flex flex-col gap-3" style={{ animationDelay: "290ms" }}>
                   {/* Primary — Specify Now */}
                   <button
                     type="button"
@@ -1914,15 +1914,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </button>
 
                 {/* Heading */}
-                <h2 className="ob-item mb-1.5 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "40ms" }}>
+                <h2 className="ob-item mb-1.5 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "60ms" }}>
                   Let's set up your paper.
                 </h2>
-                <p className="ob-item mb-8 text-[13px] text-[#4b5563]" style={{ animationDelay: "80ms" }}>
+                <p className="ob-item mb-8 text-[13px] text-[#4b5563]" style={{ animationDelay: "130ms" }}>
                   Tell us the topic and format — we'll tailor everything for you.
                 </p>
 
                 {/* Essay topic */}
-                <div className="ob-item mb-5" style={{ animationDelay: "120ms" }}>
+                <div className="ob-item mb-5" style={{ animationDelay: "200ms" }}>
                   <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#4b5563]">Essay topic or title</label>
                   <input
                     type="text"
@@ -1934,7 +1934,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
 
                 {/* Citation format */}
-                <div className="ob-item mb-8" style={{ animationDelay: "160ms" }}>
+                <div className="ob-item mb-8" style={{ animationDelay: "270ms" }}>
                   <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-[#4b5563]">Citation format</label>
                   <div className="flex flex-wrap gap-2">
                     {FORMAT_STYLES.map((s) => (
@@ -1955,7 +1955,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
 
                 {/* Open editor */}
-                <div className="ob-item" style={{ animationDelay: "220ms" }}>
+                <div className="ob-item" style={{ animationDelay: "360ms" }}>
                   <button
                     type="button"
                     onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
@@ -2011,7 +2011,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         {/* RIGHT PANEL */}
         <div
-          className="flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c] transition-[width] duration-300"
+          className="flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c] transition-[width] duration-500"
           style={{ width: rightOpen ? 272 : 0 }}
         >
           <div className={`flex h-full min-h-0 w-[272px] flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
@@ -2086,7 +2086,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Scraped metadata + format picker */}
                   {citPhase.kind === "awaiting_format" && (
-                    <div className="mt-2 rounded-[16px] border border-[#2a2f38] bg-[#161b23] p-3" style={{ animation: 'cit-card-in 0.22s ease-out' }}>
+                    <div className="mt-2 rounded-[16px] border border-[#2a2f38] bg-[#161b23] p-3" style={{ animation: 'cit-card-in 0.34s ease-out' }}>
                       <div className="mb-2.5 flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           {citPhase.meta.title && <p className="truncate text-[11px] font-medium text-[#e2e8f0]">{citPhase.meta.title}</p>}
@@ -3109,12 +3109,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         <div className="pointer-events-none fixed inset-0 z-[200] overflow-hidden">
           <div
             className="absolute left-0 right-0 top-0 h-1/2 bg-[#0a0d11]"
-            style={{ animation: 'shutter-top 0.72s cubic-bezier(0.76, 0, 0.24, 1) 0.12s both' }}
+            style={{ animation: 'shutter-top 1.05s cubic-bezier(0.76, 0, 0.24, 1) 0.18s both' }}
             onAnimationEnd={() => setShutterDone(true)}
           />
           <div
             className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#0a0d11]"
-            style={{ animation: 'shutter-bottom 0.72s cubic-bezier(0.76, 0, 0.24, 1) 0.12s both' }}
+            style={{ animation: 'shutter-bottom 1.05s cubic-bezier(0.76, 0, 0.24, 1) 0.18s both' }}
           />
         </div>
       )}
