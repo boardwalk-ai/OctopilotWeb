@@ -168,3 +168,33 @@ body {
     transform: translateX(0);
   }
 }
+
+/* ── Doc Oct onboarding cinematic transitions ───────────────────── */
+@keyframes cinematic-exit {
+  0%   { clip-path: inset(0% 0 0% 0 round 0px); opacity: 1; transform: scale(1); }
+  100% { clip-path: inset(49% 0 49% 0 round 2px); opacity: 0; transform: scale(0.98); }
+}
+
+@keyframes cinematic-enter {
+  0%   { clip-path: inset(49% 0 49% 0 round 2px); opacity: 0; transform: scale(1.01); }
+  100% { clip-path: inset(0% 0 0% 0 round 0px); opacity: 1; transform: scale(1); }
+}
+
+.cinematic-exit {
+  animation: cinematic-exit 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+  pointer-events: none;
+}
+
+.cinematic-enter {
+  animation: cinematic-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* onboarding stagger items */
+@keyframes ob-item-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ob-item {
+  animation: ob-item-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

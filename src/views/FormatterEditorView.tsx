@@ -428,7 +428,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Format style ── */
   const [formatStyle, setFormatStyle] = useState<FormatStyleId>("mla");
 
-  /* ── Humanizer panel ── */
+  /* ── Paraphraser panel ── */
   const [humProvider, setHumProvider] = useState<"StealthGPT" | "UndetectableAI">("StealthGPT");
   const [stealthRephrase, setStealthRephrase] = useState(false);
   const [uaiReadability, setUaiReadability] = useState("University");
@@ -439,6 +439,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [humPanelLoading, setHumPanelLoading] = useState(false);
   const [humPanelError, setHumPanelError] = useState<string | null>(null);
   const [humCopied, setHumCopied] = useState(false);
+
+  /* ── Onboarding flow ── */
+  const [viewState, setViewState] = useState<"welcome" | "setup" | "editor">("welcome");
+  const [viewExiting, setViewExiting] = useState(false);
+  const [onboardingTopic, setOnboardingTopic] = useState("");
+  const [onboardingFormat, setOnboardingFormat] = useState<FormatStyleId>("mla");
 
   /* ── Citation state ── */
   const [rightOpen, setRightOpen] = useState(true);
@@ -529,6 +535,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setToast(msg);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 2800);
+  }, []);
+
+  /* ── Onboarding: cinematic transition ── */
+  const transitionTo = useCallback((next: "welcome" | "setup" | "editor", opts?: { topic?: string; style?: FormatStyleId }) => {
+    setViewExiting(true);
+    setTimeout(() => {
+      if (opts?.style) {
+        setFormatStyle(opts.style);
+        setCoreSnapshot((prev) => ({ ...prev, formatStyle: opts.style! }));
+      }
+      if (opts?.topic !== undefined) setOnboardingTopic(opts.topic);
+      setViewState(next);
+      setViewExiting(false);
+    }, 320);
   }, []);
 
   /* ── Draft save ── */
@@ -1561,12 +1581,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             {/* ── Single scrollable column ── */}
             <div className="min-h-0 flex-1 overflow-y-auto">
 
-              {/* ════ 1. HUMANIZER ════ */}
+              {/* ════ 1. PARAPHRASER ════ */}
               <div className="border-b border-[#2a2f38] px-3 py-2.5">
 
                 {/* Header */}
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Humanizer</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#4b5563]">Paraphraser</p>
                   {humanizerCredits !== null && (
                     <span className="rounded-full bg-[#1a1f28] px-2 py-0.5 text-[9px] text-[#64748b]">{humanizerCredits} cr</span>
                   )}
@@ -1817,34 +1837,164 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </button>
         )}
 
-        {/* CENTER: editor (always mounted; empty until Format Document is clicked) */}
-        <div className="min-w-0 flex-1">
-          <div
-            key={editorKey}
-            className="h-full"
-            style={editorActive ? { animation: 'editor-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both' } : undefined}
-          >
-            <FormatterEditorCore
-              content={coreSnapshot.content}
-              bibliography={coreSnapshot.bibliography}
-              initialDocTitle={coreSnapshot.initialDocTitle}
-              studentName={coreSnapshot.studentName}
-              instructorName={coreSnapshot.instructorName}
-              institutionName={coreSnapshot.institutionName}
-              courseInfo={coreSnapshot.courseInfo}
-              subjectCode={coreSnapshot.subjectCode}
-              essayDate={coreSnapshot.essayDate}
-              formatStyle={formatStyle}
-              onReformat={(id) => applyDocumentWithStyle(id)}
-              canReformat={true}
-              getSnapshotRef={getSnapshotRef}
-              onBack={onBack}
-              onFinish={onFinish ? handleCoreFinish : undefined}
-              insertBibEntryRef={insertBibEntryRef}
-              abstract={coreSnapshot.abstract}
-              keywords={coreSnapshot.keywords}
-            />
-          </div>
+        {/* CENTER: onboarding panels or editor */}
+        <div className="relative min-w-0 flex-1 overflow-hidden bg-[#0b0e13]">
+
+          {/* ── WELCOME PANEL ── */}
+          {viewState === "welcome" && (
+            <div className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+              {/* Subtle background grid */}
+              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+              {/* Red glow top-left */}
+              <div className="pointer-events-none absolute -left-20 -top-20 h-80 w-80 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(40px)" }} />
+              {/* Red glow bottom-right */}
+              <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #7f1d1d 0%, transparent 70%)", filter: "blur(50px)" }} />
+
+              <div className="relative z-10 w-full max-w-md">
+                {/* Logo mark */}
+                <div className="ob-item mb-8 flex items-center gap-3" style={{ animationDelay: "0ms" }}>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ea4335]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="white" opacity="0.9"/><path d="M7 8h10M7 12h7M7 16h10" stroke="#ea4335" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                  </div>
+                  <span className="text-[13px] font-semibold tracking-[0.12em] text-[#94a3b8] uppercase">Doc Oct</span>
+                </div>
+
+                {/* Headline */}
+                <h1 className="ob-item mb-3 text-[32px] font-bold leading-[1.15] tracking-tight text-white" style={{ animationDelay: "60ms" }}>
+                  Write with precision.<br />
+                  <span className="text-[#ea4335]">Cite with confidence.</span>
+                </h1>
+
+                {/* Subtext */}
+                <p className="ob-item mb-10 text-[14px] leading-relaxed text-[#64748b]" style={{ animationDelay: "120ms" }}>
+                  Format your academic essays to exact style guidelines — MLA, APA, Chicago, IEEE, Harvard — every margin, indent, and citation handled automatically.
+                </p>
+
+                {/* CTA buttons */}
+                <div className="ob-item flex flex-col gap-3" style={{ animationDelay: "200ms" }}>
+                  {/* Primary — Specify Now */}
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("setup")}
+                    className="group relative overflow-hidden rounded-2xl bg-[#ea4335] px-6 py-4 text-left transition hover:bg-[#dc2626] active:scale-[0.98]"
+                  >
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+                    <p className="text-[14px] font-semibold text-white">Specify my topic now</p>
+                    <p className="mt-0.5 text-[11px] text-white/60">Access to premium features + search functionality</p>
+                  </button>
+
+                  {/* Secondary — Start Writing */}
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("editor")}
+                    className="rounded-2xl border border-[#2a2f38] bg-[#0f1218] px-6 py-4 text-left transition hover:border-[#3a4150] hover:bg-[#13161c] active:scale-[0.98]"
+                  >
+                    <p className="text-[14px] font-medium text-[#94a3b8]">Start writing first</p>
+                    <p className="mt-0.5 text-[11px] text-[#374151]">Disposable session</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── SETUP PANEL ── */}
+          {viewState === "setup" && (
+            <div className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+              <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(50px)" }} />
+
+              <div className="relative z-10 w-full max-w-md">
+                {/* Back */}
+                <button type="button" onClick={() => transitionTo("welcome")}
+                  className="ob-item mb-6 flex items-center gap-1.5 text-[12px] text-[#4b5563] transition hover:text-[#94a3b8]" style={{ animationDelay: "0ms" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+
+                {/* Heading */}
+                <h2 className="ob-item mb-1.5 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "40ms" }}>
+                  Let's set up your paper.
+                </h2>
+                <p className="ob-item mb-8 text-[13px] text-[#4b5563]" style={{ animationDelay: "80ms" }}>
+                  Tell us the topic and format — we'll tailor everything for you.
+                </p>
+
+                {/* Essay topic */}
+                <div className="ob-item mb-5" style={{ animationDelay: "120ms" }}>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#4b5563]">Essay topic or title</label>
+                  <input
+                    type="text"
+                    value={onboardingTopic}
+                    onChange={(e) => setOnboardingTopic(e.target.value)}
+                    placeholder="e.g. The impact of social media on mental health"
+                    className="w-full rounded-xl border border-[#2a2f38] bg-[#0f1218] px-4 py-3 text-[13px] text-[#e2e8f0] placeholder-[#374151] outline-none transition focus:border-[#ea4335]/50 focus:ring-1 focus:ring-[#ea4335]/20"
+                  />
+                </div>
+
+                {/* Citation format */}
+                <div className="ob-item mb-8" style={{ animationDelay: "160ms" }}>
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-[#4b5563]">Citation format</label>
+                  <div className="flex flex-wrap gap-2">
+                    {FORMAT_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setOnboardingFormat(s.id)}
+                        className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12px] font-medium transition active:scale-[0.96]"
+                        style={onboardingFormat === s.id
+                          ? { background: `${s.color}18`, borderColor: s.color, color: s.color }
+                          : { background: "#0f1218", borderColor: "#2a2f38", color: "#64748b" }}
+                      >
+                        <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
+                        {s.label.split(" (")[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Open editor */}
+                <div className="ob-item" style={{ animationDelay: "220ms" }}>
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ea4335] py-3.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                  >
+                    Open Editor
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── EDITOR ── */}
+          {viewState === "editor" && (
+            <div
+              key={editorKey}
+              className={`h-full ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}
+            >
+              <FormatterEditorCore
+                content={coreSnapshot.content}
+                bibliography={coreSnapshot.bibliography}
+                initialDocTitle={onboardingTopic || coreSnapshot.initialDocTitle}
+                studentName={coreSnapshot.studentName}
+                instructorName={coreSnapshot.instructorName}
+                institutionName={coreSnapshot.institutionName}
+                courseInfo={coreSnapshot.courseInfo}
+                subjectCode={coreSnapshot.subjectCode}
+                essayDate={coreSnapshot.essayDate}
+                formatStyle={formatStyle}
+                onReformat={(id) => applyDocumentWithStyle(id)}
+                canReformat={true}
+                getSnapshotRef={getSnapshotRef}
+                onBack={onBack}
+                onFinish={onFinish ? handleCoreFinish : undefined}
+                insertBibEntryRef={insertBibEntryRef}
+              />
+            </div>
+          )}
         </div>
 
         {/* Right re-open tab */}
