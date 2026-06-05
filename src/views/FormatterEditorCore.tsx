@@ -292,8 +292,8 @@ export default function FormatterEditorCore({
     // Tracks which style pill the user has selected in the toolbar
     const [selectedStyle, setSelectedStyle] = useState<FormatStyleId>(formatStyle);
 
-    // Grammar check
-    const [grammarOn, setGrammarOn] = useState(false);
+    // Grammar check — always on, no toggle
+    const grammarOn = true;
     const [grammarLoading, setGrammarLoading] = useState(false);
     const [grammarTip, setGrammarTip] = useState<{ x: number; y: number; msg: string; fix: string } | null>(null);
     const grammarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1193,16 +1193,11 @@ export default function FormatterEditorCore({
         return () => { getSnapshotRef.current = null; };
     }, [getSnapshotRef, buildExportSnapshot]);
 
-    // Grammar toggle: off → clear all spans; on → check active page immediately
+    // Grammar check runs automatically on mount for the active page
     useEffect(() => {
-        if (!grammarOn) {
-            if (grammarTimerRef.current) clearTimeout(grammarTimerRef.current);
-            clearAllGrammarSpans();
-        } else {
-            void runGrammarCheck(activePageId);
-        }
+        void runGrammarCheck(activePageId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [grammarOn]);
+    }, []);
 
     useEffect(() => {
         updateStats();
@@ -1799,22 +1794,12 @@ export default function FormatterEditorCore({
                 <TbSep />
 
                 <TbIcon title="Clear formatting" onClick={() => execCommand("removeFormat")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7 21 4-9" /><path d="M3 3h12l-3 7" /><line x1="1" y1="1" x2="23" y2="23" /></svg></TbIcon>
-                <TbSep />
-                {/* Grammar Check toggle */}
-                <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setGrammarOn(v => !v)}
-                    title={grammarOn ? "Grammar check on (click to turn off)" : "Turn on grammar check"}
-                    className={`relative flex h-[30px] items-center gap-1.5 rounded-[6px] px-2 text-[11px] font-semibold transition ${grammarOn ? "bg-[#ef4444]/15 text-[#f87171]" : "text-white/60 hover:bg-[#2b313a] hover:text-white/85"}`}
-                >
-                    {grammarLoading
-                        ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
-                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m7 15 2-2 2 2 4-4"/></svg>
-                    }
-                    <span className="text-[10px]">Grammar</span>
-                    {grammarOn && <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />}
-                </button>
+                {/* Grammar loading indicator (always-on, no toggle) */}
+                {grammarLoading && (
+                    <div className="ml-1 flex items-center gap-1 text-[10px] text-[#64748b]">
+                        <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".2"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                    </div>
+                )}
             </div>
 
             <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#11151b]">
