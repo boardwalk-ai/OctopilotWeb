@@ -1054,19 +1054,15 @@ export default function FormatterEditorCore({
         if (text.trim().length < 8) { removeGrammarSpans(el); return; }
         setGrammarLoading(true);
         try {
-            const res = await fetch("https://api.languagetoolplus.com/v2/check", {
+            const res = await fetch("/api/grammar/check", {
                 method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({
-                    text: text.slice(0, 5000),
-                    language: "en-US",
-                    disabledRules: "WHITESPACE_RULE,EN_QUOTES,COMMA_PARENTHESIS_WHITESPACE,SENTENCE_WHITESPACE",
-                }).toString(),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text.slice(0, 5000), language: "en-US" }),
             });
             if (!res.ok) return;
-            const data = (await res.json()) as { matches: GMatch[] };
+            const data = (await res.json()) as { matches?: GMatch[] };
             // Filter out pure style suggestions — keep spelling + grammar
-            const relevant = data.matches.filter(m => m.rule.issueType !== "style");
+            const relevant = (data.matches ?? []).filter(m => m.rule.issueType !== "style");
             applyGrammarHighlights(el, relevant);
         } catch { /* network error — silently ignore */ }
         finally { setGrammarLoading(false); }
