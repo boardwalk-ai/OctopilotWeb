@@ -152,25 +152,67 @@ function removeGrammarSpans(el: HTMLElement): void {
     el.normalize();
 }
 
-function buildTextIndex(el: HTMLElement): Array<{ node: Text; start: number }> {
-    const result: Array<{ node: Text; start: number }> = [];
+// Block-level HTML tags — a newline is inserted between them so
+// LanguageTool sees proper sentence boundaries.
+const BLOCK_TAGS = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
+
+function getClosestBlock(node: Node, root: Element): Element | null {
+    let p = node.parentElement;
+    while (p && p !== root) {
+        if (BLOCK_TAGS.has(p.tagName)) return p;
+        p = p.parentElement;
+    }
+    return null;
+}
+
+/**
+ * Walk all text nodes and build:
+ *   - text : the string we send to LanguageTool (with \n between blocks)
+ *   - nodes: each text node with its start-offset in that string
+ *
+ * Using \n between block elements gives LanguageTool proper sentence
+ * context so it can catch subject-verb agreement errors etc.
+ */
+function buildTextAndIndex(el: HTMLElement): { text: string; nodes: Array<{ node: Text; start: number }> } {
+    const nodes: Array<{ node: Text; start: number }> = [];
+    const parts: string[] = [];
     let offset = 0;
+    let lastBlock: Element | null = null;
+
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode() as Text | null;
     while (node) {
-        result.push({ node, start: offset });
-        offset += node.textContent?.length ?? 0;
+        const content = node.textContent ?? "";
+        if (!content) { node = walker.nextNode() as Text | null; continue; }
+
+        const block = getClosestBlock(node, el);
+        if (lastBlock !== null && block !== lastBlock) {
+            // Crossed a block boundary — inject \n so LanguageTool sees a sentence break
+            parts.push("\n");
+            offset += 1;
+        }
+
+        nodes.push({ node, start: offset });
+        parts.push(content);
+        offset += content.length;
+        lastBlock = block;
         node = walker.nextNode() as Text | null;
     }
-    return result;
+
+    return { text: parts.join(""), nodes };
+}
+
+// Keep the old name as an alias so applyGrammarHighlights can use it
+function buildTextIndex(el: HTMLElement): Array<{ node: Text; start: number }> {
+    return buildTextAndIndex(el).nodes;
 }
 
 function applyGrammarHighlights(el: HTMLElement, matches: GMatch[]): void {
     removeGrammarSpans(el);
     if (!matches.length) return;
-    // Build index ONCE before any mutations
-    const index = buildTextIndex(el);
-    const total = index.reduce((s, t) => s + (t.node.textContent?.length ?? 0), 0);
+    // Use the SAME text-with-newlines index so offsets match what was sent to the API
+    const { text: fullText, nodes: index } = buildTextAndIndex(el);
+    const total = fullText.length;
     // Process highest offsets first so earlier offsets stay valid
     const sorted = [...matches].sort((a, b) => b.offset - a.offset);
     for (const m of sorted) {
@@ -1048,9 +1090,8 @@ export default function FormatterEditorCore({
     const runGrammarCheck = useCallback(async (pageId: number) => {
         const el = editorRefs.current[pageId];
         if (!el) return;
-        // Build raw text from text nodes (consistent with highlight offsets)
-        const idx = buildTextIndex(el);
-        const text = idx.map(t => t.node.textContent ?? "").join("");
+        // Build text WITH block-boundary newlines — must match offset index
+        const { text } = buildTextAndIndex(el);
         if (text.trim().length < 8) { removeGrammarSpans(el); return; }
         setGrammarLoading(true);
         try {
@@ -2027,23 +2068,32 @@ export default function FormatterEditorCore({
             </div>
 
             {/* ── Grammar tooltip ── */}
-            {grammarTip && (
-                <div
-                    className="pointer-events-none fixed z-[9999]"
-                    style={{ left: grammarTip.x + 14, top: grammarTip.y - 10 }}
-                >
-                    <div className="max-w-[260px] rounded-xl border border-[#ef4444]/30 bg-[#1a1e27] px-3 py-2 shadow-2xl shadow-black/60"
-                        style={{ animation: "dict-in 0.18s ease-out both" }}>
-                        <p className="text-[11.5px] leading-snug text-[#e2e8f0]">{grammarTip.msg}</p>
-                        {grammarTip.fix && (
-                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-[#4ade80]">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                                {grammarTip.fix}
-                            </p>
-                        )}
+            {grammarTip && (() => {
+                // Keep tooltip within viewport — flip up if near bottom
+                const TIP_W = 268;
+                const TIP_H = grammarTip.fix ? 68 : 44;
+                const GAP = 14;
+                const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
+                const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+                const left = Math.min(grammarTip.x + GAP, vw - TIP_W - 8);
+                const top = grammarTip.y + GAP + TIP_H > vh
+                    ? grammarTip.y - TIP_H - GAP   // flip above cursor
+                    : grammarTip.y + GAP;           // default: below cursor
+                return (
+                    <div className="pointer-events-none fixed z-[9999]" style={{ left, top }}>
+                        <div className="rounded-xl border border-[#ef4444]/30 bg-[#1a1e27] px-3 py-2 shadow-2xl shadow-black/60"
+                            style={{ width: TIP_W, animation: "dict-in 0.18s ease-out both" }}>
+                            <p className="text-[11.5px] leading-snug text-[#e2e8f0]">{grammarTip.msg}</p>
+                            {grammarTip.fix && (
+                                <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-[#4ade80]">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    {grammarTip.fix}
+                                </p>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
