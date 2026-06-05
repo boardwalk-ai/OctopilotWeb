@@ -133,6 +133,65 @@ const ToolbarDropdown = ({
 
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
 
+/* ─── Grammar check helpers ──────────────────────────────────────────────── */
+type GMatch = {
+    message: string;
+    offset: number;
+    length: number;
+    replacements: { value: string }[];
+    rule: { id: string; issueType?: string };
+};
+
+function removeGrammarSpans(el: HTMLElement): void {
+    el.querySelectorAll("[data-ge]").forEach((s) => {
+        const p = s.parentNode;
+        if (!p) return;
+        while (s.firstChild) p.insertBefore(s.firstChild, s);
+        p.removeChild(s);
+    });
+    el.normalize();
+}
+
+function buildTextIndex(el: HTMLElement): Array<{ node: Text; start: number }> {
+    const result: Array<{ node: Text; start: number }> = [];
+    let offset = 0;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node) {
+        result.push({ node, start: offset });
+        offset += node.textContent?.length ?? 0;
+        node = walker.nextNode() as Text | null;
+    }
+    return result;
+}
+
+function applyGrammarHighlights(el: HTMLElement, matches: GMatch[]): void {
+    removeGrammarSpans(el);
+    if (!matches.length) return;
+    // Build index ONCE before any mutations
+    const index = buildTextIndex(el);
+    const total = index.reduce((s, t) => s + (t.node.textContent?.length ?? 0), 0);
+    // Process highest offsets first so earlier offsets stay valid
+    const sorted = [...matches].sort((a, b) => b.offset - a.offset);
+    for (const m of sorted) {
+        if (m.offset < 0 || m.offset + m.length > total) continue;
+        try {
+            const s1 = index.find(t => t.start <= m.offset && t.start + (t.node.textContent?.length ?? 0) > m.offset);
+            const s2 = index.find(t => t.start < m.offset + m.length && t.start + (t.node.textContent?.length ?? 0) >= m.offset + m.length);
+            if (!s1 || !s2) continue;
+            const range = document.createRange();
+            range.setStart(s1.node, m.offset - s1.start);
+            range.setEnd(s2.node, m.offset + m.length - s2.start);
+            const sp = document.createElement("span");
+            sp.setAttribute("data-ge", "1");
+            sp.setAttribute("data-gm", m.message);
+            sp.setAttribute("data-gf", m.replacements.slice(0, 3).map(r => r.value).join(" / "));
+            sp.style.cssText = "text-decoration:underline wavy #ef4444;text-underline-offset:3px;cursor:help;";
+            range.surroundContents(sp);
+        } catch { /* skip cross-element ranges */ }
+    }
+}
+
 const EDITOR_FORMAT_STYLES: { id: FormatStyleId; label: string; color: string }[] = [
     { id: "mla",     label: "MLA",     color: "#7c3aed" },
     { id: "apa",     label: "APA",     color: "#2563eb" },
@@ -190,6 +249,12 @@ export default function FormatterEditorCore({
     } as unknown as OrganizerState;
     // Tracks which style pill the user has selected in the toolbar
     const [selectedStyle, setSelectedStyle] = useState<FormatStyleId>(formatStyle);
+
+    // Grammar check
+    const [grammarOn, setGrammarOn] = useState(false);
+    const [grammarLoading, setGrammarLoading] = useState(false);
+    const [grammarTip, setGrammarTip] = useState<{ x: number; y: number; msg: string; fix: string } | null>(null);
+    const grammarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Keep selectedStyle in sync when parent re-mounts with a new formatStyle
     useEffect(() => { setSelectedStyle(formatStyle); }, [formatStyle]);
@@ -979,10 +1044,64 @@ export default function FormatterEditorCore({
         saveSelection();
     }, [cleanupEditorArtifacts, rebalancePaginationFrom, saveSelection]);
 
+    // ── Grammar check ──────────────────────────────────────────────────────────
+    const runGrammarCheck = useCallback(async (pageId: number) => {
+        const el = editorRefs.current[pageId];
+        if (!el) return;
+        // Build raw text from text nodes (consistent with highlight offsets)
+        const idx = buildTextIndex(el);
+        const text = idx.map(t => t.node.textContent ?? "").join("");
+        if (text.trim().length < 8) { removeGrammarSpans(el); return; }
+        setGrammarLoading(true);
+        try {
+            const res = await fetch("https://api.languagetoolplus.com/v2/check", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    text: text.slice(0, 5000),
+                    language: "en-US",
+                    disabledRules: "WHITESPACE_RULE,EN_QUOTES,COMMA_PARENTHESIS_WHITESPACE,SENTENCE_WHITESPACE",
+                }).toString(),
+            });
+            if (!res.ok) return;
+            const data = (await res.json()) as { matches: GMatch[] };
+            // Filter out pure style suggestions — keep spelling + grammar
+            const relevant = data.matches.filter(m => m.rule.issueType !== "style");
+            applyGrammarHighlights(el, relevant);
+        } catch { /* network error — silently ignore */ }
+        finally { setGrammarLoading(false); }
+    }, []);
+
+    // Clear all grammar spans from every page
+    const clearAllGrammarSpans = useCallback(() => {
+        for (const el of Object.values(editorRefs.current)) {
+            if (el) removeGrammarSpans(el);
+        }
+    }, []);
+
+    // Keep a stable ref to runGrammarCheck for use inside handlePageInput-level events
+    const runGrammarCheckRef = useRef(runGrammarCheck);
+    useEffect(() => { runGrammarCheckRef.current = runGrammarCheck; }, [runGrammarCheck]);
+
+    // Add grammar-check debounce to the page input flow (grammarOn aware)
+    const scheduleGrammarCheck = useCallback((pageId: number) => {
+        if (!grammarOn) return;
+        if (grammarTimerRef.current) clearTimeout(grammarTimerRef.current);
+        grammarTimerRef.current = setTimeout(() => void runGrammarCheckRef.current(pageId), 2000);
+    }, [grammarOn]);
+
     const buildExportSnapshot = useCallback((): ExportDocumentSnapshot => {
         const parser = document.createElement("div");
         const pagesSnapshot = pages.map((page, idx) => {
-            const html = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
+            const rawHtml = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
+            // Strip grammar-error spans so they don't appear in exports/citations
+            const htmlClean = (() => {
+                const tmp = document.createElement("div");
+                tmp.innerHTML = rawHtml;
+                removeGrammarSpans(tmp);
+                return tmp.innerHTML;
+            })();
+            const html = htmlClean;
             const pageMeta = pageFormatMap[page.id] || {};
             parser.innerHTML = html;
             const plainText = parser.innerText.replace(/\n{3,}/g, "\n\n").trim();
@@ -1036,6 +1155,17 @@ export default function FormatterEditorCore({
         getSnapshotRef.current = buildExportSnapshot;
         return () => { getSnapshotRef.current = null; };
     }, [getSnapshotRef, buildExportSnapshot]);
+
+    // Grammar toggle: off → clear all spans; on → check active page immediately
+    useEffect(() => {
+        if (!grammarOn) {
+            if (grammarTimerRef.current) clearTimeout(grammarTimerRef.current);
+            clearAllGrammarSpans();
+        } else {
+            void runGrammarCheck(activePageId);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [grammarOn]);
 
     useEffect(() => {
         updateStats();
@@ -1325,7 +1455,7 @@ export default function FormatterEditorCore({
                         }}
                         contentEditable
                         suppressContentEditableWarning
-                        onInput={() => handlePageInput(page.id)}
+                        onInput={() => { handlePageInput(page.id); scheduleGrammarCheck(page.id); }}
                         onKeyDown={(e) => {
                             if (e.key === "Tab") {
                                 e.preventDefault();
@@ -1505,7 +1635,21 @@ export default function FormatterEditorCore({
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[#0f1115]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+        <div
+            className="flex h-full min-h-0 flex-col bg-[#0f1115]"
+            style={{ fontFamily: "'Poppins', sans-serif" }}
+            onMouseMove={(e) => {
+                if (!grammarOn) return;
+                const target = e.target as HTMLElement;
+                const span = target.closest("[data-ge]") as HTMLElement | null;
+                if (span) {
+                    setGrammarTip({ x: e.clientX, y: e.clientY, msg: span.getAttribute("data-gm") ?? "", fix: span.getAttribute("data-gf") ?? "" });
+                } else {
+                    setGrammarTip(null);
+                }
+            }}
+            onMouseLeave={() => setGrammarTip(null)}
+        >
             <div className="flex h-[48px] items-center gap-2 bg-[#161a20] px-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full" title="Document">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#ea4335" /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -1618,6 +1762,22 @@ export default function FormatterEditorCore({
                 <TbSep />
 
                 <TbIcon title="Clear formatting" onClick={() => execCommand("removeFormat")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7 21 4-9" /><path d="M3 3h12l-3 7" /><line x1="1" y1="1" x2="23" y2="23" /></svg></TbIcon>
+                <TbSep />
+                {/* Grammar Check toggle */}
+                <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setGrammarOn(v => !v)}
+                    title={grammarOn ? "Grammar check on (click to turn off)" : "Turn on grammar check"}
+                    className={`relative flex h-[30px] items-center gap-1.5 rounded-[6px] px-2 text-[11px] font-semibold transition ${grammarOn ? "bg-[#ef4444]/15 text-[#f87171]" : "text-white/60 hover:bg-[#2b313a] hover:text-white/85"}`}
+                >
+                    {grammarLoading
+                        ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m7 15 2-2 2 2 4-4"/></svg>
+                    }
+                    <span className="text-[10px]">Grammar</span>
+                    {grammarOn && <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />}
+                </button>
             </div>
 
             <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#11151b]">
@@ -1816,7 +1976,7 @@ export default function FormatterEditorCore({
                                             }}
                                             contentEditable
                                             suppressContentEditableWarning
-                                            onInput={() => handlePageInput(page.id)}
+                                            onInput={() => { handlePageInput(page.id); scheduleGrammarCheck(page.id); }}
                                             onKeyDown={(e) => {
                                                 if (e.key === "Tab") {
                                                     e.preventDefault();
@@ -1869,6 +2029,25 @@ export default function FormatterEditorCore({
                     <span>Zoom: {zoom}%</span>
                 </div>
             </div>
+
+            {/* ── Grammar tooltip ── */}
+            {grammarTip && (
+                <div
+                    className="pointer-events-none fixed z-[9999]"
+                    style={{ left: grammarTip.x + 14, top: grammarTip.y - 10 }}
+                >
+                    <div className="max-w-[260px] rounded-xl border border-[#ef4444]/30 bg-[#1a1e27] px-3 py-2 shadow-2xl shadow-black/60"
+                        style={{ animation: "dict-in 0.18s ease-out both" }}>
+                        <p className="text-[11.5px] leading-snug text-[#e2e8f0]">{grammarTip.msg}</p>
+                        {grammarTip.fix && (
+                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-[#4ade80]">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                {grammarTip.fix}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
