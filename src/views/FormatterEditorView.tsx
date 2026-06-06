@@ -1059,8 +1059,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     const essayText = rawContent.trim() || coreSnapshot.content.trim();
     let topic = "";
     if (mode === "auto") {
-      topic = essayText;
-      if (topic.length < 50) { setSourceError("Write more essay content before searching."); return; }
+      // Prefer the onboarding topic — if present, use it directly (no AI analysis needed).
+      // Fall back to essay content analysis if no topic was specified.
+      if (!onboardingTopic && essayText.length < 50) {
+        setSourceError("Specify a topic in onboarding or write more essay content first.");
+        return;
+      }
     } else if (mode === "keyword") {
       topic = sourceKeyword.trim();
       if (!topic) return;
@@ -1080,8 +1084,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     try {
       const isAuto = mode === "auto";
       const endpoint = isAuto ? "/api/sources/auto-search" : "/api/sources/search";
+      // Auto mode: send topic if available (skips AI analysis step),
+      //            otherwise send essay content for AI-driven query generation.
       const body = isAuto
-        ? { essayContent: topic.slice(0, 8000) }
+        ? (onboardingTopic
+            ? { essayTopic: onboardingTopic }
+            : { essayContent: essayText.slice(0, 8000) })
         : { essayTopic: topic, outlines: [], targetCount: 6 };
 
       const res = await fetchWithUserAuthorization(endpoint, {
@@ -2542,9 +2550,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                       {sourceSubTab === "auto" && (
                         <div className="flex flex-col gap-2.5">
-                          <p className="text-[10.5px] leading-relaxed text-[#475569]">
-                            AI reads your essay and finds the most relevant academic sources — no keyword needed.
-                          </p>
+                          {onboardingTopic ? (
+                            /* Topic from onboarding — show as context chip */
+                            <div className="rounded-xl border border-[#2a2f38] bg-[#0f1218] px-3 py-2.5">
+                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#4b5563]">Your topic</p>
+                              <p className="text-[11px] leading-snug text-[#cbd5e1]">{onboardingTopic}</p>
+                              <p className="mt-1.5 text-[9.5px] text-[#374151]">Sources will be found based on this topic.</p>
+                            </div>
+                          ) : (
+                            <p className="text-[10.5px] leading-relaxed text-[#475569]">
+                              AI reads your essay and finds the most relevant academic sources — no keyword needed.
+                            </p>
+                          )}
                           <button
                             type="button"
                             onClick={() => void runSourceSearch("auto")}

@@ -1,16 +1,18 @@
 // POST /api/sources/auto-search
 //
 // Two-step source search for the Formatter Source tab:
-//   Step 1 — Secondary model reads the full essay draft and generates a
-//             focused academic search query.
-//   Step 2 — Perplexity Sonar (via searchAndScrape) finds + validates sources.
+//   Mode A — essayTopic provided (from onboarding): use directly, skip Step 1.
+//   Mode B — essayContent provided: Step 1 = secondary model generates query,
+//             Step 2 = searchAndScrape finds + validates sources.
+//
+// Body: { essayTopic?: string } | { essayContent?: string }
 //
 // SSE events:
-//   { type: "status",  message: string }   — progress text
-//   { type: "query",   query:   string }   — the AI-generated search query
-//   { type: "source",  source:  GoodSource } — one validated source
-//   { type: "done",    count:   number }   — finished
-//   { type: "error",   message: string }   — fatal error
+//   { type: "status",  message: string }
+//   { type: "query",   query:   string }   — the search query (from topic or AI)
+//   { type: "source",  source:  GoodSource }
+//   { type: "done",    count:   number }
+//   { type: "error",   message: string }
 
 import { NextRequest } from "next/server";
 import { requireAuthenticatedRequest } from "@/server/routeAuth";
@@ -36,16 +38,22 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuthenticatedRequest(request);
   if ("response" in auth) return auth.response;
 
-  let essayContent: string;
+  let essayTopic = "";
+  let essayContent = "";
   try {
-    const body = (await request.json()) as { essayContent?: string };
+    const body = (await request.json()) as { essayTopic?: string; essayContent?: string };
+    essayTopic  = (body.essayTopic  ?? "").trim().slice(0, 300);
     essayContent = (body.essayContent ?? "").trim().slice(0, 8000);
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (essayContent.length < 50) {
-    return Response.json({ error: "Essay is too short. Write more before searching." }, { status: 400 });
+  // Need at least one of: a topic OR enough essay content
+  if (!essayTopic && essayContent.length < 50) {
+    return Response.json(
+      { error: "Provide an essay topic or write more content before searching." },
+      { status: 400 },
+    );
   }
 
   const encoder = new TextEncoder();
@@ -59,47 +67,57 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        // ── Step 1: Secondary model → generate search query ──────────────────
-        emit({ type: "status", message: "Reading your essay…" });
+        let searchQuery = essayTopic;
 
-        const { apiKey: secondaryKey, model: secondaryModel } = await getOpenRouterConfig("secondary");
+        if (searchQuery) {
+          // ── Mode A: topic from onboarding → use directly (no AI step) ────────
+          emit({ type: "status", message: "Using your topic to find sources…" });
+          emit({ type: "query",  query: searchQuery });
+        } else {
+          // ── Mode B: no topic → ask AI to derive query from essay draft ────────
+          emit({ type: "status", message: "Reading your essay…" });
 
-        const analyzeRes = await fetch(OPENROUTER_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${secondaryKey}`,
-            "HTTP-Referer": "https://octopilotai.com",
-            "X-Title": "OctoPilot AI",
-          },
-          body: JSON.stringify({
-            model: secondaryModel,
-            messages: [
-              { role: "system", content: ANALYZE_PROMPT },
-              { role: "user", content: `Essay draft:\n\n${essayContent}` },
-            ],
-            temperature: 0.25,
-            max_tokens: 120,
-          }),
-        });
+          const { apiKey: secondaryKey, model: secondaryModel } = await getOpenRouterConfig("secondary");
 
-        if (!analyzeRes.ok) {
-          throw new Error(`Essay analysis failed (${analyzeRes.status}).`);
+          const analyzeRes = await fetch(OPENROUTER_API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${secondaryKey}`,
+              "HTTP-Referer": "https://octopilotai.com",
+              "X-Title": "OctoPilot AI",
+            },
+            body: JSON.stringify({
+              model: secondaryModel,
+              messages: [
+                { role: "system", content: ANALYZE_PROMPT },
+                { role: "user",   content: `Essay draft:\n\n${essayContent}` },
+              ],
+              temperature: 0.25,
+              max_tokens: 120,
+            }),
+          });
+
+          if (!analyzeRes.ok) {
+            throw new Error(`Essay analysis failed (${analyzeRes.status}).`);
+          }
+
+          const analyzeJson = await analyzeRes.json() as {
+            choices?: { message?: { content?: string } }[];
+          };
+          searchQuery = analyzeJson.choices?.[0]?.message?.content?.trim() ?? "";
+
+          if (!searchQuery) {
+            throw new Error("AI could not determine a search query from your essay.");
+          }
+
+          emit({ type: "query",  query: searchQuery });
+          emit({ type: "status", message: "Searching for sources…" });
         }
 
-        const analyzeJson = await analyzeRes.json() as {
-          choices?: { message?: { content?: string } }[];
-        };
-        const searchQuery = analyzeJson.choices?.[0]?.message?.content?.trim() ?? "";
-
-        if (!searchQuery) {
-          throw new Error("AI could not determine a search query from your essay.");
-        }
-
-        emit({ type: "query", query: searchQuery });
+        // ── Step 2: find + scrape sources ─────────────────────────────────────
         emit({ type: "status", message: "Searching for sources…" });
 
-        // ── Step 2: Perplexity Sonar → find + scrape sources ─────────────────
         const { apiKey: searchKey, model: searchModel } = await getOpenRouterConfig("source_search");
 
         let count = 0;
