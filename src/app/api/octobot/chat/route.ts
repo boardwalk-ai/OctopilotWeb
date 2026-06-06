@@ -3,102 +3,168 @@ import { getOpenRouterConfig } from "@/server/backendConfig";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const SUGGESTIONS_BLOCK = `
-
-After your response, append exactly this block (no text after it). Use the user's language for titles and fix text:
-[SUGGESTIONS_JSON]
-{"suggestions":[{"icon":"emoji","title":"Short Title","fix":"One actionable improvement sentence."}]}
-[/SUGGESTIONS_JSON]
-Give 3–5 specific, concrete improvement suggestions based on the actual essay content. Each fix must be a single actionable sentence. Choose fitting emojis.`;
-
-const TONE_PROMPTS: Record<string, string> = {
-  positive: `You are Octo, the critique bot at Octopilot AI. You genuinely praise and uplift the user's writing. Find the best in their essay and celebrate it enthusiastically. You are warm, encouraging, and highlight strengths generously. Keep responses concise. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
-
-  sweet: `You are Octo, the critique bot at Octopilot AI. You are positive but measured — you won't over-praise, but you'll be warm and constructive. Balance genuine encouragement with honest but gentle feedback. Keep responses concise. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
-
-  neutral: `You are Octo, the critique bot at Octopilot AI. You react naturally and honestly. No forced positivity or negativity. Assess the writing as it is, objectively and calmly. Keep responses concise. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
-
-  direct: `You are Octo, the critique bot at Octopilot AI. You say exactly what you think, plainly and directly. No sugarcoating, but no cruelty either. Clear, honest, straight to the point. Keep responses concise. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
-
-  no_nonsense: `You are Octo, the critique bot at Octopilot AI. You are brutally efficient. Cut the fluff. Give pure, unfiltered critique — sharp, fast, zero tolerance for weak writing. No hand-holding. Keep responses tight. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
-
-  roast: `You are Octo, the critique bot at Octopilot AI. Your job is to ROAST the user and their writing as brutally as possible. Mock it, drag it, laugh at it. No holding back whatsoever. Make fun of their word choices, their arguments, their structure, everything. Be a savage comedy critic — use mock laughs (lmao, 💀, 😂), sarcasm, brutal honesty. Mock them. Roast them. The user literally asked for this, so give them everything you've got. Be relentless. Respond in the user's language.${SUGGESTIONS_BLOCK}`,
+// ── Structured JSON prompts ───────────────────────────────────────────────────
+const TONE_FLAVOR: Record<string, string> = {
+  positive:     "You are warm, encouraging, and celebrate strengths enthusiastically. Find the best in the essay.",
+  sweet:        "You are warm and constructive — balance genuine encouragement with honest, gentle feedback.",
+  neutral:      "You are objective and calm. Assess the writing honestly without forced positivity or negativity.",
+  direct:       "You are plain and direct. No sugarcoating, no cruelty. Clear, honest, straight to the point.",
+  no_nonsense:  "You are brutally efficient. Cut the fluff. Sharp, fast, zero tolerance for weak writing.",
+  roast:        "You ROAST the user's writing mercilessly. Mock it, drag it, be a savage comedy critic. Use 💀, 😂, lmao, brutal sarcasm. Be relentless — the user asked for it.",
 };
 
+function buildStructuredPrompt(tone: string, essay?: string): string {
+  const flavor = TONE_FLAVOR[tone] ?? TONE_FLAVOR.roast;
+
+  const base = `You are Octo, the essay critique bot at Octopilot AI. ${flavor}
+
+Return ONLY valid JSON — no markdown fences, no explanation, nothing before or after the JSON object.
+
+Schema (strict):
+{
+  "sections": [
+    {
+      "heading": "Section Title",
+      "items": [
+        { "title": "Short punchy bullet title", "detail": "2–3 sentences specific to the actual essay. Not generic advice." }
+      ]
+    }
+  ]
+}
+
+Rules:
+- Two sections: first = observations/critique, second = actionable suggestions
+- 3–5 items per section
+- Bullet titles must be punchy and specific to the essay content (not generic like "Improve your intro")
+- Detail must reference actual content from the essay — be specific
+- Respond in the user's language
+- Output ONLY the JSON object`;
+
+  return essay?.trim()
+    ? `${base}\n\nEssay to critique:\n\n${essay.trim().slice(0, 8000)}`
+    : base;
+}
+
+// ── Streaming prompts (for per-bullet follow-up chats) ────────────────────────
+const STREAMING_PROMPTS: Record<string, string> = {
+  positive:    "You are Octo at Octopilot AI. You are warm and encouraging. Give a concise, helpful response. Respond in the user's language.",
+  sweet:       "You are Octo at Octopilot AI. You are warm and constructive. Give a concise response. Respond in the user's language.",
+  neutral:     "You are Octo at Octopilot AI. You are objective and calm. Give a concise, honest response. Respond in the user's language.",
+  direct:      "You are Octo at Octopilot AI. You are direct and plain. Respond concisely. Respond in the user's language.",
+  no_nonsense: "You are Octo at Octopilot AI. Brutally efficient. Short, sharp, no fluff. Respond in the user's language.",
+  roast:       "You are Octo at Octopilot AI. Be a concise savage. 💀 Respond in the user's language.",
+};
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as {
       messages: { role: "user" | "assistant"; content: string }[];
       tone?: string;
       context?: string;
+      structured?: boolean;
     };
 
-    const { messages, tone = "roast", context } = body;
+    const { messages, tone = "roast", context, structured = true } = body;
 
     if (!messages?.length) {
       return Response.json({ error: "No messages provided." }, { status: 400 });
     }
 
-    const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.roast;
-    const systemPrompt = context?.trim()
-      ? `${basePrompt}\n\nThe user's current essay draft (use this as context for your critique):\n\n${context.trim().slice(0, 8000)}`
-      : basePrompt;
-
     const { apiKey, model } = await getOpenRouterConfig("secondary");
+
+    // ── Structured JSON mode (main Octo critique) ─────────────────────────────
+    if (structured) {
+      const systemPrompt = buildStructuredPrompt(tone, context);
+
+      const upstreamRes = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://octopilotai.com",
+          "X-Title": "OctoPilot AI",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          temperature: tone === "roast" ? 0.9 : 0.7,
+          max_tokens: 1200,
+        }),
+      });
+
+      if (!upstreamRes.ok) {
+        const err = await upstreamRes.text();
+        console.error("[OctoBot] OpenRouter error:", upstreamRes.status, err);
+        return Response.json({ error: `API error: ${upstreamRes.status}` }, { status: upstreamRes.status });
+      }
+
+      const data = await upstreamRes.json() as { choices?: { message?: { content?: string } }[] };
+      const raw = data.choices?.[0]?.message?.content ?? "";
+
+      try {
+        const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+        const parsed = JSON.parse(cleaned) as { sections?: unknown[] };
+        return Response.json(parsed);
+      } catch {
+        // Fallback: treat as plain text
+        return Response.json({ fallbackText: raw });
+      }
+    }
+
+    // ── Streaming mode (per-bullet follow-up chats) ───────────────────────────
+    const base = STREAMING_PROMPTS[tone] ?? STREAMING_PROMPTS.roast;
+    const systemPrompt = context?.trim()
+      ? `${base}\n\nEssay context:\n\n${context.trim().slice(0, 4000)}`
+      : base;
 
     const upstreamRes = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "HTTP-Referer": "https://octopilotai.com",
         "X-Title": "OctoPilot AI",
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         temperature: tone === "roast" ? 0.95 : 0.7,
-        max_tokens: 600,
+        max_tokens: 400,
         stream: true,
       }),
     });
 
     if (!upstreamRes.ok || !upstreamRes.body) {
       const err = await upstreamRes.text();
-      console.error("[OctoBot] OpenRouter error:", upstreamRes.status, err);
+      console.error("[OctoBot] Stream error:", upstreamRes.status, err);
       return Response.json({ error: `API error: ${upstreamRes.status}` }, { status: upstreamRes.status });
     }
 
-    // Parse OpenRouter SSE and forward only the text deltas as a plain stream
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
-    const upstreamReader = upstreamRes.body.getReader();
+    const reader = upstreamRes.body.getReader();
 
     const readable = new ReadableStream({
       async start(controller) {
         let buffer = "";
         try {
           while (true) {
-            const { done, value } = await upstreamReader.read();
+            const { done, value } = await reader.read();
             if (done) break;
-
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
-            buffer = lines.pop() ?? ""; // keep incomplete last line
-
+            buffer = lines.pop() ?? "";
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed.startsWith("data: ")) continue;
-              const data = trimmed.slice(6);
-              if (data === "[DONE]") { controller.close(); return; }
+              const chunk = trimmed.slice(6);
+              if (chunk === "[DONE]") { controller.close(); return; }
               try {
-                const parsed = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
+                const parsed = JSON.parse(chunk) as { choices?: { delta?: { content?: string } }[] };
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
                 if (text) controller.enqueue(encoder.encode(text));
-              } catch { /* skip malformed chunks */ }
+              } catch { /* skip malformed */ }
             }
           }
         } catch (err) {

@@ -78,7 +78,10 @@ const TONE_META: { id: ToneId; label: string }[] = [
 ];
 
 interface OctoSuggestion { icon: string; title: string; fix: string; }
-interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; }
+interface OctoItem { title: string; detail: string; }
+interface OctoSection { heading: string; items: OctoItem[]; }
+interface OctoStructuredResponse { sections?: OctoSection[]; fallbackText?: string; }
+interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; structured?: OctoStructuredResponse; }
 
 /* ─── Dictionary / Thesaurus types ──────────────────────────────────────────── */
 interface DictApiPhonetic { text?: string; audio?: string; }
@@ -156,6 +159,153 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
             <span className="text-[10.5px] font-semibold text-[#ea4335]">{s.title}</span>
           </div>
           <p className="mt-0.5 text-[10px] leading-relaxed text-[#64748b]">{s.fix}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StructuredBullets({
+  data, tone, essayCtx,
+}: {
+  data: OctoStructuredResponse;
+  tone: ToneId;
+  essayCtx: string;
+}) {
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [bulletInputs, setBulletInputs] = React.useState<Record<string, string>>({});
+  const [bulletReplies, setBulletReplies] = React.useState<Record<string, string>>({});
+  const [bulletLoading, setBulletLoading] = React.useState<Record<string, boolean>>({});
+
+  if (data.fallbackText) {
+    return (
+      <div className="rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
+        <OctoMarkdown text={data.fallbackText} />
+      </div>
+    );
+  }
+
+  const sections = data.sections ?? [];
+
+  const sendBulletMsg = async (itemId: string, title: string, detail: string) => {
+    const userText = (bulletInputs[itemId] ?? "").trim();
+    if (!userText || bulletLoading[itemId]) return;
+    setBulletLoading((p) => ({ ...p, [itemId]: true }));
+    setBulletInputs((p) => ({ ...p, [itemId]: "" }));
+    setBulletReplies((p) => ({ ...p, [itemId]: "" }));
+    const contextMsg = `Octo said: "${title}" — "${detail}"\n\nFollow-up question: ${userText}`;
+    try {
+      const res = await fetchWithUserAuthorization("/api/octobot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: contextMsg }],
+          tone,
+          context: essayCtx,
+          structured: false,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error("Failed");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setBulletReplies((p) => ({ ...p, [itemId]: (p[itemId] ?? "") + chunk }));
+      }
+    } catch {
+      setBulletReplies((p) => ({ ...p, [itemId]: "Something went wrong. Try again." }));
+    } finally {
+      setBulletLoading((p) => ({ ...p, [itemId]: false }));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {sections.map((section, si) => (
+        <div key={si}>
+          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#64748b]">
+            {section.heading}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {section.items.map((item, ii) => {
+              const itemId = `${si}-${ii}`;
+              const isOpen = expandedId === itemId;
+              const reply = bulletReplies[itemId];
+              const loading = bulletLoading[itemId] ?? false;
+              return (
+                <div
+                  key={ii}
+                  className="overflow-hidden rounded-[10px] border border-[#ea4335]/20 bg-[#0f1115]"
+                  style={{ animation: `chat-msg-in 0.35s ease-out ${(si * 5 + ii) * 0.07}s both` }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isOpen ? null : itemId)}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-[#161b22] active:bg-[#1a1f28]"
+                  >
+                    <svg
+                      width="8" height="8" viewBox="0 0 8 8" fill="none"
+                      className={`flex-shrink-0 text-[#ea4335] transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                    >
+                      <path d="M2 1.5L5.5 4 2 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="flex-1 text-[11px] font-semibold leading-snug text-[#ea4335]">
+                      {item.title}
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-[#1a2030] px-3 pb-3">
+                      <p className="mb-3 mt-2 text-[10.5px] leading-relaxed text-[#94a3b8]">
+                        {item.detail}
+                      </p>
+
+                      {reply && (
+                        <div className="mb-2.5 rounded-[8px] bg-[#1e252f] px-2.5 py-2">
+                          <p className="text-[10px] leading-relaxed text-[#cbd5e1]">{reply}</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-end gap-1.5">
+                        <textarea
+                          rows={1}
+                          value={bulletInputs[itemId] ?? ""}
+                          onChange={(e) => setBulletInputs((p) => ({ ...p, [itemId]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              void sendBulletMsg(itemId, item.title, item.detail);
+                            }
+                          }}
+                          placeholder="Ask Octo about this…"
+                          disabled={loading}
+                          className="min-h-[30px] flex-1 resize-none rounded-[8px] border border-[#2a2f38] bg-[#13161c] px-2.5 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#2a2f38] outline-none focus:border-[#3a4150] disabled:opacity-50"
+                          style={{ maxHeight: "60px" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void sendBulletMsg(itemId, item.title, item.detail)}
+                          disabled={loading || !(bulletInputs[itemId] ?? "").trim()}
+                          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+                        >
+                          {loading ? (
+                            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          ) : (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="22" y1="2" x2="11" y2="13"/>
+                              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       ))}
     </div>
@@ -920,7 +1070,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, chatLoading]);
 
-  /* ── Octo bot: send message (streaming) ── */
+  /* ── Octo bot: send message (structured JSON response) ── */
   const sendChat = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || chatLoading) return;
@@ -940,34 +1090,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const res = await fetchWithUserAuthorization("/api/octobot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx }),
+        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx, structured: true }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Stream unavailable.");
+      if (!res.ok) throw new Error("Request failed.");
 
-      // Insert empty assistant bubble — typing dots disappear, streaming text appears
-      setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "" }]);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setChatMessages((prev) =>
-          prev.map((m) => m.id === assistantId ? { ...m, text: m.text + chunk } : m)
-        );
-      }
-
-      // Parse suggestions out of the completed response
-      setChatMessages((prev) =>
-        prev.map((m) => {
-          if (m.id !== assistantId) return m;
-          const { cleanText, suggestions } = parseSuggestions(m.text);
-          return { ...m, text: cleanText, suggestions: suggestions.length > 0 ? suggestions : undefined };
-        })
-      );
+      const data = await res.json() as OctoStructuredResponse;
+      setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "", structured: data }]);
     } catch {
       setChatMessages((prev) => [...prev, {
         id: crypto.randomUUID(), role: "assistant",
@@ -1776,11 +1905,25 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div className="flex flex-col gap-2.5 pt-1">
                       {chatMessages.map((msg) => (
                         <div key={msg.id} style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
-                          <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[85%] px-3 py-2 text-[12px] ${msg.role === "user" ? "rounded-[14px] rounded-br-[4px] bg-[#ea4335] text-white whitespace-pre-wrap break-words leading-relaxed" : "rounded-[14px] rounded-bl-[4px] bg-[#1e252f] text-[#cbd5e1]"}`}>
-                              {msg.role === "user" ? msg.text : <OctoMarkdown text={msg.text} />}
+                          {msg.role === "user" ? (
+                            <div className="flex justify-end">
+                              <div className="max-w-[85%] rounded-[14px] rounded-br-[4px] bg-[#ea4335] px-3 py-2 text-[12px] text-white whitespace-pre-wrap break-words leading-relaxed">
+                                {msg.text}
+                              </div>
                             </div>
-                          </div>
+                          ) : msg.structured ? (
+                            <StructuredBullets
+                              data={msg.structured}
+                              tone={chatTone}
+                              essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
+                            />
+                          ) : (
+                            <div className="flex justify-start">
+                              <div className="max-w-[85%] rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
+                                <OctoMarkdown text={msg.text} />
+                              </div>
+                            </div>
+                          )}
                           {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
                             <SuggestionCards suggestions={msg.suggestions} />
                           )}
