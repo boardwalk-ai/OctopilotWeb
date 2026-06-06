@@ -1274,7 +1274,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setSourceLoading(false);
       setSourceStatus(null);
     }
-  }, [rawContent, coreSnapshot.content, sourceKeyword, selectedEditorText]);
+  }, [rawContent, coreSnapshot.content, sourceKeyword, selectedEditorText, onboardingTopic]);
 
   /* ── Source: insert quote at cursor ── */
   const insertQuote = useCallback((quote: string, source: SourceResult) => {
@@ -2129,7 +2129,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <FormatterEditorCore
                 content={coreSnapshot.content}
                 bibliography={coreSnapshot.bibliography}
-                initialDocTitle={onboardingTopic || coreSnapshot.initialDocTitle}
+                initialDocTitle={coreSnapshot.initialDocTitle}
                 studentName={coreSnapshot.studentName}
                 instructorName={coreSnapshot.instructorName}
                 institutionName={coreSnapshot.institutionName}
