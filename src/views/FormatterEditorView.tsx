@@ -1850,11 +1850,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       </div>
 
       {/* ── Three-panel body ── */}
-      <div className="flex min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
 
-        {/* LEFT PANEL */}
+        {/* LEFT PANEL — slides over center like a warehouse door */}
         <div
-          className="relative flex flex-shrink-0 flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c]"
+          className="absolute left-0 top-0 z-10 flex h-full flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c]"
           style={{
             width: leftWidth,
             transition: panelResizing ? "none" : "width 0.4s cubic-bezier(0.4,0,0.2,1)",
@@ -2150,15 +2150,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           <button
             type="button"
             onClick={() => setLeftWidth(LEFT_DEFAULT)}
-            className="flex w-6 flex-shrink-0 items-center justify-center self-stretch border-r border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
+            className="absolute inset-y-0 left-0 z-10 flex w-6 items-center justify-center border-r border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
             title="Open document panel"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
           </button>
         )}
 
-        {/* CENTER: onboarding panels or editor */}
-        <div className="relative min-w-0 flex-1 overflow-hidden bg-[#0b0e13]">
+        {/* CENTER: always full size — panels overlay on top */}
+        <div className="absolute inset-0 overflow-hidden bg-[#0b0e13]">
 
           {/* ── WELCOME PANEL ── */}
           {viewState === "welcome" && (
@@ -2322,16 +2322,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           <button
             type="button"
             onClick={() => setRightWidth(RIGHT_DEFAULT)}
-            className="flex w-6 flex-shrink-0 items-center justify-center self-stretch border-l border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
+            className="absolute inset-y-0 right-0 z-10 flex w-6 items-center justify-center border-l border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
             title="Open citations panel"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
           </button>
         )}
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT PANEL — slides over center like a warehouse door */}
         <div
-          className="relative flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c]"
+          className="absolute right-0 top-0 z-10 flex h-full flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c]"
           style={{
             width: rightWidth,
             transition: panelResizing ? "none" : "width 0.4s cubic-bezier(0.4,0,0.2,1)",
