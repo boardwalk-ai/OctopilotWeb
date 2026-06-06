@@ -590,7 +590,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const [parseStatus, setParseStatus] = useState<ParseStatus>({ kind: "idle" });
   const [toast, setToast] = useState<string | null>(null);
-  const [leftOpen, setLeftOpen] = useState(true);
+  // ── Panel widths (0 = collapsed) ──
+  const LEFT_DEFAULT = 260;
+  const RIGHT_DEFAULT = 272;
+  const LEFT_SNAPS  = [0, LEFT_DEFAULT];
+  const RIGHT_SNAPS = [0, RIGHT_DEFAULT];
+  const [leftWidth,  setLeftWidth]  = useState(LEFT_DEFAULT);
+  const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
+  const [panelResizing, setPanelResizing] = useState(false);
+  const leftOpen  = leftWidth  > 0;
+  const rightOpen = rightWidth > 0;
 
   /* ── Format style ── */
   const [formatStyle, setFormatStyle] = useState<FormatStyleId>("mla");
@@ -614,7 +623,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [onboardingFormat, setOnboardingFormat] = useState<FormatStyleId>("mla");
 
   /* ── Citation state ── */
-  const [rightOpen, setRightOpen] = useState(true);
   const [citUrlInput, setCitUrlInput] = useState("");
   const [citPhase, setCitPhase] = useState<CitPhase>({ kind: "idle" });
   const [citFormatPick, setCitFormatPick] = useState<FormatStyleId>("mla");
@@ -686,6 +694,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Refs ── */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const leftDragRef  = useRef<{ startX: number; startW: number } | null>(null);
+  const rightDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -788,6 +798,54 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     };
     document.addEventListener("selectionchange", handleSelectionChange);
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
+
+  /* ── Panel resize: global mouse events ── */
+  useEffect(() => {
+    const SNAP_R = 44; // px radius for magnetic snap
+
+    function snap(value: number, checkpoints: number[]): number {
+      let best = value, bestDist = Infinity;
+      for (const cp of checkpoints) {
+        const d = Math.abs(value - cp);
+        if (d < bestDist) { bestDist = d; best = cp; }
+      }
+      return bestDist <= SNAP_R ? best : value;
+    }
+
+    const onMove = (e: MouseEvent) => {
+      const maxW = Math.floor(window.innerWidth / 2) - 40;
+      if (leftDragRef.current) {
+        const raw = Math.max(0, Math.min(
+          leftDragRef.current.startW + (e.clientX - leftDragRef.current.startX), maxW
+        ));
+        setLeftWidth(snap(raw, LEFT_SNAPS));
+      }
+      if (rightDragRef.current) {
+        const raw = Math.max(0, Math.min(
+          rightDragRef.current.startW + (rightDragRef.current.startX - e.clientX), maxW
+        ));
+        setRightWidth(snap(raw, RIGHT_SNAPS));
+      }
+    };
+
+    const onUp = () => {
+      if (leftDragRef.current || rightDragRef.current) {
+        leftDragRef.current  = null;
+        rightDragRef.current = null;
+        document.body.style.cursor     = "";
+        document.body.style.userSelect = "";
+        setPanelResizing(false);
+      }
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ── Background parse ── */
@@ -1796,14 +1854,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         {/* LEFT PANEL */}
         <div
-          className="relative flex flex-shrink-0 flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c] transition-[width] duration-500"
-          style={{ width: leftOpen ? 260 : 0 }}
+          className="relative flex flex-shrink-0 flex-col overflow-hidden border-r border-[#2a2f38] bg-[#13161c]"
+          style={{
+            width: leftWidth,
+            transition: panelResizing ? "none" : "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+          }}
         >
-          <div className={`flex h-full min-h-0 w-[260px] flex-col transition-opacity duration-200 ${leftOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          {/* ── Left resize handle ── */}
+          <div
+            className="absolute right-0 top-0 z-20 h-full w-[5px] cursor-col-resize select-none hover:bg-[#ea4335]/25 active:bg-[#ea4335]/40"
+            style={{ transition: "background 0.15s" }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              leftDragRef.current = { startX: e.clientX, startW: leftWidth };
+              document.body.style.cursor     = "col-resize";
+              document.body.style.userSelect = "none";
+              setPanelResizing(true);
+            }}
+          />
+          <div
+            className={`flex h-full min-h-0 flex-col transition-opacity duration-200 ${leftOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ width: Math.max(leftWidth, LEFT_DEFAULT) }}
+          >
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[#2a2f38] px-3 py-2.5">
               <span className="text-[13px] font-bold tracking-wide text-[#e2e8f0]">1 · Document</span>
-              <button onClick={() => setLeftOpen(false)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
+              <button onClick={() => setLeftWidth(0)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
               </button>
             </div>
@@ -2073,7 +2149,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {!leftOpen && (
           <button
             type="button"
-            onClick={() => setLeftOpen(true)}
+            onClick={() => setLeftWidth(LEFT_DEFAULT)}
             className="flex w-6 flex-shrink-0 items-center justify-center self-stretch border-r border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
             title="Open document panel"
           >
@@ -2245,7 +2321,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {!rightOpen && (
           <button
             type="button"
-            onClick={() => setRightOpen(true)}
+            onClick={() => setRightWidth(RIGHT_DEFAULT)}
             className="flex w-6 flex-shrink-0 items-center justify-center self-stretch border-l border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
             title="Open citations panel"
           >
@@ -2255,14 +2331,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         {/* RIGHT PANEL */}
         <div
-          className="flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c] transition-[width] duration-500"
-          style={{ width: rightOpen ? 272 : 0 }}
+          className="relative flex flex-shrink-0 flex-col overflow-hidden border-l border-[#2a2f38] bg-[#13161c]"
+          style={{
+            width: rightWidth,
+            transition: panelResizing ? "none" : "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+          }}
         >
-          <div className={`flex h-full min-h-0 w-[272px] flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          {/* ── Right resize handle ── */}
+          <div
+            className="absolute left-0 top-0 z-20 h-full w-[5px] cursor-col-resize select-none hover:bg-[#ea4335]/25 active:bg-[#ea4335]/40"
+            style={{ transition: "background 0.15s" }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              rightDragRef.current = { startX: e.clientX, startW: rightWidth };
+              document.body.style.cursor     = "col-resize";
+              document.body.style.userSelect = "none";
+              setPanelResizing(true);
+            }}
+          />
+          <div
+            className={`flex h-full min-h-0 flex-col transition-opacity duration-200 ${rightOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ width: Math.max(rightWidth, RIGHT_DEFAULT) }}
+          >
 
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[#2a2f38] px-3 py-2.5">
-              <button onClick={() => setRightOpen(false)} className="absolute left-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
+              <button onClick={() => setRightWidth(0)} className="absolute left-2 flex h-6 w-6 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#1e252f] hover:text-[#9ca3af]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <span className="text-[13px] font-bold tracking-wide text-[#e2e8f0]">3 · Tools</span>
