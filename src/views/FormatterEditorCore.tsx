@@ -37,6 +37,8 @@ export interface EditorViewProps {
     getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
     insertBibEntryRef?: React.MutableRefObject<((text: string) => void) | null>;
+    // How much the left/right overlay panels are covering the center (for toolbar centering)
+    panelInsets?: { left: number; right: number; animated: boolean };
 }
 
 interface DocPage {
@@ -267,7 +269,17 @@ export default function FormatterEditorCore({
     insertBibEntryRef,
     abstract,
     keywords,
+    panelInsets,
 }: EditorViewProps) {
+    // CSS transition for toolbar padding (matches panel slide animation)
+    const insetTransition = panelInsets?.animated
+        ? "padding-left 0.4s cubic-bezier(0.4,0,0.2,1), padding-right 0.4s cubic-bezier(0.4,0,0.2,1)"
+        : "none";
+    const insetStyle = {
+        paddingLeft:  (panelInsets?.left  ?? 0),
+        paddingRight: (panelInsets?.right ?? 0),
+        transition:   insetTransition,
+    };
     // Combine parsed bibliography with any manually-added citations
     const combinedBibliography = [
         bibliography ?? "",
@@ -1682,7 +1694,7 @@ export default function FormatterEditorCore({
             }}
             onMouseLeave={() => setGrammarTip(null)}
         >
-            <div className="flex h-[48px] items-center gap-2 bg-[#161a20] px-4">
+            <div className="flex h-[48px] items-center gap-2 bg-[#161a20] px-4" style={insetStyle}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full" title="Document">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#ea4335" /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </div>
@@ -1706,7 +1718,7 @@ export default function FormatterEditorCore({
             </div>
 
             {/* ── Format Style pill bar + Format Document button ── */}
-            <div className="mx-3 mt-1 flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-[#2a2f38] bg-[#13161c] px-3">
+            <div className="mt-1 flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-[#2a2f38] bg-[#13161c] px-3" style={insetStyle}>
                 {/* Style pills — scroll if needed */}
                 <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                     <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[#3a3f47]">Style</span>
@@ -1740,7 +1752,7 @@ export default function FormatterEditorCore({
                 )}
             </div>
 
-            <div className="mx-3 flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto rounded-t-[8px] border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]">
+            <div className="flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]" style={insetStyle}>
                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                 <TbSep />

@@ -2312,6 +2312,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 onBack={onBack}
                 onFinish={onFinish ? handleCoreFinish : undefined}
                 insertBibEntryRef={insertBibEntryRef}
+                panelInsets={{ left: leftWidth, right: rightWidth, animated: !panelResizing }}
               />
             </div>
           )}
