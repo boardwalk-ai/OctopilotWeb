@@ -93,6 +93,23 @@ interface DictResult { word: string; phonetic?: string; audioUrl?: string; meani
 interface ThesWord { word: string; score: number; }
 interface ThesResult { word: string; synonyms: ThesWord[]; antonyms: ThesWord[]; }
 interface SourceResult { url: string; title: string; author?: string; publishedYear?: string; publisher?: string; fullContent: string; }
+interface UploadedFile {
+  id: string;
+  file: File;
+  name: string;
+  isImage: boolean;
+  previewUrl: string | null;
+  // Citation fields
+  citTitle: string;
+  citAuthor: string;
+  citYear: string;
+  citPublisher: string;
+  // State
+  expanded: boolean;
+  scanning: boolean;
+  scanError: string | null;
+  result: SourceResult | null;
+}
 type SourceCitStyle = { inText: string; bibliography: string };
 interface SourceModalState {
   source: SourceResult;
@@ -637,7 +654,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [thesResult, setThesResult] = useState<ThesResult | null>(null);
   const [thesError, setThesError] = useState<string | null>(null);
   /* ── Source tab ── */
-  const [sourceSubTab, setSourceSubTab] = useState<"auto" | "keyword" | "intelligence">("auto");
+  const [sourceSubTab, setSourceSubTab] = useState<"auto" | "keyword" | "intelligence" | "uploads">("auto");
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [sourceKeyword, setSourceKeyword] = useState("");
   const [sourceResults, setSourceResults] = useState<SourceResult[]>([]);
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -667,6 +685,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Refs ── */
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1304,6 +1323,80 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setSourceColors((prev) => ({ ...prev, [url]: color }));
     setSourceModal((prev) => prev && prev.source.url === url ? { ...prev, color } : prev);
   }, []);
+
+  /* ── Uploads: add files ── */
+  const handleAddUploadFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const ACCEPTED = /\.(pdf|jpe?g|png|webp|heic|heif|avif|gif)$/i;
+    Array.from(files).forEach((file) => {
+      if (!ACCEPTED.test(file.name)) {
+        showToast(`${file.name} — unsupported format`);
+        return;
+      }
+      const isImage = /\.(jpe?g|png|webp|heic|heif|avif|gif)$/i.test(file.name);
+      const previewUrl = isImage ? URL.createObjectURL(file) : null;
+      const id = crypto.randomUUID();
+      setUploadedFiles((prev) => [
+        ...prev,
+        {
+          id, file, name: file.name, isImage, previewUrl,
+          citTitle: file.name.replace(/\.[^.]+$/, ""),
+          citAuthor: "", citYear: "", citPublisher: "",
+          expanded: true, scanning: false, scanError: null, result: null,
+        },
+      ]);
+    });
+  }, [showToast]);
+
+  /* ── Uploads: scan a file → create SourceResult ── */
+  const handleScanUpload = useCallback(async (id: string) => {
+    const uf = uploadedFiles.find((f) => f.id === id);
+    if (!uf || uf.scanning) return;
+
+    setUploadedFiles((prev) =>
+      prev.map((f) => f.id === id ? { ...f, scanning: true, scanError: null } : f)
+    );
+
+    try {
+      const form = new FormData();
+      form.append("file", uf.file);
+      const res = await fetchWithUserAuthorization("/api/sources/upload-scan", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as { fullContent?: string; error?: string };
+      if (!res.ok || !data.fullContent) throw new Error(data.error ?? "Scan failed.");
+
+      const sourceResult: SourceResult = {
+        url: `upload://${id}`,
+        title: uf.citTitle || uf.name,
+        author: uf.citAuthor || undefined,
+        publishedYear: uf.citYear || undefined,
+        publisher: uf.citPublisher || undefined,
+        fullContent: data.fullContent,
+      };
+
+      setUploadedFiles((prev) =>
+        prev.map((f) => f.id === id ? { ...f, scanning: false, result: sourceResult } : f)
+      );
+
+      // Add to source results + assign a color
+      setSourceResults((prev) => {
+        const idx = prev.length;
+        const color = SOURCE_PALETTE[idx % SOURCE_PALETTE.length]!;
+        setSourceColors((c) => ({ ...c, [sourceResult.url]: color }));
+        return [...prev, sourceResult];
+      });
+
+      showToast("Source created ✓");
+    } catch (err) {
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...f, scanning: false, scanError: err instanceof Error ? err.message : "Scan failed." } : f
+        )
+      );
+    }
+  }, [uploadedFiles, showToast]);
 
   const openSourceModal = useCallback(async (source: SourceResult, color: string) => {
     setSourceModal({ source, color, citations: {}, citLoading: true, citError: null, activeStyle: currentEssayFormat });
@@ -2675,20 +2768,184 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     {/* ── Sub-tab pills ── */}
                     <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-2.5">
                       <div className="flex rounded-full bg-[#1a1f28] p-0.5">
-                        {(["auto", "keyword", "intelligence"] as const).map((st) => (
+                        {(["auto", "keyword", "intelligence", "uploads"] as const).map((st) => (
                           <button
                             key={st}
                             type="button"
                             onClick={() => setSourceSubTab(st)}
                             className={`flex-1 rounded-full py-1.5 text-[9.5px] font-medium transition active:scale-[0.97] ${sourceSubTab === st ? "bg-[#252c38] text-[#e2e8f0] shadow-sm" : "text-[#4b5563] hover:text-[#94a3b8]"}`}
                           >
-                            {st === "auto" ? "Auto Search" : st === "keyword" ? "Keyword" : "Intelligence"}
+                            {st === "auto" ? "Auto Search" : st === "keyword" ? "Keyword" : st === "intelligence" ? "Intelligence" : "Uploads"}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* ── Input area ── */}
+                    {/* ── Uploads tab ── */}
+                    {sourceSubTab === "uploads" && (
+                      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        {/* Upload button */}
+                        <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-3">
+                          <input
+                            ref={uploadInputRef}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => { handleAddUploadFiles(e.target.files); e.target.value = ""; }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => uploadInputRef.current?.click()}
+                            className="flex w-full items-center justify-center gap-2 rounded-full border border-dashed border-[#ea4335]/40 bg-[#ea4335]/5 py-2.5 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/10 active:scale-[0.97]"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload File
+                            <span className="text-[9px] font-normal text-[#4b5563]">PDF · IMG</span>
+                          </button>
+                        </div>
+
+                        {/* File list */}
+                        <div className="flex-1 overflow-y-auto px-3 py-3">
+                          {uploadedFiles.length === 0 && (
+                            <div className="flex flex-col items-center gap-2 py-10 text-center">
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2a2f38" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                              <p className="text-[10.5px] text-[#2a2f38]">Upload a PDF or image to cite it</p>
+                            </div>
+                          )}
+
+                          {/* Thumbnail grid */}
+                          {uploadedFiles.length > 0 && (
+                            <div className="mb-3 grid grid-cols-3 gap-2">
+                              {uploadedFiles.map((uf) => (
+                                <button
+                                  key={uf.id}
+                                  type="button"
+                                  onClick={() => setUploadedFiles((prev) =>
+                                    prev.map((f) => f.id === uf.id ? { ...f, expanded: !f.expanded } : f)
+                                  )}
+                                  className="group flex flex-col items-center gap-1 rounded-[10px] border border-[#2a2f38] bg-[#0f1218] p-1.5 transition hover:border-[#ea4335]/40 hover:bg-[#13161c] active:scale-[0.96]"
+                                  style={{ animation: "dict-in 0.28s ease-out both" }}
+                                >
+                                  <div
+                                    className="flex h-14 w-full items-center justify-center overflow-hidden rounded-[7px] bg-[#1a1f28]"
+                                    style={uf.result ? { borderBottom: "2px solid #22c55e" } : undefined}
+                                  >
+                                    {uf.isImage && uf.previewUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={uf.previewUrl} alt={uf.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                    )}
+                                  </div>
+                                  <p className="w-full truncate text-center text-[8.5px] text-[#4b5563] group-hover:text-[#94a3b8]">
+                                    {uf.name.length > 14 ? uf.name.slice(0, 12) + "…" : uf.name}
+                                  </p>
+                                  {uf.result && (
+                                    <span className="text-[7px] font-bold text-[#22c55e]">✓ cited</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Expanded file detail */}
+                          {uploadedFiles.filter((f) => f.expanded).map((uf) => (
+                            <div
+                              key={uf.id}
+                              className="mb-3 overflow-hidden rounded-[12px] border border-[#2a2f38] bg-[#0f1218]"
+                              style={{ animation: "dict-in 0.25s ease-out both" }}
+                            >
+                              {/* Header */}
+                              <div className="flex items-center gap-2 border-b border-[#1a1f28] px-3 py-2">
+                                <p className="min-w-0 flex-1 truncate text-[10px] font-semibold text-[#94a3b8]">{uf.name}</p>
+                                {/* Remove */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (uf.previewUrl) URL.revokeObjectURL(uf.previewUrl);
+                                    setUploadedFiles((prev) => prev.filter((f) => f.id !== uf.id));
+                                    if (uf.result) setSourceResults((prev) => prev.filter((s) => s.url !== uf.result!.url));
+                                  }}
+                                  className="flex-shrink-0 rounded-full p-0.5 text-[#374151] transition hover:text-[#f87171]"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                </button>
+                              </div>
+
+                              {/* Image preview */}
+                              {uf.isImage && uf.previewUrl && (
+                                <div className="border-b border-[#1a1f28] bg-[#0a0d12] px-3 py-2">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={uf.previewUrl} alt={uf.name} className="max-h-36 w-full rounded-[8px] object-contain" />
+                                </div>
+                              )}
+
+                              {/* Citation fields */}
+                              <div className="flex flex-col gap-2 px-3 py-3">
+                                {[
+                                  { key: "citTitle",     label: "Title",     placeholder: "Document title" },
+                                  { key: "citAuthor",    label: "Author",    placeholder: "e.g. Smith, John" },
+                                  { key: "citYear",      label: "Year",      placeholder: "e.g. 2023" },
+                                  { key: "citPublisher", label: "Publisher", placeholder: "e.g. Oxford University Press" },
+                                ].map(({ key, label, placeholder }) => (
+                                  <div key={key} className="flex items-center gap-2">
+                                    <label className="w-[56px] flex-shrink-0 text-[9px] font-semibold uppercase tracking-wide text-[#374151]">{label}</label>
+                                    <input
+                                      type="text"
+                                      value={(uf as unknown as Record<string, string>)[key] ?? ""}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setUploadedFiles((prev) =>
+                                          prev.map((f) => f.id === uf.id ? { ...f, [key]: val } : f)
+                                        );
+                                      }}
+                                      placeholder={placeholder}
+                                      className="min-w-0 flex-1 rounded-[8px] border border-[#2a2f38] bg-[#13161c] px-2.5 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#2a2f38] outline-none transition focus:border-[#ea4335]/50"
+                                    />
+                                  </div>
+                                ))}
+
+                                {/* Error */}
+                                {uf.scanError && (
+                                  <p className="rounded-[8px] bg-[#1a0f0f] px-2.5 py-1.5 text-[10px] text-[#f87171]">{uf.scanError}</p>
+                                )}
+
+                                {/* Create Citation button */}
+                                {!uf.result ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleScanUpload(uf.id)}
+                                    disabled={uf.scanning}
+                                    className="mt-1 flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-50"
+                                  >
+                                    {uf.scanning ? (
+                                      <>
+                                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        Scanning…
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        Create Citation
+                                      </>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="mt-1 flex items-center gap-2 rounded-full bg-[#0d2218] px-3 py-2">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span className="text-[10px] font-semibold text-[#22c55e]">Source card added to results</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Input area (search tabs only) ── */}
+                    {sourceSubTab !== "uploads" && (
                     <div className="flex-shrink-0 border-b border-[#2a2f38] px-3 py-3">
 
                       {sourceSubTab === "auto" && (
@@ -2768,7 +3025,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         </div>
                       )}
                     </div>
+                    )} {/* end sourceSubTab !== "uploads" input area */}
 
+                    {/* ── Status bar + Results (search tabs only) ── */}
+                    {sourceSubTab !== "uploads" && <>
                     {/* ── Status bar ── */}
                     {(sourceStatus || sourceQuery) && (
                       <div className="flex-shrink-0 border-b border-[#2a2f38] bg-[#0a0d12] px-3 py-2">
@@ -2846,6 +3106,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       )}
 
                     </div>
+                    </> /* end search-tabs status+results */}
                   </>
                 )}
               </div>
