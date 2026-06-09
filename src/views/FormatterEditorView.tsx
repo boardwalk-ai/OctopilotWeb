@@ -1260,8 +1260,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setChatLoading(true);
 
     try {
-      // Always pass essay as context; serialize structured history to text
-      const essayCtx = rawContent.trim() || coreSnapshot.content.trim();
+      // Always pass essay as context — prefer live editor snapshot, fall back to parsed/raw
+      const liveSnap = getSnapshotRef.current?.();
+      const liveText = liveSnap?.pages.map(p => p.plainText).join("\n\n").trim() ?? "";
+      const essayCtx = liveText || rawContent.trim() || coreSnapshot.content.trim();
       const history = [...chatMessages, userMsg].map((m) => ({
         role: m.role as "user" | "assistant",
         content: serializeMsgForHistory(m),
