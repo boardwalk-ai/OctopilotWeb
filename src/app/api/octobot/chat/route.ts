@@ -1,58 +1,80 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getOpenRouterConfig } from "@/server/backendConfig";
+
+export const runtime = "nodejs";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ── Structured JSON prompts ───────────────────────────────────────────────────
+// ── Tone flavor ───────────────────────────────────────────────────────────────
 const TONE_FLAVOR: Record<string, string> = {
-  positive:     "You are warm, encouraging, and celebrate strengths enthusiastically. Find the best in the essay.",
-  sweet:        "You are warm and constructive — balance genuine encouragement with honest, gentle feedback.",
-  neutral:      "You are objective and calm. Assess the writing honestly without forced positivity or negativity.",
-  direct:       "You are plain and direct. No sugarcoating, no cruelty. Clear, honest, straight to the point.",
-  no_nonsense:  "You are brutally efficient. Cut the fluff. Sharp, fast, zero tolerance for weak writing.",
-  roast:        "You ROAST the user's writing mercilessly. Mock it, drag it, be a savage comedy critic. Use 💀, 😂, lmao, brutal sarcasm. Be relentless — the user asked for it.",
+  positive:    "Be warm and encouraging. Celebrate strengths. When pointing out flaws, be gentle and constructive.",
+  sweet:       "Be balanced — genuine praise where due, honest but gentle about problems.",
+  neutral:     "Be objective and calm. No forced positivity or negativity.",
+  direct:      "Be plain and direct. No sugarcoating. Blunt but not cruel.",
+  no_nonsense: "Be brutally efficient. Zero tolerance for weak writing. Short and sharp.",
+  roast:       "ROAST the essay mercilessly. Use 💀, 😂, lmao, savage sarcasm. The user asked for it — go all in.",
 };
 
+// ── Main structured prompt ────────────────────────────────────────────────────
 function buildStructuredPrompt(tone: string, essay?: string): string {
   const flavor = TONE_FLAVOR[tone] ?? TONE_FLAVOR.roast;
 
-  const base = `You are Octo, the essay critique bot at Octopilot AI. ${flavor}
+  const base = `You are Octo, an essay critique bot at Octopilot AI. ${flavor}
 
-Return ONLY valid JSON — no markdown fences, no explanation, nothing before or after the JSON object.
+Read the user's message carefully:
 
-Schema (strict):
+— If the user is CHATTING (greeting, question, casual comment, off-topic) →
+  Respond naturally in plain text. Be brief and friendly. Do NOT critique.
+  Return: {"type":"chat","message":"your response here"}
+
+— If the user wants CRITIQUE, ANALYSIS, FEEDBACK, or REVIEW of their essay →
+  Analyze the essay deeply and return the full critique JSON below.
+
+For CRITIQUE, return ONLY valid JSON — no markdown fences, no extra text:
 {
-  "sections": [
+  "type": "critique",
+  "grammar": [
     {
-      "heading": "Section Title",
-      "items": [
-        { "title": "Short punchy bullet title", "detail": "2–3 sentences specific to the actual essay. Not generic advice." }
-      ]
+      "title": "Short label (e.g. Run-on sentence in ¶2)",
+      "issue": "Exact location + quote the problematic text. e.g. 'Paragraph 2, line 3: \\"The economy grew but inflation also rose and workers all suffered\\""  — explain specifically what is wrong.",
+      "fix": "The corrected version or exactly what to change."
     }
-  ]
+  ],
+  "style": [
+    {
+      "title": "Short label (e.g. Passive voice overuse in ¶3)",
+      "observation": "Exact location + quote the text. State clearly whether it's good or bad and why.",
+      "suggestion": "If bad: rewrite it. If good: explain what makes it effective."
+    }
+  ],
+  "ratings": {
+    "vocabulary": <integer 1-10>,
+    "grammar": <integer 1-10>,
+    "thinking": <integer 1-10>,
+    "ideas": <integer 1-10>
+  }
 }
 
-Rules:
-- Two sections: first = observations/critique, second = actionable suggestions
-- 3–5 items per section
-- Bullet titles must be punchy and specific to the essay content (not generic like "Improve your intro")
-- Detail must reference actual content from the essay — be specific
-- Respond in the user's language
-- Output ONLY the JSON object`;
+RULES for critique:
+- grammar: 2–4 items. ALWAYS cite exact paragraph/line and QUOTE the actual text.
+- style: 2–4 items. ALWAYS cite exact paragraph/line and QUOTE the actual text.
+- ratings: integers 1–10 reflecting the actual essay quality. Be honest.
+- Address the essay directly — no generic advice. Reference what is actually written.
+- Respond in the user's language.`;
 
   return essay?.trim()
     ? `${base}\n\nEssay to critique:\n\n${essay.trim().slice(0, 8000)}`
     : base;
 }
 
-// ── Streaming prompts (for per-bullet follow-up chats) ────────────────────────
-const STREAMING_PROMPTS: Record<string, string> = {
-  positive:    "You are Octo at Octopilot AI. You are warm and encouraging. Give a concise, helpful response. Respond in the user's language.",
-  sweet:       "You are Octo at Octopilot AI. You are warm and constructive. Give a concise response. Respond in the user's language.",
-  neutral:     "You are Octo at Octopilot AI. You are objective and calm. Give a concise, honest response. Respond in the user's language.",
-  direct:      "You are Octo at Octopilot AI. You are direct and plain. Respond concisely. Respond in the user's language.",
-  no_nonsense: "You are Octo at Octopilot AI. Brutally efficient. Short, sharp, no fluff. Respond in the user's language.",
-  roast:       "You are Octo at Octopilot AI. Be a concise savage. 💀 Respond in the user's language.",
+// ── Streaming prompt for per-bullet follow-up chats ───────────────────────────
+const FOLLOW_UP_PROMPTS: Record<string, string> = {
+  positive:    "You are Octo at Octopilot AI. Be warm and helpful. Give a concise response. Reply in the user's language.",
+  sweet:       "You are Octo at Octopilot AI. Be warm and constructive. Reply in the user's language.",
+  neutral:     "You are Octo at Octopilot AI. Be objective and concise. Reply in the user's language.",
+  direct:      "You are Octo at Octopilot AI. Be direct and brief. Reply in the user's language.",
+  no_nonsense: "You are Octo at Octopilot AI. Efficient and sharp. No fluff. Reply in the user's language.",
+  roast:       "You are Octo at Octopilot AI. Concise and savage. 💀 Reply in the user's language.",
 };
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -61,23 +83,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as {
       messages: { role: "user" | "assistant"; content: string }[];
       tone?: string;
-      context?: string;
-      structured?: boolean;
+      context?: string;      // essay text
+      structured?: boolean;  // false = streaming follow-up
     };
 
     const { messages, tone = "roast", context, structured = true } = body;
 
     if (!messages?.length) {
-      return Response.json({ error: "No messages provided." }, { status: 400 });
+      return NextResponse.json({ error: "No messages provided." }, { status: 400 });
     }
 
     const { apiKey, model } = await getOpenRouterConfig("secondary");
 
-    // ── Structured JSON mode (main Octo critique) ─────────────────────────────
+    // ── JSON mode: main Octo responses ───────────────────────────────────────
     if (structured) {
       const systemPrompt = buildStructuredPrompt(tone, context);
 
-      const upstreamRes = await fetch(OPENROUTER_API_URL, {
+      const res = await fetch(OPENROUTER_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -89,36 +111,35 @@ export async function POST(request: NextRequest) {
           model,
           messages: [{ role: "system", content: systemPrompt }, ...messages],
           temperature: tone === "roast" ? 0.9 : 0.7,
-          max_tokens: 1200,
+          max_tokens: 1600,
         }),
       });
 
-      if (!upstreamRes.ok) {
-        const err = await upstreamRes.text();
-        console.error("[OctoBot] OpenRouter error:", upstreamRes.status, err);
-        return Response.json({ error: `API error: ${upstreamRes.status}` }, { status: upstreamRes.status });
+      if (!res.ok) {
+        const err = await res.text();
+        console.error("[OctoBot] Error:", res.status, err);
+        return NextResponse.json({ error: `API error: ${res.status}` }, { status: res.status });
       }
 
-      const data = await upstreamRes.json() as { choices?: { message?: { content?: string } }[] };
-      const raw = data.choices?.[0]?.message?.content ?? "";
+      const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+      const raw = (data.choices?.[0]?.message?.content ?? "").trim()
+        .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
       try {
-        const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-        const parsed = JSON.parse(cleaned) as { sections?: unknown[] };
-        return Response.json(parsed);
+        const parsed = JSON.parse(raw) as { type?: string };
+        return NextResponse.json(parsed);
       } catch {
-        // Fallback: treat as plain text
-        return Response.json({ fallbackText: raw });
+        return NextResponse.json({ type: "chat", message: raw });
       }
     }
 
-    // ── Streaming mode (per-bullet follow-up chats) ───────────────────────────
-    const base = STREAMING_PROMPTS[tone] ?? STREAMING_PROMPTS.roast;
+    // ── Streaming mode: per-bullet follow-up chats ───────────────────────────
+    const base = FOLLOW_UP_PROMPTS[tone] ?? FOLLOW_UP_PROMPTS.roast;
     const systemPrompt = context?.trim()
       ? `${base}\n\nEssay context:\n\n${context.trim().slice(0, 4000)}`
       : base;
 
-    const upstreamRes = await fetch(OPENROUTER_API_URL, {
+    const res = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -135,43 +156,38 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    if (!upstreamRes.ok || !upstreamRes.body) {
-      const err = await upstreamRes.text();
-      console.error("[OctoBot] Stream error:", upstreamRes.status, err);
-      return Response.json({ error: `API error: ${upstreamRes.status}` }, { status: upstreamRes.status });
+    if (!res.ok || !res.body) {
+      return NextResponse.json({ error: `API error: ${res.status}` }, { status: res.status });
     }
 
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
-    const reader = upstreamRes.body.getReader();
+    const reader = res.body.getReader();
 
     const readable = new ReadableStream({
       async start(controller) {
-        let buffer = "";
+        let buf = "";
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() ?? "";
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() ?? "";
             for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data: ")) continue;
-              const chunk = trimmed.slice(6);
+              const t = line.trim();
+              if (!t.startsWith("data: ")) continue;
+              const chunk = t.slice(6);
               if (chunk === "[DONE]") { controller.close(); return; }
               try {
-                const parsed = JSON.parse(chunk) as { choices?: { delta?: { content?: string } }[] };
-                const text = parsed.choices?.[0]?.delta?.content ?? "";
+                const p = JSON.parse(chunk) as { choices?: { delta?: { content?: string } }[] };
+                const text = p.choices?.[0]?.delta?.content ?? "";
                 if (text) controller.enqueue(encoder.encode(text));
               } catch { /* skip malformed */ }
             }
           }
-        } catch (err) {
-          console.error("[OctoBot] Stream read error:", err);
-        } finally {
-          controller.close();
-        }
+        } catch (e) { console.error("[OctoBot] stream error:", e); }
+        finally { controller.close(); }
       },
     });
 
@@ -183,7 +199,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("[OctoBot] Error:", err);
-    return Response.json({ error: "Internal server error." }, { status: 500 });
+    console.error("[OctoBot]", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

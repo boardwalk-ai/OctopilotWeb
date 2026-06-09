@@ -78,9 +78,17 @@ const TONE_META: { id: ToneId; label: string }[] = [
 ];
 
 interface OctoSuggestion { icon: string; title: string; fix: string; }
-interface OctoItem { title: string; detail: string; }
-interface OctoSection { heading: string; items: OctoItem[]; }
-interface OctoStructuredResponse { sections?: OctoSection[]; fallbackText?: string; }
+interface OctoGrammarItem  { title: string; issue: string; fix: string; }
+interface OctoStyleItem    { title: string; observation: string; suggestion: string; }
+interface OctoRatings      { vocabulary: number; grammar: number; thinking: number; ideas: number; }
+interface OctoStructuredResponse {
+  type: "critique" | "chat";
+  message?: string;
+  grammar?: OctoGrammarItem[];
+  style?: OctoStyleItem[];
+  ratings?: OctoRatings;
+  fallbackText?: string;
+}
 interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; structured?: OctoStructuredResponse; }
 
 /* ─── Dictionary / Thesaurus types ──────────────────────────────────────────── */
@@ -182,149 +190,223 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
   );
 }
 
-function StructuredBullets({
-  data, tone, essayCtx,
-}: {
-  data: OctoStructuredResponse;
-  tone: ToneId;
-  essayCtx: string;
-}) {
-  const [expandedId, setExpandedId] = React.useState<string | null>(null);
-  const [bulletInputs, setBulletInputs] = React.useState<Record<string, string>>({});
-  const [bulletReplies, setBulletReplies] = React.useState<Record<string, string>>({});
-  const [bulletLoading, setBulletLoading] = React.useState<Record<string, boolean>>({});
-
-  if (data.fallbackText) {
-    return (
-      <div className="rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
-        <OctoMarkdown text={data.fallbackText} />
+/* ── Animated rating bars ──────────────────────────────────────────────────── */
+function RatingBars({ ratings }: { ratings: OctoRatings }) {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => { const t = setTimeout(() => setReady(true), 120); return () => clearTimeout(t); }, []);
+  const items: { label: string; value: number; color: string }[] = [
+    { label: "Vocabulary", value: ratings.vocabulary, color: "#3b82f6" },
+    { label: "Grammar",    value: ratings.grammar,    color: "#ea4335" },
+    { label: "Thinking",   value: ratings.thinking,   color: "#8b5cf6" },
+    { label: "Ideas",      value: ratings.ideas,      color: "#22c55e" },
+  ];
+  return (
+    <div className="mt-2.5 rounded-[10px] border border-[#1a2030] bg-[#0a0d12] px-3 py-2.5">
+      <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#374151]">Essay Ratings</p>
+      <div className="flex flex-col gap-2">
+        {items.map(({ label, value, color }) => (
+          <div key={label}>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[9.5px] text-[#4b5563]">{label}</span>
+              <span className="text-[10px] font-bold" style={{ color }}>
+                {value} <span className="text-[8px] font-normal text-[#2a2f38]">/ 10</span>
+              </span>
+            </div>
+            <div className="h-[5px] w-full overflow-hidden rounded-full bg-[#1a2030]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: ready ? `${value * 10}%` : "0%",
+                  background: color,
+                  transition: "width 0.85s cubic-bezier(0.4,0,0.2,1)",
+                }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  const sections = data.sections ?? [];
+/* ── Single expandable critique bullet ─────────────────────────────────────── */
+function CritiqueBullet({
+  itemId, title, detail1, detail2,
+  label1, label2, color, delay, tone, essayCtx,
+}: {
+  itemId: string; title: string;
+  detail1: string; detail2: string;
+  label1: string; label2: string;
+  color: string; delay: number;
+  tone: ToneId; essayCtx: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [input, setInput] = React.useState("");
+  const [reply, setReply] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
 
-  const sendBulletMsg = async (itemId: string, title: string, detail: string) => {
-    const userText = (bulletInputs[itemId] ?? "").trim();
-    if (!userText || bulletLoading[itemId]) return;
-    setBulletLoading((p) => ({ ...p, [itemId]: true }));
-    setBulletInputs((p) => ({ ...p, [itemId]: "" }));
-    setBulletReplies((p) => ({ ...p, [itemId]: "" }));
-    const contextMsg = `Octo said: "${title}" — "${detail}"\n\nFollow-up question: ${userText}`;
+  const send = async () => {
+    const q = input.trim();
+    if (!q || loading) return;
+    setLoading(true); setInput(""); setReply("");
+    const ctx = `Octo's note: "${title}" — "${detail1}${detail2 ? " / " + detail2 : ""}"\nUser question: ${q}`;
     try {
       const res = await fetchWithUserAuthorization("/api/octobot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: contextMsg }],
-          tone,
-          context: essayCtx,
-          structured: false,
+          messages: [{ role: "user", content: ctx }],
+          tone, context: essayCtx, structured: false,
         }),
       });
       if (!res.ok || !res.body) throw new Error("Failed");
       const reader = res.body.getReader();
-      const decoder = new TextDecoder();
+      const dec = new TextDecoder();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setBulletReplies((p) => ({ ...p, [itemId]: (p[itemId] ?? "") + chunk }));
+        setReply((p) => p + dec.decode(value, { stream: true }));
       }
-    } catch {
-      setBulletReplies((p) => ({ ...p, [itemId]: "Something went wrong. Try again." }));
-    } finally {
-      setBulletLoading((p) => ({ ...p, [itemId]: false }));
-    }
+    } catch { setReply("Something went wrong. Try again."); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {sections.map((section, si) => (
-        <div key={si}>
-          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#64748b]">
-            {section.heading}
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {section.items.map((item, ii) => {
-              const itemId = `${si}-${ii}`;
-              const isOpen = expandedId === itemId;
-              const reply = bulletReplies[itemId];
-              const loading = bulletLoading[itemId] ?? false;
-              return (
-                <div
-                  key={ii}
-                  className="overflow-hidden rounded-[10px] border border-[#ea4335]/20 bg-[#0f1115]"
-                  style={{ animation: `chat-msg-in 0.35s ease-out ${(si * 5 + ii) * 0.07}s both` }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(isOpen ? null : itemId)}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-[#161b22] active:bg-[#1a1f28]"
-                  >
-                    <svg
-                      width="8" height="8" viewBox="0 0 8 8" fill="none"
-                      className={`flex-shrink-0 text-[#ea4335] transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-                    >
-                      <path d="M2 1.5L5.5 4 2 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className="flex-1 text-[11px] font-semibold leading-snug text-[#ea4335]">
-                      {item.title}
-                    </span>
-                  </button>
+    <div
+      className="overflow-hidden rounded-[10px] border bg-[#0f1115]"
+      style={{ borderColor: `${color}30`, animation: `chat-msg-in 0.32s ease-out ${delay}s both` }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-[#161b22] active:bg-[#1a1f28]"
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"
+          className={`flex-shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          style={{ color }}
+        >
+          <path d="M2 1.5L5.5 4 2 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span className="flex-1 text-[11px] font-semibold leading-snug" style={{ color }}>{title}</span>
+      </button>
 
-                  {isOpen && (
-                    <div className="border-t border-[#1a2030] px-3 pb-3">
-                      <p className="mb-3 mt-2 text-[10.5px] leading-relaxed text-[#94a3b8]">
-                        {item.detail}
-                      </p>
+      {open && (
+        <div className="border-t px-3 pb-3" style={{ borderColor: `${color}18` }}>
+          {/* detail 1 (issue / observation) */}
+          <div className="mt-2 mb-0.5">
+            <span className="text-[8.5px] font-bold uppercase tracking-wider" style={{ color }}>{label1}</span>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-[#94a3b8]">{detail1}</p>
+          </div>
+          {/* detail 2 (fix / suggestion) */}
+          {detail2 && (
+            <div className="mt-1.5 mb-1">
+              <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#22c55e]">{label2}</span>
+              <p className="mt-0.5 text-[10.5px] leading-relaxed text-[#86efac]">{detail2}</p>
+            </div>
+          )}
 
-                      {reply && (
-                        <div className="mb-2.5 rounded-[8px] bg-[#1e252f] px-2.5 py-2">
-                          <p className="text-[10px] leading-relaxed text-[#cbd5e1]">{reply}</p>
-                        </div>
-                      )}
+          {/* streaming reply */}
+          {reply && (
+            <div className="mb-2 mt-2 rounded-[8px] bg-[#1e252f] px-2.5 py-2">
+              <p className="text-[10px] leading-relaxed text-[#cbd5e1]">{reply}</p>
+            </div>
+          )}
 
-                      <div className="flex items-end gap-1.5">
-                        <textarea
-                          rows={1}
-                          value={bulletInputs[itemId] ?? ""}
-                          onChange={(e) => setBulletInputs((p) => ({ ...p, [itemId]: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              void sendBulletMsg(itemId, item.title, item.detail);
-                            }
-                          }}
-                          placeholder="Ask Octo about this…"
-                          disabled={loading}
-                          className="min-h-[30px] flex-1 resize-none rounded-[8px] border border-[#2a2f38] bg-[#13161c] px-2.5 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#2a2f38] outline-none focus:border-[#3a4150] disabled:opacity-50"
-                          style={{ maxHeight: "60px" }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void sendBulletMsg(itemId, item.title, item.detail)}
-                          disabled={loading || !(bulletInputs[itemId] ?? "").trim()}
-                          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
-                        >
-                          {loading ? (
-                            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          ) : (
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="22" y1="2" x2="11" y2="13"/>
-                              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          {/* follow-up input */}
+          <div className="mt-2 flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
+              placeholder="Ask Octo about this…"
+              disabled={loading}
+              className="min-h-[30px] flex-1 resize-none rounded-[8px] border border-[#2a2f38] bg-[#13161c] px-2.5 py-1.5 text-[11px] text-[#e2e8f0] placeholder-[#2a2f38] outline-none focus:border-[#3a4150] disabled:opacity-50"
+              style={{ maxHeight: "60px" }}
+            />
+            <button
+              type="button" onClick={() => void send()}
+              disabled={loading || !input.trim()}
+              className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+            >
+              {loading
+                ? <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              }
+            </button>
           </div>
         </div>
-      ))}
+      )}
+    </div>
+  );
+}
+
+/* ── Full critique view ─────────────────────────────────────────────────────── */
+function OctoCritiqueView({
+  data, tone, essayCtx,
+}: { data: OctoStructuredResponse; tone: ToneId; essayCtx: string }) {
+  if (data.fallbackText || (data.type === "chat" && data.message)) {
+    const text = data.message ?? data.fallbackText ?? "";
+    return (
+      <div className="rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
+        <OctoMarkdown text={text} />
+      </div>
+    );
+  }
+
+  const grammar = data.grammar ?? [];
+  const style   = data.style   ?? [];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Grammar section */}
+      {grammar.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#ea4335]">
+            Grammar
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {grammar.map((item, i) => (
+              <CritiqueBullet
+                key={i} itemId={`g-${i}`}
+                title={item.title}
+                detail1={item.issue}
+                detail2={item.fix}
+                label1="Issue" label2="Fix"
+                color="#ea4335"
+                delay={i * 0.06}
+                tone={tone} essayCtx={essayCtx}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Writing Style section */}
+      {style.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#8b5cf6]">
+            Writing Style
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {style.map((item, i) => (
+              <CritiqueBullet
+                key={i} itemId={`s-${i}`}
+                title={item.title}
+                detail1={item.observation}
+                detail2={item.suggestion}
+                label1="Observation" label2="Suggestion"
+                color="#8b5cf6"
+                delay={(grammar.length + i) * 0.06}
+                tone={tone} essayCtx={essayCtx}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rating bars */}
+      {data.ratings && <RatingBars ratings={data.ratings} />}
     </div>
   );
 }
@@ -1147,7 +1229,24 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, chatLoading]);
 
-  /* ── Octo bot: send message (structured JSON response) ── */
+  /* ── Serialize a ChatMsg for history (structured responses → readable text) ── */
+  const serializeMsgForHistory = useCallback((m: ChatMsg): string => {
+    if (m.role === "user") return m.text;
+    if (!m.structured) return m.text;
+    const d = m.structured;
+    if (d.type === "chat" && d.message) return d.message;
+    if (d.fallbackText) return d.fallbackText;
+    if (d.type === "critique") {
+      const parts: string[] = [];
+      if (d.grammar?.length) parts.push("Grammar: " + d.grammar.map((i) => `${i.title} — ${i.issue} | Fix: ${i.fix}`).join("; "));
+      if (d.style?.length)   parts.push("Style: "   + d.style.map((i)   => `${i.title} — ${i.observation} | Suggestion: ${i.suggestion}`).join("; "));
+      if (d.ratings) parts.push(`Ratings — Vocab: ${d.ratings.vocabulary}/10, Grammar: ${d.ratings.grammar}/10, Thinking: ${d.ratings.thinking}/10, Ideas: ${d.ratings.ideas}/10`);
+      return parts.join("\n") || "[Essay critique]";
+    }
+    return m.text || "[Response]";
+  }, []);
+
+  /* ── Octo bot: send message ── */
   const sendChat = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || chatLoading) return;
@@ -1161,8 +1260,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setChatLoading(true);
 
     try {
+      // Always pass essay as context; serialize structured history to text
       const essayCtx = rawContent.trim() || coreSnapshot.content.trim();
-      const history = [...chatMessages, userMsg].map((m) => ({ role: m.role, content: m.text }));
+      const history = [...chatMessages, userMsg].map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: serializeMsgForHistory(m),
+      }));
 
       const res = await fetchWithUserAuthorization("/api/octobot/chat", {
         method: "POST",
@@ -1182,7 +1285,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setChatLoading(false);
     }
-  }, [chatLoading, chatMessages, chatTone, coreSnapshot.content, rawContent]);
+  }, [chatLoading, chatMessages, chatTone, coreSnapshot.content, rawContent, serializeMsgForHistory]);
 
   /* ── Dictionary search ── */
   const searchDictionary = useCallback(async (word: string) => {
@@ -2081,7 +2184,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                               </div>
                             </div>
                           ) : msg.structured ? (
-                            <StructuredBullets
+                            <OctoCritiqueView
                               data={msg.structured}
                               tone={chatTone}
                               essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
