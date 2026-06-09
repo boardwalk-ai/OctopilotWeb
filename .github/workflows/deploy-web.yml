@@ -37,6 +37,10 @@ jobs:
           echo "Failed to fetch SSH host key for ${DEPLOY_HOST}" >&2
           exit 1
 
-      - name: Deploy on VPS
+      - name: Deploy main instance
         run: |
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd /opt/octopilot-web && bash scripts/deploy-web.sh"
+
+      - name: Deploy formatter instance
+        run: |
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "APP_DIR=/opt/octopilot-formatter SERVICE_NAME=octopilot-formatter bash /opt/octopilot-web/scripts/deploy-web.sh"
