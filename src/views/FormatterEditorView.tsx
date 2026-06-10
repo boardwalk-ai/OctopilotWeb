@@ -126,6 +126,9 @@ interface SourceModalState {
   citLoading: boolean;
   citError: string | null;
   activeStyle: FormatStyleId;
+  suggestions: string[];
+  suggestLoading: boolean;
+  suggestError: string | null;
 }
 
 /* ─── Octo markdown renderer ─────────────────────────────────────────────────── */
@@ -758,6 +761,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [sourceColors, setSourceColors] = useState<Record<string, string>>({});
   const [sourceModal, setSourceModal] = useState<SourceModalState | null>(null);
   const [contentSelection, setContentSelection] = useState("");
+  const [autoSuggest, setAutoSuggest] = useState(true);
+  const [autoHumanize, setAutoHumanize] = useState(true);
+  // Citation cache keyed by source URL — avoids re-fetching on modal reopen
+  const citCacheRef = useRef<Record<string, Partial<Record<FormatStyleId, SourceCitStyle>>>>({});
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -1562,42 +1569,92 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   }, [uploadedFiles, showToast]);
 
   const openSourceModal = useCallback(async (source: SourceResult, color: string) => {
-    setSourceModal({ source, color, citations: {}, citLoading: true, citError: null, activeStyle: currentEssayFormat });
+    const cached = citCacheRef.current[source.url];
+    setSourceModal({
+      source, color,
+      citations: cached ?? {},
+      citLoading: !cached,
+      citError: null,
+      activeStyle: currentEssayFormat,
+      suggestions: [],
+      suggestLoading: false,
+      suggestError: null,
+    });
     setContentSelection("");
-    const styles: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
-    try {
-      const results = await Promise.all(
-        styles.map(async (style) => {
-          try {
-            const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                task: "CITATION_FULL",
-                input: {
-                  style: style.toUpperCase(),
-                  url: source.url,
-                  title: source.title ?? "",
-                  authors: source.author ?? "",
-                  year: source.publishedYear ?? "",
-                  publisher: source.publisher ?? "",
-                },
-              }),
-            });
-            const data = (await res.json()) as { inText?: string; bibliography?: string };
-            return { style, inText: data.inText ?? "", bibliography: data.bibliography ?? "" };
-          } catch {
-            return { style, inText: "", bibliography: "" };
-          }
-        })
-      );
-      const citMap: Partial<Record<FormatStyleId, SourceCitStyle>> = {};
-      results.forEach((r) => { if (r.inText || r.bibliography) citMap[r.style] = { inText: r.inText, bibliography: r.bibliography }; });
-      setSourceModal((prev) => prev ? { ...prev, citations: citMap, citLoading: false } : null);
-    } catch {
-      setSourceModal((prev) => prev ? { ...prev, citLoading: false, citError: "Could not generate citations." } : null);
+
+    // Fetch citations only if not cached
+    if (!cached) {
+      const styles: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
+      try {
+        const results = await Promise.all(
+          styles.map(async (style) => {
+            try {
+              const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  task: "CITATION_FULL",
+                  input: {
+                    style: style.toUpperCase(),
+                    url: source.url,
+                    title: source.title ?? "",
+                    authors: source.author ?? "",
+                    year: source.publishedYear ?? "",
+                    publisher: source.publisher ?? "",
+                  },
+                }),
+              });
+              const data = (await res.json()) as { inText?: string; bibliography?: string };
+              return { style, inText: data.inText ?? "", bibliography: data.bibliography ?? "" };
+            } catch {
+              return { style, inText: "", bibliography: "" };
+            }
+          })
+        );
+        const citMap: Partial<Record<FormatStyleId, SourceCitStyle>> = {};
+        results.forEach((r) => { if (r.inText || r.bibliography) citMap[r.style] = { inText: r.inText, bibliography: r.bibliography }; });
+        citCacheRef.current[source.url] = citMap;
+        setSourceModal((prev) => prev ? { ...prev, citations: citMap, citLoading: false } : null);
+      } catch {
+        setSourceModal((prev) => prev ? { ...prev, citLoading: false, citError: "Could not generate citations." } : null);
+      }
     }
   }, [currentEssayFormat]);
+
+  /* ── Source suggest: generate one continuation sentence ── */
+  const fetchSuggestion = useCallback(async () => {
+    setSourceModal((prev) => prev ? { ...prev, suggestLoading: true, suggestError: null } : null);
+    try {
+      const modal = sourceModal;
+      if (!modal) return;
+      const liveSnap = getSnapshotRef.current?.();
+      const essayCtx = liveSnap?.pages.map(p => p.plainText).join("\n\n").trim() ?? rawContent.trim();
+      const res = await fetchWithUserAuthorization("/api/sources/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceContent: modal.source.fullContent,
+          sourceTitle: modal.source.title,
+          sourceUrl: modal.source.url,
+          essayContext: essayCtx,
+          humanize: autoHumanize,
+        }),
+      });
+      const data = await res.json() as { suggestion?: string; error?: string };
+      if (!res.ok || !data.suggestion) throw new Error(data.error ?? "No suggestion");
+      setSourceModal((prev) => prev ? { ...prev, suggestions: [...prev.suggestions, data.suggestion!], suggestLoading: false } : null);
+    } catch {
+      setSourceModal((prev) => prev ? { ...prev, suggestLoading: false, suggestError: "Could not generate suggestion." } : null);
+    }
+  }, [sourceModal, autoHumanize, rawContent]);
+
+  // Auto-fetch first suggestion when modal opens
+  useEffect(() => {
+    if (autoSuggest && sourceModal && !sourceModal.citLoading && sourceModal.suggestions.length === 0 && !sourceModal.suggestLoading) {
+      void fetchSuggestion();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceModal?.source.url, sourceModal?.citLoading, autoSuggest]);
 
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
@@ -2979,6 +3036,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           </button>
                         ))}
                       </div>
+                      {/* ── Docked controls ── */}
+                      <div className="mt-2 flex items-center gap-3">
+                        {([ ["autoSuggest", "Auto Suggest", autoSuggest, setAutoSuggest], ["autoHumanize", "Auto Humanize", autoHumanize, setAutoHumanize] ] as [string, string, boolean, (v: boolean) => void][]).map(([key, label, val, setter]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setter(!val)}
+                            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition active:scale-[0.96] ${val ? "border-[#0d9488]/40 bg-[#0d9488]/10 text-[#0d9488]" : "border-[#2a2f38] bg-transparent text-[#4b5563] hover:text-[#64748b]"}`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${val ? "bg-[#0d9488]" : "bg-[#374151]"}`} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* ── Uploads tab ── */}
@@ -3498,6 +3569,50 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <p className="text-[11px] text-[#374151]">No citation generated for {STYLE_LABELS[activeStyle]}.</p>
                   )}
                 </div>
+
+                {/* ── Suggested continuation ── */}
+                {autoSuggest && (
+                  <div className="border-t border-[#1e252f] px-5 py-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#374151]">Suggested</span>
+                      {autoHumanize && (
+                        <span className="rounded-full bg-[#0d9488]/15 px-2 py-0.5 text-[8px] font-semibold text-[#0d9488]">Humanized</span>
+                      )}
+                    </div>
+
+                    {sourceModal.suggestLoading && (
+                      <div className="flex items-center gap-2 py-3 text-[11px] text-[#4b5563]">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#4b5563] border-t-transparent" />
+                        {autoHumanize ? "Generating & humanizing…" : "Generating suggestion…"}
+                      </div>
+                    )}
+
+                    {sourceModal.suggestError && !sourceModal.suggestLoading && (
+                      <p className="text-[11px] text-[#f87171]">{sourceModal.suggestError}</p>
+                    )}
+
+                    {!sourceModal.suggestLoading && sourceModal.suggestions.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        {sourceModal.suggestions.map((s, i) => (
+                          <div key={i} className="flex items-start gap-2 rounded-xl border border-[#1e252f] bg-[#0a0d12] px-3 py-2.5">
+                            <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[#c4b5fd]">{s}</p>
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard?.writeText(s).catch(() => {}); showToast("Suggestion copied ✓"); }}
+                              className="flex-shrink-0 rounded-full bg-[#1e252f] px-2.5 py-1 text-[9px] font-semibold text-[#64748b] transition hover:text-[#e2e8f0]"
+                            >Copy</button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => void fetchSuggestion()}
+                          disabled={sourceModal.suggestLoading}
+                          className="self-start rounded-full border border-[#2a2f38] bg-[#13161c] px-3 py-1 text-[10px] font-semibold text-[#64748b] transition hover:border-[#3a4150] hover:text-[#94a3b8] active:scale-[0.96] disabled:opacity-40"
+                        >+ more</button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
               </div>
             </div>
