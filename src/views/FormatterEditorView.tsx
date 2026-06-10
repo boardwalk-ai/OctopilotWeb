@@ -765,6 +765,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [autoHumanize, setAutoHumanize] = useState(true);
   // Citation cache keyed by source URL — avoids re-fetching on modal reopen
   const citCacheRef = useRef<Record<string, Partial<Record<FormatStyleId, SourceCitStyle>>>>({});
+  // Suggestion cache keyed by source URL — avoids re-generating on modal reopen
+  const suggestCacheRef = useRef<Record<string, string[]>>({});
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -1576,7 +1578,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       citLoading: !cached,
       citError: null,
       activeStyle: currentEssayFormat,
-      suggestions: [],
+      suggestions: suggestCacheRef.current[source.url] ?? [],
       suggestLoading: false,
       suggestError: null,
     });
@@ -1642,7 +1644,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       });
       const data = await res.json() as { suggestion?: string; error?: string };
       if (!res.ok || !data.suggestion) throw new Error(data.error ?? "No suggestion");
-      setSourceModal((prev) => prev ? { ...prev, suggestions: [...prev.suggestions, data.suggestion!], suggestLoading: false } : null);
+      setSourceModal((prev) => {
+        if (!prev) return null;
+        const updated = [...prev.suggestions, data.suggestion!];
+        suggestCacheRef.current[prev.source.url] = updated;
+        return { ...prev, suggestions: updated, suggestLoading: false };
+      });
     } catch {
       setSourceModal((prev) => prev ? { ...prev, suggestLoading: false, suggestError: "Could not generate suggestion." } : null);
     }
