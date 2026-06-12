@@ -922,10 +922,18 @@ export default function FormatterEditorCore({
                 cleanupEditorArtifacts(nextEditor);
                 if (!moved) break;
                 if (currentEditor.scrollHeight > currentEditor.clientHeight + 1) {
-                    const last = currentEditor.lastChild;
-                    if (last) nextEditor.insertBefore(last, nextEditor.firstChild);
+                    // The pulled-up block doesn't fully fit — split it like Word:
+                    // keep the lines that fit, push only the remainder back down.
+                    const split = moveOverflowNode(currentEditor, nextEditor);
                     cleanupEditorArtifacts(currentEditor);
                     cleanupEditorArtifacts(nextEditor);
+                    if (!split || currentEditor.scrollHeight > currentEditor.clientHeight + 1) {
+                        // Couldn't split (e.g. keep-with-next block) — push whole back
+                        const last = currentEditor.lastChild;
+                        if (last) nextEditor.insertBefore(last, nextEditor.firstChild);
+                        cleanupEditorArtifacts(currentEditor);
+                        cleanupEditorArtifacts(nextEditor);
+                    }
                     break;
                 }
             }
@@ -1097,6 +1105,107 @@ export default function FormatterEditorCore({
         rebalancePaginationFrom(pageId);
         saveSelection();
     }, [cleanupEditorArtifacts, rebalancePaginationFrom, saveSelection]);
+
+    /* ── Cross-page caret merge (Word-style Backspace/Delete at page edges) ── */
+    const isCaretAtBoundary = (el: HTMLElement, edge: "start" | "end"): boolean => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return false;
+        const r = sel.getRangeAt(0);
+        if (!el.contains(r.startContainer)) return false;
+        const probe = r.cloneRange();
+        probe.selectNodeContents(el);
+        if (edge === "start") probe.setEnd(r.startContainer, r.startOffset);
+        else probe.setStart(r.startContainer, r.startOffset);
+        return probe.toString().replace(/[​\s]/g, "") === "";
+    };
+
+    // Joins the first block of `pageId` into the last block of the previous
+    // page (paragraph join), places the caret at the junction, and rebalances.
+    const mergePageIntoPrevious = useCallback((pageId: number): boolean => {
+        const idx = pagesRef.current.findIndex((p) => p.id === pageId);
+        if (idx <= 0) return false;
+        const prevPage = pagesRef.current[idx - 1];
+        const prevEd = editorRefs.current[prevPage.id];
+        const curEd = editorRefs.current[pageId];
+        if (!prevEd || !curEd) return false;
+
+        let firstBlock: ChildNode | null = curEd.firstChild;
+        while (firstBlock && (
+            (firstBlock.nodeType === Node.TEXT_NODE && !(firstBlock.textContent || "").trim())
+            || firstBlock.nodeName === "BR"
+        )) {
+            firstBlock = firstBlock.nextSibling;
+        }
+        if (!firstBlock) return false;
+        // Never pull a references heading out of its own page
+        if (firstBlock instanceof HTMLElement && firstBlock.dataset.keepWithNext === "1") return false;
+
+        let lastBlock: ChildNode | null = prevEd.lastChild;
+        while (lastBlock && lastBlock.nodeType === Node.TEXT_NODE && !(lastBlock.textContent || "").trim()) {
+            lastBlock = lastBlock.previousSibling;
+        }
+
+        const sel = window.getSelection();
+        const range = document.createRange();
+
+        if (lastBlock instanceof HTMLElement && lastBlock.nodeName !== "BR" && firstBlock instanceof HTMLElement) {
+            const junction = lastBlock.childNodes.length;
+            while (firstBlock.firstChild) lastBlock.appendChild(firstBlock.firstChild);
+            firstBlock.remove();
+            range.setStart(lastBlock, Math.min(junction, lastBlock.childNodes.length));
+        } else {
+            if (prevEd.childNodes.length === 1 && prevEd.firstChild?.nodeName === "BR") prevEd.innerHTML = "";
+            prevEd.appendChild(firstBlock);
+            range.setStart(prevEd, Math.max(0, prevEd.childNodes.length - 1));
+        }
+        range.collapse(true);
+
+        prevEd.focus({ preventScroll: true });
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        selectionRangeRef.current = range.cloneRange();
+
+        pageContentRef.current[prevPage.id] = prevEd.innerHTML;
+        pageContentRef.current[pageId] = curEd.innerHTML || "<br/>";
+        setActivePageId(prevPage.id);
+        rebalancePaginationFrom(prevPage.id);
+        saveSelection();
+        return true;
+    }, [rebalancePaginationFrom, saveSelection]);
+
+    const handleEditorKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, pageId: number) => {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            document.execCommand(
+                "insertHTML",
+                false,
+                '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>'
+            );
+            handlePageInput(pageId);
+            return;
+        }
+
+        const editor = editorRefs.current[pageId];
+        if (!editor) return;
+
+        if (e.key === "Backspace" && isCaretAtBoundary(editor, "start")) {
+            const idx = pagesRef.current.findIndex((p) => p.id === pageId);
+            if (idx > 0) {
+                e.preventDefault();
+                mergePageIntoPrevious(pageId);
+            }
+            return;
+        }
+
+        if (e.key === "Delete" && isCaretAtBoundary(editor, "end")) {
+            const idx = pagesRef.current.findIndex((p) => p.id === pageId);
+            const nextPage = pagesRef.current[idx + 1];
+            if (nextPage) {
+                e.preventDefault();
+                mergePageIntoPrevious(nextPage.id);
+            }
+        }
+    }, [handlePageInput, mergePageIntoPrevious]);
 
     // ── Grammar check ──────────────────────────────────────────────────────────
     const runGrammarCheck = useCallback(async (pageId: number) => {
@@ -1500,17 +1609,7 @@ export default function FormatterEditorCore({
                         contentEditable
                         suppressContentEditableWarning
                         onInput={() => { handlePageInput(page.id); scheduleGrammarCheck(page.id); }}
-                        onKeyDown={(e) => {
-                            if (e.key === "Tab") {
-                                e.preventDefault();
-                                document.execCommand(
-                                    "insertHTML",
-                                    false,
-                                    '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>'
-                                );
-                                handlePageInput(page.id);
-                            }
-                        }}
+                        onKeyDown={(e) => handleEditorKeyDown(e, page.id)}
                         onKeyUp={() => { queryFormattingState(); saveSelection(); }}
                         onMouseUp={() => { queryFormattingState(); saveSelection(); }}
                         onFocus={() => {
@@ -2011,17 +2110,7 @@ export default function FormatterEditorCore({
                                             contentEditable
                                             suppressContentEditableWarning
                                             onInput={() => { handlePageInput(page.id); scheduleGrammarCheck(page.id); }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Tab") {
-                                                    e.preventDefault();
-                                                    document.execCommand(
-                                                        "insertHTML",
-                                                        false,
-                                                        '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>'
-                                                    );
-                                                    handlePageInput(page.id);
-                                                }
-                                            }}
+                                            onKeyDown={(e) => handleEditorKeyDown(e, page.id)}
                                             onKeyUp={() => { queryFormattingState(); saveSelection(); }}
                                             onMouseUp={() => { queryFormattingState(); saveSelection(); }}
                                             onFocus={() => {
