@@ -33,19 +33,25 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuthenticatedRequest(request);
   if ("response" in auth) return auth.response;
 
-  const { sourceContent, sourceTitle, sourceUrl, essayContext, humanize } =
+  const { sourceContent, sourceTitle, sourceUrl, essayContext, humanize, inTextCitation, citationStyle } =
     await request.json() as {
       sourceContent: string;
       sourceTitle: string;
       sourceUrl: string;
       essayContext: string;
       humanize: boolean;
+      inTextCitation?: string;
+      citationStyle?: string;
     };
 
   if (!sourceContent) return NextResponse.json({ error: "Missing sourceContent" }, { status: 400 });
 
   try {
     const { apiKey, model } = await getOpenRouterConfig("primary");
+
+    const citationInstruction = inTextCitation
+      ? `End the sentence with this ${citationStyle?.toUpperCase() ?? "in-text"} citation exactly as written: ${inTextCitation}`
+      : "Do not add a citation.";
 
     const prompt = `You are a writing assistant. A student is writing an essay and is referencing the following source.
 
@@ -57,7 +63,7 @@ ${sourceContent.slice(0, 3000)}
 ${essayContext ? `STUDENT'S ESSAY SO FAR (last ~500 chars):
 ${essayContext.slice(-500)}
 
-` : ""}Write ONE natural continuation sentence the student could write next in their essay that naturally incorporates or references information from this source. The sentence should flow naturally after whatever they have written. Write ONLY the sentence itself, no explanation, no quotes around it.`;
+` : ""}Write ONE natural continuation sentence the student could write next in their essay that naturally incorporates information from this source. The sentence should flow naturally after whatever they have written. ${citationInstruction} Write ONLY the sentence itself, no explanation, no quotes around it.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",

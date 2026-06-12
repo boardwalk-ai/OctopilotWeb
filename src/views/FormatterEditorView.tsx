@@ -1640,6 +1640,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           sourceUrl: modal.source.url,
           essayContext: essayCtx,
           humanize: autoHumanize,
+          inTextCitation: modal.citations[modal.activeStyle]?.inText ?? "",
+          citationStyle: modal.activeStyle,
         }),
       });
       const data = await res.json() as { suggestion?: string; error?: string };
@@ -3505,7 +3507,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setSourceModal((prev) => prev ? { ...prev, activeStyle: s } : null)}
+                        onClick={() => setSourceModal((prev) => {
+                              if (!prev || prev.activeStyle === s) return prev;
+                              // Clear suggestion cache so new style's citation is used
+                              suggestCacheRef.current[prev.source.url] = [];
+                              return { ...prev, activeStyle: s, suggestions: [], suggestLoading: false };
+                            })}
                         className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "text-white" : "bg-[#1a1f28] text-[#4b5563] hover:text-[#94a3b8]"}`}
                         style={activeStyle === s ? { background: modalColor } : undefined}
                       >
