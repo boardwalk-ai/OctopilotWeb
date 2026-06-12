@@ -1012,42 +1012,70 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     setFormatStyle(style);
 
     const snap = getSnapshotRef.current?.();
-    const allHtml = snap?.pages.map(p => p.html ?? "").join("") ?? "";
+    const pagesHtml = snap?.pages.map(p => p.html ?? "") ?? [];
 
-    // Parse data-field attributes from current editor HTML to carry over
-    // what the user typed into the new format template.
+    // Carry over what the user typed into the new format template.
+    // Tagged elements (data-field) are metadata/essay from a previous format
+    // pass; untagged block elements are user-typed content that must NOT be
+    // dropped (fresh editors have no tags at all).
     const extracted: Partial<CoreSnapshot> = {};
-    if (allHtml && typeof window !== "undefined") {
+    if (pagesHtml.length && typeof window !== "undefined") {
       const parser = new DOMParser();
-      const doc = parser.parseFromString(allHtml, "text/html");
+      const essayParas: string[] = [];
+      const bibEntries: string[] = [];
+      const meta: Record<string, string> = {};
 
-      const getField = (name: string) =>
-        doc.querySelector(`[data-field="${name}"]`)?.textContent?.trim() ?? "";
+      const isPlaceholder = (t: string) => {
+        const low = t.toLowerCase();
+        return low.includes("add your references here")
+          || low.includes("write your abstract here")
+          || low.includes("keyword1, keyword2");
+      };
 
-      // Metadata fields
-      const studentName   = getField("studentName");
-      const instructorName = getField("instructorName");
-      const institutionName = getField("institutionName");
-      const courseInfo    = getField("courseInfo");
-      const essayDate     = getField("essayDate");
-      const essayTitle    = getField("essayTitle");
-      const abstract      = getField("abstract");
-      const keywords      = getField("keywords");
+      for (const html of pagesHtml) {
+        const doc = parser.parseFromString(html, "text/html");
 
-      if (studentName)    extracted.studentName    = studentName;
-      if (instructorName) extracted.instructorName = instructorName;
-      if (institutionName) extracted.institutionName = institutionName;
-      if (courseInfo)     extracted.courseInfo     = courseInfo;
-      if (essayDate)      extracted.essayDate      = essayDate;
-      if (essayTitle)     extracted.initialDocTitle = essayTitle;
-      if (abstract)       extracted.abstract       = abstract;
-      if (keywords)       extracted.keywords       = keywords;
+        // References page → re-capture entries so user edits survive reformat
+        if (doc.querySelector("[data-reference-heading]")) {
+          doc.body.querySelectorAll("p").forEach((p) => {
+            if (p.hasAttribute("data-reference-heading")) return;
+            const t = p.textContent?.trim() ?? "";
+            if (!t || isPlaceholder(t)) return;
+            bibEntries.push(t.replace(/^\[\d+\]\s*/, ""));
+          });
+          continue;
+        }
 
-      // Essay body — join all [data-field="essay"] paragraphs as plain text
-      const essayParas = Array.from(doc.querySelectorAll('[data-field="essay"]'))
-        .map(el => el.textContent?.trim())
-        .filter(Boolean);
-      if (essayParas.length) extracted.content = essayParas.join("\n\n");
+        for (const el of Array.from(doc.body.children)) {
+          const t = el.textContent?.trim() ?? "";
+          const field = el.getAttribute("data-field");
+          if (field && field !== "essay") {
+            if (!t || isPlaceholder(t) || meta[field]) continue;
+            // Strip the rendered "Keywords:" label so it doesn't double up
+            meta[field] = field === "keywords" ? t.replace(/^keywords:\s*/i, "") : t;
+          } else if (t) {
+            // data-field="essay" OR untagged user-typed paragraph
+            essayParas.push(t);
+          }
+        }
+      }
+
+      if (meta.studentName)     extracted.studentName     = meta.studentName;
+      if (meta.instructorName)  extracted.instructorName  = meta.instructorName;
+      if (meta.institutionName) extracted.institutionName = meta.institutionName;
+      if (meta.courseInfo)      extracted.courseInfo      = meta.courseInfo;
+      if (meta.essayDate)       extracted.essayDate       = meta.essayDate;
+      if (meta.essayTitle)      extracted.initialDocTitle = meta.essayTitle;
+      if (meta.abstract)        extracted.abstract        = meta.abstract;
+      if (meta.keywords)        extracted.keywords        = meta.keywords;
+      if (essayParas.length)    extracted.content         = essayParas.join("\n\n");
+      if (bibEntries.length)    extracted.bibliography    = bibEntries.join("\n");
+
+      // Last-resort fallback: never lose typed text
+      if (!essayParas.length) {
+        const plain = snap?.pages.map(p => p.plainText).join("\n\n").trim() ?? "";
+        if (plain) extracted.content = plain;
+      }
     }
 
     setCoreSnapshot(prev => ({ ...prev, ...extracted, formatStyle: style }));
@@ -2476,6 +2504,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 courseInfo={coreSnapshot.courseInfo}
                 subjectCode={coreSnapshot.subjectCode}
                 essayDate={coreSnapshot.essayDate}
+                abstract={coreSnapshot.abstract}
+                keywords={coreSnapshot.keywords}
                 formatStyle={formatStyle}
                 onReformat={(id) => applyDocumentWithStyle(id)}
                 canReformat={true}

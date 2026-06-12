@@ -46,11 +46,18 @@ export function getTitle(input: FormatterInput): string {
 }
 
 export function getDate(input: FormatterInput): string {
-    return input.essayDate?.trim() || new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-    });
+    const source = input.essayDate?.trim();
+    if (!source) {
+        return new Date().toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+        });
+    }
+    // Normalize "12 June 2026" (MLA carry-over) → "June 12, 2026"
+    const m = source.match(/^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/);
+    if (m) return `${m[2]} ${m[1]}, ${m[3]}`;
+    return source;
 }
 
 export function splitParagraphs(text: string): string[] {
