@@ -3,6 +3,8 @@ import { composePages, getDateDayMonthYear, getLastName, getTitle, paragraphHtml
 
 export class MLAFormatterService implements EssayFormatter {
     format(input: FormatterInput): FormatterOutput {
+        // MLA 9th: everything uniformly double-spaced — no extra space between
+        // the heading block, title, or paragraphs. Date as "12 June 2026".
         const MLA_FIELDS = ["studentName", "instructorName", "courseInfo", "essayDate"] as const;
         const headingLines = [
             input.studentName?.trim() || "Student Name",
@@ -14,22 +16,27 @@ export class MLAFormatterService implements EssayFormatter {
         const firstPage = [
             ...headingLines.map((line, i) => paragraphHtml(line, {
                 align: "left",
-                marginBottomEm: 0.8,
+                marginBottomEm: 0,
                 dataField: MLA_FIELDS[i],
             })),
-            paragraphHtml(getTitle(input), { align: "center", marginBottomEm: 1.4, dataField: "essayTitle" }),
+            // Title: centered, NOT bold, same double spacing as everything else
+            paragraphHtml(getTitle(input), { align: "center", marginBottomEm: 0, dataField: "essayTitle" }),
             paragraphsHtml(input.essay, {
                 align: "left",
                 indentFirstLine: true,
-                marginBottomEm: 1.2,
+                marginBottomEm: 0,
                 dataField: "essay",
             }),
         ].join("");
 
+        // Works Cited: heading centered not bold, alphabetized, hanging indent,
+        // double-spaced with no extra space between entries.
         const worksCitedPage = referencesHtml("Works Cited", input.bibliography, {
             headingBold: false,
             hangingIndent: true,
             alwaysShow: true,
+            sortAlphabetically: true,
+            entrySpacingEm: 0,
         });
         const lastName = getLastName(input.studentName);
 

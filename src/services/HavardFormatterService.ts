@@ -26,15 +26,19 @@ export class HavardFormatterService implements EssayFormatter {
             paragraphsHtml(input.essay, {
                 align: "left",
                 indentFirstLine: true,
-                marginBottomEm: 1.1,
+                marginBottomEm: 0,
                 dataField: "essay",
             }),
         ].join("");
 
+        // Harvard: reference list must be alphabetized by author surname
         const referencesPage = referencesHtml("Reference List", input.bibliography, {
             headingBold: true,
             hangingIndent: true,
             alwaysShow: true,
+            sortAlphabetically: true,
+            entrySpacingEm: 1,
+            headingGapEm: 1,
         });
 
         const pages = [

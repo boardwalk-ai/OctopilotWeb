@@ -1,37 +1,53 @@
 import { EssayFormatter, FormatterInput, FormatterOutput } from "./FormatterTypes";
-import { centeredTitlePageHtml, composePages, getDate, getTitle, paragraphsHtml, referencesHtml } from "./FormatterUtils";
+import { composePages, getDate, getTitle, paragraphHtml, paragraphsHtml, referencesHtml, spacerHtml } from "./FormatterUtils";
 
 export class ChicagoFormatterService implements EssayFormatter {
     format(input: FormatterInput): FormatterOutput {
-        const titlePage = centeredTitlePageHtml([
-            getTitle(input),
-            input.studentName?.trim() || "Student Name",
-            input.courseInfo?.trim() || "Course Information",
-            input.instructorName?.trim() || "Instructor Name",
-            getDate(input),
-        ], {
-            boldFirstLine: false,
-            lineGapEm: 1.3,
-            dataFields: ["essayTitle", "studentName", "courseInfo", "instructorName", "essayDate"],
-        });
+        // Turabian 9th title page: title about a third of the way down the
+        // page; author/course/instructor/date block about two-thirds down.
+        // Not vertically centered, no page number on the title page.
+        const titlePage = [
+            spacerHtml(7),
+            paragraphHtml(getTitle(input), {
+                align: "center", marginBottomEm: 0, dataField: "essayTitle",
+            }),
+            spacerHtml(6),
+            paragraphHtml(input.studentName?.trim() || "Student Name", {
+                align: "center", marginBottomEm: 0, dataField: "studentName",
+            }),
+            paragraphHtml(input.courseInfo?.trim() || "Course Information", {
+                align: "center", marginBottomEm: 0, dataField: "courseInfo",
+            }),
+            paragraphHtml(input.instructorName?.trim() || "Instructor Name", {
+                align: "center", marginBottomEm: 0, dataField: "instructorName",
+            }),
+            paragraphHtml(getDate(input), {
+                align: "center", marginBottomEm: 0, dataField: "essayDate",
+            }),
+        ].join("");
 
         const bodyPage = paragraphsHtml(input.essay, {
             align: "left",
             indentFirstLine: true,
-            marginBottomEm: 1.1,
+            marginBottomEm: 0,
             dataField: "essay",
         });
+
+        // Turabian: "Bibliography" heading bold centered; entries single-spaced
+        // internally with a blank line between entries; hanging indent; A→Z.
         const bibliographyPage = referencesHtml("Bibliography", input.bibliography, {
-            headingBold: false,
+            headingBold: true,
             hangingIndent: true,
             alwaysShow: true,
+            sortAlphabetically: true,
+            entrySpacingEm: 1,
+            headingGapEm: 1,
         });
 
         const pages = [
             {
                 content: titlePage,
                 textAlign: "center" as const,
-                centerVertically: true,
                 showPageNumber: false,
                 lineHeight: 2,
             },
@@ -45,7 +61,7 @@ export class ChicagoFormatterService implements EssayFormatter {
                 content: bibliographyPage,
                 textAlign: "left" as const,
                 showPageNumber: true,
-                lineHeight: 2,
+                lineHeight: 1.15,
             },
         ];
 

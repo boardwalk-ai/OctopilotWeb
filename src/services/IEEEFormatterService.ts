@@ -32,11 +32,14 @@ export class IEEEFormatterService implements EssayFormatter {
             }),
         ].join("");
 
+        // IEEE: references numbered in order of citation — never alphabetized
         const referencesPage = referencesHtml("References", input.bibliography, {
             numbered: true,
             headingBold: true,
             hangingIndent: false,
             alwaysShow: true,
+            entrySpacingEm: 0.8,
+            headingGapEm: 1,
         });
 
         const pages = [

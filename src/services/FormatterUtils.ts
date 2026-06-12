@@ -141,6 +141,15 @@ export function centeredTitlePageHtml(
         .join("");
 }
 
+/** Sort key for alphabetizing bibliography entries: strip leading
+ *  punctuation/quotes/numbering so "“Viking.”" sorts under V, not under “. */
+function bibliographySortKey(entry: string): string {
+    return entry
+        .replace(/^\[\d+\]\s*/, "")
+        .replace(/^[^\p{L}\p{N}]+/u, "")
+        .toLowerCase();
+}
+
 export function referencesHtml(
     title: string,
     bibliography: string | undefined,
@@ -150,9 +159,15 @@ export function referencesHtml(
         headingBold?: boolean;
         /** Always render the page even when bibliography is empty */
         alwaysShow?: boolean;
+        /** Alphabetize entries (APA/MLA/Chicago/Harvard). IEEE keeps citation order. */
+        sortAlphabetically?: boolean;
+        /** Extra space between entries in em. 0 = uniform line spacing only (APA/MLA). */
+        entrySpacingEm?: number;
+        /** Space below the section heading in em. */
+        headingGapEm?: number;
     }
 ): string {
-    const entries = normalizeText(bibliography || "")
+    let entries = normalizeText(bibliography || "")
         .split(/\n+/)
         .map((entry) => entry.trim())
         .filter(Boolean);
@@ -171,21 +186,34 @@ export function referencesHtml(
         if (headingAliases.has(first)) entries.shift();
     }
 
+    if (opts?.sortAlphabetically) {
+        entries = [...entries].sort((a, b) =>
+            bibliographySortKey(a).localeCompare(bibliographySortKey(b), "en"));
+    }
+
     if (!entries.length && !opts?.alwaysShow) return "";
 
-    const heading = `<p data-keep-with-next="1" data-reference-heading="1" style="margin:0 0 1.8em 0;text-align:center;${opts?.headingBold ? "font-weight:700;" : ""}">${escapeHtml(title)}</p>`;
+    const headingGap = opts?.headingGapEm ?? 0;
+    const heading = `<p data-keep-with-next="1" data-reference-heading="1" style="margin:0 0 ${headingGap}em 0;text-align:center;${opts?.headingBold ? "font-weight:700;" : ""}">${escapeHtml(title)}</p>`;
 
+    const entryGap = opts?.entrySpacingEm ?? 0;
     const body = entries.length
         ? entries
               .map((entry, index) => {
                   const numbered = opts?.numbered ? `[${index + 1}] ${entry.replace(/^\[\d+\]\s*/, "")}` : entry;
                   const hanging = opts?.hangingIndent !== false ? "padding-left:0.5in;text-indent:-0.5in;" : "";
-                  return `<p style="margin:0 0 1em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
+                  return `<p style="margin:0 0 ${entryGap}em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
               })
               .join("")
         : `<p style="margin:0;color:#9ca3af;">Add your references here.</p>`;
 
     return `${heading}${body}`;
+}
+
+/** Empty double-spaced line(s) — used for standards-mandated vertical
+ *  positioning (e.g. APA title 3–4 lines down, Turabian title-page thirds). */
+export function spacerHtml(count = 1): string {
+    return Array.from({ length: count }, () => `<p style="margin:0;"><br/></p>`).join("");
 }
 
 /**
@@ -194,13 +222,14 @@ export function referencesHtml(
  * can type directly into the editor page.
  */
 export function apaAbstractPageHtml(abstract?: string, keywords?: string): string {
-    const heading = `<p style="margin:0 0 1.6em 0;text-align:center;font-weight:700;">Abstract</p>`;
+    const heading = `<p style="margin:0;text-align:center;font-weight:700;">Abstract</p>`;
     const body = abstract?.trim()
-        ? `<p data-field="abstract" style="margin:0 0 1.2em 0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
-        : `<p data-field="abstract" style="margin:0 0 1.2em 0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;
+        ? `<p data-field="abstract" style="margin:0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
+        : `<p data-field="abstract" style="margin:0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;
+    // APA 7th: keywords line is indented 0.5in like a regular paragraph
     const kwLine = keywords?.trim()
-        ? `<p data-field="keywords" style="margin:0;text-align:left;"><em>Keywords:</em> ${escapeHtml(keywords.trim())}</p>`
-        : `<p data-field="keywords" style="margin:0;text-align:left;color:#9ca3af;"><em>Keywords:</em> keyword1, keyword2, keyword3</p>`;
+        ? `<p data-field="keywords" style="margin:0;text-align:left;text-indent:0.5in;"><em>Keywords:</em> ${escapeHtml(keywords.trim())}</p>`
+        : `<p data-field="keywords" style="margin:0;text-align:left;text-indent:0.5in;color:#9ca3af;"><em>Keywords:</em> keyword1, keyword2, keyword3</p>`;
     return `${heading}${body}${kwLine}`;
 }
 
