@@ -351,9 +351,10 @@ export default function FormatterEditorCore({
     const insetTransition = panelInsets?.animated
         ? "padding-left 0.4s cubic-bezier(0.4,0,0.2,1), padding-right 0.4s cubic-bezier(0.4,0,0.2,1)"
         : "none";
+    // 16px base padding (replaces the px-4 the inline style overrides) + panel overlay width
     const insetStyle = {
-        paddingLeft:  (panelInsets?.left  ?? 0),
-        paddingRight: (panelInsets?.right ?? 0),
+        paddingLeft:  (panelInsets?.left  ?? 0) + 16,
+        paddingRight: (panelInsets?.right ?? 0) + 16,
         transition:   insetTransition,
     };
     // Combine parsed bibliography with any manually-added citations
@@ -2036,7 +2037,7 @@ export default function FormatterEditorCore({
             </div>
 
             <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#11151b]">
-                <div ref={pagesViewportRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
+                <div ref={pagesViewportRef} className="flex min-h-0 flex-1 flex-col overflow-auto" style={insetStyle}>
                     <div className="sticky top-0 z-20 flex justify-center bg-[#11151b] px-6 pb-2 pt-3">
                         <div
                             ref={rulerRef}
@@ -2263,7 +2264,7 @@ export default function FormatterEditorCore({
                 </div>
             </div>
 
-            <div className="flex h-[28px] flex-shrink-0 items-center justify-between border-t border-[#2f353f] bg-[#161a20] px-4 text-[12px] text-[#cbd5e1]">
+            <div className="flex h-[28px] flex-shrink-0 items-center justify-between border-t border-[#2f353f] bg-[#161a20] px-4 text-[12px] text-[#cbd5e1]" style={insetStyle}>
                 <div className="flex items-center gap-4">
                     <span>{wordCount} words</span>
                     <span>{charCount} characters</span>
