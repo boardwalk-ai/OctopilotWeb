@@ -27,11 +27,12 @@ import paramiko
 HOST     = "187.124.92.119"
 USER     = "root"
 PASSWORD = "Brokewalk25@"
-PM2      = "/root/.npm/_npx/5f7878ce38f1eb13/node_modules/pm2/bin/pm2"
 
+# Both instances run as systemd services (PM2 was retired — it raced with
+# the GitHub Actions deploy and crash-looped on port conflicts).
 INSTANCES = {
-    "formatter": {"path": "/opt/octopilot-formatter", "pm2_id": "1"},
-    "web":       {"path": "/opt/octopilot-web",       "pm2_id": "5"},
+    "formatter": {"path": "/opt/octopilot-formatter", "service": "octopilot-formatter"},
+    "web":       {"path": "/opt/octopilot-web",       "service": "octopilot-web"},
 }
 
 # Next.js build output markers that confirm a successful build
@@ -95,7 +96,7 @@ def run(c: paramiko.SSHClient, cmd: str, timeout: int = 300) -> tuple[int, str]:
 
 # ── Deploy one instance ───────────────────────────────────────────────────────
 def deploy_instance(
-    c: paramiko.SSHClient, name: str, path: str, pm2_id: str
+    c: paramiko.SSHClient, name: str, path: str, service: str
 ) -> tuple[bool, paramiko.SSHClient]:
     """
     Deploy one instance. Returns (success, client) — client may be a
@@ -139,7 +140,7 @@ def deploy_instance(
         print(f"\n  !! BUILD FAILED (exit {code}) !!")
         print("  Restoring previous .next …")
         run(c, f"rm -rf {path}/.next && mv {path}/.next.bak {path}/.next 2>&1 || true")
-        print("  PM2 NOT restarted — server still running last good build.")
+        print("  Service NOT restarted — still running last good build.")
         return False, c
 
     if code != 0 and looks_ok:
@@ -147,8 +148,8 @@ def deploy_instance(
 
     # 6. Swap in new build and restart
     run(c, f"rm -rf {path}/.next.bak 2>/dev/null || true")
-    print(f"\n  Build OK — restarting PM2 id:{pm2_id}")
-    run(c, f"{PM2} restart {pm2_id} 2>&1")
+    print(f"\n  Build OK — restarting {service}")
+    run(c, f"systemctl restart {service} && systemctl is-active {service} 2>&1")
     time.sleep(2)
     return True, c
 
@@ -177,7 +178,7 @@ def main() -> None:
     results: dict[str, bool] = {}
     for name in targets:
         inst = INSTANCES[name]
-        ok, c = deploy_instance(c, name, inst["path"], inst["pm2_id"])
+        ok, c = deploy_instance(c, name, inst["path"], inst["service"])
         results[name] = ok
         # Small pause between instances so VPS isn't hammered
         if name != targets[-1]:
@@ -185,12 +186,12 @@ def main() -> None:
             time.sleep(5)
             c = ensure_connected(c)
 
-    # Final PM2 status
+    # Final service status
     print(f"\n{'='*60}")
-    print("  Final PM2 status:")
+    print("  Final service status:")
     print(f"{'='*60}")
     c = ensure_connected(c)
-    run(c, f"{PM2} list 2>&1")
+    run(c, "systemctl is-active octopilot-web octopilot-formatter; ss -tlnp | grep -E ':3000|:3001' 2>&1")
     c.close()
 
     # Summary
