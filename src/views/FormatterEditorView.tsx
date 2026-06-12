@@ -78,8 +78,18 @@ const TONE_META: { id: ToneId; label: string }[] = [
 ];
 
 interface OctoSuggestion { icon: string; title: string; fix: string; }
-interface OctoGrammarItem  { title: string; issue: string; fix: string; }
-interface OctoStyleItem    { title: string; observation: string; suggestion: string; }
+interface OctoGrammarItem  { title: string; issue: string; fix: string; quote?: string; }
+interface OctoStyleItem    { title: string; observation: string; suggestion: string; quote?: string; }
+
+/* Issue-type → highlight color (matches bullet + editor highlight) */
+function octoIssueColor(title: string, section: "grammar" | "style"): string {
+  const t = title.toLowerCase();
+  if (/repeat|repetit|redundan/.test(t)) return "#f59e0b";              // repeated words — amber
+  if (/run-on|runon|fragment|comma splice/.test(t)) return "#ef4444";   // run-ons — red
+  if (/structure|organi[sz]|flow|transition|order/.test(t)) return "#3b82f6"; // structure — blue
+  if (/clarit|clear|vague|confus|wordy/.test(t)) return "#a855f7";      // clarity — purple
+  return section === "grammar" ? "#ea4335" : "#8b5cf6";
+}
 interface OctoRatings      { vocabulary: number; grammar: number; thinking: number; ideas: number; }
 interface OctoStructuredResponse {
   type: "critique" | "chat";
@@ -236,12 +246,15 @@ function RatingBars({ ratings }: { ratings: OctoRatings }) {
 function CritiqueBullet({
   itemId, title, detail1, detail2,
   label1, label2, color, delay, tone, essayCtx,
+  hasHighlight, onJump,
 }: {
   itemId: string; title: string;
   detail1: string; detail2: string;
   label1: string; label2: string;
   color: string; delay: number;
   tone: ToneId; essayCtx: string;
+  hasHighlight?: boolean;
+  onJump?: (id: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [input, setInput] = React.useState("");
@@ -291,6 +304,19 @@ function CritiqueBullet({
           <path d="M2 1.5L5.5 4 2 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <span className="flex-1 text-[11px] font-semibold leading-snug" style={{ color }}>{title}</span>
+        {hasHighlight && onJump && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onJump(itemId); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onJump(itemId); } }}
+            className="flex h-5 w-5 flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition hover:scale-110 active:scale-95"
+            style={{ background: `${color}22`, color }}
+            title="Jump to this spot in the document"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+          </span>
+        )}
       </button>
 
       {open && (
@@ -346,8 +372,8 @@ function CritiqueBullet({
 
 /* ── Full critique view ─────────────────────────────────────────────────────── */
 function OctoCritiqueView({
-  data, tone, essayCtx,
-}: { data: OctoStructuredResponse; tone: ToneId; essayCtx: string }) {
+  data, tone, essayCtx, onJump,
+}: { data: OctoStructuredResponse; tone: ToneId; essayCtx: string; onJump?: (id: string) => void }) {
   if (data.fallbackText || (data.type === "chat" && data.message)) {
     const text = data.message ?? data.fallbackText ?? "";
     return (
@@ -376,9 +402,11 @@ function OctoCritiqueView({
                 detail1={item.issue}
                 detail2={item.fix}
                 label1="Issue" label2="Fix"
-                color="#ea4335"
+                color={octoIssueColor(item.title, "grammar")}
                 delay={i * 0.06}
                 tone={tone} essayCtx={essayCtx}
+                hasHighlight={Boolean(item.quote)}
+                onJump={onJump}
               />
             ))}
           </div>
@@ -399,9 +427,11 @@ function OctoCritiqueView({
                 detail1={item.observation}
                 detail2={item.suggestion}
                 label1="Observation" label2="Suggestion"
-                color="#8b5cf6"
+                color={octoIssueColor(item.title, "style")}
                 delay={(grammar.length + i) * 0.06}
                 tone={tone} essayCtx={essayCtx}
+                hasHighlight={Boolean(item.quote)}
+                onJump={onJump}
               />
             ))}
           </div>
@@ -794,6 +824,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const savedEditorElRef = useRef<HTMLElement | null>(null);
   /* ── Bib entry insert ref (populated by FormatterEditorCore) ── */
   const insertBibEntryRef = useRef<((text: string) => void) | null>(null);
+  /* ── Octo critique highlight refs (populated by FormatterEditorCore) ── */
+  const octoHighlightRef = useRef<((items: { id: string; quote: string; color: string }[]) => number) | null>(null);
+  const octoJumpRef = useRef<((id: string) => void) | null>(null);
   /* ── Snapshot ref (populated by FormatterEditorCore for left-panel humanize) ── */
   const getSnapshotRef = useRef<(() => import("@/services/OrganizerService").ExportDocumentSnapshot) | null>(null);
 
@@ -1337,6 +1370,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
       const data = await res.json() as OctoStructuredResponse;
       setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "", structured: data }]);
+
+      // Highlight critique quotes directly in the document (Grammarly-style)
+      if (data.type === "critique") {
+        const items: { id: string; quote: string; color: string }[] = [];
+        (data.grammar ?? []).forEach((g, i) => {
+          if (g.quote?.trim()) items.push({ id: `g-${i}`, quote: g.quote, color: octoIssueColor(g.title, "grammar") });
+        });
+        (data.style ?? []).forEach((s, i) => {
+          if (s.quote?.trim()) items.push({ id: `s-${i}`, quote: s.quote, color: octoIssueColor(s.title, "style") });
+        });
+        if (items.length) requestAnimationFrame(() => octoHighlightRef.current?.(items));
+      }
     } catch {
       setChatMessages((prev) => [...prev, {
         id: crypto.randomUUID(), role: "assistant",
@@ -2359,6 +2404,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                               data={msg.structured}
                               tone={chatTone}
                               essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
+                              onJump={(id) => octoJumpRef.current?.(id)}
                             />
                           ) : (
                             <div className="flex justify-start">
@@ -2588,6 +2634,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 onBack={onBack}
                 onFinish={onFinish ? handleCoreFinish : undefined}
                 insertBibEntryRef={insertBibEntryRef}
+                octoHighlightRef={octoHighlightRef}
+                octoJumpRef={octoJumpRef}
                 panelInsets={{ left: leftWidth, right: rightWidth, animated: !panelResizing }}
               />
             </div>

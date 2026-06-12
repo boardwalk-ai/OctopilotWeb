@@ -37,14 +37,16 @@ For CRITIQUE, return ONLY valid JSON — no markdown fences, no extra text:
     {
       "title": "Short label (e.g. Run-on sentence in ¶2)",
       "issue": "Exact location + quote the problematic text. e.g. 'Paragraph 2, line 3: \\"The economy grew but inflation also rose and workers all suffered\\""  — explain specifically what is wrong.",
-      "fix": "The corrected version or exactly what to change."
+      "fix": "The corrected version or exactly what to change.",
+      "quote": "VERBATIM copy of the problematic text from the essay — character-for-character identical, 3 to 20 words, no paraphrasing, no added quotation marks. Used to highlight the text in the editor."
     }
   ],
   "style": [
     {
       "title": "Short label (e.g. Passive voice overuse in ¶3)",
       "observation": "Exact location + quote the text. State clearly whether it's good or bad and why.",
-      "suggestion": "If bad: rewrite it. If good: explain what makes it effective."
+      "suggestion": "If bad: rewrite it. If good: explain what makes it effective.",
+      "quote": "VERBATIM copy of the relevant text from the essay — character-for-character identical, 3 to 20 words, no paraphrasing, no added quotation marks. Used to highlight the text in the editor."
     }
   ],
   "ratings": {
@@ -58,6 +60,7 @@ For CRITIQUE, return ONLY valid JSON — no markdown fences, no extra text:
 RULES for critique:
 - grammar: 2–4 items. ALWAYS cite exact paragraph/line and QUOTE the actual text.
 - style: 2–4 items. ALWAYS cite exact paragraph/line and QUOTE the actual text.
+- quote: MUST be copied verbatim from the essay text (exact characters, exact spelling — even if misspelled). If you paraphrase, highlighting breaks.
 - ratings: integers 1–10 reflecting the actual essay quality. Be honest.
 - Address the essay directly — no generic advice. Reference what is actually written.
 - Respond in the user's language.`;

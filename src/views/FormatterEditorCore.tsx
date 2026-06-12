@@ -37,6 +37,10 @@ export interface EditorViewProps {
     getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
     insertBibEntryRef?: React.MutableRefObject<((text: string) => void) | null>;
+    // Refs populated by Core: highlight Octo critique quotes in the document /
+    // scroll to a highlight by id (returns number of quotes matched)
+    octoHighlightRef?: React.MutableRefObject<((items: OctoHighlightItem[]) => number) | null>;
+    octoJumpRef?: React.MutableRefObject<((id: string) => void) | null>;
     // How much the left/right overlay panels are covering the center (for toolbar centering)
     panelInsets?: { left: number; right: number; animated: boolean };
 }
@@ -154,6 +158,76 @@ function removeGrammarSpans(el: HTMLElement): void {
     el.normalize();
 }
 
+/* ── Octo the Bot issue highlights ──────────────────────────────────────────── */
+export interface OctoHighlightItem {
+    id: string;
+    quote: string;
+    color: string;
+}
+
+function removeOctoSpans(el: HTMLElement): void {
+    el.querySelectorAll("[data-octo-id]").forEach((s) => {
+        const p = s.parentNode;
+        if (!p) return;
+        while (s.firstChild) p.insertBefore(s.firstChild, s);
+        p.removeChild(s);
+    });
+    el.normalize();
+}
+
+/** Whitespace/case-tolerant search: returns offsets into `fullText`. */
+function findQuoteRange(fullText: string, quote: string): { start: number; end: number } | null {
+    const needle = quote
+        .trim()
+        .replace(/^["'""'']+|["'""'']+$/g, "")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+    if (needle.length < 3) return null;
+
+    const normChars: string[] = [];
+    const map: number[] = [];
+    let prevSpace = true;
+    for (let i = 0; i < fullText.length; i++) {
+        const ch = fullText[i]!;
+        if (/\s/.test(ch)) {
+            if (prevSpace) continue;
+            normChars.push(" "); map.push(i); prevSpace = true;
+        } else {
+            normChars.push(ch.toLowerCase()); map.push(i); prevSpace = false;
+        }
+    }
+    const idx = normChars.join("").indexOf(needle);
+    if (idx < 0) return null;
+    return { start: map[idx]!, end: map[idx + needle.length - 1]! + 1 };
+}
+
+function applyOctoHighlightToEditor(el: HTMLElement, item: OctoHighlightItem): boolean {
+    const { text: fullText, nodes: index } = buildTextAndIndex(el);
+    const found = findQuoteRange(fullText, item.quote);
+    if (!found) return false;
+    try {
+        const s1 = index.find(t => t.start <= found.start && t.start + (t.node.textContent?.length ?? 0) > found.start);
+        const s2 = index.find(t => t.start < found.end && t.start + (t.node.textContent?.length ?? 0) >= found.end);
+        if (!s1 || !s2) return false;
+        const range = document.createRange();
+        range.setStart(s1.node, found.start - s1.start);
+        range.setEnd(s2.node, found.end - s2.start);
+        const sp = document.createElement("span");
+        sp.setAttribute("data-octo-id", item.id);
+        sp.style.cssText = `background:${item.color}2e;border-bottom:2px solid ${item.color};border-radius:2px;transition:background 0.3s;`;
+        try {
+            range.surroundContents(sp);
+        } catch {
+            // Range crosses inline element boundaries — extract and re-insert
+            sp.appendChild(range.extractContents());
+            range.insertNode(sp);
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // Block-level HTML tags — a newline is inserted between them so
 // LanguageTool sees proper sentence boundaries.
 const BLOCK_TAGS = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
@@ -267,6 +341,8 @@ export default function FormatterEditorCore({
     canReformat = false,
     getSnapshotRef,
     insertBibEntryRef,
+    octoHighlightRef,
+    octoJumpRef,
     abstract,
     keywords,
     panelInsets,
@@ -458,6 +534,51 @@ export default function FormatterEditorCore({
         };
         return () => { insertBibEntryRef.current = null; };
     }, [insertBibEntryRef]);
+
+    // Expose Octo critique highlighting to parent via refs
+    useEffect(() => {
+        if (!octoHighlightRef) return;
+        octoHighlightRef.current = (items: OctoHighlightItem[]) => {
+            let matched = 0;
+            for (const page of pagesRef.current) {
+                const ed = editorRefs.current[page.id];
+                if (ed) removeOctoSpans(ed);
+            }
+            for (const item of items) {
+                if (!item.quote?.trim()) continue;
+                for (const page of pagesRef.current) {
+                    const ed = editorRefs.current[page.id];
+                    if (!ed) continue;
+                    if (applyOctoHighlightToEditor(ed, item)) { matched++; break; }
+                }
+            }
+            for (const page of pagesRef.current) {
+                const ed = editorRefs.current[page.id];
+                if (ed) pageContentRef.current[page.id] = ed.innerHTML;
+            }
+            return matched;
+        };
+        return () => { octoHighlightRef.current = null; };
+    }, [octoHighlightRef]);
+
+    useEffect(() => {
+        if (!octoJumpRef) return;
+        octoJumpRef.current = (id: string) => {
+            for (const page of pagesRef.current) {
+                const ed = editorRefs.current[page.id];
+                const sp = ed?.querySelector(`[data-octo-id="${id}"]`) as HTMLElement | null;
+                if (sp) {
+                    sp.scrollIntoView({ behavior: "smooth", block: "center" });
+                    // Flash the highlight so the eye lands on it
+                    const original = sp.style.background;
+                    sp.style.background = sp.style.borderBottomColor;
+                    setTimeout(() => { sp.style.background = original; }, 650);
+                    return;
+                }
+            }
+        };
+        return () => { octoJumpRef.current = null; };
+    }, [octoJumpRef]);
 
     useEffect(() => {
         pagesRef.current = pages;
@@ -1257,6 +1378,7 @@ export default function FormatterEditorCore({
                 const tmp = document.createElement("div");
                 tmp.innerHTML = rawHtml;
                 removeGrammarSpans(tmp);
+                removeOctoSpans(tmp);
                 return tmp.innerHTML;
             })();
             const html = htmlClean;
