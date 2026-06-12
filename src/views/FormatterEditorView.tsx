@@ -425,8 +425,10 @@ interface SourceCardProps {
   onInsertQuote: (quote: string, source: SourceResult) => void;
   onOpenModal: (source: SourceResult, color: string) => void;
   onColorChange: (url: string, color: string) => void;
+  onAddToBib: (source: SourceResult) => void;
+  bibAdding: boolean;
 }
-function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote, onOpenModal, onColorChange }: SourceCardProps) {
+function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuoteText, setExpandedQuoteUrl, onInsertQuote, onOpenModal, onColorChange, onAddToBib, bibAdding }: SourceCardProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const isExpanded = expandedQuoteUrl === source.url;
   const domain = getDomain(source.url);
@@ -484,6 +486,25 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
               style={{ borderColor: `${color}40`, color }}
             >
               Quote
+            </button>
+          )}
+
+          {/* One-click: add this source to the Works Cited / Bibliography page */}
+          {!isExpanded && (
+            <button
+              type="button"
+              onClick={() => { setPickerOpen(false); onAddToBib(source); }}
+              disabled={bibAdding}
+              className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition hover:text-white active:scale-[0.95] disabled:opacity-50"
+              style={{ borderColor: `${color}40`, color }}
+              title="Generate citation and add to bibliography page"
+            >
+              {bibAdding ? (
+                <span className="h-2.5 w-2.5 animate-spin rounded-full border border-current border-t-transparent" />
+              ) : (
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              )}
+              Bib
             </button>
           )}
 
@@ -1692,6 +1713,60 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceModal?.source.url, sourceModal?.citLoading, autoSuggest]);
+
+  /* ── Source card: one-click add to Works Cited / Bibliography ── */
+  const [bibAddingUrl, setBibAddingUrl] = useState<string | null>(null);
+  const handleAddSourceToBib = useCallback(async (source: SourceResult) => {
+    if (bibAddingUrl) return;
+    const style = currentEssayFormat;
+
+    // Use cached citation if the modal already generated one for this style
+    const cached = citCacheRef.current[source.url]?.[style]?.bibliography;
+    let bibliography = cached ?? "";
+
+    if (!bibliography) {
+      setBibAddingUrl(source.url);
+      try {
+        const res = await fetchWithUserAuthorization("/api/spoonie/citation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task: "CITATION_FULL",
+            input: {
+              style: style.toUpperCase(),
+              url: source.url,
+              title: source.title ?? "",
+              authors: source.author ?? "",
+              year: source.publishedYear ?? "",
+              publisher: source.publisher ?? "",
+            },
+          }),
+        });
+        const data = (await res.json()) as { inText?: string; bibliography?: string };
+        bibliography = data.bibliography ?? "";
+        if (bibliography) {
+          citCacheRef.current[source.url] = {
+            ...citCacheRef.current[source.url],
+            [style]: { inText: data.inText ?? "", bibliography },
+          };
+        }
+      } catch {
+        // fall through to error toast below
+      } finally {
+        setBibAddingUrl(null);
+      }
+    }
+
+    if (!bibliography) { showToast("Could not generate citation. Try again."); return; }
+
+    if (insertBibEntryRef.current) {
+      insertBibEntryRef.current(bibliography);
+      showToast("Added to bibliography ✓");
+    } else {
+      navigator.clipboard?.writeText(bibliography).catch(() => {});
+      showToast("Citation copied — format a document to insert.");
+    }
+  }, [bibAddingUrl, currentEssayFormat, showToast]);
 
   /* ── Citations: insert bibliography entry to last page ── */
   const handleInsertBib = (text: string) => {
@@ -3404,6 +3479,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           onInsertQuote={insertQuote}
                           onOpenModal={openSourceModal}
                           onColorChange={handleSourceColorChange}
+                          onAddToBib={(s) => void handleAddSourceToBib(s)}
+                          bibAdding={bibAddingUrl === source.url}
                         />
                       ))}
 
