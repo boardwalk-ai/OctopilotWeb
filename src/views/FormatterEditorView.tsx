@@ -444,6 +444,144 @@ function OctoCritiqueView({
   );
 }
 
+/* ── Reusable Octo chat panel (used in left panel + expanded mode) ──────────── */
+interface OctoChatPanelProps {
+  chatTone: ToneId;
+  setChatTone: (t: ToneId) => void;
+  chatStarted: boolean;
+  chatMessages: ChatMsg[];
+  chatLoading: boolean;
+  chatInput: string;
+  setChatInput: (v: string) => void;
+  sendChat: (text: string) => void;
+  chatEndRef: React.RefObject<HTMLDivElement | null>;
+  essayCtx: string;
+  onJump: (id: string) => void;
+  /** "panel" = compact left-panel sizing, "expanded" = full-height side view */
+  variant: "panel" | "expanded";
+}
+function OctoChatPanel({
+  chatTone, setChatTone, chatStarted, chatMessages, chatLoading,
+  chatInput, setChatInput, sendChat, chatEndRef, essayCtx, onJump, variant,
+}: OctoChatPanelProps) {
+  const expanded = variant === "expanded";
+  return (
+    <div className={`flex min-h-0 flex-col ${expanded ? "h-full" : ""}`}>
+      {/* Tone pills */}
+      <div className="overflow-x-auto px-3 pb-2 pt-1 flex-shrink-0">
+        <div className="flex gap-1.5 pb-0.5">
+          {TONE_META.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setChatTone(t.id)}
+              className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat messages */}
+      <div
+        className={`overflow-y-auto px-3 pb-2 ${expanded ? "min-h-0 flex-1" : ""}`}
+        style={expanded ? undefined : { maxHeight: "260px" }}
+      >
+        {!chatStarted ? (
+          <div className="flex flex-col items-center gap-3 py-5 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a1f28] ring-1 ring-[#2a2f38]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
+                <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+                <rect x="10.75" y="17.25" width="2.5" height="1" rx="0.5" fill="#ea4335" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[12px] font-medium text-[#e2e8f0]">Octo is ready</p>
+              <p className="mt-0.5 text-[10px] text-[#4b5563]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void sendChat("Yo Octo, criticize my essay")}
+              className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
+            >
+              &quot;Yo Octo, criticize my essay&quot;
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5 pt-1">
+            {chatMessages.map((msg) => (
+              <div key={msg.id} style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
+                {msg.role === "user" ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-[14px] rounded-br-[4px] bg-[#ea4335] px-3 py-2 text-[12px] text-white whitespace-pre-wrap break-words leading-relaxed">
+                      {msg.text}
+                    </div>
+                  </div>
+                ) : msg.structured ? (
+                  <OctoCritiqueView
+                    data={msg.structured}
+                    tone={chatTone}
+                    essayCtx={essayCtx}
+                    onJump={onJump}
+                  />
+                ) : (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
+                      <OctoMarkdown text={msg.text} />
+                    </div>
+                  </div>
+                )}
+                {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                  <SuggestionCards suggestions={msg.suggestions} />
+                )}
+              </div>
+            ))}
+            {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
+              <div className="flex justify-start" style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
+                <div className="flex items-center gap-1 rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-3">
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#64748b]" style={{ animation: `typing-bounce 1.1s ease-in-out ${i * 0.18}s infinite` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Input bar */}
+      {chatStarted && (
+        <div className="border-t border-[#2a2f38] px-3 py-2.5 flex-shrink-0">
+          <div className="flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(chatInput); } }}
+              placeholder="Message Octo…"
+              disabled={chatLoading}
+              className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#3a4150] disabled:opacity-50"
+              style={{ maxHeight: "80px" }}
+            />
+            <button
+              type="button"
+              onClick={() => void sendChat(chatInput)}
+              disabled={chatLoading || !chatInput.trim()}
+              className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface SourceCardProps {
   source: SourceResult;
   index: number;
@@ -736,6 +874,30 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [panelResizing, setPanelResizing] = useState(false);
   const leftOpen  = leftWidth  > 0;
   const rightOpen = rightWidth > 0;
+
+  /* ── Octo expanded (side-by-side with editor) ── */
+  const OCTO_PANEL_W = 440;
+  const [octoExpanded, setOctoExpanded] = useState(false);
+  const priorWidthsRef = useRef<{ left: number; right: number } | null>(null);
+
+  const openOctoExpanded = useCallback(() => {
+    // Remember current panel widths, collapse both, then expand Octo
+    priorWidthsRef.current = { left: leftWidth, right: rightWidth };
+    setLeftWidth(0);
+    setRightWidth(0);
+    setOctoExpanded(true);
+  }, [leftWidth, rightWidth]);
+
+  const closeOctoExpanded = useCallback(() => {
+    setOctoExpanded(false);
+    // Restore the panels the user had open before expanding
+    const prior = priorWidthsRef.current;
+    if (prior) {
+      setLeftWidth(prior.left);
+      setRightWidth(prior.right);
+      priorWidthsRef.current = null;
+    }
+  }, []);
 
   /* ── Format style ── */
   const [formatStyle, setFormatStyle] = useState<FormatStyleId>("mla");
@@ -2074,6 +2236,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 from { opacity: 0; transform: translateY(10px) scale(0.96); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);    }
               }
+              @keyframes octo-slide-in {
+                from { opacity: 0; transform: translateX(40px); }
+                to   { opacity: 1; transform: translateX(0);    }
+              }
               @keyframes typing-bounce {
                 0%, 60%, 100% { transform: translateY(0); }
                 30%           { transform: translateY(-5px); }
@@ -2353,118 +2519,28 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
               {/* ════ 3. OCTO THE BOT ════ */}
               <div>
-                <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
+                  <button
+                    type="button"
+                    onClick={openOctoExpanded}
+                    className="flex items-center gap-1 rounded-full bg-[#1a1f28] px-2 py-1 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#252c38] hover:text-[#e2e8f0] active:scale-[0.95]"
+                    title="Expand Octo beside the editor"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    Expand
+                  </button>
                 </div>
 
-                {/* Tone pills */}
-                <div className="overflow-x-auto px-3 pb-2">
-                  <div className="flex gap-1.5 pb-0.5">
-                    {TONE_META.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setChatTone(t.id)}
-                        className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[#1a1f28] text-[#64748b] hover:bg-[#1e252f] hover:text-[#94a3b8]"}`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Chat messages */}
-                <div className="overflow-y-auto px-3 pb-2" style={{ maxHeight: "260px" }}>
-                  {!chatStarted ? (
-                    <div className="flex flex-col items-center gap-3 py-5 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a1f28] ring-1 ring-[#2a2f38]">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
-                          <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
-                          <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
-                          <rect x="10.75" y="17.25" width="2.5" height="1" rx="0.5" fill="#ea4335" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-[12px] font-medium text-[#e2e8f0]">Octo is ready</p>
-                        <p className="mt-0.5 text-[10px] text-[#4b5563]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void sendChat("Yo Octo, criticize my essay")}
-                        className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
-                      >
-                        "Yo Octo, criticize my essay"
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5 pt-1">
-                      {chatMessages.map((msg) => (
-                        <div key={msg.id} style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
-                          {msg.role === "user" ? (
-                            <div className="flex justify-end">
-                              <div className="max-w-[85%] rounded-[14px] rounded-br-[4px] bg-[#ea4335] px-3 py-2 text-[12px] text-white whitespace-pre-wrap break-words leading-relaxed">
-                                {msg.text}
-                              </div>
-                            </div>
-                          ) : msg.structured ? (
-                            <OctoCritiqueView
-                              data={msg.structured}
-                              tone={chatTone}
-                              essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
-                              onJump={(id) => octoJumpRef.current?.(id)}
-                            />
-                          ) : (
-                            <div className="flex justify-start">
-                              <div className="max-w-[85%] rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-2 text-[12px] text-[#cbd5e1]">
-                                <OctoMarkdown text={msg.text} />
-                              </div>
-                            </div>
-                          )}
-                          {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
-                            <SuggestionCards suggestions={msg.suggestions} />
-                          )}
-                        </div>
-                      ))}
-                      {chatLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
-                        <div className="flex justify-start" style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
-                          <div className="flex items-center gap-1 rounded-[14px] rounded-bl-[4px] bg-[#1e252f] px-3 py-3">
-                            {[0, 1, 2].map((i) => (
-                              <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#64748b]" style={{ animation: `typing-bounce 1.1s ease-in-out ${i * 0.18}s infinite` }} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div ref={chatEndRef} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Input bar */}
-                {chatStarted && (
-                  <div className="border-t border-[#2a2f38] px-3 py-2.5">
-                    <div className="flex items-end gap-1.5">
-                      <textarea
-                        rows={1}
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(chatInput); } }}
-                        placeholder="Message Octo…"
-                        disabled={chatLoading}
-                        className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[#2a2f38] bg-[#0f1218] px-3 py-2 text-[12px] text-[#e2e8f0] placeholder-[#374151] outline-none focus:border-[#3a4150] disabled:opacity-50"
-                        style={{ maxHeight: "80px" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void sendChat(chatInput)}
-                        disabled={chatLoading || !chatInput.trim()}
-                        className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <OctoChatPanel
+                  variant="panel"
+                  chatTone={chatTone} setChatTone={setChatTone}
+                  chatStarted={chatStarted} chatMessages={chatMessages}
+                  chatLoading={chatLoading} chatInput={chatInput} setChatInput={setChatInput}
+                  sendChat={sendChat} chatEndRef={chatEndRef}
+                  essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
+                  onJump={(id) => octoJumpRef.current?.(id)}
+                />
 
                 <div className="h-4" />
               </div>
@@ -2646,7 +2722,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 insertBibEntryRef={insertBibEntryRef}
                 octoHighlightRef={octoHighlightRef}
                 octoJumpRef={octoJumpRef}
-                panelInsets={{ left: leftWidth, right: rightWidth, animated: !panelResizing }}
+                panelInsets={{ left: leftWidth, right: octoExpanded ? OCTO_PANEL_W : rightWidth, animated: !panelResizing }}
               />
             </div>
           )}
@@ -3561,6 +3637,69 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
           </div>
         </div>
+
+        {/* ══ OCTO EXPANDED — glass panel beside the editor ══ */}
+        {viewState === "editor" && octoExpanded && (
+          <div
+            className="absolute right-0 top-0 z-30 flex h-full flex-col border-l border-white/10 bg-[#11141b]/80 shadow-[-8px_0_32px_rgba(0,0,0,0.45)]"
+            style={{
+              width: OCTO_PANEL_W,
+              backdropFilter: "blur(22px) saturate(160%)",
+              WebkitBackdropFilter: "blur(22px) saturate(160%)",
+              animation: "octo-slide-in 0.36s cubic-bezier(0.22,1,0.36,1) both",
+            }}
+          >
+            {/* Header */}
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ea4335]/15">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.2" />
+                    <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                    <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+                  </svg>
+                </div>
+                <span className="text-[13px] font-bold tracking-wide text-[#f1f5f9]">Octo the Bot</span>
+              </div>
+              <button
+                type="button"
+                onClick={closeOctoExpanded}
+                className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#cbd5e1] transition hover:bg-white/20 active:scale-[0.95]"
+                title="Collapse"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
+                Collapse
+              </button>
+            </div>
+
+            <OctoChatPanel
+              variant="expanded"
+              chatTone={chatTone} setChatTone={setChatTone}
+              chatStarted={chatStarted} chatMessages={chatMessages}
+              chatLoading={chatLoading} chatInput={chatInput} setChatInput={setChatInput}
+              sendChat={sendChat} chatEndRef={chatEndRef}
+              essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
+              onJump={(id) => octoJumpRef.current?.(id)}
+            />
+          </div>
+        )}
+
+        {/* ══ Floating Octo bubble — opens expanded mode ══ */}
+        {viewState === "editor" && !octoExpanded && (
+          <button
+            type="button"
+            onClick={openOctoExpanded}
+            className="group absolute bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] to-[#c62828] shadow-[0_6px_24px_rgba(234,67,53,0.5)] transition-all duration-200 hover:scale-110 hover:shadow-[0_8px_32px_rgba(234,67,53,0.7)] active:scale-95"
+            title="Open Octo beside the editor"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+              <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="white" />
+              <rect x="10.25" y="15.5" width="3.5" height="1.4" rx="0.7" fill="white" />
+              <rect x="10.75" y="17.4" width="2.5" height="1.1" rx="0.55" fill="white" />
+            </svg>
+            <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#ea4335] opacity-20" style={{ animationDuration: "2.4s" }} />
+          </button>
+        )}
 
       </div>
 
