@@ -2237,8 +2237,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 to   { opacity: 1; transform: translateY(0)    scale(1);    }
               }
               @keyframes octo-slide-in {
-                from { opacity: 0; transform: translateX(40px); }
-                to   { opacity: 1; transform: translateX(0);    }
+                from { opacity: 0; transform: translateX(-40px); }
+                to   { opacity: 1; transform: translateX(0);     }
               }
               @keyframes typing-bounce {
                 0%, 60%, 100% { transform: translateY(0); }
@@ -2517,40 +2517,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 )}
               </div>
 
-              {/* ════ 3. OCTO THE BOT ════ */}
-              <div>
-                <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
-                  <button
-                    type="button"
-                    onClick={openOctoExpanded}
-                    className="flex items-center gap-1 rounded-full bg-[#1a1f28] px-2 py-1 text-[9px] font-semibold text-[#94a3b8] transition hover:bg-[#252c38] hover:text-[#e2e8f0] active:scale-[0.95]"
-                    title="Expand Octo beside the editor"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                    Expand
-                  </button>
-                </div>
-
-                <OctoChatPanel
-                  variant="panel"
-                  chatTone={chatTone} setChatTone={setChatTone}
-                  chatStarted={chatStarted} chatMessages={chatMessages}
-                  chatLoading={chatLoading} chatInput={chatInput} setChatInput={setChatInput}
-                  sendChat={sendChat} chatEndRef={chatEndRef}
-                  essayCtx={rawContent.trim() || coreSnapshot.content.trim()}
-                  onJump={(id) => octoJumpRef.current?.(id)}
-                />
-
-                <div className="h-4" />
-              </div>
+              {/* Octo the Bot now lives in the floating bubble (bottom-left) */}
+              <div className="h-4" />
 
             </div> {/* end single scroll column */}
           </div>
         </div>
 
         {/* Left re-open tab */}
-        {!leftOpen && (
+        {!leftOpen && !octoExpanded && (
           <button
             type="button"
             onClick={() => setLeftWidth(LEFT_DEFAULT)}
@@ -2722,7 +2697,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 insertBibEntryRef={insertBibEntryRef}
                 octoHighlightRef={octoHighlightRef}
                 octoJumpRef={octoJumpRef}
-                panelInsets={{ left: leftWidth, right: octoExpanded ? OCTO_PANEL_W : rightWidth, animated: !panelResizing }}
+                panelInsets={{ left: octoExpanded ? OCTO_PANEL_W + 24 : leftWidth, right: rightWidth, animated: !panelResizing }}
               />
             </div>
           )}
@@ -3638,14 +3613,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </div>
         </div>
 
-        {/* ══ OCTO EXPANDED — glass panel beside the editor ══ */}
+        {/* ══ OCTO EXPANDED — floating glass card on the LEFT, editor on the right ══ */}
         {viewState === "editor" && octoExpanded && (
           <div
-            className="absolute right-0 top-0 z-30 flex h-full flex-col border-l border-white/10 bg-[#11141b]/80 shadow-[-8px_0_32px_rgba(0,0,0,0.45)]"
+            className="absolute left-3 top-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-[20px] border border-white/10 bg-[#11141b]/75 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
             style={{
               width: OCTO_PANEL_W,
-              backdropFilter: "blur(22px) saturate(160%)",
-              WebkitBackdropFilter: "blur(22px) saturate(160%)",
+              backdropFilter: "blur(26px) saturate(170%)",
+              WebkitBackdropFilter: "blur(26px) saturate(170%)",
               animation: "octo-slide-in 0.36s cubic-bezier(0.22,1,0.36,1) both",
             }}
           >
@@ -3664,11 +3639,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <button
                 type="button"
                 onClick={closeOctoExpanded}
-                className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#cbd5e1] transition hover:bg-white/20 active:scale-[0.95]"
-                title="Collapse"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[#cbd5e1] transition hover:bg-white/20 hover:text-white active:scale-[0.92]"
+                title="Minimize"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
-                Collapse
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
@@ -3684,13 +3658,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </div>
         )}
 
-        {/* ══ Floating Octo bubble — opens expanded mode ══ */}
+        {/* ══ Floating Octo bubble (bottom-left) — opens expanded mode ══ */}
         {viewState === "editor" && !octoExpanded && (
           <button
             type="button"
             onClick={openOctoExpanded}
-            className="group absolute bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] to-[#c62828] shadow-[0_6px_24px_rgba(234,67,53,0.5)] transition-all duration-200 hover:scale-110 hover:shadow-[0_8px_32px_rgba(234,67,53,0.7)] active:scale-95"
-            title="Open Octo beside the editor"
+            className="group absolute bottom-5 left-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] to-[#c62828] shadow-[0_6px_24px_rgba(234,67,53,0.5)] transition-all duration-200 hover:scale-110 hover:shadow-[0_8px_32px_rgba(234,67,53,0.7)] active:scale-95"
+            title="Open Octo the Bot"
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
               <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="white" />
