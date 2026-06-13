@@ -960,17 +960,25 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
     const onMove = (e: MouseEvent) => {
       const maxW = Math.floor(window.innerWidth / 2) - 40;
+      // Auto-layout switching: once a panel is dragged "wide" (past ~38% of the
+      // viewport) the opposite panel auto-collapses so the editor never gets
+      // squeezed between two large panels.
+      const AUTO_COLLAPSE = Math.floor(window.innerWidth * 0.38);
       if (leftDragRef.current) {
         const raw = Math.max(0, Math.min(
           leftDragRef.current.startW + (e.clientX - leftDragRef.current.startX), maxW
         ));
-        setLeftWidth(snap(raw, LEFT_SNAPS));
+        const next = snap(raw, LEFT_SNAPS);
+        setLeftWidth(next);
+        if (next >= AUTO_COLLAPSE) setRightWidth(0);
       }
       if (rightDragRef.current) {
         const raw = Math.max(0, Math.min(
           rightDragRef.current.startW + (rightDragRef.current.startX - e.clientX), maxW
         ));
-        setRightWidth(snap(raw, RIGHT_SNAPS));
+        const next = snap(raw, RIGHT_SNAPS);
+        setRightWidth(next);
+        if (next >= AUTO_COLLAPSE) setLeftWidth(0);
       }
     };
 
@@ -2470,10 +2478,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           <button
             type="button"
             onClick={() => setLeftWidth(LEFT_DEFAULT)}
-            className="absolute inset-y-0 left-0 z-10 flex w-6 items-center justify-center border-r border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
+            className="group absolute inset-y-0 left-0 z-20 flex w-6 items-center justify-center transition active:scale-[0.97]"
             title="Open document panel"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+            <span className="flex h-16 w-[18px] items-center justify-center rounded-r-[10px] bg-gradient-to-b from-[#ea4335] to-[#c62828] text-white shadow-[0_0_14px_rgba(234,67,53,0.55)] transition-all duration-200 group-hover:w-[22px] group-hover:shadow-[0_0_20px_rgba(234,67,53,0.8)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="m9 18 6-6-6-6" /></svg>
+            </span>
           </button>
         )}
 
@@ -2647,10 +2657,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           <button
             type="button"
             onClick={() => setRightWidth(RIGHT_DEFAULT)}
-            className="absolute inset-y-0 right-0 z-10 flex w-6 items-center justify-center border-l border-[#2a2f38] bg-[#13161c] text-[#4b5563] transition hover:bg-[#1a1f28] hover:text-[#94a3b8]"
+            className="group absolute inset-y-0 right-0 z-20 flex w-6 items-center justify-center transition active:scale-[0.97]"
             title="Open citations panel"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
+            <span className="flex h-16 w-[18px] items-center justify-center rounded-l-[10px] bg-gradient-to-b from-[#ea4335] to-[#c62828] text-white shadow-[0_0_14px_rgba(234,67,53,0.55)] transition-all duration-200 group-hover:w-[22px] group-hover:shadow-[0_0_20px_rgba(234,67,53,0.8)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="m15 18-6-6 6-6" /></svg>
+            </span>
           </button>
         )}
 
