@@ -2210,6 +2210,37 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           )}
           <div className="flex items-center">
             <style>{`
+              /* ── Apple-style liquid glass (dark vibrancy) ── */
+              .liquid-glass {
+                position: relative;
+                background: linear-gradient(135deg, rgba(48,52,64,0.55), rgba(15,18,25,0.62));
+                backdrop-filter: blur(30px) saturate(190%) brightness(1.05);
+                -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(1.05);
+                border: 1px solid rgba(255,255,255,0.12);
+                box-shadow:
+                  0 16px 48px rgba(0,0,0,0.50),
+                  inset 0 1px 0 rgba(255,255,255,0.28),
+                  inset 0 0 0 1px rgba(255,255,255,0.04);
+              }
+              /* top sheen — light running across the surface */
+              .liquid-glass::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: inherit;
+                pointer-events: none;
+                background:
+                  linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 34%),
+                  radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,0.10), rgba(255,255,255,0) 45%);
+              }
+              /* compact glass for chips/tabs/switches */
+              .glass-chip {
+                background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+                backdrop-filter: blur(14px) saturate(170%);
+                -webkit-backdrop-filter: blur(14px) saturate(170%);
+                border: 1px solid rgba(255,255,255,0.14);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.20);
+              }
               @keyframes octopilot-char-scan {
                 0%   { color: #ff2200; transform: scale(1); }
                 8%   { color: #ffaa88; transform: scale(1.28); }
@@ -3616,11 +3647,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {/* ══ OCTO EXPANDED — floating glass card on the LEFT, editor on the right ══ */}
         {viewState === "editor" && octoExpanded && (
           <div
-            className="absolute left-3 top-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-[20px] border border-white/10 bg-[#11141b]/75 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
+            className="liquid-glass absolute left-3 top-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-[22px]"
             style={{
               width: OCTO_PANEL_W,
-              backdropFilter: "blur(26px) saturate(170%)",
-              WebkitBackdropFilter: "blur(26px) saturate(170%)",
               animation: "octo-slide-in 0.36s cubic-bezier(0.22,1,0.36,1) both",
             }}
           >
