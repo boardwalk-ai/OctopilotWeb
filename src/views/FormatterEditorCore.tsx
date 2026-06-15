@@ -1126,15 +1126,39 @@ export default function FormatterEditorCore({
     }, [pageWidth, zoom, leftIndent, rightIndent, pages.length]);
 
     const execCommand = useCallback((cmd: string, value?: string) => {
-        restoreSelection();
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) {
-            editorRefs.current[activePageId]?.focus();
+        // Restore the user's last in-editor selection, focus the page that
+        // actually holds it, THEN run the command — execCommand only affects
+        // document.activeElement, so without focusing the contentEditable the
+        // command runs against nothing and the toolbar appears dead.
+        const savedRange = selectionRangeRef.current?.cloneRange() ?? null;
+
+        const targetPageId = savedRange
+            ? Number(
+                Object.entries(editorRefs.current).find(([, el]) =>
+                    el?.contains(savedRange.commonAncestorContainer)
+                )?.[0] ?? activePageId
+            )
+            : activePageId;
+
+        const editor = editorRefs.current[targetPageId];
+        if (!editor) return;
+
+        editor.focus({ preventScroll: true });
+
+        if (savedRange) {
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(savedRange);
         }
+
         document.execCommand(cmd, false, value);
+
+        pageContentRef.current[targetPageId] = editor.innerHTML || "<br/>";
+        setActivePageId(targetPageId);
         saveSelection();
         queryFormattingState();
-    }, [activePageId, queryFormattingState, restoreSelection, saveSelection]);
+        updateStats();
+    }, [activePageId, queryFormattingState, saveSelection, updateStats]);
 
     const applyFontSizeToSelection = useCallback((size: number) => {
         const safe = Math.max(1, Math.min(254, Math.round(size)));
