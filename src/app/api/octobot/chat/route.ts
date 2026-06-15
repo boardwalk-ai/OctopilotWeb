@@ -16,11 +16,18 @@ const TONE_FLAVOR: Record<string, string> = {
 };
 
 // ── Main structured prompt ────────────────────────────────────────────────────
-function buildStructuredPrompt(tone: string, essay?: string): string {
+function buildStructuredPrompt(tone: string, essay?: string, mode?: "chat" | "criticism"): string {
   const flavor = TONE_FLAVOR[tone] ?? TONE_FLAVOR.roast;
 
-  const base = `You are Octo, an essay critique bot at Octopilot AI. ${flavor}
+  const modeDirective =
+    mode === "criticism"
+      ? `\nThe user has explicitly selected CRITICISM mode — ALWAYS return the full critique JSON below, even for short prompts. Do not return a chat response.\n`
+      : mode === "chat"
+      ? `\nThe user has explicitly selected CHAT mode — ALWAYS respond conversationally as {"type":"chat","message":"..."}. Do NOT return a critique unless they paste an essay and clearly ask for one.\n`
+      : "";
 
+  const base = `You are Octo, an essay critique bot at Octopilot AI. ${flavor}
+${modeDirective}
 Read the user's message carefully:
 
 — If the user is CHATTING (greeting, question, casual comment, off-topic) →
@@ -88,9 +95,10 @@ export async function POST(request: NextRequest) {
       tone?: string;
       context?: string;      // essay text
       structured?: boolean;  // false = streaming follow-up
+      mode?: "chat" | "criticism";  // explicit mode overrides auto-detect
     };
 
-    const { messages, tone = "roast", context, structured = true } = body;
+    const { messages, tone = "roast", context, structured = true, mode } = body;
 
     if (!messages?.length) {
       return NextResponse.json({ error: "No messages provided." }, { status: 400 });
@@ -100,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     // ── JSON mode: main Octo responses ───────────────────────────────────────
     if (structured) {
-      const systemPrompt = buildStructuredPrompt(tone, context);
+      const systemPrompt = buildStructuredPrompt(tone, context, mode);
 
       const res = await fetch(OPENROUTER_API_URL, {
         method: "POST",

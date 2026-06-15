@@ -67,6 +67,7 @@ type HumanizePhase =
   | { kind: "done" };
 
 type ToneId = "positive" | "sweet" | "neutral" | "direct" | "no_nonsense" | "roast";
+type ChatMode = "chat" | "criticism";
 
 const TONE_META: { id: ToneId; label: string }[] = [
   { id: "roast",       label: "Roast 🔥" },
@@ -457,12 +458,15 @@ interface OctoChatPanelProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   essayCtx: string;
   onJump: (id: string) => void;
+  chatMode: ChatMode;
+  setChatMode: (m: ChatMode) => void;
   /** "panel" = compact left-panel sizing, "expanded" = full-height side view */
   variant: "panel" | "expanded";
 }
 function OctoChatPanel({
   chatTone, setChatTone, chatStarted, chatMessages, chatLoading,
-  chatInput, setChatInput, sendChat, chatEndRef, essayCtx, onJump, variant,
+  chatInput, setChatInput, sendChat, chatEndRef, essayCtx, onJump,
+  chatMode, setChatMode, variant,
 }: OctoChatPanelProps) {
   const expanded = variant === "expanded";
   return (
@@ -556,13 +560,31 @@ function OctoChatPanel({
       {/* Input bar */}
       {chatStarted && (
         <div className="border-t border-[var(--ed-border)] px-3 py-2.5 flex-shrink-0">
+          {/* Mode switch — translucent glass segmented pill (iOS style) */}
+          <div className="mb-2 flex justify-center">
+            <div
+              className="glass-chip flex gap-0.5 rounded-full p-0.5"
+              style={{ borderRadius: 9999 }}
+            >
+              {(["chat", "criticism"] as ChatMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setChatMode(m)}
+                  className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.96] ${chatMode === m ? "bg-[#ea4335] text-white shadow-sm" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text)]"}`}
+                >
+                  {m === "chat" ? "Chat" : "Criticize"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-end gap-1.5">
             <textarea
               rows={1}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(chatInput); } }}
-              placeholder="Message Octo…"
+              placeholder={chatMode === "criticism" ? "Ask Octo to criticize…" : "Message Octo…"}
               disabled={chatLoading}
               className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-border-2)] disabled:opacity-50"
               style={{ maxHeight: "80px" }}
@@ -578,6 +600,82 @@ function OctoChatPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Left-panel Octo mini preview (read-only, click to open the window) ──────── */
+function OctoMiniPreview({
+  chatStarted, chatMessages, chatTone, onOpen, onCriticize,
+}: {
+  chatStarted: boolean;
+  chatMessages: ChatMsg[];
+  chatTone: ToneId;
+  onOpen: () => void;
+  onCriticize: () => void;
+}) {
+  const summarize = (m: ChatMsg): string => {
+    if (m.role === "user") return m.text;
+    if (m.structured?.type === "critique") {
+      const g = m.structured.grammar?.length ?? 0;
+      const s = m.structured.style?.length ?? 0;
+      return `Critique — ${g} grammar, ${s} style note${s === 1 ? "" : "s"}`;
+    }
+    return m.structured?.message ?? m.text ?? "";
+  };
+
+  return (
+    <div className="px-3 pb-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
+        className="group cursor-pointer overflow-hidden rounded-[14px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] transition hover:border-[var(--ed-border-2)]"
+        title="Open Octo the Bot"
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-[var(--ed-border)] px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[var(--ed-text-dim)] transition group-hover:text-[var(--ed-text-muted)]"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </div>
+
+        {/* read-only live preview */}
+        <div className="pointer-events-none max-h-[150px] overflow-hidden px-3 py-2.5" style={{ maskImage: "linear-gradient(to bottom, #000 70%, transparent)" }}>
+          {!chatStarted ? (
+            <div className="flex flex-col items-center gap-1.5 py-2 text-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--ed-bg-pill)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
+                  <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                  <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+                </svg>
+              </div>
+              <p className="text-[11px] font-medium text-[var(--ed-text)]">Octo is ready</p>
+              <p className="text-[9.5px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {chatMessages.slice(-4).map((m) => (
+                <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <div className={`max-w-[88%] truncate rounded-[8px] px-2 py-1 text-[10px] ${m.role === "user" ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-muted)]"}`}>
+                    {summarize(m)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Criticize button — submits + opens the window */}
+      <button
+        type="button"
+        onClick={onCriticize}
+        className="mt-2 w-full rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.98]"
+      >
+        &quot;Yo Octo, criticize my essay&quot;
+      </button>
     </div>
   );
 }
@@ -954,6 +1052,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Octo bot chat ── */
   const [chatTone, setChatTone] = useState<ToneId>("roast");
+  const [chatMode, setChatMode] = useState<ChatMode>("criticism");
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -1521,9 +1620,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   }, []);
 
   /* ── Octo bot: send message ── */
-  const sendChat = useCallback(async (text: string) => {
+  const sendChat = useCallback(async (text: string, modeOverride?: ChatMode) => {
     const trimmed = text.trim();
     if (!trimmed || chatLoading) return;
+    const mode = modeOverride ?? chatMode;
 
     const userMsg: ChatMsg = { id: crypto.randomUUID(), role: "user", text: trimmed };
     const assistantId = crypto.randomUUID();
@@ -1546,7 +1646,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const res = await fetchWithUserAuthorization("/api/octobot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx, structured: true }),
+        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx, structured: true, mode }),
       });
 
       if (!res.ok) throw new Error("Request failed.");
@@ -1573,7 +1673,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setChatLoading(false);
     }
-  }, [chatLoading, chatMessages, chatTone, coreSnapshot.content, rawContent, serializeMsgForHistory]);
+  }, [chatLoading, chatMessages, chatTone, chatMode, coreSnapshot.content, rawContent, serializeMsgForHistory]);
+
+  /* ── Octo: criticize action (forces criticism mode, submits, opens window) ── */
+  const criticizeNow = useCallback(() => {
+    setChatMode("criticism");
+    void sendChat("Yo Octo, criticize my essay", "criticism");
+    openOctoExpanded();
+  }, [sendChat, openOctoExpanded]);
 
   /* ── Dictionary search ── */
   const searchDictionary = useCallback(async (word: string) => {
@@ -2561,7 +2668,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 )}
               </div>
 
-              {/* Octo the Bot now lives in the floating bubble (bottom-left) */}
+              {/* ════ Octo the Bot — read-only mini preview (full window opens on click) ════ */}
+              <div className="pt-1">
+                <OctoMiniPreview
+                  chatStarted={chatStarted}
+                  chatMessages={chatMessages}
+                  chatTone={chatTone}
+                  onOpen={openOctoExpanded}
+                  onCriticize={criticizeNow}
+                />
+              </div>
               <div className="h-4" />
 
             </div> {/* end single scroll column */}
@@ -3693,6 +3809,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             <OctoChatPanel
               variant="expanded"
               chatTone={chatTone} setChatTone={setChatTone}
+              chatMode={chatMode} setChatMode={setChatMode}
               chatStarted={chatStarted} chatMessages={chatMessages}
               chatLoading={chatLoading} chatInput={chatInput} setChatInput={setChatInput}
               sendChat={sendChat} chatEndRef={chatEndRef}
