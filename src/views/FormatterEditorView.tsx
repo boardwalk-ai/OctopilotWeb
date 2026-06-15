@@ -2587,7 +2587,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
           {/* ── WELCOME PANEL ── */}
           {viewState === "welcome" && (
-            <div className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+            <div data-theme="dark" className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
               {/* Subtle background grid */}
               <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
                 style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
@@ -2645,7 +2645,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
           {/* ── SETUP PANEL ── */}
           {viewState === "setup" && (
-            <div className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+            <div data-theme="dark" className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
               <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
                 style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
               <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(50px)" }} />

@@ -78,7 +78,7 @@ const TbIcon = ({ children, active, onClick, title, disabled }: { children: Reac
         onMouseDown={(e) => e.preventDefault()}
         title={title}
         disabled={disabled}
-        className={`flex h-[30px] w-[30px] items-center justify-center rounded-[4px] transition-colors ${disabled ? "opacity-30 cursor-not-allowed" : ""} ${active ? "bg-[#ea4335]/22 text-[#f87171]" : "text-white/85 hover:bg-[var(--ed-hover)]"}`}
+        className={`flex h-[30px] w-[30px] items-center justify-center rounded-[4px] transition-colors ${disabled ? "opacity-30 cursor-not-allowed" : ""} ${active ? "bg-[#ea4335]/22 text-[#f87171]" : "text-[var(--ed-icon)] hover:bg-[var(--ed-hover)]"}`}
     >
         {children}
     </button>

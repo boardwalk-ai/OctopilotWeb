@@ -89,15 +89,15 @@
   --ed-border: #d6dade;
   --ed-border-strong: #c4c9d0;
   --ed-border-2: #c4c9d0;
-  --ed-text-dim: #8a909c;
+  --ed-text-dim: #5b6472;
 
-  /* text */
-  --ed-text: #1f2329;
-  --ed-text-muted: #5f6571;
-  --ed-text-faint: #8a909c;
-  --ed-text-label: #9aa1ad;
-  --ed-icon: rgba(31, 35, 41, 0.78);
-  --ed-status-text: #5f6571;
+  /* text — darkened for contrast on light surfaces (WCAG AA) */
+  --ed-text: #1a1d23;
+  --ed-text-muted: #475063;
+  --ed-text-faint: #5b6472;
+  --ed-text-label: #69707d;
+  --ed-icon: rgba(26, 29, 35, 0.88);
+  --ed-status-text: #475063;
 
   /* hover / active */
   --ed-hover: #eceef1;
