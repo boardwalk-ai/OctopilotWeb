@@ -501,7 +501,7 @@ function OctoChatPanel({
 }: OctoChatPanelProps) {
   const expanded = variant === "expanded";
   return (
-    <div className={`flex min-h-0 flex-col ${expanded ? "h-full" : ""}`}>
+    <div className={`flex min-h-0 flex-col ${expanded ? "min-h-0 flex-1" : ""}`}>
       {/* Tone pills */}
       <div className="overflow-x-auto px-3 pb-2 pt-1 flex-shrink-0">
         <div className="flex gap-1.5 pb-0.5">
