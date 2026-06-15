@@ -20,9 +20,19 @@
   --ed-bg-surface: #171a1f;
   --ed-bg-pill: #1a1f28;
 
+  /* View panels / Octo / sources surfaces */
+  --ed-app-bg: #0b0e13;
+  --ed-surface-2: #0f1218;
+  --ed-surface-3: #0a0d12;
+  --ed-surface-4: #1e252f;
+  --ed-surface-5: #161b23;
+  --ed-surface-6: #252c38;
+
   /* borders */
   --ed-border: #2f353f;
   --ed-border-strong: #3b4048;
+  --ed-border-2: #3a4150;
+  --ed-text-dim: #4b5563;
 
   /* text */
   --ed-text: #f3f4f6;
@@ -67,9 +77,19 @@
   --ed-bg-surface: #ffffff;
   --ed-bg-pill: #eceef1;
 
+  /* View panels / Octo / sources surfaces */
+  --ed-app-bg: #e9eaed;
+  --ed-surface-2: #f4f5f7;
+  --ed-surface-3: #eef0f2;
+  --ed-surface-4: #eceef1;
+  --ed-surface-5: #f2f3f5;
+  --ed-surface-6: #e4e7ec;
+
   /* borders */
   --ed-border: #d6dade;
   --ed-border-strong: #c4c9d0;
+  --ed-border-2: #c4c9d0;
+  --ed-text-dim: #8a909c;
 
   /* text */
   --ed-text: #1f2329;

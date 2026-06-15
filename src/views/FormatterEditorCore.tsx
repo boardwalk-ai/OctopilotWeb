@@ -44,6 +44,10 @@ export interface EditorViewProps {
     octoJumpRef?: React.MutableRefObject<((id: string) => void) | null>;
     // How much the left/right overlay panels are covering the center (for toolbar centering)
     panelInsets?: { left: number; right: number; animated: boolean };
+    // Theme controlled by the parent (FormatterEditorView). When provided, Core
+    // uses these instead of its own local theme state.
+    theme?: "light" | "dark";
+    onToggleTheme?: () => void;
 }
 
 interface DocPage {
@@ -357,6 +361,8 @@ export default function FormatterEditorCore({
     abstract,
     keywords,
     panelInsets,
+    theme: controlledTheme,
+    onToggleTheme,
 }: EditorViewProps) {
     // CSS transition for toolbar padding (matches panel slide animation)
     const insetTransition = panelInsets?.animated
@@ -502,9 +508,10 @@ export default function FormatterEditorCore({
     const [pageFormatMap, setPageFormatMap] = useState<Record<number, PageFormatMeta>>(initialPageFormatMap);
     const [activePageId, setActivePageId] = useState(initialPageList[0]?.id || 1);
 
-    // Editor theme (light / dark) — persisted to localStorage, applied via the
-    // data-theme attribute on the editor root (tokens live in theme.css).
-    const [theme, setTheme] = useState<"light" | "dark">(() => {
+    // Editor theme (light / dark). Controlled by the parent View when provided;
+    // otherwise Core keeps its own state (e.g. if Core is used standalone).
+    // Applied via the data-theme attribute; tokens live in theme.css.
+    const [localTheme, setLocalTheme] = useState<"light" | "dark">(() => {
         if (typeof window === "undefined") return "dark";
         try {
             const stored = window.localStorage.getItem("dococt-editor-theme");
@@ -512,9 +519,14 @@ export default function FormatterEditorCore({
         } catch { return "dark"; }
     });
     useEffect(() => {
-        try { window.localStorage.setItem("dococt-editor-theme", theme); } catch { /* ignore */ }
-    }, [theme]);
-    const toggleTheme = useCallback(() => setTheme((p) => (p === "dark" ? "light" : "dark")), []);
+        if (controlledTheme) return;
+        try { window.localStorage.setItem("dococt-editor-theme", localTheme); } catch { /* ignore */ }
+    }, [localTheme, controlledTheme]);
+    const theme = controlledTheme ?? localTheme;
+    const toggleTheme = useCallback(() => {
+        if (onToggleTheme) onToggleTheme();
+        else setLocalTheme((p) => (p === "dark" ? "light" : "dark"));
+    }, [onToggleTheme]);
 
     const [isHeaderEditing, setIsHeaderEditing] = useState(false);
     const [headerEditingPageId, setHeaderEditingPageId] = useState<number | null>(null);
