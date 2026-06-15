@@ -1,0 +1,125 @@
+/* theme.css — Doc Oct editor theme tokens (Light / Dark)
+ *
+ * The editor sets `data-theme="dark" | "light"` on its root container; these
+ * custom properties cascade to everything inside it (the utility classes, the
+ * inline styles, and EditorViewMobile.module.css). Switching theme = flipping
+ * the attribute. Loaded via `import "./theme.css";` in FormatterEditorCore.tsx.
+ *
+ * DARK values reproduce the original colours. A few near-identical greys were
+ * merged into one token to keep the set small; those merges are sub-one-shade
+ * and visually identical. The white "paper" surface stays literal in the
+ * components (unchanged in both themes), so there are no paper tokens here. */
+
+[data-theme="dark"] {
+  /* surfaces */
+  --ed-bg: #0f1115;
+  --ed-bg-bar: #161a20;
+  --ed-bg-subbar: #13161c;
+  --ed-bg-toolbar: #1b2028;
+  --ed-bg-canvas: #11151b;
+  --ed-bg-surface: #171a1f;
+  --ed-bg-pill: #1a1f28;
+
+  /* View panels / Octo / sources surfaces */
+  --ed-app-bg: #0b0e13;
+  --ed-surface-2: #0f1218;
+  --ed-surface-3: #0a0d12;
+  --ed-surface-4: #1e252f;
+  --ed-surface-5: #161b23;
+  --ed-surface-6: #252c38;
+
+  /* borders */
+  --ed-border: #2f353f;
+  --ed-border-strong: #3b4048;
+  --ed-border-2: #3a4150;
+  --ed-text-dim: #4b5563;
+
+  /* text */
+  --ed-text: #f3f4f6;
+  --ed-text-muted: #9ca3af;
+  --ed-text-faint: #64748b;
+  --ed-text-label: #3a3f47;
+  --ed-icon: rgba(255, 255, 255, 0.85);
+  --ed-status-text: #cbd5e1;
+
+  /* hover / active */
+  --ed-hover: #2b313a;
+  --ed-active-bg: #2b3442;
+  --ed-active-text: #93c5fd;
+  --ed-ruler-tick: #4b5563;
+  --ed-accent-soft: rgba(234, 67, 53, 0.22);
+  --ed-icon-active: #f87171;
+
+  /* grammar tooltip */
+  --ed-grammar-border: rgba(239, 68, 68, 0.30);
+  --ed-grammar-fix: #4ade80;
+
+  /* shadows */
+  --ed-shadow-paper: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ed-shadow-pop: 0 12px 26px rgba(0, 0, 0, 0.4);
+
+  /* mobile translucent chrome */
+  --ed-glass-topbar: rgba(15, 17, 21, 0.95);
+  --ed-glass-hairline: rgba(255, 255, 255, 0.06);
+  --ed-glass-fill: rgba(255, 255, 255, 0.04);
+  --ed-glass-border: rgba(255, 255, 255, 0.08);
+  --ed-glass-text: rgba(255, 255, 255, 0.84);
+  --ed-glass-text-dim: rgba(255, 255, 255, 0.54);
+}
+
+[data-theme="light"] {
+  /* surfaces */
+  --ed-bg: #f0f1f3;
+  --ed-bg-bar: #ffffff;
+  --ed-bg-subbar: #f7f8fa;
+  --ed-bg-toolbar: #ffffff;
+  --ed-bg-canvas: #e9eaed;
+  --ed-bg-surface: #ffffff;
+  --ed-bg-pill: #eceef1;
+
+  /* View panels / Octo / sources surfaces */
+  --ed-app-bg: #e9eaed;
+  --ed-surface-2: #f4f5f7;
+  --ed-surface-3: #eef0f2;
+  --ed-surface-4: #eceef1;
+  --ed-surface-5: #f2f3f5;
+  --ed-surface-6: #e4e7ec;
+
+  /* borders */
+  --ed-border: #d6dade;
+  --ed-border-strong: #c4c9d0;
+  --ed-border-2: #c4c9d0;
+  --ed-text-dim: #5b6472;
+
+  /* text — darkened for contrast on light surfaces (WCAG AA) */
+  --ed-text: #1a1d23;
+  --ed-text-muted: #475063;
+  --ed-text-faint: #5b6472;
+  --ed-text-label: #69707d;
+  --ed-icon: rgba(26, 29, 35, 0.88);
+  --ed-status-text: #475063;
+
+  /* hover / active */
+  --ed-hover: #eceef1;
+  --ed-active-bg: #e8f0fe;
+  --ed-active-text: #1a73e8;
+  --ed-ruler-tick: #b0b6bf;
+  --ed-accent-soft: rgba(234, 67, 53, 0.14);
+  --ed-icon-active: #d93025;
+
+  /* grammar tooltip */
+  --ed-grammar-border: rgba(239, 68, 68, 0.35);
+  --ed-grammar-fix: #16a34a;
+
+  /* shadows */
+  --ed-shadow-paper: 0 1px 3px rgba(60, 64, 67, 0.15), 0 1px 2px rgba(60, 64, 67, 0.10);
+  --ed-shadow-pop: 0 6px 18px rgba(60, 64, 67, 0.18);
+
+  /* mobile translucent chrome */
+  --ed-glass-topbar: rgba(255, 255, 255, 0.92);
+  --ed-glass-hairline: rgba(0, 0, 0, 0.08);
+  --ed-glass-fill: rgba(0, 0, 0, 0.04);
+  --ed-glass-border: rgba(0, 0, 0, 0.10);
+  --ed-glass-text: rgba(31, 35, 41, 0.84);
+  --ed-glass-text-dim: rgba(31, 35, 41, 0.54);
+}

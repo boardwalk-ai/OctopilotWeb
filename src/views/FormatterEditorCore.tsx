@@ -6,6 +6,7 @@ import { FormatterService } from "@/services/FormatterService";
 import { FormatterPage } from "@/services/FormatterTypes";
 import mobileStyles from "./EditorViewMobile.module.css";
 import type { FormatStyleId } from "./FormatStyleView";
+import "./theme.css";
 
 interface GhostciterCitation { id: string; text: string; }
 
@@ -43,6 +44,10 @@ export interface EditorViewProps {
     octoJumpRef?: React.MutableRefObject<((id: string) => void) | null>;
     // How much the left/right overlay panels are covering the center (for toolbar centering)
     panelInsets?: { left: number; right: number; animated: boolean };
+    // Theme controlled by the parent (FormatterEditorView). When provided, Core
+    // uses these instead of its own local theme state.
+    theme?: "light" | "dark";
+    onToggleTheme?: () => void;
 }
 
 interface DocPage {
@@ -73,13 +78,23 @@ const TbIcon = ({ children, active, onClick, title, disabled }: { children: Reac
         onMouseDown={(e) => e.preventDefault()}
         title={title}
         disabled={disabled}
-        className={`flex h-[30px] w-[30px] items-center justify-center rounded-[4px] transition-colors ${disabled ? "opacity-30 cursor-not-allowed" : ""} ${active ? "bg-[#ea4335]/22 text-[#f87171]" : "text-white/85 hover:bg-[#2b313a]"}`}
+        className={`flex h-[30px] w-[30px] items-center justify-center rounded-[4px] transition-colors ${disabled ? "opacity-30 cursor-not-allowed" : ""} ${active ? "bg-[#ea4335]/22 text-[#f87171]" : "text-[var(--ed-icon)] hover:bg-[var(--ed-hover)]"}`}
     >
         {children}
     </button>
 );
 
-const TbSep = () => <div className="mx-1 h-5 w-px bg-[#3a3f47]" />;
+const TbSep = () => <div className="mx-1 h-5 w-px bg-[var(--ed-text-label)]" />;
+
+const ThemeToggle = ({ theme, onToggle }: { theme: "light" | "dark"; onToggle: () => void }) => (
+    <TbIcon title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} onClick={onToggle}>
+        {theme === "dark" ? (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+        ) : (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+        )}
+    </TbIcon>
+);
 
 type DropdownOption = { label: string; value: string | number };
 
@@ -103,24 +118,24 @@ const ToolbarDropdown = ({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setOpen(prev => !prev)}
-                className="flex h-[28px] w-full items-center justify-between rounded-[6px] px-2 text-[13px] text-[#e5e7eb] transition hover:bg-[#2c323a]"
+                className="flex h-[28px] w-full items-center justify-between rounded-[6px] px-2 text-[13px] text-[var(--ed-text)] transition hover:bg-[var(--ed-hover)]"
             >
                 <span className="truncate">{active?.label}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ed-text-muted)" strokeWidth="2">
                     <polyline points="6 9 12 15 18 9" />
                 </svg>
             </button>
             {open && (
                 <>
                     <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-                    <div className="absolute left-0 top-full z-30 mt-1 max-h-[220px] w-full overflow-y-auto rounded-[10px] border border-[#3b4048] bg-[#171a1f] p-1 shadow-[0_12px_26px_rgba(0,0,0,0.4)]">
+                    <div className="absolute left-0 top-full z-30 mt-1 max-h-[220px] w-full overflow-y-auto rounded-[10px] border border-[var(--ed-border-strong)] bg-[var(--ed-bg-surface)] p-1 shadow-[0_12px_26px_rgba(0,0,0,0.4)]">
                         {options.map((opt) => (
                             <button
                                 key={String(opt.value)}
                                 type="button"
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { onSelect(opt.value); setOpen(false); }}
-                                className={`flex w-full items-center justify-between rounded-[7px] px-2.5 py-1.5 text-left text-[13px] transition ${opt.value === value ? "bg-[#2b3442] text-[#93c5fd]" : "text-[#e5e7eb] hover:bg-[#242932]"}`}
+                                className={`flex w-full items-center justify-between rounded-[7px] px-2.5 py-1.5 text-left text-[13px] transition ${opt.value === value ? "bg-[var(--ed-active-bg)] text-[var(--ed-active-text)]" : "text-[var(--ed-text)] hover:bg-[var(--ed-hover)]"}`}
                             >
                                 <span className="truncate">{opt.label}</span>
                                 {opt.value === value && (
@@ -346,6 +361,8 @@ export default function FormatterEditorCore({
     abstract,
     keywords,
     panelInsets,
+    theme: controlledTheme,
+    onToggleTheme,
 }: EditorViewProps) {
     // CSS transition for toolbar padding (matches panel slide animation)
     const insetTransition = panelInsets?.animated
@@ -490,6 +507,27 @@ export default function FormatterEditorCore({
     const [pages, setPages] = useState<DocPage[]>(initialPageList);
     const [pageFormatMap, setPageFormatMap] = useState<Record<number, PageFormatMeta>>(initialPageFormatMap);
     const [activePageId, setActivePageId] = useState(initialPageList[0]?.id || 1);
+
+    // Editor theme (light / dark). Controlled by the parent View when provided;
+    // otherwise Core keeps its own state (e.g. if Core is used standalone).
+    // Applied via the data-theme attribute; tokens live in theme.css.
+    const [localTheme, setLocalTheme] = useState<"light" | "dark">(() => {
+        if (typeof window === "undefined") return "dark";
+        try {
+            const stored = window.localStorage.getItem("dococt-editor-theme");
+            return stored === "light" || stored === "dark" ? stored : "dark";
+        } catch { return "dark"; }
+    });
+    useEffect(() => {
+        if (controlledTheme) return;
+        try { window.localStorage.setItem("dococt-editor-theme", localTheme); } catch { /* ignore */ }
+    }, [localTheme, controlledTheme]);
+    const theme = controlledTheme ?? localTheme;
+    const toggleTheme = useCallback(() => {
+        if (onToggleTheme) onToggleTheme();
+        else setLocalTheme((p) => (p === "dark" ? "light" : "dark"));
+    }, [onToggleTheme]);
+
     const [isHeaderEditing, setIsHeaderEditing] = useState(false);
     const [headerEditingPageId, setHeaderEditingPageId] = useState<number | null>(null);
     const [headerText, setHeaderText] = useState(formattedDoc.profile.headerText || "");
@@ -1787,7 +1825,8 @@ export default function FormatterEditorCore({
     if (isMobileLayout) {
         return (
             <div
-                className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0f1115] ${mobileStyles.editorMobileRoot}`}
+                data-theme={theme}
+                className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ed-bg)] ${mobileStyles.editorMobileRoot}`}
                 style={{ fontFamily: "'Poppins', sans-serif" }}
             >
                 <div
@@ -1926,7 +1965,8 @@ export default function FormatterEditorCore({
 
     return (
         <div
-            className="flex h-full min-h-0 flex-col bg-[#0f1115]"
+            data-theme={theme}
+            className="flex h-full min-h-0 flex-col bg-[var(--ed-bg)]"
             style={{ fontFamily: "'Poppins', sans-serif" }}
             onMouseMove={(e) => {
                 if (!grammarOn) return;
@@ -1940,7 +1980,7 @@ export default function FormatterEditorCore({
             }}
             onMouseLeave={() => setGrammarTip(null)}
         >
-            <div className="flex h-[48px] items-center gap-2 bg-[#161a20] px-4" style={insetStyle}>
+            <div className="flex h-[48px] items-center gap-2 bg-[var(--ed-bg-bar)] px-4" style={insetStyle}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full" title="Document">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#ea4335" /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </div>
@@ -1948,7 +1988,7 @@ export default function FormatterEditorCore({
                 <input
                     value={docTitle}
                     onChange={(e) => setDocTitle(e.target.value)}
-                    className="h-[28px] min-w-0 flex-1 rounded-[4px] border border-transparent bg-transparent px-2 text-[18px] font-normal text-[#f3f4f6] outline-none transition hover:border-[#3b4048] focus:border-[#ea4335]"
+                    className="h-[28px] min-w-0 flex-1 rounded-[4px] border border-transparent bg-transparent px-2 text-[18px] font-normal text-[var(--ed-text)] outline-none transition hover:border-[var(--ed-border-strong)] focus:border-[#ea4335]"
                     spellCheck={false}
                 />
 
@@ -1964,10 +2004,10 @@ export default function FormatterEditorCore({
             </div>
 
             {/* ── Format Style pill bar + Format Document button ── */}
-            <div className="mt-1 flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-[#2a2f38] bg-[#13161c] px-3" style={insetStyle}>
+            <div className="mt-1 flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-3" style={insetStyle}>
                 {/* Style pills — scroll if needed */}
                 <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                    <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[#3a3f47]">Style</span>
+                    <span className="mr-1 flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-widest text-[var(--ed-text-label)]">Style</span>
                     {EDITOR_FORMAT_STYLES.map((s) => (
                         <button
                             key={s.id}
@@ -1977,7 +2017,7 @@ export default function FormatterEditorCore({
                             className="flex-shrink-0 rounded-full px-3 py-[3px] text-[10px] font-semibold transition active:scale-[0.95]"
                             style={selectedStyle === s.id
                                 ? { background: s.color, color: "#fff" }
-                                : { background: "#1a1f28", color: "#64748b" }}
+                                : { background: "var(--ed-bg-pill)", color: "var(--ed-text-faint)" }}
                         >
                             {s.label}
                         </button>
@@ -1998,7 +2038,7 @@ export default function FormatterEditorCore({
                 )}
             </div>
 
-            <div className="flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[#2f353f] bg-[#1b2028] px-3 text-[#f3f4f6]" style={insetStyle}>
+            <div className="flex h-[40px] flex-shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--ed-border)] bg-[var(--ed-bg-toolbar)] px-3 text-[var(--ed-text)]" style={insetStyle}>
                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                 <TbSep />
@@ -2054,25 +2094,29 @@ export default function FormatterEditorCore({
                 <TbIcon title="Clear formatting" onClick={() => execCommand("removeFormat")}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7 21 4-9" /><path d="M3 3h12l-3 7" /><line x1="1" y1="1" x2="23" y2="23" /></svg></TbIcon>
                 {/* Grammar loading indicator (always-on, no toggle) */}
                 {grammarLoading && (
-                    <div className="ml-1 flex items-center gap-1 text-[10px] text-[#64748b]">
+                    <div className="ml-1 flex items-center gap-1 text-[10px] text-[var(--ed-text-faint)]">
                         <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".2"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
                     </div>
                 )}
+                <div className="ml-auto flex items-center">
+                    <TbSep />
+                    <ThemeToggle theme={theme} onToggle={toggleTheme} />
+                </div>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#11151b]">
+            <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[var(--ed-bg-canvas)]">
                 <div ref={pagesViewportRef} className="flex min-h-0 flex-1 flex-col overflow-auto" style={insetStyle}>
-                    <div className="sticky top-0 z-20 flex justify-center bg-[#11151b] px-6 pb-2 pt-3">
+                    <div className="sticky top-0 z-20 flex justify-center bg-[var(--ed-bg-canvas)] px-6 pb-2 pt-3">
                         <div
                             ref={rulerRef}
-                            className="flex h-[20px] items-end rounded-b-[8px] border-b border-[#2f353f] bg-[#1b2028] select-none"
+                            className="flex h-[20px] items-end rounded-b-[8px] border-b border-[var(--ed-border)] bg-[var(--ed-bg-toolbar)] select-none"
                             style={{ width: `${pageWidth * (zoom / 100)}px` }}
                         >
                             <div className="relative h-3 w-full">
                                 {Array.from({ length: 17 }, (_, i) => (
                                     <div key={i} className="absolute bottom-0 flex flex-col items-center" style={{ left: `${(i / 16) * 100}%` }}>
                                         <div className="h-2 w-px bg-[#4b5563]" />
-                                        {i % 2 === 0 && <span className="mt-[-2px] text-[8px] text-[#94a3b8]">{i / 2}</span>}
+                                        {i % 2 === 0 && <span className="mt-[-2px] text-[8px] text-[var(--ed-text-muted)]">{i / 2}</span>}
                                     </div>
                                 ))}
                                 <div
@@ -2288,11 +2332,11 @@ export default function FormatterEditorCore({
                 </div>
             </div>
 
-            <div className="flex h-[28px] flex-shrink-0 items-center justify-between border-t border-[#2f353f] bg-[#161a20] px-4 text-[12px] text-[#cbd5e1]" style={insetStyle}>
+            <div className="flex h-[28px] flex-shrink-0 items-center justify-between border-t border-[var(--ed-border)] bg-[var(--ed-bg-bar)] px-4 text-[12px] text-[var(--ed-status-text)]" style={insetStyle}>
                 <div className="flex items-center gap-4">
                     <span>{wordCount} words</span>
                     <span>{charCount} characters</span>
-                    <span className="text-[#b0b0b0]">|</span>
+                    <span className="text-[var(--ed-status-text)]">|</span>
                     <span>Editing</span>
                 </div>
                 <div className="flex items-center gap-4">
