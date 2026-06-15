@@ -625,54 +625,55 @@ function OctoMiniPreview({
   };
 
   return (
-    <div className="px-3 pb-3">
+    <div className="flex h-full flex-col px-3 pb-3">
       <div
         role="button"
         tabIndex={0}
         onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
-        className="group cursor-pointer overflow-hidden rounded-[14px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] transition hover:border-[var(--ed-border-2)]"
+        className="group flex min-h-0 flex-1 cursor-pointer flex-col overflow-hidden rounded-[14px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] transition hover:border-[var(--ed-border-2)]"
         title="Open Octo the Bot"
       >
         {/* header */}
-        <div className="flex items-center justify-between border-b border-[var(--ed-border)] px-3 py-2">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--ed-border)] px-3 py-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[var(--ed-text-dim)] transition group-hover:text-[var(--ed-text-muted)]"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         </div>
 
-        {/* read-only live preview */}
-        <div className="pointer-events-none max-h-[150px] overflow-hidden px-3 py-2.5" style={{ maskImage: "linear-gradient(to bottom, #000 70%, transparent)" }}>
-          {!chatStarted ? (
-            <div className="flex flex-col items-center gap-1.5 py-2 text-center">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--ed-bg-pill)]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
-                  <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
-                  <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
-                </svg>
-              </div>
-              <p className="text-[11px] font-medium text-[var(--ed-text)]">Octo is ready</p>
-              <p className="text-[9.5px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+        {/* read-only live preview — fills available height */}
+        {!chatStarted ? (
+          <div className="pointer-events-none flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 px-3 py-2 text-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--ed-bg-pill)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.12" />
+                <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
+                <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
+              </svg>
             </div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {chatMessages.slice(-4).map((m) => (
-                <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                  <div className={`max-w-[88%] truncate rounded-[8px] px-2 py-1 text-[10px] ${m.role === "user" ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-muted)]"}`}>
-                    {summarize(m)}
-                  </div>
+            <p className="text-[11px] font-medium text-[var(--ed-text)]">Octo is ready</p>
+            <p className="text-[9.5px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+          </div>
+        ) : (
+          <div
+            className="pointer-events-none flex min-h-0 flex-1 flex-col justify-end gap-1.5 overflow-hidden px-3 py-2.5"
+            style={{ maskImage: "linear-gradient(to bottom, transparent, #000 18%)" }}
+          >
+            {chatMessages.slice(-8).map((m) => (
+              <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div className={`max-w-[88%] truncate rounded-[8px] px-2 py-1 text-[10px] ${m.role === "user" ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-muted)]"}`}>
+                  {summarize(m)}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Criticize button — submits + opens the window */}
       <button
         type="button"
         onClick={onCriticize}
-        className="mt-2 w-full rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.98]"
+        className="mt-2 w-full flex-shrink-0 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.98]"
       >
         &quot;Yo Octo, criticize my essay&quot;
       </button>
@@ -2529,7 +2530,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </div>
 
             {/* ── Single scrollable column ── */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 
               {/* ════ 1. PARAPHRASER ════ */}
               <div className="border-b border-[var(--ed-border)] px-3 py-2.5">
@@ -2668,8 +2669,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 )}
               </div>
 
-              {/* ════ Octo the Bot — read-only mini preview (full window opens on click) ════ */}
-              <div className="pt-1">
+              {/* ════ Octo the Bot — read-only mini preview (fills remaining height) ════ */}
+              <div className="flex min-h-[220px] flex-1 flex-col pt-2 pb-2">
                 <OctoMiniPreview
                   chatStarted={chatStarted}
                   chatMessages={chatMessages}
@@ -2678,7 +2679,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   onCriticize={criticizeNow}
                 />
               </div>
-              <div className="h-4" />
 
             </div> {/* end single scroll column */}
           </div>
