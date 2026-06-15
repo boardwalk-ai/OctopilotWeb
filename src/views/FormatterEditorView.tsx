@@ -100,6 +100,18 @@ interface OctoStructuredResponse {
   ratings?: OctoRatings;
   fallbackText?: string;
 }
+
+/** Build the editor-highlight items from a critique response. */
+function critiqueHighlightItems(data: OctoStructuredResponse): { id: string; quote: string; color: string }[] {
+  const items: { id: string; quote: string; color: string }[] = [];
+  (data.grammar ?? []).forEach((g, i) => {
+    if (g.quote?.trim()) items.push({ id: `g-${i}`, quote: g.quote, color: octoIssueColor(g.title, "grammar") });
+  });
+  (data.style ?? []).forEach((s, i) => {
+    if (s.quote?.trim()) items.push({ id: `s-${i}`, quote: s.quote, color: octoIssueColor(s.title, "style") });
+  });
+  return items;
+}
 interface ChatMsg { id: string; role: "user" | "assistant"; text: string; suggestions?: OctoSuggestion[]; structured?: OctoStructuredResponse; }
 
 /* ─── Dictionary / Thesaurus types ──────────────────────────────────────────── */
@@ -990,6 +1002,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Octo expanded (side-by-side with editor) ── */
   const OCTO_PANEL_W = 440;
   const [octoExpanded, setOctoExpanded] = useState(false);
+  const [highlightEnabled, setHighlightEnabled] = useState(true);
   const priorWidthsRef = useRef<{ left: number; right: number } | null>(null);
 
   const openOctoExpanded = useCallback(() => {
@@ -1655,15 +1668,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const data = await res.json() as OctoStructuredResponse;
       setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "", structured: data }]);
 
-      // Highlight critique quotes directly in the document (Grammarly-style)
-      if (data.type === "critique") {
-        const items: { id: string; quote: string; color: string }[] = [];
-        (data.grammar ?? []).forEach((g, i) => {
-          if (g.quote?.trim()) items.push({ id: `g-${i}`, quote: g.quote, color: octoIssueColor(g.title, "grammar") });
-        });
-        (data.style ?? []).forEach((s, i) => {
-          if (s.quote?.trim()) items.push({ id: `s-${i}`, quote: s.quote, color: octoIssueColor(s.title, "style") });
-        });
+      // Highlight critique quotes directly in the document (Grammarly-style) —
+      // optional: only when the user has highlighting enabled.
+      if (data.type === "critique" && highlightEnabled) {
+        const items = critiqueHighlightItems(data);
         if (items.length) requestAnimationFrame(() => octoHighlightRef.current?.(items));
       }
     } catch {
@@ -1674,7 +1682,25 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setChatLoading(false);
     }
-  }, [chatLoading, chatMessages, chatTone, chatMode, coreSnapshot.content, rawContent, serializeMsgForHistory]);
+  }, [chatLoading, chatMessages, chatTone, chatMode, highlightEnabled, coreSnapshot.content, rawContent, serializeMsgForHistory]);
+
+  /* ── Octo: toggle document highlighting (optional) ── */
+  const toggleHighlight = useCallback(() => {
+    setHighlightEnabled((prev) => {
+      const next = !prev;
+      if (!next) {
+        octoHighlightRef.current?.([]);  // clear existing highlights
+      } else {
+        // re-apply from the most recent critique in the conversation
+        const lastCritique = [...chatMessages].reverse().find((m) => m.structured?.type === "critique");
+        if (lastCritique?.structured) {
+          const items = critiqueHighlightItems(lastCritique.structured);
+          if (items.length) requestAnimationFrame(() => octoHighlightRef.current?.(items));
+        }
+      }
+      return next;
+    });
+  }, [chatMessages]);
 
   /* ── Octo: criticize action (forces criticism mode, submits, opens window) ── */
   const criticizeNow = useCallback(() => {
@@ -3787,23 +3813,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             {/* Header */}
             <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ea4335]/15">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" fill="#ea4335" opacity="0.2" />
-                    <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="#ea4335" />
-                    <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
-                  </svg>
-                </div>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white ring-1 ring-[#ea4335]/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/OCTOPILOT.png" alt="Octo" className="h-5 w-5 object-contain" />
+                </span>
                 <span className="text-[13px] font-bold tracking-wide text-[var(--ed-text)]">Octo the Bot</span>
               </div>
-              <button
-                type="button"
-                onClick={closeOctoExpanded}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[var(--ed-status-text)] transition hover:bg-white/20 hover:text-white active:scale-[0.92]"
-                title="Minimize"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Optional document highlighting toggle */}
+                <button
+                  type="button"
+                  onClick={toggleHighlight}
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold transition active:scale-[0.95] ${highlightEnabled ? "bg-[#ea4335]/15 text-[#ea4335]" : "bg-white/10 text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                  title={highlightEnabled ? "Highlighting on — click to turn off" : "Highlighting off — click to turn on"}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6"/><path d="m17 5 2 2"/><path d="M14.5 5.5 18 2l4 4-3.5 3.5z"/></svg>
+                  Highlight
+                </button>
+                <button
+                  type="button"
+                  onClick={closeOctoExpanded}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[var(--ed-status-text)] transition hover:bg-white/20 hover:text-white active:scale-[0.92]"
+                  title="Minimize"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
             </div>
 
             <OctoChatPanel
@@ -3819,20 +3854,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </div>
         )}
 
-        {/* ══ Floating Octo bubble (bottom-left) — opens expanded mode ══ */}
+        {/* ══ Floating Octo (bottom-left) — OctoPilot logo + label, opens window ══ */}
         {viewState === "editor" && !octoExpanded && (
           <button
             type="button"
             onClick={openOctoExpanded}
-            className="group absolute bottom-5 left-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] to-[#c62828] shadow-[0_6px_24px_rgba(234,67,53,0.5)] transition-all duration-200 hover:scale-110 hover:shadow-[0_8px_32px_rgba(234,67,53,0.7)] active:scale-95"
+            className="group absolute bottom-5 left-5 z-30 flex flex-col items-center gap-1.5 transition-transform duration-200 hover:scale-105 active:scale-95"
             title="Open Octo the Bot"
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M9 10.5c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.1-.6 2.08-1.5 2.6V15h-3v-1.9C9.6 12.58 9 11.6 9 10.5z" fill="white" />
-              <rect x="10.25" y="15.5" width="3.5" height="1.4" rx="0.7" fill="white" />
-              <rect x="10.75" y="17.4" width="2.5" height="1.1" rx="0.55" fill="white" />
-            </svg>
-            <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#ea4335] opacity-20" style={{ animationDuration: "2.4s" }} />
+            <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white ring-2 ring-[#ea4335] shadow-[0_6px_24px_rgba(234,67,53,0.45)] transition-shadow duration-200 group-hover:shadow-[0_8px_32px_rgba(234,67,53,0.7)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/OCTOPILOT.png" alt="Octo" className="h-9 w-9 object-contain" />
+              <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#ea4335] opacity-20" style={{ animationDuration: "2.4s" }} />
+            </span>
+            <span className="rounded-full bg-[#ea4335] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white shadow-sm">Octo the Bot</span>
           </button>
         )}
 
