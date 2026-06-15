@@ -101,6 +101,25 @@ interface OctoStructuredResponse {
   fallbackText?: string;
 }
 
+interface AssignmentAnalysis {
+  analysis: string;
+  essayTopic: string;
+  essayType: string;
+  scope: string;
+  structure: string;
+}
+
+/** Serialize an assignment analysis into a compact context string for Octo. */
+function serializeAssignment(a: AssignmentAnalysis): string {
+  return [
+    `Assignment summary: ${a.analysis}`,
+    `Topic: ${a.essayTopic}`,
+    `Essay type: ${a.essayType}`,
+    `Scope: ${a.scope}`,
+    `Expected structure: ${a.structure}`,
+  ].filter(Boolean).join("\n");
+}
+
 /** Build the editor-highlight items from a critique response. */
 function critiqueHighlightItems(data: OctoStructuredResponse): { id: string; quote: string; color: string }[] {
   const items: { id: string; quote: string; color: string }[] = [];
@@ -1045,6 +1064,40 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [onboardingTopic, setOnboardingTopic] = useState("");
   const [onboardingFormat, setOnboardingFormat] = useState<FormatStyleId>("mla");
 
+  /* ── Assignment analysis (Hein) — feeds Octo for assignment-aware feedback ── */
+  const [assignmentInput, setAssignmentInput] = useState("");
+  const [assignmentAnalysis, setAssignmentAnalysis] = useState<AssignmentAnalysis | null>(null);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [assignmentOpen, setAssignmentOpen] = useState(true);
+
+  const analyzeAssignment = useCallback(async () => {
+    const text = assignmentInput.trim();
+    if (!text || assignmentLoading) return;
+    setAssignmentLoading(true);
+    setAssignmentError(null);
+    try {
+      const res = await fetchWithUserAuthorization("/api/hein/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructions: text }),
+      });
+      const data = await res.json() as AssignmentAnalysis & { error?: string };
+      if (!res.ok || !data.analysis) throw new Error(data.error ?? "Analysis failed");
+      setAssignmentAnalysis(data);
+    } catch {
+      setAssignmentError("Couldn't analyze the assignment. Try again.");
+    } finally {
+      setAssignmentLoading(false);
+    }
+  }, [assignmentInput, assignmentLoading]);
+
+  // Prefill the assignment box with whatever the student typed in the wizard
+  useEffect(() => {
+    if (onboardingTopic && !assignmentInput) setAssignmentInput(onboardingTopic);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboardingTopic]);
+
   /* ── Citation state ── */
   const [citUrlInput, setCitUrlInput] = useState("");
   const [citPhase, setCitPhase] = useState<CitPhase>({ kind: "idle" });
@@ -1660,7 +1713,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const res = await fetchWithUserAuthorization("/api/octobot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, tone: chatTone, context: essayCtx, structured: true, mode }),
+        body: JSON.stringify({
+          messages: history, tone: chatTone, context: essayCtx, structured: true, mode,
+          assignment: assignmentAnalysis ? serializeAssignment(assignmentAnalysis) : undefined,
+        }),
       });
 
       if (!res.ok) throw new Error("Request failed.");
@@ -1682,7 +1738,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setChatLoading(false);
     }
-  }, [chatLoading, chatMessages, chatTone, chatMode, highlightEnabled, coreSnapshot.content, rawContent, serializeMsgForHistory]);
+  }, [chatLoading, chatMessages, chatTone, chatMode, highlightEnabled, assignmentAnalysis, coreSnapshot.content, rawContent, serializeMsgForHistory]);
 
   /* ── Octo: toggle document highlighting (optional) ── */
   const toggleHighlight = useCallback(() => {
@@ -2557,6 +2613,66 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             {/* ── Single scrollable column ── */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+
+              {/* ════ 0. ASSIGNMENT ANALYSIS ════ */}
+              <div className="border-b border-[var(--ed-border)] px-3 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => setAssignmentOpen((v) => !v)}
+                  className="mb-2 flex w-full items-center justify-between"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-faint)]">Assignment</span>
+                  <span className="flex items-center gap-1.5">
+                    {assignmentAnalysis && <span className="h-1.5 w-1.5 rounded-full bg-[#0d9488]" title="Octo is using this" />}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`text-[var(--ed-text-dim)] transition-transform ${assignmentOpen ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </button>
+
+                {assignmentOpen && (
+                  <>
+                    <textarea
+                      value={assignmentInput}
+                      onChange={(e) => setAssignmentInput(e.target.value)}
+                      placeholder="Paste your assignment instructions / prompt here…"
+                      rows={3}
+                      className="w-full resize-none rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-2.5 py-2 text-[11px] leading-relaxed text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-border-2)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void analyzeAssignment()}
+                      disabled={assignmentLoading || !assignmentInput.trim()}
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98] disabled:opacity-40"
+                    >
+                      {assignmentLoading
+                        ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />Analyzing…</>
+                        : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9.5 2A7.5 7.5 0 0 1 17 9.5c0 1.8-.6 3.4-1.7 4.7l5 5"/><circle cx="9.5" cy="9.5" r="7.5"/></svg>{assignmentAnalysis ? "Re-analyze" : "Analyze assignment"}</>
+                      }
+                    </button>
+
+                    {assignmentError && <p className="mt-2 text-[10px] text-[#f87171]">{assignmentError}</p>}
+
+                    {assignmentAnalysis && (
+                      <div className="mt-2.5 space-y-2 rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-3)] p-2.5" style={{ animation: "chat-msg-in 0.25s ease-out both" }}>
+                        <p className="text-[11px] leading-relaxed text-[var(--ed-text-muted)]">{assignmentAnalysis.analysis}</p>
+                        {([
+                          ["Type", assignmentAnalysis.essayType],
+                          ["Scope", assignmentAnalysis.scope],
+                          ["Structure", assignmentAnalysis.structure],
+                        ] as [string, string][]).filter(([, v]) => v?.trim()).map(([label, val]) => (
+                          <div key={label}>
+                            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[var(--ed-text-label)]">{label}</span>
+                            <p className="text-[10px] leading-snug text-[var(--ed-text-faint)]">{val}</p>
+                          </div>
+                        ))}
+                        <p className="flex items-center gap-1 pt-0.5 text-[9px] font-medium text-[#0d9488]">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+                          Octo now uses this when giving feedback
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
               {/* ════ 1. PARAPHRASER ════ */}
               <div className="border-b border-[var(--ed-border)] px-3 py-2.5">

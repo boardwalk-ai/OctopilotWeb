@@ -16,7 +16,7 @@ const TONE_FLAVOR: Record<string, string> = {
 };
 
 // ── Main structured prompt ────────────────────────────────────────────────────
-function buildStructuredPrompt(tone: string, essay?: string, mode?: "chat" | "criticism"): string {
+function buildStructuredPrompt(tone: string, essay?: string, mode?: "chat" | "criticism", assignment?: string): string {
   const flavor = TONE_FLAVOR[tone] ?? TONE_FLAVOR.roast;
 
   const modeDirective =
@@ -70,11 +70,16 @@ RULES for critique:
 - quote: MUST be copied verbatim from the essay text (exact characters, exact spelling — even if misspelled). If you paraphrase, highlighting breaks.
 - ratings: integers 1–10 reflecting the actual essay quality. Be honest.
 - Address the essay directly — no generic advice. Reference what is actually written.
-- Respond in the user's language.`;
+- Respond in the user's language.${assignment ? `
+- ASSIGNMENT-AWARE: An assignment brief is provided below. ALSO evaluate whether the essay MEETS THE ASSIGNMENT: does it satisfy the required topic, type, scope, and structure? Is the student ON-TOPIC? Put assignment-specific notes in the "style" section (e.g. title "Off-topic in ¶3", "Missing required counterargument", "Doesn't match the analytical essay type"). If the essay ignores or drifts from the assignment, LOWER the "thinking" and "ideas" ratings accordingly and say so.` : ""}`;
+
+  const withAssignment = assignment
+    ? `${base}\n\nAssignment brief (what the essay must satisfy):\n${assignment.slice(0, 2000)}`
+    : base;
 
   return essay?.trim()
-    ? `${base}\n\nEssay to critique:\n\n${essay.trim().slice(0, 8000)}`
-    : base;
+    ? `${withAssignment}\n\nEssay to critique:\n\n${essay.trim().slice(0, 8000)}`
+    : withAssignment;
 }
 
 // ── Streaming prompt for per-bullet follow-up chats ───────────────────────────
@@ -96,9 +101,10 @@ export async function POST(request: NextRequest) {
       context?: string;      // essay text
       structured?: boolean;  // false = streaming follow-up
       mode?: "chat" | "criticism";  // explicit mode overrides auto-detect
+      assignment?: string;   // assignment analysis (Hein) for assignment-aware feedback
     };
 
-    const { messages, tone = "roast", context, structured = true, mode } = body;
+    const { messages, tone = "roast", context, structured = true, mode, assignment } = body;
 
     if (!messages?.length) {
       return NextResponse.json({ error: "No messages provided." }, { status: 400 });
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     // ── JSON mode: main Octo responses ───────────────────────────────────────
     if (structured) {
-      const systemPrompt = buildStructuredPrompt(tone, context, mode);
+      const systemPrompt = buildStructuredPrompt(tone, context, mode, assignment);
 
       const res = await fetch(OPENROUTER_API_URL, {
         method: "POST",
