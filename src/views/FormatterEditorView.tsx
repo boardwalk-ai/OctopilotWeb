@@ -713,6 +713,74 @@ function OctoMiniPreview({
   );
 }
 
+/* ── Full-viewport wizard shell (welcome / setup / analysis) ─────────────────── */
+const WIZARD_STEPS = ["Topic", "Setup", "Analysis"] as const;
+function WizardShell({
+  step, eyebrow, headline, onBack, exiting, scroll, children,
+}: {
+  step: 1 | 2 | 3;
+  eyebrow: string;
+  headline: React.ReactNode;
+  onBack?: () => void;
+  exiting: boolean;
+  scroll?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div data-theme="dark" className={`absolute inset-0 flex flex-col bg-[#0a0c11] lg:flex-row ${exiting ? "cinematic-exit" : "cinematic-enter"}`}>
+      {/* ── LEFT BRAND RAIL ── */}
+      <aside className="relative flex shrink-0 flex-col justify-between overflow-hidden border-b border-white/10 bg-gradient-to-b from-[#0e1016] to-[#08090d] p-8 lg:h-full lg:w-[44%] lg:border-b-0 lg:border-r lg:p-12">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "44px 44px" }} />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(60px)" }} />
+        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #7f1d1d 0%, transparent 70%)", filter: "blur(70px)" }} />
+        <span className="pointer-events-none absolute -bottom-16 right-2 select-none text-[200px] font-black leading-none text-white/[0.03] lg:text-[280px]">0{step}</span>
+
+        {/* logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white ring-2 ring-[#ea4335]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/OCTOPILOT.png" alt="Octopilot" className="h-6 w-6 object-contain" />
+          </span>
+          <span className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/50">Octopilot · Doc&nbsp;Oct</span>
+        </div>
+
+        {/* eyebrow + display headline */}
+        <div className="relative z-10 my-10 lg:my-0">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.34em] text-[#ea4335]">{eyebrow}</p>
+          <h1 className="text-[clamp(34px,5vw,58px)] font-bold leading-[1.04] tracking-tight text-white">{headline}</h1>
+        </div>
+
+        {/* step tracker */}
+        <div className="relative z-10 flex items-center gap-2.5">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center gap-2.5">
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition ${n === step ? "bg-[#ea4335] text-white shadow-[0_0_16px_rgba(234,67,53,0.6)]" : n < step ? "bg-white/15 text-white/70" : "border border-white/15 text-white/30"}`}>
+                {n < step ? "✓" : n}
+              </span>
+              {n < 3 && <span className={`h-px w-7 ${n < step ? "bg-[#ea4335]/50" : "bg-white/10"}`} />}
+            </div>
+          ))}
+          <span className="ml-2 text-[11px] font-medium text-white/35">{WIZARD_STEPS[step - 1]}</span>
+        </div>
+      </aside>
+
+      {/* ── RIGHT CONTENT ── */}
+      <main className={`relative flex min-h-0 flex-1 flex-col ${scroll ? "overflow-y-auto" : "overflow-hidden"} p-8 sm:p-12 lg:p-16`}>
+        {onBack && (
+          <button type="button" onClick={onBack}
+            className="ob-item mb-8 flex w-fit flex-shrink-0 items-center gap-1.5 text-[12px] text-white/40 transition hover:text-white/70" style={{ animationDelay: "0ms" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back
+          </button>
+        )}
+        <div className={`flex w-full max-w-xl flex-1 flex-col ${scroll ? "" : "justify-center"} ${scroll ? "" : "my-auto"}`}>
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
 interface SourceCardProps {
   source: SourceResult;
   index: number;
@@ -2844,150 +2912,111 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
           {/* ── WELCOME PANEL ── */}
           {viewState === "welcome" && (
-            <div data-theme="dark" className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
-              {/* Subtle background grid */}
-              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
-              {/* Red glow top-left */}
-              <div className="pointer-events-none absolute -left-20 -top-20 h-80 w-80 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(40px)" }} />
-              {/* Red glow bottom-right */}
-              <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #7f1d1d 0%, transparent 70%)", filter: "blur(50px)" }} />
-
-              <div className="relative z-10 w-full max-w-md">
-                {/* Logo mark */}
-                <div className="ob-item mb-8 flex items-center gap-3" style={{ animationDelay: "0ms" }}>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ea4335]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="white" opacity="0.9"/><path d="M7 8h10M7 12h7M7 16h10" stroke="#ea4335" strokeWidth="1.8" strokeLinecap="round"/></svg>
+            <WizardShell
+              step={1}
+              exiting={viewExiting}
+              eyebrow="Academic formatting, automated"
+              headline={<>Write with precision.<br /><span className="text-[#ea4335]">Cite with confidence.</span></>}
+            >
+              <p className="ob-item mb-10 max-w-md text-[15px] leading-relaxed text-white/45" style={{ animationDelay: "180ms" }}>
+                Format your essays to exact style guidelines — MLA, APA, Chicago, IEEE, Harvard — every margin, indent, and citation handled automatically.
+              </p>
+              <div className="ob-item grid gap-3.5 sm:grid-cols-2" style={{ animationDelay: "290ms" }}>
+                <button
+                  type="button"
+                  onClick={() => transitionTo("setup")}
+                  className="group relative overflow-hidden rounded-3xl bg-[#ea4335] p-6 text-left transition hover:bg-[#dc2626] active:scale-[0.98]"
+                >
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 to-transparent" />
+                  <div className="relative flex h-full flex-col">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="mb-8"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                    <p className="mt-auto text-[17px] font-semibold text-white">Specify my topic</p>
+                    <p className="mt-1 text-[12px] text-white/70">Premium features + source search</p>
+                    <span className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-white">Start <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
                   </div>
-                  <span className="text-[13px] font-semibold tracking-[0.12em] text-[var(--ed-text-muted)] uppercase">Doc Oct</span>
-                </div>
-
-                {/* Headline */}
-                <h1 className="ob-item mb-3 text-[32px] font-bold leading-[1.15] tracking-tight text-white" style={{ animationDelay: "90ms" }}>
-                  Write with precision.<br />
-                  <span className="text-[#ea4335]">Cite with confidence.</span>
-                </h1>
-
-                {/* Subtext */}
-                <p className="ob-item mb-10 text-[14px] leading-relaxed text-[var(--ed-text-faint)]" style={{ animationDelay: "180ms" }}>
-                  Format your academic essays to exact style guidelines — MLA, APA, Chicago, IEEE, Harvard — every margin, indent, and citation handled automatically.
-                </p>
-
-                {/* CTA buttons */}
-                <div className="ob-item flex flex-col gap-3" style={{ animationDelay: "290ms" }}>
-                  {/* Primary — Specify Now */}
-                  <button
-                    type="button"
-                    onClick={() => transitionTo("setup")}
-                    className="group relative overflow-hidden rounded-2xl bg-[#ea4335] px-6 py-4 text-left transition hover:bg-[#dc2626] active:scale-[0.98]"
-                  >
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-                    <p className="text-[14px] font-semibold text-white">Specify my topic now</p>
-                    <p className="mt-0.5 text-[11px] text-white/60">Access to premium features + search functionality</p>
-                  </button>
-
-                  {/* Secondary — Start Writing */}
-                  <button
-                    type="button"
-                    onClick={() => transitionTo("editor")}
-                    className="rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-6 py-4 text-left transition hover:border-[var(--ed-border-2)] hover:bg-[var(--ed-bg-subbar)] active:scale-[0.98]"
-                  >
-                    <p className="text-[14px] font-medium text-[var(--ed-text-muted)]">Start writing first</p>
-                    <p className="mt-0.5 text-[11px] text-[var(--ed-text-label)]">Disposable session</p>
-                  </button>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => transitionTo("editor")}
+                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-left transition hover:border-white/20 hover:bg-white/[0.06] active:scale-[0.98]"
+                >
+                  <div className="relative flex h-full flex-col">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2" strokeLinecap="round" className="mb-8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                    <p className="mt-auto text-[17px] font-semibold text-white">Start writing</p>
+                    <p className="mt-1 text-[12px] text-white/45">Jump straight in — disposable session</p>
+                    <span className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-white/70">Open editor <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                  </div>
+                </button>
               </div>
-            </div>
+            </WizardShell>
           )}
 
           {/* ── SETUP PANEL ── */}
           {viewState === "setup" && (
-            <div data-theme="dark" className={`absolute inset-0 flex flex-col items-center justify-center px-10 ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
-              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
-              <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(50px)" }} />
+            <WizardShell
+              step={2}
+              exiting={viewExiting}
+              onBack={() => transitionTo("welcome")}
+              eyebrow="Step two"
+              headline={<>Set up<br />your paper.</>}
+            >
+              {/* Essay topic */}
+              <div className="ob-item mb-8" style={{ animationDelay: "120ms" }}>
+                <label className="mb-2.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">Essay topic or assignment prompt</label>
+                <input
+                  type="text"
+                  value={onboardingTopic}
+                  onChange={(e) => setOnboardingTopic(e.target.value)}
+                  placeholder="e.g. The impact of social media on mental health"
+                  className="w-full border-0 border-b-2 border-white/15 bg-transparent pb-3 text-[22px] font-medium text-white placeholder-white/25 outline-none transition focus:border-[#ea4335]"
+                />
+              </div>
 
-              <div className="relative z-10 w-full max-w-md">
-                {/* Back */}
-                <button type="button" onClick={() => transitionTo("welcome")}
-                  className="ob-item mb-6 flex items-center gap-1.5 text-[12px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]" style={{ animationDelay: "0ms" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
-                  Back
-                </button>
-
-                {/* Heading */}
-                <h2 className="ob-item mb-1.5 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "60ms" }}>
-                  Let's set up your paper.
-                </h2>
-                <p className="ob-item mb-8 text-[13px] text-[var(--ed-text-dim)]" style={{ animationDelay: "130ms" }}>
-                  Tell us the topic and format — we'll tailor everything for you.
-                </p>
-
-                {/* Essay topic */}
-                <div className="ob-item mb-5" style={{ animationDelay: "200ms" }}>
-                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Essay topic or title</label>
-                  <input
-                    type="text"
-                    value={onboardingTopic}
-                    onChange={(e) => setOnboardingTopic(e.target.value)}
-                    placeholder="e.g. The impact of social media on mental health"
-                    className="w-full rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-4 py-3 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50 focus:ring-1 focus:ring-[#ea4335]/20"
-                  />
-                </div>
-
-                {/* Citation format */}
-                <div className="ob-item mb-8" style={{ animationDelay: "270ms" }}>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Citation format</label>
-                  <div className="flex flex-wrap gap-2">
-                    {FORMAT_STYLES.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setOnboardingFormat(s.id)}
-                        className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12px] font-medium transition active:scale-[0.96]"
-                        style={onboardingFormat === s.id
-                          ? { background: `${s.color}18`, borderColor: s.color, color: s.color }
-                          : { background: "var(--ed-surface-2)", borderColor: "var(--ed-border)", color: "var(--ed-text-faint)" }}
-                      >
-                        <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
-                        {s.label.split(" (")[0]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Open editor */}
-                <div className="ob-item" style={{ animationDelay: "360ms" }}>
-                  <button
-                    type="button"
-                    onClick={() => transitionTo(onboardingTopic.trim() ? "analysis" : "editor", { topic: onboardingTopic, style: onboardingFormat })}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ea4335] py-3.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
-                  >
-                    {onboardingTopic.trim() ? "Analyze & Continue" : "Open Editor"}
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </button>
+              {/* Citation format */}
+              <div className="ob-item mb-10" style={{ animationDelay: "210ms" }}>
+                <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">Citation format</label>
+                <div className="flex flex-wrap gap-2.5">
+                  {FORMAT_STYLES.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setOnboardingFormat(s.id)}
+                      className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-[13px] font-medium transition active:scale-[0.96]"
+                      style={onboardingFormat === s.id
+                        ? { background: `${s.color}1f`, borderColor: s.color, color: "#fff" }
+                        : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.55)" }}
+                    >
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
+                      {s.label.split(" (")[0]}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
+
+              <div className="ob-item" style={{ animationDelay: "300ms" }}>
+                <button
+                  type="button"
+                  onClick={() => transitionTo(onboardingTopic.trim() ? "analysis" : "editor", { topic: onboardingTopic, style: onboardingFormat })}
+                  className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[15px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                >
+                  {onboardingTopic.trim() ? "Analyze & Continue" : "Open Editor"}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            </WizardShell>
           )}
 
           {/* ── ASSIGNMENT ANALYSIS + OUTLINES (between setup and editor) ── */}
           {viewState === "analysis" && (
-            <div data-theme="dark" className={`absolute inset-0 flex flex-col ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
-              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
-              <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(50px)" }} />
-
-              <div className="relative z-10 mx-auto flex h-full w-full max-w-2xl flex-col overflow-y-auto px-8 py-8">
-                {/* Back */}
-                <button type="button" onClick={() => transitionTo("setup")}
-                  className="ob-item mb-5 flex flex-shrink-0 items-center gap-1.5 text-[12px] text-white/40 transition hover:text-white/70" style={{ animationDelay: "0ms" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
-                  Back
-                </button>
-
-                <h2 className="ob-item mb-1.5 flex-shrink-0 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "60ms" }}>Assignment Analysis</h2>
-                <p className="ob-item mb-6 flex-shrink-0 text-[13px] text-white/40" style={{ animationDelay: "120ms" }}>Octo broke down your prompt. Review it, optionally generate an outline, then start writing.</p>
+            <WizardShell
+              step={3}
+              exiting={viewExiting}
+              scroll
+              onBack={() => transitionTo("setup")}
+              eyebrow="Step three"
+              headline={<>Your assignment,<br /><span className="text-[#ea4335]">decoded.</span></>}
+            >
+              <p className="ob-item mb-6 text-[14px] leading-relaxed text-white/45" style={{ animationDelay: "120ms" }}>Octo broke down your prompt. Review it, optionally generate an outline, then start writing.</p>
 
                 {/* Analysis card */}
                 <div className="ob-item mb-6 flex-shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] p-5" style={{ animationDelay: "180ms" }}>
@@ -3061,18 +3090,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
 
                 {/* Continue */}
-                <div className="ob-item mt-auto flex-shrink-0 pt-2" style={{ animationDelay: "300ms" }}>
+                <div className="ob-item flex-shrink-0 pb-2 pt-2" style={{ animationDelay: "300ms" }}>
                   <button
                     type="button"
                     onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ea4335] py-3.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                    className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[15px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
                   >
                     {outlines.length ? "Continue to Editor" : "Skip outline & write"}
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </button>
                 </div>
-              </div>
-            </div>
+            </WizardShell>
           )}
 
           {/* ── EDITOR ── */}
