@@ -14,6 +14,7 @@ import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 import type { FormatStyleId } from "./FormatStyleView";
 import FormatterEditorCore from "./FormatterEditorCore";
 import StoreButton from "@/components/header/StoreButton";
+import { LIQUID_GLASS_DISPLACEMENT_MAP } from "./liquidGlassMap";
 export type { EditorViewProps } from "./FormatterEditorCore";
 
 const IS_STANDALONE = process.env.NEXT_PUBLIC_STANDALONE_MODE === "true";
@@ -2395,6 +2396,31 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   return (
     <div ref={fmtRootRef} data-theme={theme} className="fmt-root flex h-screen flex-col overflow-hidden bg-[var(--ed-bg-canvas)]">
 
+      {/* Liquid-glass displacement filter (refraction + chromatic aberration) — used by .liquid-glass */}
+      <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute" }}>
+        <defs>
+          <filter id="liquid-glass-filter" x="-35%" y="-35%" width="170%" height="170%" colorInterpolationFilters="sRGB">
+            <feImage x="0" y="0" width="100%" height="100%" result="MAP" href={LIQUID_GLASS_DISPLACEMENT_MAP} preserveAspectRatio="xMidYMid slice" />
+            <feColorMatrix in="MAP" type="matrix" values="0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0 0 0 1 0" result="EDGE_I" />
+            <feComponentTransfer in="EDGE_I" result="EDGE_MASK"><feFuncA type="discrete" tableValues="0 0.1 1" /></feComponentTransfer>
+            <feOffset in="SourceGraphic" dx="0" dy="0" result="CENTER" />
+            <feDisplacementMap in="SourceGraphic" in2="MAP" scale="-70" xChannelSelector="R" yChannelSelector="B" result="RD" />
+            <feColorMatrix in="RD" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="RC" />
+            <feDisplacementMap in="SourceGraphic" in2="MAP" scale="-77" xChannelSelector="R" yChannelSelector="B" result="GD" />
+            <feColorMatrix in="GD" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="GC" />
+            <feDisplacementMap in="SourceGraphic" in2="MAP" scale="-84" xChannelSelector="R" yChannelSelector="B" result="BD" />
+            <feColorMatrix in="BD" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="BC" />
+            <feBlend in="GC" in2="BC" mode="screen" result="GB" />
+            <feBlend in="RC" in2="GB" mode="screen" result="RGB" />
+            <feGaussianBlur in="RGB" stdDeviation="0.3" result="ABB" />
+            <feComposite in="ABB" in2="EDGE_MASK" operator="in" result="EDGE_AB" />
+            <feComponentTransfer in="EDGE_MASK" result="INV"><feFuncA type="table" tableValues="1 0" /></feComponentTransfer>
+            <feComposite in="CENTER" in2="INV" operator="in" result="CENTER_CLEAN" />
+            <feComposite in="EDGE_AB" in2="CENTER_CLEAN" operator="over" />
+          </filter>
+        </defs>
+      </svg>
+
       {/* ── Top bar ── */}
       <div className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-4">
         <div className="flex items-center gap-2">
@@ -2416,14 +2442,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               /* ── Apple-style liquid glass (dark vibrancy) ── */
               .liquid-glass {
                 position: relative;
-                background: linear-gradient(135deg, rgba(48,52,64,0.55), rgba(15,18,25,0.62));
-                backdrop-filter: blur(30px) saturate(190%) brightness(1.05);
-                -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(1.05);
-                border: 1px solid rgba(255,255,255,0.12);
+                background: linear-gradient(135deg, rgba(48,52,64,0.40), rgba(15,18,25,0.48));
+                /* Refraction via SVG displacement map + light frost. Chromium honors
+                   url() in backdrop-filter; Safari falls back to the -webkit blur. */
+                backdrop-filter: url(#liquid-glass-filter) blur(2px) saturate(150%);
+                -webkit-backdrop-filter: blur(24px) saturate(170%);
+                border: 1px solid rgba(255,255,255,0.14);
                 box-shadow:
                   0 16px 48px rgba(0,0,0,0.50),
-                  inset 0 1px 0 rgba(255,255,255,0.28),
-                  inset 0 0 0 1px rgba(255,255,255,0.04);
+                  inset 0 1px 0 rgba(255,255,255,0.30),
+                  inset 0 0 0 1px rgba(255,255,255,0.05);
               }
               /* top sheen — light running across the surface */
               .liquid-glass::before {
