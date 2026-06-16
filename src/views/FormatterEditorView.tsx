@@ -201,11 +201,11 @@ function OctoMarkdown({ text }: { text: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("### ")) {
-      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[12px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(4))}</p>);
+      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[13px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(4))}</p>);
     } else if (line.startsWith("## ")) {
-      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[13px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(3))}</p>);
+      nodes.push(<p key={key++} className="mt-2 mb-0.5 text-[14px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(3))}</p>);
     } else if (line.startsWith("# ")) {
-      nodes.push(<p key={key++} className="mt-2 mb-1 text-[14px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(2))}</p>);
+      nodes.push(<p key={key++} className="mt-2 mb-1 text-[15px] font-bold text-[var(--ed-text)]">{parseInline(line.slice(2))}</p>);
     } else if (line.trim() === "") {
       nodes.push(<div key={key++} className="h-2" />);
     } else {
@@ -218,7 +218,7 @@ function OctoMarkdown({ text }: { text: string }) {
 function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
   return (
     <div className="mt-2.5 flex flex-col gap-1.5">
-      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#4b1a17]">How to improve</p>
+      <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-[#4b1a17]">How to improve</p>
       {suggestions.map((s, i) => (
         <div
           key={i}
@@ -226,10 +226,10 @@ function SuggestionCards({ suggestions }: { suggestions: OctoSuggestion[] }) {
           style={{ animation: `chat-msg-in 0.42s ease-out ${0.18 + i * 0.13}s both` }}
         >
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] leading-none">{s.icon}</span>
-            <span className="text-[10.5px] font-semibold text-[#ea4335]">{s.title}</span>
+            <span className="text-[15px] leading-none">{s.icon}</span>
+            <span className="text-[11.5px] font-semibold text-[#ea4335]">{s.title}</span>
           </div>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--ed-text-faint)]">{s.fix}</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ed-text-faint)]">{s.fix}</p>
         </div>
       ))}
     </div>
@@ -248,14 +248,14 @@ function RatingBars({ ratings }: { ratings: OctoRatings }) {
   ];
   return (
     <div className="mt-2.5 rounded-[10px] border border-[#1a2030] bg-[var(--ed-surface-3)] px-3 py-2.5">
-      <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Essay Ratings</p>
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Essay Ratings</p>
       <div className="flex flex-col gap-2">
         {items.map(({ label, value, color }) => (
           <div key={label}>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[9.5px] text-[var(--ed-text-dim)]">{label}</span>
-              <span className="text-[10px] font-bold" style={{ color }}>
-                {value} <span className="text-[8px] font-normal text-[var(--ed-border)]">/ 10</span>
+              <span className="text-[10.5px] text-[var(--ed-text-dim)]">{label}</span>
+              <span className="text-[11px] font-bold" style={{ color }}>
+                {value} <span className="text-[9px] font-normal text-[var(--ed-border)]">/ 10</span>
               </span>
             </div>
             <div className="h-[5px] w-full overflow-hidden rounded-full bg-[#1a2030]">
@@ -336,7 +336,7 @@ function CritiqueBullet({
         >
           <path d="M2 1.5L5.5 4 2 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <span className="flex-1 text-[11px] font-semibold leading-snug" style={{ color }}>{title}</span>
+        <span className="flex-1 text-[12px] font-semibold leading-snug" style={{ color }}>{title}</span>
         {hasHighlight && onJump && (
           <span
             role="button"
@@ -356,21 +356,21 @@ function CritiqueBullet({
         <div className="border-t px-3 pb-3" style={{ borderColor: `${color}18` }}>
           {/* detail 1 (issue / observation) */}
           <div className="mt-2 mb-0.5">
-            <span className="text-[8.5px] font-bold uppercase tracking-wider" style={{ color }}>{label1}</span>
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--ed-text-muted)]">{detail1}</p>
+            <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color }}>{label1}</span>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--ed-text-muted)]">{detail1}</p>
           </div>
           {/* detail 2 (fix / suggestion) */}
           {detail2 && (
             <div className="mt-1.5 mb-1">
-              <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#22c55e]">{label2}</span>
-              <p className="mt-0.5 text-[10.5px] leading-relaxed text-[#86efac]">{detail2}</p>
+              <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#22c55e]">{label2}</span>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-[#86efac]">{detail2}</p>
             </div>
           )}
 
           {/* streaming reply */}
           {reply && (
             <div className="mb-2 mt-2 rounded-[8px] bg-[var(--ed-surface-4)] px-2.5 py-2">
-              <p className="text-[10px] leading-relaxed text-[var(--ed-status-text)]">{reply}</p>
+              <p className="text-[11px] leading-relaxed text-[var(--ed-status-text)]">{reply}</p>
             </div>
           )}
 
@@ -383,7 +383,7 @@ function CritiqueBullet({
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
               placeholder="Ask Octo about this…"
               disabled={loading}
-              className="min-h-[30px] flex-1 resize-none rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-2.5 py-1.5 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-border)] outline-none focus:border-[var(--ed-border-2)] disabled:opacity-50"
+              className="min-h-[30px] flex-1 resize-none rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-2.5 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-border)] outline-none focus:border-[var(--ed-border-2)] disabled:opacity-50"
               style={{ maxHeight: "60px" }}
             />
             <button
@@ -410,7 +410,7 @@ function OctoCritiqueView({
   if (data.fallbackText || (data.type === "chat" && data.message)) {
     const text = data.message ?? data.fallbackText ?? "";
     return (
-      <div className="rounded-[14px] rounded-bl-[4px] bg-[var(--ed-surface-4)] px-3 py-2 text-[12px] text-[var(--ed-status-text)]">
+      <div className="rounded-[14px] rounded-bl-[4px] bg-[var(--ed-surface-4)] px-3 py-2 text-[13px] text-[var(--ed-status-text)]">
         <OctoMarkdown text={text} />
       </div>
     );
@@ -424,7 +424,7 @@ function OctoCritiqueView({
       {/* Grammar section */}
       {grammar.length > 0 && (
         <div>
-          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#ea4335]">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">
             Grammar
           </p>
           <div className="flex flex-col gap-1.5">
@@ -449,7 +449,7 @@ function OctoCritiqueView({
       {/* Writing Style section */}
       {style.length > 0 && (
         <div>
-          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[#8b5cf6]">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[#8b5cf6]">
             Writing Style
           </p>
           <div className="flex flex-col gap-1.5">
@@ -511,7 +511,7 @@ function OctoChatPanel({
               key={t.id}
               type="button"
               onClick={() => setChatTone(t.id)}
-              className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
+              className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition active:scale-[0.95] ${chatTone === t.id ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
             >
               {t.label}
             </button>
@@ -535,13 +535,13 @@ function OctoChatPanel({
               </svg>
             </div>
             <div>
-              <p className="text-[12px] font-medium text-[var(--ed-text)]">Octo is ready</p>
-              <p className="mt-0.5 text-[10px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+              <p className="text-[13px] font-medium text-[var(--ed-text)]">Octo is ready</p>
+              <p className="mt-0.5 text-[11px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
             </div>
             <button
               type="button"
               onClick={() => void sendChat("Yo Octo, criticize my essay")}
-              className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
+              className="rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[12px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97]"
             >
               &quot;Yo Octo, criticize my essay&quot;
             </button>
@@ -552,7 +552,7 @@ function OctoChatPanel({
               <div key={msg.id} style={{ animation: "chat-msg-in 0.22s ease-out both" }}>
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-[14px] rounded-br-[4px] bg-[#ea4335] px-3 py-2 text-[12px] text-white whitespace-pre-wrap break-words leading-relaxed">
+                    <div className="max-w-[85%] rounded-[14px] rounded-br-[4px] bg-[#ea4335] px-3 py-2 text-[13px] text-white whitespace-pre-wrap break-words leading-relaxed">
                       {msg.text}
                     </div>
                   </div>
@@ -565,7 +565,7 @@ function OctoChatPanel({
                   />
                 ) : (
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-[14px] rounded-bl-[4px] bg-[var(--ed-surface-4)] px-3 py-2 text-[12px] text-[var(--ed-status-text)]">
+                    <div className="max-w-[85%] rounded-[14px] rounded-bl-[4px] bg-[var(--ed-surface-4)] px-3 py-2 text-[13px] text-[var(--ed-status-text)]">
                       <OctoMarkdown text={msg.text} />
                     </div>
                   </div>
@@ -603,7 +603,7 @@ function OctoChatPanel({
                   key={m}
                   type="button"
                   onClick={() => setChatMode(m)}
-                  className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.96] ${chatMode === m ? "bg-[#ea4335] text-white shadow-sm" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text)]"}`}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition active:scale-[0.96] ${chatMode === m ? "bg-[#ea4335] text-white shadow-sm" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text)]"}`}
                 >
                   {m === "chat" ? "Chat" : "Criticize"}
                 </button>
@@ -618,7 +618,7 @@ function OctoChatPanel({
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(chatInput); } }}
               placeholder={chatMode === "criticism" ? "Ask Octo to criticize…" : "Message Octo…"}
               disabled={chatLoading}
-              className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-border-2)] disabled:opacity-50"
+              className="min-h-[34px] flex-1 resize-none rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-border-2)] disabled:opacity-50"
               style={{ maxHeight: "80px" }}
             />
             <button
@@ -668,7 +668,7 @@ function OctoMiniPreview({
       >
         {/* header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--ed-border)] px-3 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-[#ea4335]">Octo the Bot</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[var(--ed-text-dim)] transition group-hover:text-[var(--ed-text-muted)]"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         </div>
 
@@ -682,8 +682,8 @@ function OctoMiniPreview({
                 <rect x="10.25" y="15.5" width="3.5" height="1.25" rx="0.625" fill="#ea4335" />
               </svg>
             </div>
-            <p className="text-[11px] font-medium text-[var(--ed-text)]">Octo is ready</p>
-            <p className="text-[9.5px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
+            <p className="text-[12px] font-medium text-[var(--ed-text)]">Octo is ready</p>
+            <p className="text-[10.5px] text-[var(--ed-text-dim)]">{chatTone === "roast" ? "Brace yourself. 💀" : "Ask for a critique."}</p>
           </div>
         ) : (
           <div
@@ -692,7 +692,7 @@ function OctoMiniPreview({
           >
             {chatMessages.slice(-8).map((m) => (
               <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div className={`max-w-[88%] truncate rounded-[8px] px-2 py-1 text-[10px] ${m.role === "user" ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-muted)]"}`}>
+                <div className={`max-w-[88%] truncate rounded-[8px] px-2 py-1 text-[11px] ${m.role === "user" ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-muted)]"}`}>
                   {summarize(m)}
                 </div>
               </div>
@@ -705,7 +705,7 @@ function OctoMiniPreview({
       <button
         type="button"
         onClick={onCriticize}
-        className="mt-2 w-full flex-shrink-0 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.98]"
+        className="mt-2 w-full flex-shrink-0 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-4 py-2 text-[12px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.98]"
       >
         &quot;Yo Octo, criticize my essay&quot;
       </button>
@@ -741,12 +741,12 @@ function WizardShell({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/OCTOPILOT.png" alt="Octopilot" className="h-6 w-6 object-contain" />
           </span>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/50">Octopilot · Doc&nbsp;Oct</span>
+          <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-white/50">Octopilot · Doc&nbsp;Oct</span>
         </div>
 
         {/* eyebrow + display headline */}
         <div className="relative z-10 my-10 lg:my-0">
-          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.34em] text-[#ea4335]">{eyebrow}</p>
+          <p className="mb-4 text-[12px] font-bold uppercase tracking-[0.34em] text-[#ea4335]">{eyebrow}</p>
           <h1 className="text-[clamp(34px,5vw,58px)] font-bold leading-[1.04] tracking-tight text-white">{headline}</h1>
         </div>
 
@@ -754,13 +754,13 @@ function WizardShell({
         <div className="relative z-10 flex items-center gap-2.5">
           {[1, 2, 3].map((n) => (
             <div key={n} className="flex items-center gap-2.5">
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition ${n === step ? "bg-[#ea4335] text-white shadow-[0_0_16px_rgba(234,67,53,0.6)]" : n < step ? "bg-white/15 text-white/70" : "border border-white/15 text-white/30"}`}>
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold transition ${n === step ? "bg-[#ea4335] text-white shadow-[0_0_16px_rgba(234,67,53,0.6)]" : n < step ? "bg-white/15 text-white/70" : "border border-white/15 text-white/30"}`}>
                 {n < step ? "✓" : n}
               </span>
               {n < 3 && <span className={`h-px w-7 ${n < step ? "bg-[#ea4335]/50" : "bg-white/10"}`} />}
             </div>
           ))}
-          <span className="ml-2 text-[11px] font-medium text-white/35">{WIZARD_STEPS[step - 1]}</span>
+          <span className="ml-2 text-[12px] font-medium text-white/35">{WIZARD_STEPS[step - 1]}</span>
         </div>
       </aside>
 
@@ -768,7 +768,7 @@ function WizardShell({
       <main className={`relative flex min-h-0 flex-1 flex-col ${scroll ? "overflow-y-auto" : "overflow-hidden"} p-8 sm:p-12 lg:p-16`}>
         {onBack && (
           <button type="button" onClick={onBack}
-            className="ob-item mb-8 flex w-fit flex-shrink-0 items-center gap-1.5 text-[12px] text-white/40 transition hover:text-white/70" style={{ animationDelay: "0ms" }}>
+            className="ob-item mb-8 flex w-fit flex-shrink-0 items-center gap-1.5 text-[13px] text-white/40 transition hover:text-white/70" style={{ animationDelay: "0ms" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
             Back
           </button>
@@ -822,22 +822,22 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
         >
           <div className="mb-1.5 flex items-start gap-2">
             <span
-              className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+              className="mt-[2px] flex-shrink-0 rounded-[4px] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide"
               style={{ background: `${color}22`, color }}
             >{typeLabel}</span>
-            <p className="line-clamp-2 flex-1 text-[11px] font-semibold leading-snug text-[var(--ed-status-text)]">
+            <p className="line-clamp-2 flex-1 text-[12px] font-semibold leading-snug text-[var(--ed-status-text)]">
               {source.title || domain}
             </p>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ed-text-label)" strokeWidth="2" strokeLinecap="round" className="mt-[2px] flex-shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </div>
-          <div className="mb-1 flex flex-wrap items-center gap-1 text-[9.5px] text-[var(--ed-text-dim)]">
+          <div className="mb-1 flex flex-wrap items-center gap-1 text-[10.5px] text-[var(--ed-text-dim)]">
             {authorShort && <span>{authorShort}</span>}
             {authorShort && source.publishedYear && <span>·</span>}
             {source.publishedYear && <span>{source.publishedYear}</span>}
             {(authorShort || source.publishedYear) && source.publisher && <span>·</span>}
             {source.publisher && <span className="text-[var(--ed-text-label)]">{source.publisher.slice(0, 28)}</span>}
           </div>
-          <div className="flex items-center gap-1 text-[9px] text-[var(--ed-border)]">
+          <div className="flex items-center gap-1 text-[10px] text-[var(--ed-border)]">
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span className="truncate">{domain}</span>
           </div>
@@ -849,7 +849,7 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
             <button
               type="button"
               onClick={() => { setPickerOpen(false); setExpandedQuoteUrl(source.url); setQuoteText(""); }}
-              className="rounded-full border px-2.5 py-1 text-[10px] font-medium transition hover:text-white active:scale-[0.95]"
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition hover:text-white active:scale-[0.95]"
               style={{ borderColor: `${color}40`, color }}
             >
               Quote
@@ -862,7 +862,7 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
               type="button"
               onClick={() => { setPickerOpen(false); onAddToBib(source); }}
               disabled={bibAdding}
-              className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition hover:text-white active:scale-[0.95] disabled:opacity-50"
+              className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition hover:text-white active:scale-[0.95] disabled:opacity-50"
               style={{ borderColor: `${color}40`, color }}
               title="Generate citation and add to bibliography page"
             >
@@ -905,7 +905,7 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
                   />
                 ))}
                 {/* Custom color input */}
-                <label className="relative flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-[var(--ed-border)] text-[8px] text-[var(--ed-text-faint)] hover:bg-[var(--ed-text-label)]" title="Custom color">
+                <label className="relative flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-[var(--ed-border)] text-[9px] text-[var(--ed-text-faint)] hover:bg-[var(--ed-text-label)]" title="Custom color">
                   <span>＋</span>
                   <input
                     type="color"
@@ -928,20 +928,20 @@ function SourceCard({ source, index, color, expandedQuoteUrl, quoteText, setQuot
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Paste or type the exact quote…"
               rows={3}
-              className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-2.5 py-2 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none"
+              className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-2.5 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none"
               style={{ borderColor: `${color}40` }}
             />
             <div className="flex gap-1.5">
               <button
                 type="button"
                 onClick={() => setExpandedQuoteUrl(null)}
-                className="flex-1 rounded-full border border-[var(--ed-border)] py-1.5 text-[10px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)] active:scale-[0.96]"
+                className="flex-1 rounded-full border border-[var(--ed-border)] py-1.5 text-[11px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)] active:scale-[0.96]"
               >Cancel</button>
               <button
                 type="button"
                 onClick={() => onInsertQuote(quoteText, source)}
                 disabled={!quoteText.trim()}
-                className="flex-1 rounded-full py-1.5 text-[10px] font-semibold text-white transition active:scale-[0.96] disabled:opacity-40"
+                className="flex-1 rounded-full py-1.5 text-[11px] font-semibold text-white transition active:scale-[0.96] disabled:opacity-40"
                 style={{ background: color }}
               >Insert ✓</button>
             </div>
@@ -2469,19 +2469,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   function renderParseStatus() {
     if (parseStatus.kind === "idle" || !rawContent.trim()) return null;
     if (parseStatus.kind === "parsing") return (
-      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e2530] px-2 py-1.5 text-[11px] text-[var(--ed-text-muted)]">
+      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e2530] px-2 py-1.5 text-[12px] text-[var(--ed-text-muted)]">
         <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-[var(--ed-text-muted)] border-t-transparent" />
         <span>Analysing document…</span>
       </div>
     );
     if (parseStatus.kind === "done") return (
-      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#0d2218] px-2 py-1.5 text-[11px] text-[#4ade80]">
+      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#0d2218] px-2 py-1.5 text-[12px] text-[#4ade80]">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
         <span>Structure analysed by AI</span>
       </div>
     );
     if (parseStatus.kind === "error") return (
-      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e1208] px-2 py-1.5 text-[11px] text-[#fbbf24]">
+      <div className="mt-2 flex items-center gap-1.5 rounded-[6px] bg-[#1e1208] px-2 py-1.5 text-[12px] text-[#fbbf24]">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /></svg>
         <span>{parseStatus.message}</span>
       </div>
@@ -2526,7 +2526,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <button
                 type="button"
                 onClick={onBack}
-                className="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[12px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)]"
+                className="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)]"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
                 Back
@@ -2568,6 +2568,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 -webkit-backdrop-filter: blur(14px) saturate(170%);
                 border: 1px solid rgba(255,255,255,0.14);
                 box-shadow: inset 0 1px 0 rgba(255,255,255,0.20);
+              }
+              /* Apple-like spring press on every editor button: snappy push-down,
+                 springy overshoot on release (≈ framer spring stiffness 500 / damping 30). */
+              .fmt-root button {
+                transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1),
+                            background-color 0.18s ease, border-color 0.18s ease,
+                            color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+              }
+              .fmt-root button:active {
+                transform: scale(0.97) translateY(2px);
+                transition: transform 0.06s cubic-bezier(0.4, 0, 1, 1);
+              }
+              @media (prefers-reduced-motion: reduce) {
+                .fmt-root button { transition: none; }
+                .fmt-root button:active { transform: none; }
               }
               @keyframes octopilot-char-scan {
                 0%   { color: #ff2200; transform: scale(1); }
@@ -2648,7 +2663,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             type="button"
             onClick={saveDraft}
             disabled={!rawContent.trim()}
-            className="rounded-full px-3 py-1 text-[12px] font-medium text-[var(--ed-text-faint)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)] disabled:opacity-40"
+            className="rounded-full px-3 py-1 text-[13px] font-medium text-[var(--ed-text-faint)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)] disabled:opacity-40"
           >
             Save Draft
           </button>
@@ -2661,7 +2676,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              <span className="text-[11px] font-semibold text-[var(--ed-text)]">{humanizerCredits.toLocaleString()}</span>
+              <span className="text-[12px] font-semibold text-[var(--ed-text)]">{humanizerCredits.toLocaleString()}</span>
             </div>
           )}
 
@@ -2675,7 +2690,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ed-surface-6)] text-[11px] font-bold text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ed-surface-6)] text-[12px] font-bold text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]">
                 {((currentUser.displayName ?? currentUser.email ?? "?")[0] ?? "?").toUpperCase()}
               </div>
             )
@@ -2693,7 +2708,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             <button
               type="button"
               onClick={() => void AuthService.signOut()}
-              className="rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--ed-text-dim)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)] active:scale-95"
+              className="rounded-full px-2.5 py-1 text-[12px] font-medium text-[var(--ed-text-dim)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)] active:scale-95"
             >
               Sign out
             </button>
@@ -2731,7 +2746,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           >
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[var(--ed-border)] px-3 py-2.5">
-              <span className="text-[13px] font-bold tracking-wide text-[var(--ed-text)]">1 · Document</span>
+              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">1 · Document</span>
               <button onClick={() => setLeftWidth(0)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--ed-text-dim)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
               </button>
@@ -2745,9 +2760,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 {/* Header */}
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Paraphraser</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Paraphraser</p>
                   {humanizerCredits !== null && (
-                    <span className="rounded-full bg-[var(--ed-bg-pill)] px-2 py-0.5 text-[9px] text-[var(--ed-text-faint)]">{humanizerCredits} cr</span>
+                    <span className="rounded-full bg-[var(--ed-bg-pill)] px-2 py-0.5 text-[10px] text-[var(--ed-text-faint)]">{humanizerCredits} cr</span>
                   )}
                 </div>
 
@@ -2757,17 +2772,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   onChange={(e) => { setHumInput(e.target.value); setHumOutput(""); setHumPanelError(null); }}
                   placeholder="Paste or type text to humanize…"
                   rows={5}
-                  className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[11px] leading-relaxed text-[var(--ed-status-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/40 focus:ring-1 focus:ring-[#ea4335]/20"
+                  className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-status-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/40 focus:ring-1 focus:ring-[#ea4335]/20"
                 />
 
                 {/* Provider toggle */}
-                <div className="my-2 flex rounded-full bg-[var(--ed-bg-pill)] p-[3px]">
+                <div className="my-2 flex rounded-full glass-chip p-[3px]">
                   {(["StealthGPT", "UndetectableAI"] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => { setHumProvider(p); setHumOutput(""); setHumPanelError(null); }}
-                      className={`flex-1 rounded-full py-1 text-[10px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                      className={`flex-1 rounded-full py-1 text-[11px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                     >
                       {p === "StealthGPT" ? "StealthGPT" : "Undetectable"}
                     </button>
@@ -2777,7 +2792,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 {/* Provider-specific params */}
                 {humProvider === "StealthGPT" ? (
                   <div className="flex items-center justify-between rounded-xl bg-[var(--ed-bg-pill)] px-3 py-2">
-                    <span className="text-[10.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
+                    <span className="text-[11.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
                     <button
                       type="button"
                       onClick={() => setStealthRephrase((v) => !v)}
@@ -2789,31 +2804,31 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     <div>
-                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Readability</p>
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Readability</p>
                       <div className="flex flex-wrap gap-1">
                         {["High School", "University", "Doctorate", "Journalist", "Marketing"].map((v) => (
                           <button key={v} type="button" onClick={() => setUaiReadability(v)}
-                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiReadability === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiReadability === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                           >{v}</button>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Purpose</p>
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Purpose</p>
                       <div className="flex flex-wrap gap-1">
                         {["Essay", "Article", "Marketing", "Story", "Cover Letter", "Report"].map((v) => (
                           <button key={v} type="button" onClick={() => setUaiPurpose(v)}
-                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiPurpose === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiPurpose === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                           >{v}</button>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <p className="mb-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Strength</p>
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Strength</p>
                       <div className="flex flex-wrap gap-1">
                         {["More Human", "Balanced", "More Readable"].map((v) => (
                           <button key={v} type="button" onClick={() => setUaiStrength(v)}
-                            className={`rounded-full px-2 py-[3px] text-[9.5px] font-medium transition ${uaiStrength === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiStrength === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                           >{v}</button>
                         ))}
                       </div>
@@ -2826,7 +2841,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   type="button"
                   onClick={() => void handlePanelHumanize()}
                   disabled={humPanelLoading || !humInput.trim()}
-                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {humPanelLoading ? (
                     <>
@@ -2843,14 +2858,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 {/* Error */}
                 {humPanelError && (
-                  <p className="mt-2 rounded-xl bg-[#2a1010] px-3 py-2 text-[10.5px] text-[#f87171]">{humPanelError}</p>
+                  <p className="mt-2 rounded-xl bg-[#2a1010] px-3 py-2 text-[11.5px] text-[#f87171]">{humPanelError}</p>
                 )}
 
                 {/* Output box */}
                 {humOutput && (
                   <div className="mt-2.5">
                     <div className="mb-1 flex items-center justify-between">
-                      <p className="text-[9px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Result</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Result</p>
                       <button
                         type="button"
                         onClick={() => {
@@ -2858,7 +2873,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           setHumCopied(true);
                           setTimeout(() => setHumCopied(false), 2000);
                         }}
-                        className="flex items-center gap-1 rounded-full bg-[var(--ed-bg-pill)] px-2 py-[3px] text-[9.5px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)] active:scale-95"
+                        className="flex items-center gap-1 rounded-full bg-[var(--ed-bg-pill)] px-2 py-[3px] text-[10.5px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)] active:scale-95"
                       >
                         {humCopied ? (
                           <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg><span className="text-[#4ade80]">Copied</span></>
@@ -2871,7 +2886,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       readOnly
                       value={humOutput}
                       rows={6}
-                      className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[#0a0d11] px-3 py-2 text-[11px] leading-relaxed text-[var(--ed-text-muted)] outline-none"
+                      className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[#0a0d11] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-text-muted)] outline-none"
                     />
                   </div>
                 )}
@@ -2918,7 +2933,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               eyebrow="Academic formatting, automated"
               headline={<>Write with precision.<br /><span className="text-[#ea4335]">Cite with confidence.</span></>}
             >
-              <p className="ob-item mb-10 max-w-md text-[15px] leading-relaxed text-white/45" style={{ animationDelay: "180ms" }}>
+              <p className="ob-item mb-10 max-w-md text-[16px] leading-relaxed text-white/45" style={{ animationDelay: "180ms" }}>
                 Format your essays to exact style guidelines — MLA, APA, Chicago, IEEE, Harvard — every margin, indent, and citation handled automatically.
               </p>
               <div className="ob-item grid gap-3.5 sm:grid-cols-2" style={{ animationDelay: "290ms" }}>
@@ -2931,8 +2946,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <div className="relative flex h-full flex-col">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="mb-8"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
                     <p className="mt-auto text-[17px] font-semibold text-white">Specify my topic</p>
-                    <p className="mt-1 text-[12px] text-white/70">Premium features + source search</p>
-                    <span className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-white">Start <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                    <p className="mt-1 text-[13px] text-white/70">Premium features + source search</p>
+                    <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-white">Start <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
                   </div>
                 </button>
                 <button
@@ -2943,8 +2958,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <div className="relative flex h-full flex-col">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2" strokeLinecap="round" className="mb-8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
                     <p className="mt-auto text-[17px] font-semibold text-white">Start writing</p>
-                    <p className="mt-1 text-[12px] text-white/45">Jump straight in — disposable session</p>
-                    <span className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-white/70">Open editor <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                    <p className="mt-1 text-[13px] text-white/45">Jump straight in — disposable session</p>
+                    <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-white/70">Open editor <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
                   </div>
                 </button>
               </div>
@@ -2962,7 +2977,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             >
               {/* Essay topic */}
               <div className="ob-item mb-8" style={{ animationDelay: "120ms" }}>
-                <label className="mb-2.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">Essay topic or assignment prompt</label>
+                <label className="mb-2.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-white/40">Essay topic or assignment prompt</label>
                 <input
                   type="text"
                   value={onboardingTopic}
@@ -2974,19 +2989,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
               {/* Citation format */}
               <div className="ob-item mb-10" style={{ animationDelay: "210ms" }}>
-                <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">Citation format</label>
+                <label className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.18em] text-white/40">Citation format</label>
                 <div className="flex flex-wrap gap-2.5">
                   {FORMAT_STYLES.map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => setOnboardingFormat(s.id)}
-                      className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-[13px] font-medium transition active:scale-[0.96]"
+                      className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-[14px] font-medium transition active:scale-[0.96]"
                       style={onboardingFormat === s.id
                         ? { background: `${s.color}1f`, borderColor: s.color, color: "#fff" }
                         : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.55)" }}
                     >
-                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: s.color }}>{s.abbr}</div>
                       {s.label.split(" (")[0]}
                     </button>
                   ))}
@@ -2997,7 +3012,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <button
                   type="button"
                   onClick={() => transitionTo(onboardingTopic.trim() ? "analysis" : "editor", { topic: onboardingTopic, style: onboardingFormat })}
-                  className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[15px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                  className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[16px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
                 >
                   {onboardingTopic.trim() ? "Analyze & Continue" : "Open Editor"}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -3016,23 +3031,23 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               eyebrow="Step three"
               headline={<>Your assignment,<br /><span className="text-[#ea4335]">decoded.</span></>}
             >
-              <p className="ob-item mb-6 text-[14px] leading-relaxed text-white/45" style={{ animationDelay: "120ms" }}>Octo broke down your prompt. Review it, optionally generate an outline, then start writing.</p>
+              <p className="ob-item mb-6 text-[15px] leading-relaxed text-white/45" style={{ animationDelay: "120ms" }}>Octo broke down your prompt. Review it, optionally generate an outline, then start writing.</p>
 
                 {/* Analysis card */}
                 <div className="ob-item mb-6 flex-shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] p-5" style={{ animationDelay: "180ms" }}>
                   {assignmentLoading ? (
-                    <div className="flex items-center gap-2.5 py-4 text-[13px] text-white/50">
+                    <div className="flex items-center gap-2.5 py-4 text-[14px] text-white/50">
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                       Analyzing your assignment…
                     </div>
                   ) : assignmentError ? (
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[12px] text-[#f87171]">{assignmentError}</p>
-                      <button type="button" onClick={() => void analyzeAssignment(onboardingTopic)} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20">Retry</button>
+                      <p className="text-[13px] text-[#f87171]">{assignmentError}</p>
+                      <button type="button" onClick={() => void analyzeAssignment(onboardingTopic)} className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-white/20">Retry</button>
                     </div>
                   ) : assignmentAnalysis ? (
                     <div className="space-y-3">
-                      <p className="text-[13px] leading-relaxed text-white/85">{assignmentAnalysis.analysis}</p>
+                      <p className="text-[14px] leading-relaxed text-white/85">{assignmentAnalysis.analysis}</p>
                       <div className="grid grid-cols-1 gap-2.5 border-t border-white/10 pt-3 sm:grid-cols-2">
                         {([
                           ["Topic", assignmentAnalysis.essayTopic],
@@ -3041,14 +3056,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           ["Structure", assignmentAnalysis.structure],
                         ] as [string, string][]).filter(([, v]) => v?.trim()).map(([label, val]) => (
                           <div key={label}>
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-white/35">{label}</span>
-                            <p className="mt-0.5 text-[12px] leading-snug text-white/70">{val}</p>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/35">{label}</span>
+                            <p className="mt-0.5 text-[13px] leading-snug text-white/70">{val}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="py-2 text-[12px] text-white/40">No analysis yet.</p>
+                    <p className="py-2 text-[13px] text-white/40">No analysis yet.</p>
                   )}
                 </div>
 
@@ -3056,15 +3071,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="ob-item mb-6 flex-shrink-0" style={{ animationDelay: "240ms" }}>
                   <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <h3 className="text-[14px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
-                      <p className="text-[11px] text-white/35">Generate a 5-part structure, or skip and write freely.</p>
+                      <h3 className="text-[15px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
+                      <p className="text-[12px] text-white/35">Generate a 5-part structure, or skip and write freely.</p>
                     </div>
                     {assignmentAnalysis && (
                       <button
                         type="button"
                         onClick={() => void generateOutlines()}
                         disabled={outlinesLoading}
-                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-3.5 py-2 text-[11px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-50"
+                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-3.5 py-2 text-[12px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-50"
                       >
                         {outlinesLoading
                           ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335]/40 border-t-[#ea4335]" />Generating…</>
@@ -3079,10 +3094,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {outlines.map((o, i) => (
                         <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3" style={{ animation: `chat-msg-in 0.3s ease-out ${i * 0.05}s both` }}>
                           <div className="mb-1 flex items-center gap-2">
-                            <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
-                            <span className="text-[12px] font-semibold text-white/85">{o.title}</span>
+                            <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
+                            <span className="text-[13px] font-semibold text-white/85">{o.title}</span>
                           </div>
-                          <p className="text-[11px] leading-relaxed text-white/55">{o.description}</p>
+                          <p className="text-[12px] leading-relaxed text-white/55">{o.description}</p>
                         </div>
                       ))}
                     </div>
@@ -3094,7 +3109,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <button
                     type="button"
                     onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
-                    className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[15px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                    className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[16px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
                   >
                     {outlines.length ? "Continue to Editor" : "Skip outline & write"}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -3183,7 +3198,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <button onClick={() => setRightWidth(0)} className="absolute left-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--ed-text-dim)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <span className="text-[13px] font-bold tracking-wide text-[var(--ed-text)]">3 · Tools</span>
+              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">3 · Tools</span>
             </div>
 
             {/* ── Tab bar ── */}
@@ -3193,7 +3208,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   key={tab}
                   type="button"
                   onClick={() => setRightTab(tab)}
-                  className={`relative flex-1 py-2.5 text-[9.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[var(--ed-text)]" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                  className={`relative flex-1 py-2.5 text-[10.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[var(--ed-text)]" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                 >
                   {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : tab === "thesaurus" ? "Thesaurus" : "Source"}
                   {rightTab === tab && (
@@ -3208,13 +3223,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
 
               {/* ── Mode Switcher ── */}
-              <div className="mb-3 flex rounded-full bg-[var(--ed-bg-pill)] p-1">
+              <div className="mb-3 flex rounded-full glass-chip p-1">
                 {(["manual", "auto"] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => { setCitMode(mode); setCitPhase({ kind: "idle" }); }}
-                    className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition active:scale-[0.97] ${citMode === mode ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] shadow-sm" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                    className={`flex-1 rounded-full py-1.5 text-[12px] font-medium transition active:scale-[0.97] ${citMode === mode ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] shadow-sm" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                   >
                     {mode === "manual" ? "Manual" : "Auto"}
                   </button>
@@ -3227,7 +3242,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <div className="flex gap-1.5">
                     <input
                       type="url"
-                      className="min-w-0 flex-1 rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-text-dim)]"
+                      className="min-w-0 flex-1 rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-text-dim)]"
                       placeholder="Paste a URL to cite…"
                       value={citUrlInput}
                       onChange={(e) => { setCitUrlInput(e.target.value); if (citPhase.kind !== "idle") setCitPhase({ kind: "idle" }); }}
@@ -3238,7 +3253,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       type="button"
                       onClick={() => void handleScrapeUrl()}
                       disabled={citPhase.kind === "scraping" || citPhase.kind === "generating" || !citUrlInput.trim()}
-                      className="rounded-full bg-[#ea4335] px-4 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
+                      className="rounded-full bg-[#ea4335] px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
                     >
                       {citPhase.kind === "scraping" ? (
                         <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -3251,24 +3266,24 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div className="mt-2 rounded-[16px] border border-[var(--ed-border)] bg-[var(--ed-surface-5)] p-3" style={{ animation: 'cit-card-in 0.34s ease-out' }}>
                       <div className="mb-2.5 flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          {citPhase.meta.title && <p className="truncate text-[11px] font-medium text-[var(--ed-text)]">{citPhase.meta.title}</p>}
-                          {citPhase.meta.author && <p className="truncate text-[10px] text-[var(--ed-text-faint)]">{citPhase.meta.author}</p>}
-                          {citPhase.meta.year && <p className="text-[10px] text-[var(--ed-text-dim)]">{citPhase.meta.year}</p>}
+                          {citPhase.meta.title && <p className="truncate text-[12px] font-medium text-[var(--ed-text)]">{citPhase.meta.title}</p>}
+                          {citPhase.meta.author && <p className="truncate text-[11px] text-[var(--ed-text-faint)]">{citPhase.meta.author}</p>}
+                          {citPhase.meta.year && <p className="text-[11px] text-[var(--ed-text-dim)]">{citPhase.meta.year}</p>}
                         </div>
-                        <span className="flex-shrink-0 rounded-full bg-[#0d2218] px-2 py-0.5 text-[9px] font-semibold text-[#4ade80]">Scrape succeeded</span>
+                        <span className="flex-shrink-0 rounded-full bg-[#0d2218] px-2 py-0.5 text-[10px] font-semibold text-[#4ade80]">Scrape succeeded</span>
                       </div>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Which format?</p>
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Which format?</p>
                       <div className="mb-2.5 flex flex-wrap gap-1.5">
                         {FORMAT_STYLES.map((s) => (
                           <button
                             key={s.id}
                             type="button"
                             onClick={() => setCitFormatPick(s.id)}
-                            className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
+                            className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
                           >
                             {s.label.split(" (")[0]}
                             {s.id === currentEssayFormat && (
-                              <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
+                              <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[9px] font-bold leading-none text-white">current</span>
                             )}
                           </button>
                         ))}
@@ -3276,7 +3291,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <button
                         type="button"
                         onClick={() => void handleGenerateCitation(citPhase.url, citPhase.meta, citFormatPick)}
-                        className="w-full rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)]"
+                        className="w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)]"
                       >
                         Generate Citation
                       </button>
@@ -3285,7 +3300,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Generating spinner */}
                   {citPhase.kind === "generating" && (
-                    <div className="mt-2 flex items-center gap-1.5 rounded-2xl bg-[#1e2530] px-3 py-1.5 text-[11px] text-[var(--ed-text-muted)]">
+                    <div className="mt-2 flex items-center gap-1.5 rounded-2xl bg-[#1e2530] px-3 py-1.5 text-[12px] text-[var(--ed-text-muted)]">
                       <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-[var(--ed-text-muted)] border-t-transparent" />
                       <span>Generating citation…</span>
                     </div>
@@ -3294,7 +3309,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   {/* Error */}
                   {citPhase.kind === "error" && (
                     <div className="mt-2 rounded-2xl border border-[#3a1f1f] bg-[#1e1208] p-2.5">
-                      <p className="mb-1.5 text-[11px] text-[#fbbf24]">{citPhase.message}</p>
+                      <p className="mb-1.5 text-[12px] text-[#fbbf24]">{citPhase.message}</p>
                       <button
                         type="button"
                         onClick={() => {
@@ -3302,7 +3317,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           setCitMode("manual");
                           setCitPhase({ kind: "idle" });
                         }}
-                        className="text-[11px] font-medium text-[#60a5fa] hover:text-[#93c5fd]"
+                        className="text-[12px] font-medium text-[#60a5fa] hover:text-[#93c5fd]"
                       >
                         Enter details manually →
                       </button>
@@ -3320,10 +3335,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     { label: "Published year", value: manualYear, set: setManualYear, ph: "e.g. 2023" },
                   ].map(({ label, value, set, ph }) => (
                     <div key={label} className="mb-1.5">
-                      <p className="mb-0.5 text-[10px] text-[var(--ed-text-dim)]">{label}</p>
+                      <p className="mb-0.5 text-[11px] text-[var(--ed-text-dim)]">{label}</p>
                       <input
                         type="text"
-                        className="w-full rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-text-dim)]"
+                        className="w-full rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-text-dim)]"
                         placeholder={ph}
                         value={value}
                         onChange={(e) => set(e.target.value)}
@@ -3331,27 +3346,27 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     </div>
                   ))}
                   <div className="mb-2">
-                    <p className="mb-0.5 text-[10px] text-[var(--ed-text-dim)]">Full content (helps AI)</p>
+                    <p className="mb-0.5 text-[11px] text-[var(--ed-text-dim)]">Full content (helps AI)</p>
                     <textarea
-                      className="w-full rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-text-dim)]"
+                      className="w-full rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-text-dim)]"
                       placeholder="Paste a summary or excerpt…"
                       rows={4}
                       value={manualContent}
                       onChange={(e) => setManualContent(e.target.value)}
                     />
                   </div>
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Which format?</p>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Which format?</p>
                   <div className="mb-2.5 flex flex-wrap gap-1.5">
                     {FORMAT_STYLES.map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => setCitFormatPick(s.id)}
-                        className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
+                        className={`relative flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition active:translate-y-[1px] active:shadow-[inset_0_2px_3px_rgba(0,0,0,0.3)] ${citFormatPick === s.id ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-faint)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]"}`}
                       >
                         {s.label.split(" (")[0]}
                         {s.id === currentEssayFormat && (
-                          <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[8px] font-bold leading-none text-white">current</span>
+                          <span className="rounded-[3px] bg-[#ea4335] px-[3px] py-[1px] text-[9px] font-bold leading-none text-white">current</span>
                         )}
                       </button>
                     ))}
@@ -3360,7 +3375,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     type="button"
                     onClick={() => void handleManualGenerate()}
                     disabled={citPhase.kind === "generating" || (!manualAuthor.trim() && !manualPublisher.trim() && !manualContent.trim())}
-                    className="w-full rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
+                    className="w-full rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-40"
                   >
                     {citPhase.kind === "generating" ? "Generating…" : "Generate Citation"}
                   </button>
@@ -3369,13 +3384,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
               {/* ── Citation Cards ── */}
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[var(--ed-text-muted)]">
+                <span className="text-[12px] font-semibold text-[var(--ed-text-muted)]">
                   Bibliography {citCards.length > 0 && `(${citCards.length})`}
                 </span>
               </div>
 
               {citCards.length === 0 && (
-                <p className="text-[10px] text-[var(--ed-text-label)]">
+                <p className="text-[11px] text-[var(--ed-text-label)]">
                   {citMode === "auto" ? "Scrape a URL above to generate citations." : "Fill in the form above to generate a citation."}
                 </p>
               )}
@@ -3385,26 +3400,26 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <div key={card.id} className="rounded-[8px] bg-[var(--ed-bg-pill)] p-2.5">
                     {/* Card header */}
                     <div className="mb-2 flex items-center justify-between gap-1">
-                      <span className="flex-shrink-0 rounded-full bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--ed-text-muted)]">{idx + 1}</span>
-                      <p className="min-w-0 flex-1 truncate text-[9px] text-[var(--ed-text-dim)]">{card.url}</p>
+                      <span className="flex-shrink-0 rounded-full bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--ed-text-muted)]">{idx + 1}</span>
+                      <p className="min-w-0 flex-1 truncate text-[10px] text-[var(--ed-text-dim)]">{card.url}</p>
                       <button type="button" onClick={() => removeCitCard(card.id)} className="flex-shrink-0 text-[var(--ed-text-dim)] hover:text-[#ef4444]">
                         <TrashIconSm />
                       </button>
                     </div>
                     {/* In-text */}
                     <div className="mb-1.5">
-                      <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">In-text citation</p>
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">In-text citation</p>
                       <div className="flex items-start gap-1.5 rounded-[6px] bg-[var(--ed-surface-2)] px-2 py-1.5">
-                        <p className="min-w-0 flex-1 font-mono text-[10px] leading-relaxed text-[#93c5fd]">{card.inText}</p>
-                        <button type="button" onClick={() => handleInsertInText(card.inText)} className="flex-shrink-0 rounded-[4px] bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--ed-text-muted)] transition hover:bg-[#2e3647] hover:text-[var(--ed-text)]">Insert</button>
+                        <p className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed text-[#93c5fd]">{card.inText}</p>
+                        <button type="button" onClick={() => handleInsertInText(card.inText)} className="flex-shrink-0 rounded-[4px] bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--ed-text-muted)] transition hover:bg-[#2e3647] hover:text-[var(--ed-text)]">Insert</button>
                       </div>
                     </div>
                     {/* Bibliography */}
                     <div>
-                      <p className="mb-1 text-[9px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Bibliography</p>
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Bibliography</p>
                       <div className="flex items-start gap-1.5 rounded-[6px] bg-[var(--ed-surface-2)] px-2 py-1.5">
-                        <p className="min-w-0 flex-1 text-[10px] leading-relaxed text-[var(--ed-text-muted)]">{card.bibliography}</p>
-                        <button type="button" onClick={() => handleInsertBib(card.bibliography)} className="flex-shrink-0 rounded-[4px] bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--ed-text-muted)] transition hover:bg-[#2e3647] hover:text-[var(--ed-text)]">Insert</button>
+                        <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[var(--ed-text-muted)]">{card.bibliography}</p>
+                        <button type="button" onClick={() => handleInsertBib(card.bibliography)} className="flex-shrink-0 rounded-[4px] bg-[var(--ed-surface-6)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--ed-text-muted)] transition hover:bg-[#2e3647] hover:text-[var(--ed-text)]">Insert</button>
                       </div>
                     </div>
                   </div>
@@ -3427,7 +3442,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       onChange={(e) => setDictInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void searchDictionary(dictInput); }}
                       placeholder="Search a word…"
-                      className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50"
+                      className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50"
                     />
                     <button
                       type="button"
@@ -3450,13 +3465,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   {!dictResult && !dictError && !dictLoading && (
                     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ed-border)" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                      <p className="text-[11px] text-[var(--ed-text-label)]">Type a word and press Enter</p>
+                      <p className="text-[12px] text-[var(--ed-text-label)]">Type a word and press Enter</p>
                     </div>
                   )}
 
                   {/* Error */}
                   {dictError && (
-                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[12px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
                       {dictError}
                     </div>
                   )}
@@ -3470,7 +3485,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         <h2 className="text-[20px] font-bold tracking-tight text-[var(--ed-text)]">{dictResult.word}</h2>
                         {dictResult.phonetic && (
                           <div className="mt-0.5 flex items-center gap-2">
-                            <span className="text-[12px] text-[var(--ed-text-faint)]">{dictResult.phonetic}</span>
+                            <span className="text-[13px] text-[var(--ed-text-faint)]">{dictResult.phonetic}</span>
                             {dictResult.audioUrl && (
                               <button
                                 type="button"
@@ -3492,7 +3507,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         <div key={mi} className="mb-4" style={{ animation: `dict-in 0.25s ease-out ${mi * 0.06}s both` }}>
 
                           {/* Part of speech badge */}
-                          <span className="mb-2 inline-block rounded-md bg-[#ea4335]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#ea4335]">
+                          <span className="mb-2 inline-block rounded-md bg-[#ea4335]/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-[#ea4335]">
                             {m.partOfSpeech}
                           </span>
 
@@ -3500,11 +3515,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           <ol className="mb-2 flex flex-col gap-1.5 pl-1">
                             {m.definitions.map((d, di) => (
                               <li key={di} className="flex gap-2">
-                                <span className="mt-[2px] flex-shrink-0 text-[9px] font-bold text-[var(--ed-text-label)]">{di + 1}.</span>
+                                <span className="mt-[2px] flex-shrink-0 text-[10px] font-bold text-[var(--ed-text-label)]">{di + 1}.</span>
                                 <div>
-                                  <p className="text-[11px] leading-relaxed text-[var(--ed-status-text)]">{d.definition}</p>
+                                  <p className="text-[12px] leading-relaxed text-[var(--ed-status-text)]">{d.definition}</p>
                                   {d.example && (
-                                    <p className="mt-0.5 text-[10px] italic leading-relaxed text-[#475569]">"{d.example}"</p>
+                                    <p className="mt-0.5 text-[11px] italic leading-relaxed text-[#475569]">"{d.example}"</p>
                                   )}
                                 </div>
                               </li>
@@ -3519,11 +3534,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {dictResult.synonyms.length > 0 && (
                         <div className="mt-3" style={{ animation: "dict-in 0.28s ease-out 0.15s both" }}>
                           <div className="h-px bg-[var(--ed-bg-pill)] mb-3" />
-                          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Synonyms</p>
+                          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Synonyms</p>
                           <div className="flex flex-wrap gap-1">
                             {dictResult.synonyms.map((w) => (
                               <button key={w} type="button" onClick={() => copyWord(w)}
-                                className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-muted)] hover:bg-[#ea4335]/20 hover:text-[var(--ed-text)]"}`}
+                                className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-muted)] hover:bg-[#ea4335]/20 hover:text-[var(--ed-text)]"}`}
                                 style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
                                 title="Click to copy"
                               >{w}</button>
@@ -3536,11 +3551,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {dictResult.antonyms.length > 0 && (
                         <div className="mt-3" style={{ animation: "dict-in 0.28s ease-out 0.22s both" }}>
                           <div className="h-px bg-[var(--ed-bg-pill)] mb-3" />
-                          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Antonyms</p>
+                          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Antonyms</p>
                           <div className="flex flex-wrap gap-1">
                             {dictResult.antonyms.map((w) => (
                               <button key={w} type="button" onClick={() => copyWord(w)}
-                                className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[#f87171] hover:bg-[#ea4335]/20 hover:text-[#fca5a5]"}`}
+                                className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w ? "bg-[#ea4335] text-white" : "bg-[var(--ed-bg-pill)] text-[#f87171] hover:bg-[#ea4335]/20 hover:text-[#fca5a5]"}`}
                                 style={{ animation: copiedWord === w ? "chip-pop 0.25s ease-out" : undefined }}
                                 title="Click to copy"
                               >{w}</button>
@@ -3567,7 +3582,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       onChange={(e) => setThesInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void searchThesaurus(thesInput); }}
                       placeholder="Find synonyms…"
-                      className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50"
+                      className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50"
                     />
                     <button
                       type="button"
@@ -3590,13 +3605,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   {!thesResult && !thesError && !thesLoading && (
                     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ed-border)" strokeWidth="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                      <p className="text-[11px] text-[var(--ed-text-label)]">Type a word to find alternatives</p>
+                      <p className="text-[12px] text-[var(--ed-text-label)]">Type a word to find alternatives</p>
                     </div>
                   )}
 
                   {/* Error */}
                   {thesError && (
-                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[12px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
                       {thesError}
                     </div>
                   )}
@@ -3606,14 +3621,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div style={{ animation: "dict-in 0.25s ease-out" }}>
 
                       <h2 className="mb-1 text-[18px] font-bold tracking-tight text-[var(--ed-text)]">{thesResult.word}</h2>
-                      <p className="mb-3 text-[9px] text-[var(--ed-text-label)]">Click any word to copy it</p>
+                      <p className="mb-3 text-[10px] text-[var(--ed-text-label)]">Click any word to copy it</p>
 
                       {/* Synonyms */}
                       {thesResult.synonyms.length > 0 && (
                         <div className="mb-4">
                           <div className="mb-2 flex items-center gap-2">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Synonyms</p>
-                            <span className="rounded-full bg-[var(--ed-bg-pill)] px-1.5 py-0.5 text-[9px] text-[var(--ed-text-dim)]">{thesResult.synonyms.length}</span>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Synonyms</p>
+                            <span className="rounded-full bg-[var(--ed-bg-pill)] px-1.5 py-0.5 text-[10px] text-[var(--ed-text-dim)]">{thesResult.synonyms.length}</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {thesResult.synonyms.map((w, i) => (
@@ -3622,7 +3637,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                 type="button"
                                 onClick={() => copyWord(w.word)}
                                 style={{ animation: `dict-in 0.2s ease-out ${i * 0.018}s both`, ...(copiedWord === w.word ? { animation: "chip-pop 0.25s ease-out" } : {}) }}
-                                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-5)] text-[var(--ed-text-muted)] ring-1 ring-[var(--ed-border)] hover:bg-[#ea4335]/15 hover:text-[var(--ed-text)] hover:ring-[#ea4335]/30"}`}
+                                className={`rounded-lg px-2.5 py-1 text-[12px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-5)] text-[var(--ed-text-muted)] ring-1 ring-[var(--ed-border)] hover:bg-[#ea4335]/15 hover:text-[var(--ed-text)] hover:ring-[#ea4335]/30"}`}
                                 title="Click to copy"
                               >{w.word}</button>
                             ))}
@@ -3634,8 +3649,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {thesResult.antonyms.length > 0 && (
                         <div>
                           <div className="mb-2 flex items-center gap-2">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Antonyms</p>
-                            <span className="rounded-full bg-[var(--ed-bg-pill)] px-1.5 py-0.5 text-[9px] text-[var(--ed-text-dim)]">{thesResult.antonyms.length}</span>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Antonyms</p>
+                            <span className="rounded-full bg-[var(--ed-bg-pill)] px-1.5 py-0.5 text-[10px] text-[var(--ed-text-dim)]">{thesResult.antonyms.length}</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {thesResult.antonyms.map((w, i) => (
@@ -3644,7 +3659,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                 type="button"
                                 onClick={() => copyWord(w.word)}
                                 style={{ animation: `dict-in 0.2s ease-out ${i * 0.018}s both`, ...(copiedWord === w.word ? { animation: "chip-pop 0.25s ease-out" } : {}) }}
-                                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-5)] text-[#f87171] ring-1 ring-[var(--ed-border)] hover:bg-[#ea4335]/15 hover:text-[#fca5a5] hover:ring-[#ea4335]/30"}`}
+                                className={`rounded-lg px-2.5 py-1 text-[12px] font-medium transition active:scale-[0.88] ${copiedWord === w.word ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-5)] text-[#f87171] ring-1 ring-[var(--ed-border)] hover:bg-[#ea4335]/15 hover:text-[#fca5a5] hover:ring-[#ea4335]/30"}`}
                                 title="Click to copy"
                               >{w.word}</button>
                             ))}
@@ -3669,13 +3684,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ed-text-label)" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <div>
-                      <p className="text-[13px] font-semibold text-[var(--ed-text)]">Sign in to use Source</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-[var(--ed-text-label)]">Citations, Dictionary &amp; Thesaurus<br/>are free to use</p>
+                      <p className="text-[14px] font-semibold text-[var(--ed-text)]">Sign in to use Source</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--ed-text-label)]">Citations, Dictionary &amp; Thesaurus<br/>are free to use</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void AuthService.signInWithGoogle().catch(() => showToast("Sign-in failed."))}
-                      className="flex items-center gap-2 rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-pill)] px-4 py-2 text-[12px] font-medium text-[var(--ed-text)] transition hover:bg-[var(--ed-surface-6)] active:scale-[0.97]"
+                      className="flex items-center gap-2 rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-pill)] px-4 py-2 text-[13px] font-medium text-[var(--ed-text)] transition hover:bg-[var(--ed-surface-6)] active:scale-[0.97]"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                       Sign in with Google
@@ -3685,13 +3700,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <>
                     {/* ── Sub-tab pills ── */}
                     <div className="flex-shrink-0 border-b border-[var(--ed-border)] px-3 py-2.5">
-                      <div className="flex rounded-full bg-[var(--ed-bg-pill)] p-0.5">
+                      <div className="flex rounded-full glass-chip p-0.5">
                         {(["auto", "keyword", "intelligence", "uploads"] as const).map((st) => (
                           <button
                             key={st}
                             type="button"
                             onClick={() => setSourceSubTab(st)}
-                            className={`flex-1 rounded-full py-1.5 text-[9.5px] font-medium transition active:scale-[0.97] ${sourceSubTab === st ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] shadow-sm" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                            className={`flex-1 rounded-full py-1.5 text-[10.5px] font-medium transition active:scale-[0.97] ${sourceSubTab === st ? "bg-[var(--ed-surface-6)] text-[var(--ed-text)] shadow-sm" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                           >
                             {st === "auto" ? "Auto Search" : st === "keyword" ? "Keyword" : st === "intelligence" ? "Intelligence" : "Uploads"}
                           </button>
@@ -3704,7 +3719,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             key={key}
                             type="button"
                             onClick={() => setter(!val)}
-                            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition active:scale-[0.96] ${val ? "border-[#0d9488]/40 bg-[#0d9488]/10 text-[#0d9488]" : "border-[var(--ed-border)] bg-transparent text-[var(--ed-text-dim)] hover:text-[var(--ed-text-faint)]"}`}
+                            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition active:scale-[0.96] ${val ? "border-[#0d9488]/40 bg-[#0d9488]/10 text-[#0d9488]" : "border-[var(--ed-border)] bg-transparent text-[var(--ed-text-dim)] hover:text-[var(--ed-text-faint)]"}`}
                           >
                             <span className={`h-1.5 w-1.5 rounded-full ${val ? "bg-[#0d9488]" : "bg-[var(--ed-text-label)]"}`} />
                             {label}
@@ -3729,11 +3744,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           <button
                             type="button"
                             onClick={() => uploadInputRef.current?.click()}
-                            className="flex w-full items-center justify-center gap-2 rounded-full border border-dashed border-[#ea4335]/40 bg-[#ea4335]/5 py-2.5 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/10 active:scale-[0.97]"
+                            className="flex w-full items-center justify-center gap-2 rounded-full border border-dashed border-[#ea4335]/40 bg-[#ea4335]/5 py-2.5 text-[12px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/10 active:scale-[0.97]"
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                             Upload File
-                            <span className="text-[9px] font-normal text-[var(--ed-text-dim)]">PDF · IMG</span>
+                            <span className="text-[10px] font-normal text-[var(--ed-text-dim)]">PDF · IMG</span>
                           </button>
                         </div>
 
@@ -3742,7 +3757,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           {uploadedFiles.length === 0 && (
                             <div className="flex flex-col items-center gap-2 py-10 text-center">
                               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ed-border)" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                              <p className="text-[10.5px] text-[var(--ed-border)]">Upload a PDF or image to cite it</p>
+                              <p className="text-[11.5px] text-[var(--ed-border)]">Upload a PDF or image to cite it</p>
                             </div>
                           )}
 
@@ -3770,11 +3785,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ed-text-label)" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                                     )}
                                   </div>
-                                  <p className="w-full truncate text-center text-[8.5px] text-[var(--ed-text-dim)] group-hover:text-[var(--ed-text-muted)]">
+                                  <p className="w-full truncate text-center text-[9.5px] text-[var(--ed-text-dim)] group-hover:text-[var(--ed-text-muted)]">
                                     {uf.name.length > 14 ? uf.name.slice(0, 12) + "…" : uf.name}
                                   </p>
                                   {uf.result && (
-                                    <span className="text-[7px] font-bold text-[#22c55e]">✓ cited</span>
+                                    <span className="text-[8px] font-bold text-[#22c55e]">✓ cited</span>
                                   )}
                                 </button>
                               ))}
@@ -3790,7 +3805,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             >
                               {/* Header */}
                               <div className="flex items-center gap-2 border-b border-[var(--ed-bg-pill)] px-3 py-2">
-                                <p className="min-w-0 flex-1 truncate text-[10px] font-semibold text-[var(--ed-text-muted)]">{uf.name}</p>
+                                <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-[var(--ed-text-muted)]">{uf.name}</p>
                                 {/* Remove */}
                                 <button
                                   type="button"
@@ -3822,7 +3837,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                   { key: "citPublisher", label: "Publisher", placeholder: "e.g. Oxford University Press" },
                                 ].map(({ key, label, placeholder }) => (
                                   <div key={key} className="flex items-center gap-2">
-                                    <label className="w-[56px] flex-shrink-0 text-[9px] font-semibold uppercase tracking-wide text-[var(--ed-text-label)]">{label}</label>
+                                    <label className="w-[56px] flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-label)]">{label}</label>
                                     <input
                                       type="text"
                                       value={(uf as unknown as Record<string, string>)[key] ?? ""}
@@ -3833,14 +3848,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                         );
                                       }}
                                       placeholder={placeholder}
-                                      className="min-w-0 flex-1 rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-2.5 py-1.5 text-[11px] text-[var(--ed-text)] placeholder-[var(--ed-border)] outline-none transition focus:border-[#ea4335]/50"
+                                      className="min-w-0 flex-1 rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-2.5 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-border)] outline-none transition focus:border-[#ea4335]/50"
                                     />
                                   </div>
                                 ))}
 
                                 {/* Error */}
                                 {uf.scanError && (
-                                  <p className="rounded-[8px] bg-[#1a0f0f] px-2.5 py-1.5 text-[10px] text-[#f87171]">{uf.scanError}</p>
+                                  <p className="rounded-[8px] bg-[#1a0f0f] px-2.5 py-1.5 text-[11px] text-[#f87171]">{uf.scanError}</p>
                                 )}
 
                                 {/* Create Citation button */}
@@ -3849,7 +3864,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                     type="button"
                                     onClick={() => void handleScanUpload(uf.id)}
                                     disabled={uf.scanning}
-                                    className="mt-1 flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-50"
+                                    className="mt-1 flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-50"
                                   >
                                     {uf.scanning ? (
                                       <>
@@ -3866,7 +3881,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                                 ) : (
                                   <div className="mt-1 flex items-center gap-2 rounded-full bg-[#0d2218] px-3 py-2">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                    <span className="text-[10px] font-semibold text-[#22c55e]">Source card added to results</span>
+                                    <span className="text-[11px] font-semibold text-[#22c55e]">Source card added to results</span>
                                   </div>
                                 )}
                               </div>
@@ -3885,12 +3900,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           {onboardingTopic ? (
                             /* Topic from onboarding — show as context chip */
                             <div className="rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2.5">
-                              <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[var(--ed-text-dim)]">Your topic</p>
-                              <p className="text-[11px] leading-snug text-[var(--ed-status-text)]">{onboardingTopic}</p>
-                              <p className="mt-1.5 text-[9.5px] text-[var(--ed-text-label)]">Sources will be found based on this topic.</p>
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--ed-text-dim)]">Your topic</p>
+                              <p className="text-[12px] leading-snug text-[var(--ed-status-text)]">{onboardingTopic}</p>
+                              <p className="mt-1.5 text-[10.5px] text-[var(--ed-text-label)]">Sources will be found based on this topic.</p>
                             </div>
                           ) : (
-                            <p className="text-[10.5px] leading-relaxed text-[#475569]">
+                            <p className="text-[11.5px] leading-relaxed text-[#475569]">
                               AI reads your essay and finds the most relevant academic sources — no keyword needed.
                             </p>
                           )}
@@ -3898,7 +3913,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             type="button"
                             onClick={() => void runSourceSearch("auto")}
                             disabled={sourceLoading}
-                            className="flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] disabled:opacity-50"
                           >
                             {sourceLoading ? (
                               <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />Searching…</>
@@ -3918,7 +3933,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             onKeyDown={(e) => { if (e.key === "Enter") void runSourceSearch("keyword"); }}
                             placeholder="Search for sources…"
                             disabled={sourceLoading}
-                            className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50 disabled:opacity-50"
+                            className="min-w-0 flex-1 rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50 disabled:opacity-50"
                           />
                           <button
                             type="button"
@@ -3936,18 +3951,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                       {sourceSubTab === "intelligence" && (
                         <div className="flex flex-col gap-2">
-                          <p className="text-[10.5px] text-[#475569]">Select any text in your essay to find supporting sources.</p>
+                          <p className="text-[11.5px] text-[#475569]">Select any text in your essay to find supporting sources.</p>
                           <div className="min-h-[52px] rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2">
                             {selectedEditorText
-                              ? <p className="line-clamp-3 text-[11px] leading-relaxed text-[var(--ed-text-muted)]">"{selectedEditorText}"</p>
-                              : <p className="text-[11px] italic text-[var(--ed-text-label)]">Highlight text in your essay…</p>
+                              ? <p className="line-clamp-3 text-[12px] leading-relaxed text-[var(--ed-text-muted)]">"{selectedEditorText}"</p>
+                              : <p className="text-[12px] italic text-[var(--ed-text-label)]">Highlight text in your essay…</p>
                             }
                           </div>
                           <button
                             type="button"
                             onClick={() => void runSourceSearch("intelligence")}
                             disabled={!selectedEditorText || sourceLoading}
-                            className="flex items-center justify-center gap-2 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 py-2 text-[11px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-40"
+                            className="flex items-center justify-center gap-2 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 py-2 text-[12px] font-medium text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-40"
                           >
                             {sourceLoading
                               ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335] border-t-transparent" />Searching…</>
@@ -3967,11 +3982,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         {sourceStatus && (
                           <div className="flex items-center gap-2">
                             <span className="h-2 w-2 animate-spin rounded-full border-2 border-[var(--ed-text-dim)] border-t-transparent" />
-                            <span className="text-[10px] text-[var(--ed-text-dim)]">{sourceStatus}</span>
+                            <span className="text-[11px] text-[var(--ed-text-dim)]">{sourceStatus}</span>
                           </div>
                         )}
                         {sourceQuery && (
-                          <div className="text-[10px]">
+                          <div className="text-[11px]">
                             <span className="text-[var(--ed-text-label)]">AI query: </span>
                             <span className="text-[var(--ed-text-faint)] italic">{sourceQuery}</span>
                           </div>
@@ -3984,7 +3999,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                       {/* Error */}
                       {sourceError && (
-                        <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
+                        <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[12px] text-[#f87171]" style={{ animation: "dict-in 0.2s ease-out" }}>
                           {sourceError}
                         </div>
                       )}
@@ -3993,7 +4008,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {!sourceLoading && !sourceError && sourceResults.length === 0 && (
                         <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-center">
                           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--ed-border)" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                          <p className="text-[11px] text-[var(--ed-border)]">
+                          <p className="text-[12px] text-[var(--ed-border)]">
                             {sourceSubTab === "auto" ? "Press Auto Search to find sources" : sourceSubTab === "keyword" ? "Type a keyword and search" : "Select text in your essay above"}
                           </p>
                         </div>
@@ -4033,7 +4048,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                       {/* "Finding more…" indicator when sources are already streaming */}
                       {sourceLoading && sourceResults.length > 0 && (
-                        <div className="flex items-center gap-2 py-2 text-[10px] text-[var(--ed-text-label)]">
+                        <div className="flex items-center gap-2 py-2 text-[11px] text-[var(--ed-text-label)]">
                           <span className="h-2 w-2 animate-spin rounded-full border-2 border-[var(--ed-text-label)] border-t-transparent" />
                           Finding more sources…
                         </div>
@@ -4066,14 +4081,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/OCTOPILOT.png" alt="Octo" className="h-5 w-5 object-contain" />
                 </span>
-                <span className="text-[13px] font-bold tracking-wide text-[var(--ed-text)]">Octo the Bot</span>
+                <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">Octo the Bot</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {/* Optional document highlighting toggle */}
                 <button
                   type="button"
                   onClick={toggleHighlight}
-                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold transition active:scale-[0.95] ${highlightEnabled ? "bg-[#ea4335]/15 text-[#ea4335]" : "bg-white/10 text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${highlightEnabled ? "bg-[#ea4335]/15 text-[#ea4335]" : "bg-white/10 text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                   title={highlightEnabled ? "Highlighting on — click to turn off" : "Highlighting off — click to turn on"}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6"/><path d="m17 5 2 2"/><path d="M14.5 5.5 18 2l4 4-3.5 3.5z"/></svg>
@@ -4116,7 +4131,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <img src="/OCTOPILOT.png" alt="Octo" className="h-9 w-9 object-contain" />
               <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#ea4335] opacity-20" style={{ animationDuration: "2.4s" }} />
             </span>
-            <span className="rounded-full bg-[#ea4335] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white shadow-sm">Octo the Bot</span>
+            <span className="rounded-full bg-[#ea4335] px-2 py-0.5 text-[10px] font-bold tracking-wide text-white shadow-sm">Octo the Bot</span>
           </button>
         )}
 
@@ -4141,10 +4156,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               {/* Modal header */}
               <div className="flex flex-shrink-0 items-start gap-3 border-b px-5 py-4" style={{ borderColor: `${modalColor}30` }}>
                 <span
-                  className="mt-[3px] flex-shrink-0 rounded-[5px] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide"
+                  className="mt-[3px] flex-shrink-0 rounded-[5px] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide"
                   style={{ background: `${modalColor}22`, color: modalColor }}
                 >{typeLabel}</span>
-                <p className="flex-1 text-[13px] font-semibold leading-snug text-[var(--ed-text)]">{source.title || domain}</p>
+                <p className="flex-1 text-[14px] font-semibold leading-snug text-[var(--ed-text)]">{source.title || domain}</p>
                 <button
                   type="button"
                   onClick={() => { setSourceModal(null); setContentSelection(""); }}
@@ -4161,24 +4176,24 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="border-b border-[var(--ed-surface-4)] px-5 py-4">
                   <div className="flex flex-col gap-1.5">
                     {source.author && (
-                      <div className="flex items-center gap-2 text-[11px]">
+                      <div className="flex items-center gap-2 text-[12px]">
                         <span className="text-[var(--ed-text-label)]">Author</span>
                         <span className="text-[var(--ed-text-muted)]">{source.author}</span>
                       </div>
                     )}
                     {source.publishedYear && (
-                      <div className="flex items-center gap-2 text-[11px]">
+                      <div className="flex items-center gap-2 text-[12px]">
                         <span className="text-[var(--ed-text-label)]">Year</span>
                         <span className="text-[var(--ed-text-muted)]">{source.publishedYear}</span>
                       </div>
                     )}
                     {source.publisher && (
-                      <div className="flex items-center gap-2 text-[11px]">
+                      <div className="flex items-center gap-2 text-[12px]">
                         <span className="text-[var(--ed-text-label)]">Publisher</span>
                         <span className="text-[var(--ed-text-muted)]">{source.publisher}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-[11px]">
+                    <div className="flex items-center gap-2 text-[12px]">
                       <span className="text-[var(--ed-text-label)]">URL</span>
                       <a
                         href={source.url}
@@ -4193,7 +4208,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 {/* ── Full content ── */}
                 <div className="border-b border-[var(--ed-surface-4)] px-5 py-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Full Content</span>
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Full Content</span>
                     {contentSelection && (
                       <button
                         type="button"
@@ -4202,7 +4217,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           setContentSelection("");
                           showToast("Copied ✓");
                         }}
-                        className="flex items-center gap-1 rounded-full bg-[#ea4335] px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.95]"
+                        className="flex items-center gap-1 rounded-full bg-[#ea4335] px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.95]"
                         style={{ animation: "chip-pop 0.18s ease-out" }}
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -4211,7 +4226,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     )}
                   </div>
                   <div
-                    className="max-h-[200px] overflow-y-auto rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5 text-[11px] leading-relaxed text-[var(--ed-text-faint)]"
+                    className="max-h-[200px] overflow-y-auto rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5 text-[12px] leading-relaxed text-[var(--ed-text-faint)]"
                     style={{ userSelect: "text", WebkitUserSelect: "text" }}
                     onMouseUp={() => {
                       const sel = window.getSelection()?.toString().trim() ?? "";
@@ -4224,7 +4239,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 {/* ── Citations ── */}
                 <div className="px-5 py-4">
-                  <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Citations</p>
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Citations</p>
 
                   {/* Style pills */}
                   <div className="mb-4 flex gap-1.5 flex-wrap">
@@ -4238,7 +4253,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                               suggestCacheRef.current[prev.source.url] = [];
                               return { ...prev, activeStyle: s, suggestions: [], suggestLoading: false };
                             })}
-                        className={`rounded-full px-3 py-1 text-[10px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                         style={activeStyle === s ? { background: modalColor } : undefined}
                       >
                         {STYLE_LABELS[s]}
@@ -4248,7 +4263,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Loading */}
                   {citLoading && (
-                    <div className="flex items-center gap-2 py-4 text-[11px] text-[var(--ed-text-dim)]">
+                    <div className="flex items-center gap-2 py-4 text-[12px] text-[var(--ed-text-dim)]">
                       <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ed-text-dim)] border-t-transparent" />
                       Generating citations for all styles…
                     </div>
@@ -4256,7 +4271,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* Error */}
                   {citError && !citLoading && (
-                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[11px] text-[#f87171]">{citError}</div>
+                    <div className="rounded-xl border border-[#3a1f1f] bg-[#1a0f0f] px-3 py-2.5 text-[12px] text-[#f87171]">{citError}</div>
                   )}
 
                   {/* Citation boxes */}
@@ -4264,38 +4279,38 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div className="flex flex-col gap-3">
                       {/* In-text */}
                       <div>
-                        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">In-text Citation</p>
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">In-text Citation</p>
                         <div className="flex items-start gap-2 rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5">
-                          <p className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed text-[#93c5fd]">{activeCit.inText}</p>
+                          <p className="min-w-0 flex-1 font-mono text-[12px] leading-relaxed text-[#93c5fd]">{activeCit.inText}</p>
                           <div className="flex flex-shrink-0 flex-col gap-1">
                             <button
                               type="button"
                               onClick={() => { navigator.clipboard?.writeText(activeCit.inText).catch(() => {}); showToast("In-text citation copied ✓"); }}
-                              className="rounded-[5px] bg-[var(--ed-surface-4)] px-2 py-0.5 text-[9px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+                              className="rounded-[5px] bg-[var(--ed-surface-4)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
                             >Copy</button>
                             <button
                               type="button"
                               onClick={() => { handleInsertInText(activeCit.inText); setSourceModal(null); }}
-                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[9px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
+                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[10px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
                             >Insert</button>
                           </div>
                         </div>
                       </div>
                       {/* Bibliography */}
                       <div>
-                        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Bibliography</p>
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Bibliography</p>
                         <div className="flex items-start gap-2 rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5">
-                          <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[var(--ed-text-muted)]">{activeCit.bibliography}</p>
+                          <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-[var(--ed-text-muted)]">{activeCit.bibliography}</p>
                           <div className="flex flex-shrink-0 flex-col gap-1">
                             <button
                               type="button"
                               onClick={() => { navigator.clipboard?.writeText(activeCit.bibliography).catch(() => {}); showToast("Bibliography copied ✓"); }}
-                              className="rounded-[5px] bg-[var(--ed-surface-4)] px-2 py-0.5 text-[9px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+                              className="rounded-[5px] bg-[var(--ed-surface-4)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
                             >Copy</button>
                             <button
                               type="button"
                               onClick={() => { handleInsertBib(activeCit.bibliography); setSourceModal(null); }}
-                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[9px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
+                              className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[10px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
                             >Insert</button>
                           </div>
                         </div>
@@ -4305,7 +4320,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {/* No citation for this style yet */}
                   {!citLoading && !activeCit && !citError && (
-                    <p className="text-[11px] text-[var(--ed-text-label)]">No citation generated for {STYLE_LABELS[activeStyle]}.</p>
+                    <p className="text-[12px] text-[var(--ed-text-label)]">No citation generated for {STYLE_LABELS[activeStyle]}.</p>
                   )}
                 </div>
 
@@ -4313,32 +4328,32 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 {autoSuggest && (
                   <div className="border-t border-[var(--ed-surface-4)] px-5 py-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Suggested</span>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Suggested</span>
                       {autoHumanize && (
-                        <span className="rounded-full bg-[#0d9488]/15 px-2 py-0.5 text-[8px] font-semibold text-[#0d9488]">Humanized</span>
+                        <span className="rounded-full bg-[#0d9488]/15 px-2 py-0.5 text-[9px] font-semibold text-[#0d9488]">Humanized</span>
                       )}
                     </div>
 
                     {sourceModal.suggestLoading && (
-                      <div className="flex items-center gap-2 py-3 text-[11px] text-[var(--ed-text-dim)]">
+                      <div className="flex items-center gap-2 py-3 text-[12px] text-[var(--ed-text-dim)]">
                         <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ed-text-dim)] border-t-transparent" />
                         {autoHumanize ? "Generating & humanizing…" : "Generating suggestion…"}
                       </div>
                     )}
 
                     {sourceModal.suggestError && !sourceModal.suggestLoading && (
-                      <p className="text-[11px] text-[#f87171]">{sourceModal.suggestError}</p>
+                      <p className="text-[12px] text-[#f87171]">{sourceModal.suggestError}</p>
                     )}
 
                     {!sourceModal.suggestLoading && sourceModal.suggestions.length > 0 && (
                       <div className="flex flex-col gap-2">
                         {sourceModal.suggestions.map((s, i) => (
                           <div key={i} className="flex items-start gap-2 rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5">
-                            <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[#c4b5fd]">{s}</p>
+                            <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-[#c4b5fd]">{s}</p>
                             <button
                               type="button"
                               onClick={() => { navigator.clipboard?.writeText(s).catch(() => {}); showToast("Suggestion copied ✓"); }}
-                              className="flex-shrink-0 rounded-full bg-[var(--ed-surface-4)] px-2.5 py-1 text-[9px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+                              className="flex-shrink-0 rounded-full bg-[var(--ed-surface-4)] px-2.5 py-1 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
                             >Copy</button>
                           </div>
                         ))}
@@ -4346,7 +4361,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                           type="button"
                           onClick={() => void fetchSuggestion()}
                           disabled={sourceModal.suggestLoading}
-                          className="self-start rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-3 py-1 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:border-[var(--ed-border-2)] hover:text-[var(--ed-text-muted)] active:scale-[0.96] disabled:opacity-40"
+                          className="self-start rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-3 py-1 text-[11px] font-semibold text-[var(--ed-text-faint)] transition hover:border-[var(--ed-border-2)] hover:text-[var(--ed-text-muted)] active:scale-[0.96] disabled:opacity-40"
                         >+ more</button>
                       </div>
                     )}
@@ -4370,13 +4385,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 6v6l4 2" /></svg>
                 </div>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Humanize before exporting?</h2>
-                <p className="mb-5 text-[13px] leading-relaxed text-[var(--ed-text-faint)]">Run your essay through an AI bypass humanizer to make it undetectable before downloading.</p>
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Humanize before exporting?</h2>
+                <p className="mb-5 text-[14px] leading-relaxed text-[var(--ed-text-faint)]">Run your essay through an AI bypass humanizer to make it undetectable before downloading.</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
-                    className="flex-1 rounded-[10px] bg-[#ea4335] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px]"
+                    className="flex-1 rounded-[10px] bg-[#ea4335] py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px]"
                   >
                     Skip — Download Now
                   </button>
@@ -4389,7 +4404,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                         setHumanizePhase({ kind: "pick_provider", snapshot: humanizePhase.snapshot });
                       }
                     }}
-                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[13px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)] active:translate-y-[1px]"
+                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[14px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)] active:translate-y-[1px]"
                   >
                     Yes, Humanize →
                   </button>
@@ -4400,8 +4415,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             {/* ── Pick Provider ── */}
             {humanizePhase.kind === "pick_provider" && (
               <>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Choose a humanizer</h2>
-                <p className="mb-4 text-[13px] text-[var(--ed-text-faint)]">Select which AI bypass service to use.</p>
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Choose a humanizer</h2>
+                <p className="mb-4 text-[14px] text-[var(--ed-text-faint)]">Select which AI bypass service to use.</p>
                 <div className="mb-4 flex gap-3">
                   {/* Undetectable AI */}
                   <button
@@ -4412,8 +4427,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d2218] text-[#4ade80]">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M8 12s1.5-2 4-2 4 2 4 2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
                     </div>
-                    <span className="text-[12px] font-semibold text-[var(--ed-text)]">Undetectable AI</span>
-                    <span className="text-center text-[10px] text-[var(--ed-text-dim)]">Async · University level</span>
+                    <span className="text-[13px] font-semibold text-[var(--ed-text)]">Undetectable AI</span>
+                    <span className="text-center text-[11px] text-[var(--ed-text-dim)]">Async · University level</span>
                   </button>
                   {/* StealthGPT */}
                   <button
@@ -4424,14 +4439,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e2a1a] text-[#86efac]">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>
                     </div>
-                    <span className="text-[12px] font-semibold text-[var(--ed-text)]">StealthGPT</span>
-                    <span className="text-center text-[10px] text-[var(--ed-text-dim)]">Instant · Standard tone</span>
+                    <span className="text-[13px] font-semibold text-[var(--ed-text)]">StealthGPT</span>
+                    <span className="text-center text-[11px] text-[var(--ed-text-dim)]">Instant · Standard tone</span>
                   </button>
                 </div>
                 <button
                   type="button"
                   onClick={() => setHumanizePhase({ kind: "ask", snapshot: humanizePhase.snapshot })}
-                  className="w-full rounded-[10px] py-2 text-[12px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
+                  className="w-full rounded-[10px] py-2 text-[13px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
                 >
                   ← Back
                 </button>
@@ -4444,8 +4459,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-[3px] border-[#ea4335] border-t-transparent" />
                 </div>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Humanizing with {humanizePhase.provider === "StealthGPT" ? "StealthGPT" : "Undetectable AI"}…</h2>
-                <p className="text-[13px] text-[var(--ed-text-faint)]">
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Humanizing with {humanizePhase.provider === "StealthGPT" ? "StealthGPT" : "Undetectable AI"}…</h2>
+                <p className="text-[14px] text-[var(--ed-text-faint)]">
                   {humanizePhase.provider === "UndetectableAI"
                     ? "Submitting to Undetectable AI and polling for results. This may take up to a minute."
                     : "Sending your essay to StealthGPT. Usually completes in a few seconds."}
@@ -4459,20 +4474,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e1208]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 </div>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Humanization failed</h2>
-                <p className="mb-4 text-[13px] text-[#fbbf24]">{humanizePhase.message}</p>
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Humanization failed</h2>
+                <p className="mb-4 text-[14px] text-[#fbbf24]">{humanizePhase.message}</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setHumanizePhase({ kind: "pick_provider", snapshot: humanizePhase.snapshot })}
-                    className="flex-1 rounded-[10px] bg-[var(--ed-surface-4)] py-2.5 text-[13px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-6)]"
+                    className="flex-1 rounded-[10px] bg-[var(--ed-surface-4)] py-2.5 text-[14px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-6)]"
                   >
                     Try Again
                   </button>
                   <button
                     type="button"
                     onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
-                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[13px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text-muted)]"
+                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[14px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text-muted)]"
                   >
                     Skip — Download
                   </button>
@@ -4486,16 +4501,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 </div>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Sign in to humanize</h2>
-                <p className="mb-4 text-[13px] leading-relaxed text-[var(--ed-text-faint)]">Humanization uses your credits. Create a free account to get started — new users receive 300 humanizer credits.</p>
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Sign in to humanize</h2>
+                <p className="mb-4 text-[14px] leading-relaxed text-[var(--ed-text-faint)]">Humanization uses your credits. Create a free account to get started — new users receive 300 humanizer credits.</p>
                 {loginError && (
-                  <p className="mb-3 rounded-[6px] bg-[#1e1208] px-3 py-2 text-[12px] text-[#fbbf24]">{loginError}</p>
+                  <p className="mb-3 rounded-[6px] bg-[#1e1208] px-3 py-2 text-[13px] text-[#fbbf24]">{loginError}</p>
                 )}
                 <button
                   type="button"
                   onClick={() => void handleLoginGoogle()}
                   disabled={loginLoading}
-                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-bg-pill)] py-2.5 text-[13px] font-medium text-[var(--ed-text)] transition hover:bg-[var(--ed-surface-6)] disabled:opacity-50"
+                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-bg-pill)] py-2.5 text-[14px] font-medium text-[var(--ed-text)] transition hover:bg-[var(--ed-surface-6)] disabled:opacity-50"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                   Continue with Google
@@ -4506,7 +4521,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="Email"
-                    className="mb-2 w-full rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-border-2)]"
+                    className="mb-2 w-full rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-3 py-2 text-[14px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-border-2)]"
                     required
                   />
                   <input
@@ -4514,13 +4529,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Password"
-                    className="mb-3 w-full rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-3 py-2 text-[13px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-border-2)]"
+                    className="mb-3 w-full rounded-[8px] border border-[var(--ed-border)] bg-[var(--ed-surface-5)] px-3 py-2 text-[14px] text-[var(--ed-text)] placeholder-[var(--ed-text-dim)] outline-none focus:border-[var(--ed-border-2)]"
                     required
                   />
                   <button
                     type="submit"
                     disabled={loginLoading || !loginEmail || !loginPassword}
-                    className="mb-2 w-full rounded-[10px] bg-[#ea4335] py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] disabled:opacity-50"
+                    className="mb-2 w-full rounded-[10px] bg-[#ea4335] py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] disabled:opacity-50"
                   >
                     {loginLoading ? "Signing in…" : "Sign In"}
                   </button>
@@ -4528,7 +4543,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <button
                   type="button"
                   onClick={() => { setHumanizePhase({ kind: "idle" }); setLoginError(null); }}
-                  className="w-full rounded-[10px] py-2 text-[12px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
+                  className="w-full rounded-[10px] py-2 text-[13px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
                 >
                   Cancel
                 </button>
@@ -4541,11 +4556,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e1208]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
-                <h2 className="mb-1 text-[15px] font-semibold text-[var(--ed-text)]">Insufficient Credits</h2>
-                <p className="mb-1 text-[13px] leading-relaxed text-[var(--ed-text-faint)]">
+                <h2 className="mb-1 text-[16px] font-semibold text-[var(--ed-text)]">Insufficient Credits</h2>
+                <p className="mb-1 text-[14px] leading-relaxed text-[var(--ed-text-faint)]">
                   This essay requires <span className="text-[#fbbf24] font-medium">{humanizePhase.required} humanizer credits</span>, but you only have <span className="text-[var(--ed-text)] font-medium">{humanizePhase.available}</span>.
                 </p>
-                <p className="mb-5 text-[12px] text-[var(--ed-text-dim)]">Recharge your credits to continue, or skip humanization and download now.</p>
+                <p className="mb-5 text-[13px] text-[var(--ed-text-dim)]">Recharge your credits to continue, or skip humanization and download now.</p>
                 <div className="mb-2 flex gap-2">
                   <div className="flex-1">
                     <StoreButton />
@@ -4553,7 +4568,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   <button
                     type="button"
                     onClick={() => { if (onFinish) onFinish(humanizePhase.snapshot, coreSnapshot.formatStyle); setHumanizePhase({ kind: "idle" }); }}
-                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[13px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text-muted)]"
+                    className="flex-1 rounded-[10px] border border-[var(--ed-border)] py-2.5 text-[14px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text-muted)]"
                   >
                     Skip — Download
                   </button>
@@ -4561,7 +4576,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <button
                   type="button"
                   onClick={() => setHumanizePhase({ kind: "ask", snapshot: humanizePhase.snapshot })}
-                  className="w-full rounded-[10px] py-2 text-[12px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
+                  className="w-full rounded-[10px] py-2 text-[13px] text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)]"
                 >
                   ← Back
                 </button>
@@ -4574,7 +4589,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
       {/* Toast */}
       {toast && (
-        <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-[8px] bg-[var(--ed-surface-6)] px-4 py-2 text-[12px] font-medium text-[var(--ed-text)] shadow-lg">
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-[8px] bg-[var(--ed-surface-6)] px-4 py-2 text-[13px] font-medium text-[var(--ed-text)] shadow-lg">
           {toast}
         </div>
       )}
