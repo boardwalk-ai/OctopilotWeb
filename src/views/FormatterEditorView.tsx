@@ -1060,20 +1060,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [humCopied, setHumCopied] = useState(false);
 
   /* ── Onboarding flow ── */
-  const [viewState, setViewState] = useState<"welcome" | "setup" | "editor">("welcome");
+  const [viewState, setViewState] = useState<"welcome" | "setup" | "analysis" | "editor">("welcome");
   const [viewExiting, setViewExiting] = useState(false);
   const [onboardingTopic, setOnboardingTopic] = useState("");
   const [onboardingFormat, setOnboardingFormat] = useState<FormatStyleId>("mla");
 
-  /* ── Assignment analysis (Hein) — feeds Octo for assignment-aware feedback ── */
-  const [assignmentInput, setAssignmentInput] = useState("");
+  /* ── Assignment analysis (Hein) — shown on the analysis page, fed to Octo ── */
   const [assignmentAnalysis, setAssignmentAnalysis] = useState<AssignmentAnalysis | null>(null);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
-  const [assignmentOpen, setAssignmentOpen] = useState(true);
+  /* ── Outlines (optional, generated on the analysis page) ── */
+  const [outlines, setOutlines] = useState<{ type: string; title: string; description: string }[]>([]);
+  const [outlinesLoading, setOutlinesLoading] = useState(false);
 
-  const analyzeAssignment = useCallback(async () => {
-    const text = assignmentInput.trim();
+  const analyzeAssignment = useCallback(async (textArg?: string) => {
+    const text = (textArg ?? "").trim();
     if (!text || assignmentLoading) return;
     setAssignmentLoading(true);
     setAssignmentError(null);
@@ -1091,13 +1092,41 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setAssignmentLoading(false);
     }
-  }, [assignmentInput, assignmentLoading]);
+  }, [assignmentLoading]);
 
-  // Prefill the assignment box with whatever the student typed in the wizard
+  const generateOutlines = useCallback(async () => {
+    if (!assignmentAnalysis || outlinesLoading) return;
+    setOutlinesLoading(true);
+    try {
+      const res = await fetchWithUserAuthorization("/api/lily/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysis: assignmentAnalysis.analysis,
+          essayTopic: assignmentAnalysis.essayTopic,
+          essayType: assignmentAnalysis.essayType,
+          scope: assignmentAnalysis.scope,
+          structure: assignmentAnalysis.structure,
+          mode: "auto",
+          count: 5,
+        }),
+      });
+      const data = await res.json() as { outlines?: { type: string; title: string; description: string }[] };
+      setOutlines(data.outlines ?? []);
+    } catch {
+      /* non-blocking — outlines are optional */
+    } finally {
+      setOutlinesLoading(false);
+    }
+  }, [assignmentAnalysis, outlinesLoading]);
+
+  // When the analysis page opens, run Hein on the topic/prompt once.
   useEffect(() => {
-    if (onboardingTopic && !assignmentInput) setAssignmentInput(onboardingTopic);
+    if (viewState === "analysis" && !assignmentAnalysis && !assignmentLoading && onboardingTopic.trim()) {
+      void analyzeAssignment(onboardingTopic);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onboardingTopic]);
+  }, [viewState]);
 
   /* ── Citation state ── */
   const [citUrlInput, setCitUrlInput] = useState("");
@@ -1204,7 +1233,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   }, []);
 
   /* ── Onboarding: cinematic transition ── */
-  const transitionTo = useCallback((next: "welcome" | "setup" | "editor", opts?: { topic?: string; style?: FormatStyleId }) => {
+  const transitionTo = useCallback((next: "welcome" | "setup" | "analysis" | "editor", opts?: { topic?: string; style?: FormatStyleId }) => {
     setViewExiting(true);
     setTimeout(() => {
       if (opts?.style) {
@@ -2607,7 +2636,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       {/* ── Three-panel body ── */}
       <div className="relative min-h-0 flex-1">
 
-        {/* LEFT PANEL — slides over center like a warehouse door */}
+        {/* LEFT PANEL — slides over center like a warehouse door (editor only) */}
+        {viewState === "editor" && (
         <div
           className="absolute left-0 top-0 z-10 flex h-full flex-col overflow-hidden border-r border-[var(--ed-border)] bg-[var(--ed-bg-subbar)]"
           style={{
@@ -2641,66 +2671,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
             {/* ── Single scrollable column ── */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-
-              {/* ════ 0. ASSIGNMENT ANALYSIS ════ */}
-              <div className="border-b border-[var(--ed-border)] px-3 py-2.5">
-                <button
-                  type="button"
-                  onClick={() => setAssignmentOpen((v) => !v)}
-                  className="mb-2 flex w-full items-center justify-between"
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-faint)]">Assignment</span>
-                  <span className="flex items-center gap-1.5">
-                    {assignmentAnalysis && <span className="h-1.5 w-1.5 rounded-full bg-[#0d9488]" title="Octo is using this" />}
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`text-[var(--ed-text-dim)] transition-transform ${assignmentOpen ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
-                  </span>
-                </button>
-
-                {assignmentOpen && (
-                  <>
-                    <textarea
-                      value={assignmentInput}
-                      onChange={(e) => setAssignmentInput(e.target.value)}
-                      placeholder="Paste your assignment instructions / prompt here…"
-                      rows={3}
-                      className="w-full resize-none rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-2.5 py-2 text-[11px] leading-relaxed text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none focus:border-[var(--ed-border-2)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void analyzeAssignment()}
-                      disabled={assignmentLoading || !assignmentInput.trim()}
-                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98] disabled:opacity-40"
-                    >
-                      {assignmentLoading
-                        ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />Analyzing…</>
-                        : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9.5 2A7.5 7.5 0 0 1 17 9.5c0 1.8-.6 3.4-1.7 4.7l5 5"/><circle cx="9.5" cy="9.5" r="7.5"/></svg>{assignmentAnalysis ? "Re-analyze" : "Analyze assignment"}</>
-                      }
-                    </button>
-
-                    {assignmentError && <p className="mt-2 text-[10px] text-[#f87171]">{assignmentError}</p>}
-
-                    {assignmentAnalysis && (
-                      <div className="mt-2.5 space-y-2 rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-3)] p-2.5" style={{ animation: "chat-msg-in 0.25s ease-out both" }}>
-                        <p className="text-[11px] leading-relaxed text-[var(--ed-text-muted)]">{assignmentAnalysis.analysis}</p>
-                        {([
-                          ["Type", assignmentAnalysis.essayType],
-                          ["Scope", assignmentAnalysis.scope],
-                          ["Structure", assignmentAnalysis.structure],
-                        ] as [string, string][]).filter(([, v]) => v?.trim()).map(([label, val]) => (
-                          <div key={label}>
-                            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[var(--ed-text-label)]">{label}</span>
-                            <p className="text-[10px] leading-snug text-[var(--ed-text-faint)]">{val}</p>
-                          </div>
-                        ))}
-                        <p className="flex items-center gap-1 pt-0.5 text-[9px] font-medium text-[#0d9488]">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
-                          Octo now uses this when giving feedback
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
 
               {/* ════ 1. PARAPHRASER ════ */}
               <div className="border-b border-[var(--ed-border)] px-3 py-2.5">
@@ -2853,9 +2823,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </div> {/* end single scroll column */}
           </div>
         </div>
+        )}
 
         {/* Left re-open tab */}
-        {!leftOpen && !octoExpanded && (
+        {viewState === "editor" && !leftOpen && !octoExpanded && (
           <button
             type="button"
             onClick={() => setLeftWidth(LEFT_DEFAULT)}
@@ -2989,10 +2960,114 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="ob-item" style={{ animationDelay: "360ms" }}>
                   <button
                     type="button"
+                    onClick={() => transitionTo(onboardingTopic.trim() ? "analysis" : "editor", { topic: onboardingTopic, style: onboardingFormat })}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ea4335] py-3.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
+                  >
+                    {onboardingTopic.trim() ? "Analyze & Continue" : "Open Editor"}
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── ASSIGNMENT ANALYSIS + OUTLINES (between setup and editor) ── */}
+          {viewState === "analysis" && (
+            <div data-theme="dark" className={`absolute inset-0 flex flex-col ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+              <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+              <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #ea4335 0%, transparent 70%)", filter: "blur(50px)" }} />
+
+              <div className="relative z-10 mx-auto flex h-full w-full max-w-2xl flex-col overflow-y-auto px-8 py-8">
+                {/* Back */}
+                <button type="button" onClick={() => transitionTo("setup")}
+                  className="ob-item mb-5 flex flex-shrink-0 items-center gap-1.5 text-[12px] text-white/40 transition hover:text-white/70" style={{ animationDelay: "0ms" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+
+                <h2 className="ob-item mb-1.5 flex-shrink-0 text-[26px] font-bold tracking-tight text-white" style={{ animationDelay: "60ms" }}>Assignment Analysis</h2>
+                <p className="ob-item mb-6 flex-shrink-0 text-[13px] text-white/40" style={{ animationDelay: "120ms" }}>Octo broke down your prompt. Review it, optionally generate an outline, then start writing.</p>
+
+                {/* Analysis card */}
+                <div className="ob-item mb-6 flex-shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] p-5" style={{ animationDelay: "180ms" }}>
+                  {assignmentLoading ? (
+                    <div className="flex items-center gap-2.5 py-4 text-[13px] text-white/50">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Analyzing your assignment…
+                    </div>
+                  ) : assignmentError ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[12px] text-[#f87171]">{assignmentError}</p>
+                      <button type="button" onClick={() => void analyzeAssignment(onboardingTopic)} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20">Retry</button>
+                    </div>
+                  ) : assignmentAnalysis ? (
+                    <div className="space-y-3">
+                      <p className="text-[13px] leading-relaxed text-white/85">{assignmentAnalysis.analysis}</p>
+                      <div className="grid grid-cols-1 gap-2.5 border-t border-white/10 pt-3 sm:grid-cols-2">
+                        {([
+                          ["Topic", assignmentAnalysis.essayTopic],
+                          ["Essay type", assignmentAnalysis.essayType],
+                          ["Scope", assignmentAnalysis.scope],
+                          ["Structure", assignmentAnalysis.structure],
+                        ] as [string, string][]).filter(([, v]) => v?.trim()).map(([label, val]) => (
+                          <div key={label}>
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-white/35">{label}</span>
+                            <p className="mt-0.5 text-[12px] leading-snug text-white/70">{val}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="py-2 text-[12px] text-white/40">No analysis yet.</p>
+                  )}
+                </div>
+
+                {/* Outlines (optional) */}
+                <div className="ob-item mb-6 flex-shrink-0" style={{ animationDelay: "240ms" }}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-[14px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
+                      <p className="text-[11px] text-white/35">Generate a 5-part structure, or skip and write freely.</p>
+                    </div>
+                    {assignmentAnalysis && (
+                      <button
+                        type="button"
+                        onClick={() => void generateOutlines()}
+                        disabled={outlinesLoading}
+                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-3.5 py-2 text-[11px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-50"
+                      >
+                        {outlinesLoading
+                          ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335]/40 border-t-[#ea4335]" />Generating…</>
+                          : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>{outlines.length ? "Regenerate" : "Generate outline"}</>
+                        }
+                      </button>
+                    )}
+                  </div>
+
+                  {outlines.length > 0 && (
+                    <div className="space-y-2">
+                      {outlines.map((o, i) => (
+                        <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3" style={{ animation: `chat-msg-in 0.3s ease-out ${i * 0.05}s both` }}>
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
+                            <span className="text-[12px] font-semibold text-white/85">{o.title}</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-white/55">{o.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Continue */}
+                <div className="ob-item mt-auto flex-shrink-0 pt-2" style={{ animationDelay: "300ms" }}>
+                  <button
+                    type="button"
                     onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ea4335] py-3.5 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
                   >
-                    Open Editor
+                    {outlines.length ? "Continue to Editor" : "Skip outline & write"}
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </button>
                 </div>
@@ -3036,7 +3111,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         </div>
 
         {/* Right re-open tab */}
-        {!rightOpen && (
+        {viewState === "editor" && !rightOpen && (
           <button
             type="button"
             onClick={() => setRightWidth(RIGHT_DEFAULT)}
@@ -3049,7 +3124,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </button>
         )}
 
-        {/* RIGHT PANEL — slides over center like a warehouse door */}
+        {/* RIGHT PANEL — slides over center like a warehouse door (editor only) */}
+        {viewState === "editor" && (
         <div
           className="absolute right-0 top-0 z-10 flex h-full flex-col overflow-hidden border-l border-[var(--ed-border)] bg-[var(--ed-bg-subbar)]"
           style={{
@@ -3944,6 +4020,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
           </div>
         </div>
+        )}
 
         {/* ══ OCTO EXPANDED — floating glass card on the LEFT, editor on the right ══ */}
         {viewState === "editor" && octoExpanded && (
