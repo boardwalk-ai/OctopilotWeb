@@ -1140,6 +1140,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Outlines (optional, generated on the analysis page) ── */
   const [outlines, setOutlines] = useState<{ type: string; title: string; description: string }[]>([]);
   const [outlinesLoading, setOutlinesLoading] = useState(false);
+  // Outline mode UI: which sub-control is open + Build My Way fields
+  const [outlineMode, setOutlineMode] = useState<null | "single" | "build">(null);
+  const [buildType, setBuildType] = useState<"Introduction" | "Body Paragraph" | "Conclusion">("Introduction");
+  const [buildTitle, setBuildTitle] = useState("");
 
   const analyzeAssignment = useCallback(async (textArg?: string) => {
     const text = (textArg ?? "").trim();
@@ -1162,7 +1166,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   }, [assignmentLoading]);
 
-  const generateOutlines = useCallback(async () => {
+  const runOutline = useCallback(async (
+    mode: "auto" | "build" | "single",
+    requestedType?: string,
+    customTitle?: string,
+  ) => {
     if (!assignmentAnalysis || outlinesLoading) return;
     setOutlinesLoading(true);
     try {
@@ -1175,12 +1183,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           essayType: assignmentAnalysis.essayType,
           scope: assignmentAnalysis.scope,
           structure: assignmentAnalysis.structure,
-          mode: "auto",
-          count: 5,
+          mode,
+          requestedType,
+          customTitle,
+          count: mode === "auto" ? 5 : undefined,
         }),
       });
       const data = await res.json() as { outlines?: { type: string; title: string; description: string }[] };
-      setOutlines(data.outlines ?? []);
+      const items = data.outlines ?? [];
+      // Auto replaces the whole set; build/single append a single paragraph.
+      if (mode === "auto") setOutlines(items);
+      else setOutlines((prev) => [...prev, ...items]);
+      setOutlineMode(null);
+      setBuildTitle("");
     } catch {
       /* non-blocking — outlines are optional */
     } finally {
@@ -3067,40 +3082,106 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   )}
                 </div>
 
-                {/* Outlines (optional) */}
+                {/* Outlines (optional) — 3 modes like Guided Generation */}
                 <div className="ob-item mb-6 flex-shrink-0" style={{ animationDelay: "240ms" }}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
-                      <p className="text-[12px] text-white/35">Generate a 5-part structure, or skip and write freely.</p>
-                    </div>
-                    {assignmentAnalysis && (
-                      <button
-                        type="button"
-                        onClick={() => void generateOutlines()}
-                        disabled={outlinesLoading}
-                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#ea4335]/40 bg-[#ea4335]/10 px-3.5 py-2 text-[12px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/20 active:scale-[0.97] disabled:opacity-50"
-                      >
-                        {outlinesLoading
-                          ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335]/40 border-t-[#ea4335]" />Generating…</>
-                          : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>{outlines.length ? "Regenerate" : "Generate outline"}</>
-                        }
-                      </button>
-                    )}
-                  </div>
+                  <h3 className="text-[15px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
+                  <p className="mb-3 text-[12px] text-white/35">Pick a mode, or skip and write freely.</p>
 
-                  {outlines.length > 0 && (
-                    <div className="space-y-2">
-                      {outlines.map((o, i) => (
-                        <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3" style={{ animation: `chat-msg-in 0.3s ease-out ${i * 0.05}s both` }}>
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
-                            <span className="text-[13px] font-semibold text-white/85">{o.title}</span>
+                  {assignmentAnalysis && (
+                    <>
+                      {/* Mode buttons */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          ["build", "Build My Way", "M12 5v14M5 12h14"],
+                          ["auto", "Auto Outline", "M3 12h7l2-3 2 6 2-3h5"],
+                          ["single", "One Paragraph", "M4 6h16M4 12h10M4 18h7"],
+                        ] as [string, string, string][]).map(([m, label, icon]) => (
+                          <button
+                            key={m}
+                            type="button"
+                            disabled={outlinesLoading}
+                            onClick={() => {
+                              if (m === "auto") void runOutline("auto");
+                              else setOutlineMode((prev) => (prev === m ? null : (m as "single" | "build")));
+                            }}
+                            className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-[11px] font-semibold transition active:scale-[0.97] disabled:opacity-50 ${outlineMode === m ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/20 hover:text-white/80"}`}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon}/></svg>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* One Paragraph Only — 3 type params */}
+                      {outlineMode === "single" && (
+                        <div className="mt-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
+                          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">Which paragraph?</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
+                              <button key={t} type="button" disabled={outlinesLoading}
+                                onClick={() => void runOutline("single", t)}
+                                className="rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-2 text-[12px] font-medium text-white/75 transition hover:border-[#ea4335]/50 hover:text-white active:scale-[0.96] disabled:opacity-50">
+                                {t}
+                              </button>
+                            ))}
                           </div>
-                          <p className="text-[12px] leading-relaxed text-white/55">{o.description}</p>
                         </div>
-                      ))}
-                    </div>
+                      )}
+
+                      {/* Build My Way — type + custom title */}
+                      {outlineMode === "build" && (
+                        <div className="mt-2.5 space-y-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
+                          <div className="flex flex-wrap gap-2">
+                            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
+                              <button key={t} type="button"
+                                onClick={() => setBuildType(t)}
+                                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition active:scale-[0.96] ${buildType === t ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/15 bg-white/[0.04] text-white/60 hover:text-white/85"}`}>
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            value={buildTitle}
+                            onChange={(e) => setBuildTitle(e.target.value)}
+                            placeholder="What should this paragraph focus on?"
+                            className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2.5 text-[12px] text-white placeholder-white/25 outline-none focus:border-[#ea4335]/50"
+                          />
+                          <button type="button" disabled={outlinesLoading || !buildTitle.trim()}
+                            onClick={() => void runOutline("build", buildType, buildTitle.trim())}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-40">
+                            {outlinesLoading ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />Building…</> : "Build paragraph"}
+                          </button>
+                        </div>
+                      )}
+
+                      {outlinesLoading && outlineMode === null && (
+                        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/50">
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />Generating outline…
+                        </div>
+                      )}
+
+                      {outlines.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {outlines.map((o, i) => (
+                            <div key={i} className="group flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3" style={{ animation: `chat-msg-in 0.3s ease-out ${i * 0.04}s both` }}>
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-1 flex items-center gap-2">
+                                  <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
+                                  <span className="text-[13px] font-semibold text-white/85">{o.title}</span>
+                                </div>
+                                <p className="text-[12px] leading-relaxed text-white/55">{o.description}</p>
+                              </div>
+                              <button type="button" title="Remove"
+                                onClick={() => setOutlines((prev) => prev.filter((_, j) => j !== i))}
+                                className="flex-shrink-0 rounded-full p-1 text-white/25 opacity-0 transition hover:text-white/70 group-hover:opacity-100">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
