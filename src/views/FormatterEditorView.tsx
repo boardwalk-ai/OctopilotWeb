@@ -721,34 +721,75 @@ function outlineTagColor(type: string): string {
   if (t.includes("conclusion")) return "#0d9488";   // teal
   return "#f59e0b";                                  // body — amber
 }
-function OutlineCard({ o, index, onRemove }: { o: OutlineData; index: number; onRemove?: () => void }) {
+function OutlineCard({ o, index, onRemove, onUpdate }: {
+  o: OutlineData; index: number;
+  onRemove?: () => void;
+  onUpdate?: (updated: OutlineData) => void;
+}) {
   const hue = outlineTagColor(o.type);
+  const editable = Boolean(onUpdate);
+  const setBullet = (i: number, val: string) => onUpdate?.({ ...o, bullets: o.bullets.map((b, j) => (j === i ? val : b)) });
+  const removeBullet = (i: number) => onUpdate?.({ ...o, bullets: o.bullets.filter((_, j) => j !== i) });
+  const addBullet = () => onUpdate?.({ ...o, bullets: [...o.bullets, ""] });
+
   return (
     <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3.5" style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}>
-      <div className="mb-2 flex items-start gap-2">
-        {/* Tag — glass + color hue */}
+      {/* Tag row */}
+      <div className="mb-1.5 flex items-center justify-between">
         <span
-          className="glass-chip flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+          className="glass-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
           style={{ background: `${hue}26`, borderColor: `${hue}59`, color: hue }}
         >{o.type}</span>
-        <span className="min-w-0 flex-1 pt-0.5 text-[13px] font-semibold leading-snug text-white/90">{o.title}</span>
         {onRemove && (
-          <button type="button" title="Remove" onClick={onRemove}
+          <button type="button" title="Remove section" onClick={onRemove}
             className="flex-shrink-0 rounded-full p-1 text-white/25 opacity-0 transition hover:text-white/70 group-hover:opacity-100">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         )}
       </div>
-      {o.bullets.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          {o.bullets.map((b, i) => (
-            <div key={i} className="glass-chip flex items-start gap-2 rounded-xl px-2.5 py-1.5">
-              <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: hue }} />
-              <span className="text-[12px] leading-relaxed text-white/70">{b}</span>
-            </div>
-          ))}
-        </div>
+      {/* Title — on its own line below the tag */}
+      {editable ? (
+        <input
+          value={o.title}
+          onChange={(e) => onUpdate?.({ ...o, title: e.target.value })}
+          placeholder="Section title…"
+          className="mb-2.5 w-full bg-transparent text-[14px] font-semibold leading-snug text-white/90 placeholder-white/25 outline-none"
+        />
+      ) : (
+        <p className="mb-2.5 text-[14px] font-semibold leading-snug text-white/90">{o.title}</p>
       )}
+
+      {/* Bullets */}
+      <div className="flex flex-col gap-1.5">
+        {o.bullets.map((b, i) => (
+          <div key={i} className="glass-chip group/b flex items-center gap-2 rounded-xl px-2.5 py-1.5">
+            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: hue }} />
+            {editable ? (
+              <>
+                <input
+                  value={b}
+                  onChange={(e) => setBullet(i, e.target.value)}
+                  placeholder="Add a point…"
+                  className="min-w-0 flex-1 bg-transparent text-[12px] leading-relaxed text-white/75 placeholder-white/25 outline-none"
+                />
+                <button type="button" title="Remove point" onClick={() => removeBullet(i)}
+                  className="flex-shrink-0 text-white/25 opacity-0 transition hover:text-white/70 group-hover/b:opacity-100">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </>
+            ) : (
+              <span className="text-[12px] leading-relaxed text-white/70">{b}</span>
+            )}
+          </div>
+        ))}
+        {editable && (
+          <button type="button" onClick={addBullet}
+            className="flex items-center gap-1.5 self-start rounded-full px-2 py-1 text-[11px] font-medium text-white/40 transition hover:text-white/75">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Add point
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1253,6 +1294,28 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewState]);
+
+  // Cache the assignment analysis + outline in localStorage so a reload
+  // restores them instead of re-running the AI (saves credits, keeps the
+  // left-panel outline persistent).
+  const wizardCacheLoaded = useRef(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("dococt-wizard-cache");
+      if (raw) {
+        const cached = JSON.parse(raw) as { assignmentAnalysis?: AssignmentAnalysis | null; outlines?: OutlineData[] };
+        if (cached.assignmentAnalysis) setAssignmentAnalysis(cached.assignmentAnalysis);
+        if (Array.isArray(cached.outlines)) setOutlines(cached.outlines);
+      }
+    } catch { /* ignore */ }
+    wizardCacheLoaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!wizardCacheLoaded.current) return;  // don't overwrite before restore
+    try {
+      localStorage.setItem("dococt-wizard-cache", JSON.stringify({ assignmentAnalysis, outlines }));
+    } catch { /* ignore */ }
+  }, [assignmentAnalysis, outlines]);
 
   /* ── Citation state ── */
   const [citUrlInput, setCitUrlInput] = useState("");
@@ -2816,7 +2879,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 <div className="flex flex-col gap-2.5 p-3">
                   <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-white/35">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
                   {outlines.map((o, i) => (
-                    <OutlineCard key={i} o={o} index={i} onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
+                    <OutlineCard key={i} o={o} index={i}
+                            onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
+                            onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
                   ))}
                 </div>
               ) : (
@@ -3075,7 +3140,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {outlines.length > 0 && (
                         <div className="mt-3 space-y-2.5">
                           {outlines.map((o, i) => (
-                            <OutlineCard key={i} o={o} index={i} onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
+                            <OutlineCard key={i} o={o} index={i}
+                            onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
+                            onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
                           ))}
                         </div>
                       )}
