@@ -2014,10 +2014,10 @@ export default function FormatterEditorCore({
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => setSelectedStyle(s.id)}
-                            className="flex-shrink-0 rounded-full px-3 py-[3px] text-[10px] font-semibold transition active:scale-[0.95]"
+                            className={`flex-shrink-0 rounded-full px-3 py-[4px] text-[10.5px] font-semibold transition active:scale-[0.95] ${selectedStyle === s.id ? "shadow-sm" : "glass-chip text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
                             style={selectedStyle === s.id
-                                ? { background: s.color, color: "#fff" }
-                                : { background: "var(--ed-bg-pill)", color: "var(--ed-text-faint)" }}
+                                ? { background: s.color, color: "#fff", boxShadow: `0 2px 10px ${s.color}55` }
+                                : undefined}
                         >
                             {s.label}
                         </button>

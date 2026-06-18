@@ -732,8 +732,9 @@ function OutlineCard({ o, index, onRemove, onUpdate }: {
   const removeBullet = (i: number) => onUpdate?.({ ...o, bullets: o.bullets.filter((_, j) => j !== i) });
   const addBullet = () => onUpdate?.({ ...o, bullets: [...o.bullets, ""] });
 
+  const grow = { fieldSizing: "content" } as React.CSSProperties;
   return (
-    <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3.5" style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}>
+    <div className="group rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] p-3.5" style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}>
       {/* Tag row */}
       <div className="mb-1.5 flex items-center justify-between">
         <span
@@ -742,49 +743,53 @@ function OutlineCard({ o, index, onRemove, onUpdate }: {
         >{o.type}</span>
         {onRemove && (
           <button type="button" title="Remove section" onClick={onRemove}
-            className="flex-shrink-0 rounded-full p-1 text-white/25 opacity-0 transition hover:text-white/70 group-hover:opacity-100">
+            className="flex-shrink-0 rounded-full p-1 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[var(--ed-text)] group-hover:opacity-100">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         )}
       </div>
-      {/* Title — on its own line below the tag */}
+      {/* Title — on its own line below the tag, wraps freely */}
       {editable ? (
-        <input
+        <textarea
+          rows={1}
           value={o.title}
           onChange={(e) => onUpdate?.({ ...o, title: e.target.value })}
           placeholder="Section title…"
-          className="mb-2.5 w-full bg-transparent text-[14px] font-semibold leading-snug text-white/90 placeholder-white/25 outline-none"
+          style={grow}
+          className="mb-2.5 w-full resize-none overflow-hidden break-words bg-transparent text-[14px] font-semibold leading-snug text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none"
         />
       ) : (
-        <p className="mb-2.5 text-[14px] font-semibold leading-snug text-white/90">{o.title}</p>
+        <p className="mb-2.5 break-words text-[14px] font-semibold leading-snug text-[var(--ed-text)]">{o.title}</p>
       )}
 
       {/* Bullets */}
       <div className="flex flex-col gap-1.5">
         {o.bullets.map((b, i) => (
-          <div key={i} className="glass-chip group/b flex items-center gap-2 rounded-xl px-2.5 py-1.5">
-            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: hue }} />
+          <div key={i} className="glass-chip group/b flex items-start gap-2 rounded-xl px-2.5 py-1.5">
+            <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: hue }} />
             {editable ? (
               <>
-                <input
+                <textarea
+                  rows={1}
                   value={b}
                   onChange={(e) => setBullet(i, e.target.value)}
                   placeholder="Add a point…"
-                  className="min-w-0 flex-1 bg-transparent text-[12px] leading-relaxed text-white/75 placeholder-white/25 outline-none"
+                  style={grow}
+                  className="min-w-0 flex-1 resize-none overflow-hidden break-words bg-transparent py-[1px] text-[12px] leading-relaxed text-[var(--ed-text-muted)] placeholder-[var(--ed-text-label)] outline-none"
                 />
                 <button type="button" title="Remove point" onClick={() => removeBullet(i)}
-                  className="flex-shrink-0 text-white/25 opacity-0 transition hover:text-white/70 group-hover/b:opacity-100">
+                  className="mt-[3px] flex-shrink-0 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[var(--ed-text)] group-hover/b:opacity-100">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </>
             ) : (
-              <span className="text-[12px] leading-relaxed text-white/70">{b}</span>
+              <span className="break-words text-[12px] leading-relaxed text-[var(--ed-text-muted)]">{b}</span>
             )}
           </div>
         ))}
         {editable && (
           <button type="button" onClick={addBullet}
-            className="flex items-center gap-1.5 self-start rounded-full px-2 py-1 text-[11px] font-medium text-white/40 transition hover:text-white/75">
+            className="flex items-center gap-1.5 self-start rounded-full px-2 py-1 text-[11px] font-medium text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text)]">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
             Add point
           </button>
@@ -2640,20 +2645,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       </svg>
 
       {/* ── Top bar ── */}
-      <div className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-4">
+      <div className="relative flex h-[56px] flex-shrink-0 items-center justify-between border-b border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-4">
         <div className="flex items-center gap-2">
           {!IS_STANDALONE && (
-            <>
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] font-medium text-[var(--ed-text-muted)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)]"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
-                Back
-              </button>
-              <div className="h-4 w-px bg-[var(--ed-border)]" />
-            </>
+            <button
+              type="button"
+              onClick={onBack}
+              title="Back"
+              className="glass-chip flex h-8 w-8 items-center justify-center rounded-full text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)]"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
           )}
           <div className="flex items-center">
             <style>{`
@@ -2764,75 +2766,71 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               .fmt-root input[type="url"],
               .fmt-root input[type="number"] { user-select: text; -webkit-user-select: text; }
             `}</style>
-            <span className="font-extrabold italic tracking-tight leading-none">
-              <span style={{ fontSize: '21px', color: '#ff2200' }}>
-                {"Octopilot".split("").map((char, i) => (
-                  <span key={i} style={{
-                    display: 'inline-block',
-                    animation: 'octopilot-char-scan 2.4s linear infinite',
-                    animationDelay: `${(i / 9) * 2.4}s`,
-                  }}>{char}</span>
-                ))}
-              </span>
-              <span style={{ fontSize: '14px' }} className="text-[var(--ed-text)]"> Doc Oct</span>
-            </span>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          {/* Save Draft */}
+
+        {/* ── CENTER — Octopilot Doc Oct (logo font + animation unchanged) ── */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center">
+          <span className="font-extrabold italic tracking-tight leading-none">
+            <span style={{ fontSize: '21px', color: '#ff2200' }}>
+              {"Octopilot".split("").map((char, i) => (
+                <span key={i} style={{
+                  display: 'inline-block',
+                  animation: 'octopilot-char-scan 2.4s linear infinite',
+                  animationDelay: `${(i / 9) * 2.4}s`,
+                }}>{char}</span>
+              ))}
+            </span>
+            <span style={{ fontSize: '14px' }} className="text-[var(--ed-text)]"> Doc Oct</span>
+          </span>
+        </div>
+
+        {/* ── RIGHT controls ── */}
+        <div className="flex items-center gap-2">
+          {/* Save Draft — glass pill */}
           <button
             type="button"
             onClick={saveDraft}
             disabled={!rawContent.trim()}
-            className="rounded-full px-3 py-1 text-[13px] font-medium text-[var(--ed-text-faint)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text)] disabled:opacity-40"
+            className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)] disabled:opacity-40"
           >
-            Save Draft
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+            Save
           </button>
 
-          <div className="h-4 w-px bg-[var(--ed-border)]" />
-
-          {/* Humanizer credits — logged in only */}
+          {/* Humanizer credits — glass pill */}
           {currentUser && humanizerCredits !== null && (
-            <div className="flex items-center gap-1.5 rounded-full bg-[var(--ed-bg-pill)] px-2.5 py-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="glass-chip flex items-center gap-1.5 rounded-full px-3 py-1.5" title="Humanizer credits">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" strokeWidth="1.5" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              <span className="text-[12px] font-semibold text-[var(--ed-text)]">{humanizerCredits.toLocaleString()}</span>
+              <span className="text-[12px] font-bold text-[var(--ed-text)]">{humanizerCredits.toLocaleString()}</span>
             </div>
           )}
 
-          {/* Avatar */}
+          {/* Avatar + Sign out — grouped glass pill */}
           {currentUser ? (
-            currentUser.photoURL ? (
-              <img
-                src={currentUser.photoURL}
-                alt="Profile"
-                className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--ed-border)]"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ed-surface-6)] text-[12px] font-bold text-[var(--ed-text)] ring-1 ring-[var(--ed-border-2)]">
-                {((currentUser.displayName ?? currentUser.email ?? "?")[0] ?? "?").toUpperCase()}
-              </div>
-            )
-          ) : (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ed-bg-pill)] text-[var(--ed-text-dim)]">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-              </svg>
+            <div className="glass-chip flex items-center gap-1.5 rounded-full py-1 pl-1 pr-1.5">
+              {currentUser.photoURL ? (
+                <img src={currentUser.photoURL} alt="Profile" className="h-7 w-7 rounded-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ea4335] text-[12px] font-bold text-white">
+                  {((currentUser.displayName ?? currentUser.email ?? "?")[0] ?? "?").toUpperCase()}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => void AuthService.signOut()}
+                title="Sign out"
+                className="rounded-full p-1.5 text-[var(--ed-text-dim)] transition hover:text-[#f87171]"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
             </div>
-          )}
-
-          {/* Logout — logged in only */}
-          {currentUser && (
-            <button
-              type="button"
-              onClick={() => void AuthService.signOut()}
-              className="rounded-full px-2.5 py-1 text-[12px] font-medium text-[var(--ed-text-dim)] transition hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)] active:scale-95"
-            >
-              Sign out
-            </button>
+          ) : (
+            <div className="glass-chip flex h-8 w-8 items-center justify-center rounded-full text-[var(--ed-text-dim)]">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+            </div>
           )}
         </div>
       </div>
@@ -2867,17 +2865,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           >
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[var(--ed-border)] px-3 py-2.5">
-              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">1 · Outline</span>
+              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">Outline</span>
               <button onClick={() => setLeftWidth(0)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--ed-text-dim)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
               </button>
             </div>
 
             {/* ── Single scrollable column: wizard-generated outline ── */}
-            <div data-theme="dark" className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0e1016]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
               {outlines.length > 0 ? (
                 <div className="flex flex-col gap-2.5 p-3">
-                  <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-white/35">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
+                  <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
                   {outlines.map((o, i) => (
                     <OutlineCard key={i} o={o} index={i}
                             onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
@@ -2886,11 +2884,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </div>
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 py-10 text-center">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.04]">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
                   </div>
-                  <p className="text-[12.5px] font-medium text-white/70">No outline yet</p>
-                  <p className="text-[11px] leading-relaxed text-white/35">Generate an outline in the setup wizard and it&apos;ll show up here as you write.</p>
+                  <p className="text-[12.5px] font-medium text-[var(--ed-text-muted)]">No outline yet</p>
+                  <p className="text-[11px] leading-relaxed text-[var(--ed-text-dim)]">Generate an outline in the setup wizard and it&apos;ll show up here as you write.</p>
                 </div>
               )}
 
@@ -3244,7 +3242,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               <button onClick={() => setRightWidth(0)} className="absolute left-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--ed-text-dim)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">3 · Tools</span>
+              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">Tools</span>
             </div>
 
             {/* ── Tab bar ── */}
