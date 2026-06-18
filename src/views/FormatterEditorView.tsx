@@ -1221,6 +1221,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Assignment analysis (Hein) — shown on the analysis page, fed to Octo ── */
   const [assignmentAnalysis, setAssignmentAnalysis] = useState<AssignmentAnalysis | null>(null);
+  const [analyzedTopic, setAnalyzedTopic] = useState("");  // the topic the current analysis was generated from
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   /* ── Outlines (optional, generated on the analysis page) ── */
@@ -1245,6 +1246,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const data = await res.json() as AssignmentAnalysis & { error?: string };
       if (!res.ok || !data.analysis) throw new Error(data.error ?? "Analysis failed");
       setAssignmentAnalysis(data);
+      setAnalyzedTopic(text);
+      setOutlines([]);  // old outlines belong to the previous topic
     } catch {
       setAssignmentError("Couldn't analyze the assignment. Try again.");
     } finally {
@@ -1292,25 +1295,29 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     }
   }, [assignmentAnalysis, outlinesLoading]);
 
-  // When the analysis page opens, run Hein on the topic/prompt once.
+  // When the analysis page opens, run Hein — but only if we don't already have
+  // an analysis for THIS topic (so a new prompt re-analyzes; the same prompt
+  // reuses the cache and doesn't waste credits).
   useEffect(() => {
-    if (viewState === "analysis" && !assignmentAnalysis && !assignmentLoading && onboardingTopic.trim()) {
-      void analyzeAssignment(onboardingTopic);
+    const topic = onboardingTopic.trim();
+    const stale = !assignmentAnalysis || analyzedTopic !== topic;
+    if (viewState === "analysis" && stale && !assignmentLoading && topic) {
+      void analyzeAssignment(topic);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewState]);
 
-  // Cache the assignment analysis + outline in localStorage so a reload
-  // restores them instead of re-running the AI (saves credits, keeps the
-  // left-panel outline persistent).
+  // Cache the assignment analysis + outline (+ the topic it belongs to) in
+  // localStorage so a reload restores them instead of re-running the AI.
   const wizardCacheLoaded = useRef(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem("dococt-wizard-cache");
       if (raw) {
-        const cached = JSON.parse(raw) as { assignmentAnalysis?: AssignmentAnalysis | null; outlines?: OutlineData[] };
+        const cached = JSON.parse(raw) as { assignmentAnalysis?: AssignmentAnalysis | null; outlines?: OutlineData[]; analyzedTopic?: string };
         if (cached.assignmentAnalysis) setAssignmentAnalysis(cached.assignmentAnalysis);
         if (Array.isArray(cached.outlines)) setOutlines(cached.outlines);
+        if (typeof cached.analyzedTopic === "string") setAnalyzedTopic(cached.analyzedTopic);
       }
     } catch { /* ignore */ }
     wizardCacheLoaded.current = true;
@@ -1318,9 +1325,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   useEffect(() => {
     if (!wizardCacheLoaded.current) return;  // don't overwrite before restore
     try {
-      localStorage.setItem("dococt-wizard-cache", JSON.stringify({ assignmentAnalysis, outlines }));
+      localStorage.setItem("dococt-wizard-cache", JSON.stringify({ assignmentAnalysis, outlines, analyzedTopic }));
     } catch { /* ignore */ }
-  }, [assignmentAnalysis, outlines]);
+  }, [assignmentAnalysis, outlines, analyzedTopic]);
 
   /* ── Citation state ── */
   const [citUrlInput, setCitUrlInput] = useState("");
