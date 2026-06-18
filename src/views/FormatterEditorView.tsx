@@ -713,6 +713,46 @@ function OctoMiniPreview({
   );
 }
 
+/* ── Outline card (title + tag hue + glass bullets) ──────────────────────────── */
+interface OutlineData { type: string; title: string; description: string; bullets: string[] }
+function outlineTagColor(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes("introduction")) return "#3b82f6"; // blue
+  if (t.includes("conclusion")) return "#0d9488";   // teal
+  return "#f59e0b";                                  // body — amber
+}
+function OutlineCard({ o, index, onRemove }: { o: OutlineData; index: number; onRemove?: () => void }) {
+  const hue = outlineTagColor(o.type);
+  return (
+    <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3.5" style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}>
+      <div className="mb-2 flex items-start gap-2">
+        {/* Tag — glass + color hue */}
+        <span
+          className="glass-chip flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+          style={{ background: `${hue}26`, borderColor: `${hue}59`, color: hue }}
+        >{o.type}</span>
+        <span className="min-w-0 flex-1 pt-0.5 text-[13px] font-semibold leading-snug text-white/90">{o.title}</span>
+        {onRemove && (
+          <button type="button" title="Remove" onClick={onRemove}
+            className="flex-shrink-0 rounded-full p-1 text-white/25 opacity-0 transition hover:text-white/70 group-hover:opacity-100">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        )}
+      </div>
+      {o.bullets.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {o.bullets.map((b, i) => (
+            <div key={i} className="glass-chip flex items-start gap-2 rounded-xl px-2.5 py-1.5">
+              <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: hue }} />
+              <span className="text-[12px] leading-relaxed text-white/70">{b}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Full-viewport wizard shell (welcome / setup / analysis) ─────────────────── */
 const WIZARD_STEPS = ["Topic", "Setup", "Analysis"] as const;
 function WizardShell({
@@ -1065,7 +1105,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [toast, setToast] = useState<string | null>(null);
   // ── Panel widths (0 = collapsed) ──
   const LEFT_DEFAULT = 260;
-  const RIGHT_DEFAULT = 272;
+  const RIGHT_DEFAULT = 320;
   const LEFT_SNAPS  = [0, LEFT_DEFAULT];
   const RIGHT_SNAPS = [0, RIGHT_DEFAULT];
   const [leftWidth,  setLeftWidth]  = useState(LEFT_DEFAULT);
@@ -1138,7 +1178,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   /* ── Outlines (optional, generated on the analysis page) ── */
-  const [outlines, setOutlines] = useState<{ type: string; title: string; description: string }[]>([]);
+  const [outlines, setOutlines] = useState<{ type: string; title: string; description: string; bullets: string[] }[]>([]);
   const [outlinesLoading, setOutlinesLoading] = useState(false);
   // Outline mode UI: which sub-control is open + Build My Way fields
   const [outlineMode, setOutlineMode] = useState<null | "single" | "build">(null);
@@ -1187,10 +1227,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           requestedType,
           customTitle,
           count: mode === "auto" ? 5 : undefined,
+          bullets: true,
         }),
       });
-      const data = await res.json() as { outlines?: { type: string; title: string; description: string }[] };
-      const items = data.outlines ?? [];
+      const data = await res.json() as { outlines?: { type: string; title: string; description: string; bullets?: string[] }[] };
+      const items = (data.outlines ?? []).map((o) => ({
+        type: o.type, title: o.title, description: o.description ?? "", bullets: o.bullets ?? [],
+      }));
       // Auto replaces the whole set; build/single append a single paragraph.
       if (mode === "auto") setOutlines(items);
       else setOutlines((prev) => [...prev, ...items]);
@@ -1239,7 +1282,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [chatStarted, setChatStarted] = useState(false);
 
   /* ── Right tab ── */
-  const [rightTab, setRightTab] = useState<"citations" | "dictionary" | "thesaurus" | "source">("citations");
+  const [rightTab, setRightTab] = useState<"citations" | "dictionary" | "thesaurus" | "source" | "paraphraser">("citations");
   /* ── Dictionary ── */
   const [dictInput, setDictInput] = useState("");
   const [dictLoading, setDictLoading] = useState(false);
@@ -2761,162 +2804,30 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           >
             {/* Header */}
             <div className="relative flex items-center justify-center border-b border-[var(--ed-border)] px-3 py-2.5">
-              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">1 · Document</span>
+              <span className="text-[14px] font-bold tracking-wide text-[var(--ed-text)]">1 · Outline</span>
               <button onClick={() => setLeftWidth(0)} className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--ed-text-dim)] hover:bg-[var(--ed-surface-4)] hover:text-[var(--ed-text-muted)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
               </button>
             </div>
 
-            {/* ── Single scrollable column ── */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-
-              {/* ════ 1. PARAPHRASER ════ */}
-              <div className="border-b border-[var(--ed-border)] px-3 py-2.5">
-
-                {/* Header */}
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Paraphraser</p>
-                  {humanizerCredits !== null && (
-                    <span className="rounded-full bg-[var(--ed-bg-pill)] px-2 py-0.5 text-[10px] text-[var(--ed-text-faint)]">{humanizerCredits} cr</span>
-                  )}
-                </div>
-
-                {/* Input box */}
-                <textarea
-                  value={humInput}
-                  onChange={(e) => { setHumInput(e.target.value); setHumOutput(""); setHumPanelError(null); }}
-                  placeholder="Paste or type text to humanize…"
-                  rows={5}
-                  className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-status-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/40 focus:ring-1 focus:ring-[#ea4335]/20"
-                />
-
-                {/* Provider toggle */}
-                <div className="my-2 flex rounded-full glass-chip p-[3px]">
-                  {(["StealthGPT", "UndetectableAI"] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => { setHumProvider(p); setHumOutput(""); setHumPanelError(null); }}
-                      className={`flex-1 rounded-full py-1 text-[11px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
-                    >
-                      {p === "StealthGPT" ? "StealthGPT" : "Undetectable"}
-                    </button>
+            {/* ── Single scrollable column: wizard-generated outline ── */}
+            <div data-theme="dark" className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0e1016]">
+              {outlines.length > 0 ? (
+                <div className="flex flex-col gap-2.5 p-3">
+                  <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-white/35">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
+                  {outlines.map((o, i) => (
+                    <OutlineCard key={i} o={o} index={i} onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
                   ))}
                 </div>
-
-                {/* Provider-specific params */}
-                {humProvider === "StealthGPT" ? (
-                  <div className="flex items-center justify-between rounded-xl bg-[var(--ed-bg-pill)] px-3 py-2">
-                    <span className="text-[11.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
-                    <button
-                      type="button"
-                      onClick={() => setStealthRephrase((v) => !v)}
-                      className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${stealthRephrase ? "bg-[#ea4335]" : "bg-[var(--ed-border)]"}`}
-                    >
-                      <span className={`absolute top-[2px] h-4 w-4 rounded-full bg-white shadow transition-all ${stealthRephrase ? "left-[18px]" : "left-[2px]"}`} />
-                    </button>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 py-10 text-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.04]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    <div>
-                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Readability</p>
-                      <div className="flex flex-wrap gap-1">
-                        {["High School", "University", "Doctorate", "Journalist", "Marketing"].map((v) => (
-                          <button key={v} type="button" onClick={() => setUaiReadability(v)}
-                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiReadability === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
-                          >{v}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Purpose</p>
-                      <div className="flex flex-wrap gap-1">
-                        {["Essay", "Article", "Marketing", "Story", "Cover Letter", "Report"].map((v) => (
-                          <button key={v} type="button" onClick={() => setUaiPurpose(v)}
-                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiPurpose === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
-                          >{v}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Strength</p>
-                      <div className="flex flex-wrap gap-1">
-                        {["More Human", "Balanced", "More Readable"].map((v) => (
-                          <button key={v} type="button" onClick={() => setUaiStrength(v)}
-                            className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiStrength === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
-                          >{v}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Humanize button */}
-                <button
-                  type="button"
-                  onClick={() => void handlePanelHumanize()}
-                  disabled={humPanelLoading || !humInput.trim()}
-                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {humPanelLoading ? (
-                    <>
-                      <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
-                      Humanizing…
-                    </>
-                  ) : (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                      Humanize
-                    </>
-                  )}
-                </button>
-
-                {/* Error */}
-                {humPanelError && (
-                  <p className="mt-2 rounded-xl bg-[#2a1010] px-3 py-2 text-[11.5px] text-[#f87171]">{humPanelError}</p>
-                )}
-
-                {/* Output box */}
-                {humOutput && (
-                  <div className="mt-2.5">
-                    <div className="mb-1 flex items-center justify-between">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Result</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(humOutput);
-                          setHumCopied(true);
-                          setTimeout(() => setHumCopied(false), 2000);
-                        }}
-                        className="flex items-center gap-1 rounded-full bg-[var(--ed-bg-pill)] px-2 py-[3px] text-[10.5px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)] active:scale-95"
-                      >
-                        {humCopied ? (
-                          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg><span className="text-[#4ade80]">Copied</span></>
-                        ) : (
-                          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</>
-                        )}
-                      </button>
-                    </div>
-                    <textarea
-                      readOnly
-                      value={humOutput}
-                      rows={6}
-                      className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[#0a0d11] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-text-muted)] outline-none"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ════ Octo the Bot — read-only mini preview (fills remaining height) ════ */}
-              <div className="flex min-h-[220px] flex-1 flex-col pt-2 pb-2">
-                <OctoMiniPreview
-                  chatStarted={chatStarted}
-                  chatMessages={chatMessages}
-                  chatTone={chatTone}
-                  onOpen={openOctoExpanded}
-                  onCriticize={criticizeNow}
-                />
-              </div>
+                  <p className="text-[12.5px] font-medium text-white/70">No outline yet</p>
+                  <p className="text-[11px] leading-relaxed text-white/35">Generate an outline in the setup wizard and it&apos;ll show up here as you write.</p>
+                </div>
+              )}
 
             </div> {/* end single scroll column */}
           </div>
@@ -3162,22 +3073,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       )}
 
                       {outlines.length > 0 && (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-2.5">
                           {outlines.map((o, i) => (
-                            <div key={i} className="group flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3" style={{ animation: `chat-msg-in 0.3s ease-out ${i * 0.04}s both` }}>
-                              <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex items-center gap-2">
-                                  <span className="rounded-full bg-[#ea4335]/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[#ea4335]">{o.type}</span>
-                                  <span className="text-[13px] font-semibold text-white/85">{o.title}</span>
-                                </div>
-                                <p className="text-[12px] leading-relaxed text-white/55">{o.description}</p>
-                              </div>
-                              <button type="button" title="Remove"
-                                onClick={() => setOutlines((prev) => prev.filter((_, j) => j !== i))}
-                                className="flex-shrink-0 rounded-full p-1 text-white/25 opacity-0 transition hover:text-white/70 group-hover:opacity-100">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                              </button>
-                            </div>
+                            <OutlineCard key={i} o={o} index={i} onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
                           ))}
                         </div>
                       )}
@@ -3283,21 +3181,158 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </div>
 
             {/* ── Tab bar ── */}
-            <div className="flex flex-shrink-0 border-b border-[var(--ed-border)]">
-              {(["citations", "source", "dictionary", "thesaurus"] as const).map((tab) => (
+            <div className="flex flex-shrink-0 overflow-x-auto border-b border-[var(--ed-border)]">
+              {(["citations", "source", "paraphraser", "dictionary", "thesaurus"] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setRightTab(tab)}
-                  className={`relative flex-1 py-2.5 text-[10.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[var(--ed-text)]" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
+                  className={`relative flex-shrink-0 px-3 py-2.5 text-[10.5px] font-semibold tracking-wide transition-colors active:scale-[0.97] ${rightTab === tab ? "text-[var(--ed-text)]" : "text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                 >
-                  {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : tab === "thesaurus" ? "Thesaurus" : "Source"}
+                  {tab === "citations" ? "Citations" : tab === "dictionary" ? "Dictionary" : tab === "thesaurus" ? "Thesaurus" : tab === "paraphraser" ? "Paraphraser" : "Source"}
                   {rightTab === tab && (
                     <span className="absolute bottom-0 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full bg-[#ea4335]" style={{ animation: "dict-in 0.18s ease-out both" }} />
                   )}
                 </button>
               ))}
             </div>
+
+            {/* ══════════════ PARAPHRASER TAB ══════════════ */}
+            {rightTab === "paraphraser" && (
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+              {/* Header */}
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Paraphraser</p>
+                {humanizerCredits !== null && (
+                  <span className="rounded-full bg-[var(--ed-bg-pill)] px-2 py-0.5 text-[10px] text-[var(--ed-text-faint)]">{humanizerCredits} cr</span>
+                )}
+              </div>
+
+              {/* Input box */}
+              <textarea
+                value={humInput}
+                onChange={(e) => { setHumInput(e.target.value); setHumOutput(""); setHumPanelError(null); }}
+                placeholder="Paste or type text to humanize…"
+                rows={5}
+                className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-status-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/40 focus:ring-1 focus:ring-[#ea4335]/20"
+              />
+
+              {/* Provider toggle */}
+              <div className="my-2 flex rounded-full glass-chip p-[3px]">
+                {(["StealthGPT", "UndetectableAI"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => { setHumProvider(p); setHumOutput(""); setHumPanelError(null); }}
+                    className={`flex-1 rounded-full py-1 text-[11px] font-semibold transition ${humProvider === p ? "bg-[#ea4335] text-white" : "text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                  >
+                    {p === "StealthGPT" ? "StealthGPT" : "Undetectable"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Provider-specific params */}
+              {humProvider === "StealthGPT" ? (
+                <div className="flex items-center justify-between rounded-xl bg-[var(--ed-bg-pill)] px-3 py-2">
+                  <span className="text-[11.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
+                  <button
+                    type="button"
+                    onClick={() => setStealthRephrase((v) => !v)}
+                    className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${stealthRephrase ? "bg-[#ea4335]" : "bg-[var(--ed-border)]"}`}
+                  >
+                    <span className={`absolute top-[2px] h-4 w-4 rounded-full bg-white shadow transition-all ${stealthRephrase ? "left-[18px]" : "left-[2px]"}`} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Readability</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["High School", "University", "Doctorate", "Journalist", "Marketing"].map((v) => (
+                        <button key={v} type="button" onClick={() => setUaiReadability(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiReadability === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Purpose</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["Essay", "Article", "Marketing", "Story", "Cover Letter", "Report"].map((v) => (
+                        <button key={v} type="button" onClick={() => setUaiPurpose(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiPurpose === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Strength</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["More Human", "Balanced", "More Readable"].map((v) => (
+                        <button key={v} type="button" onClick={() => setUaiStrength(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${uaiStrength === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Humanize button */}
+              <button
+                type="button"
+                onClick={() => void handlePanelHumanize()}
+                disabled={humPanelLoading || !humInput.trim()}
+                className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#ea4335] py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {humPanelLoading ? (
+                  <>
+                    <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                    Humanizing…
+                  </>
+                ) : (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    Humanize
+                  </>
+                )}
+              </button>
+
+              {humPanelError && (
+                <p className="mt-2 rounded-xl bg-[#2a1010] px-3 py-2 text-[11.5px] text-[#f87171]">{humPanelError}</p>
+              )}
+
+              {/* Output box */}
+              {humOutput && (
+                <div className="mt-2.5">
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ed-text-dim)]">Result</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(humOutput);
+                        setHumCopied(true);
+                        setTimeout(() => setHumCopied(false), 2000);
+                      }}
+                      className="flex items-center gap-1 rounded-full bg-[var(--ed-bg-pill)] px-2 py-[3px] text-[10.5px] font-medium text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)] active:scale-95"
+                    >
+                      {humCopied ? (
+                        <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg><span className="text-[#4ade80]">Copied</span></>
+                      ) : (
+                        <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</>
+                      )}
+                    </button>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={humOutput}
+                    rows={6}
+                    className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[#0a0d11] px-3 py-2 text-[12px] leading-relaxed text-[var(--ed-text-muted)] outline-none"
+                  />
+                </div>
+              )}
+            </div>
+            )}
 
             {/* ══════════════ CITATIONS TAB ══════════════ */}
             {rightTab === "citations" && (

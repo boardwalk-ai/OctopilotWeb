@@ -4,8 +4,23 @@ import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-function getSystemPrompt(mode: string, requestedType?: string, customTitle?: string, count?: number): string {
-    const basePrompt = `You are Lily, an academic outline generation agent for OctoPilot AI.
+function getSystemPrompt(mode: string, requestedType?: string, customTitle?: string, count?: number, bullets?: boolean): string {
+    const basePrompt = bullets
+      ? `You are Lily, an academic outline generation agent for OctoPilot AI.
+You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
+
+Each outline item must have:
+- "type": exactly one of "Introduction", "Body Paragraph", or "Conclusion"
+- "title": a specific, descriptive title for this section
+- "bullets": an array of 3 to 5 short, concrete bullet points (each a concise phrase, not a full sentence) listing exactly what this paragraph should cover
+
+Respond in exactly this JSON format:
+{
+  "outlines": [
+    { "type": "...", "title": "...", "bullets": ["...", "...", "..."] }
+  ]
+}`
+      : `You are Lily, an academic outline generation agent for OctoPilot AI.
 You must respond with ONLY valid JSON — no markdown, no explanation, no extra text.
 
 Each outline item must have:
@@ -61,10 +76,10 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle, count } = body;
+        const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle, count, bullets } = body;
         const { apiKey, model } = await getOpenRouterConfig("secondary");
 
-        const systemPrompt = getSystemPrompt(mode, requestedType, customTitle, count);
+        const systemPrompt = getSystemPrompt(mode, requestedType, customTitle, count, bullets);
 
         const userMessage = `
 Essay Topic: ${essayTopic || "Not specified"}
@@ -117,10 +132,13 @@ ${analysis || "No analysis available"}
         const parsed = JSON.parse(content);
 
         return NextResponse.json({
-            outlines: (parsed.outlines || []).map((o: { type: string; title: string; description: string }) => ({
+            outlines: (parsed.outlines || []).map((o: { type: string; title: string; description?: string; bullets?: unknown }) => ({
                 type: o.type || "Body Paragraph",
                 title: o.title || "",
                 description: o.description || "",
+                bullets: Array.isArray(o.bullets)
+                    ? (o.bullets as unknown[]).filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+                    : [],
             })),
         });
     } catch (error) {
