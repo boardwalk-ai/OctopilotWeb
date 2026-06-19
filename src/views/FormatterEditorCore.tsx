@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { ExportDocumentSnapshot, Organizer, OrganizerState } from "@/services/OrganizerService";
 import { FormatterService } from "@/services/FormatterService";
 import { FormatterPage } from "@/services/FormatterTypes";
@@ -110,11 +111,33 @@ const ToolbarDropdown = ({
     widthClass: string;
 }) => {
     const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const [coords, setCoords] = useState<{ left: number; top: number; width: number } | null>(null);
+    // Portal target = nearest themed ancestor, so var(--ed-*) tokens still resolve.
+    const portalTarget = open ? (triggerRef.current?.closest("[data-theme]") as HTMLElement | null) ?? document.body : null;
     const active = options.find(o => o.value === value);
+
+    // Position the menu in a fixed-position portal so it escapes the toolbar's
+    // overflow clipping and any stacking context formed by the document canvas.
+    useLayoutEffect(() => {
+        if (!open) return;
+        const place = () => {
+            const r = triggerRef.current?.getBoundingClientRect();
+            if (r) setCoords({ left: r.left, top: r.bottom + 4, width: r.width });
+        };
+        place();
+        window.addEventListener("scroll", place, true);
+        window.addEventListener("resize", place);
+        return () => {
+            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("resize", place);
+        };
+    }, [open]);
 
     return (
         <div className={`relative ${widthClass}`}>
             <button
+                ref={triggerRef}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setOpen(prev => !prev)}
@@ -125,10 +148,13 @@ const ToolbarDropdown = ({
                     <polyline points="6 9 12 15 18 9" />
                 </svg>
             </button>
-            {open && (
+            {open && coords && portalTarget && createPortal(
                 <>
-                    <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-                    <div className="absolute left-0 top-full z-30 mt-1 max-h-[220px] w-full overflow-y-auto rounded-[10px] border border-[var(--ed-border-strong)] bg-[var(--ed-bg-surface)] p-1 shadow-[0_12px_26px_rgba(0,0,0,0.4)]">
+                    <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+                    <div
+                        className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[10px] border border-[var(--ed-border-strong)] bg-[var(--ed-bg-surface)] p-1 shadow-[0_12px_26px_rgba(0,0,0,0.4)]"
+                        style={{ left: coords.left, top: coords.top, width: coords.width }}
+                    >
                         {options.map((opt) => (
                             <button
                                 key={String(opt.value)}
@@ -146,7 +172,8 @@ const ToolbarDropdown = ({
                             </button>
                         ))}
                     </div>
-                </>
+                </>,
+                portalTarget
             )}
         </div>
     );
@@ -1980,6 +2007,20 @@ export default function FormatterEditorCore({
             }}
             onMouseLeave={() => setGrammarTip(null)}
         >
+            {/* Browser-created blocks (Enter / formatBlock / paste) lack the
+                formatter's inline margin:0, so on double-spaced pages they get
+                the UA default 1em margins and open a large gap. Neutralize only
+                those — paragraphs carrying an inline margin keep their spacing. */}
+            <style>{`
+                .oct-doc-page p:not([style*="margin"]),
+                .oct-doc-page div:not([style*="margin"]),
+                .oct-doc-page h1:not([style*="margin"]),
+                .oct-doc-page h2:not([style*="margin"]),
+                .oct-doc-page h3:not([style*="margin"]),
+                .oct-doc-page h4:not([style*="margin"]),
+                .oct-doc-page h5:not([style*="margin"]),
+                .oct-doc-page h6:not([style*="margin"]) { margin: 0; }
+            `}</style>
             <div className="flex h-[48px] items-center gap-2 bg-[var(--ed-bg-bar)] px-4" style={insetStyle}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full" title="Document">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#ea4335" /><path d="M7 8h10M7 12h7M7 16h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -2310,7 +2351,7 @@ export default function FormatterEditorCore({
                                                 setActivePageId(page.id);
                                                 saveSelection();
                                             }}
-                                            className="min-h-0 w-full flex-1 overflow-hidden outline-none"
+                                            className="oct-doc-page min-h-0 w-full flex-1 overflow-hidden outline-none"
                                             style={{
                                                 fontFamily,
                                                 fontSize: `${baseFontSizePt * (zoom / 100)}pt`,
