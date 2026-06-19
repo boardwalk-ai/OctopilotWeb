@@ -58,6 +58,8 @@ const TbIcon = ({ children, active, onClick, title, disabled }: { children: Reac
 
 const TbSep = () => <div className="mx-1 h-5 w-px bg-[#3a3f47]" />;
 
+const FONT_OPTIONS = ["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"];
+
 type DropdownOption = { label: string; value: string | number };
 
 const ToolbarDropdown = ({
@@ -272,7 +274,10 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
 
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
     const [textStyle, setTextStyle] = useState("p");
-    const [fontFamily, setFontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    const [fontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    // What the font dropdown shows — tracks the font at the caret, not a global
+    // document font. Picking a font applies only to the selection.
+    const [displayFont, setDisplayFont] = useState(formattedDoc.profile.defaultFont || "Arial");
     const [lineHeight] = useState(formattedDoc.profile.lineHeight || 1.5);
     const [zoom, setZoom] = useState(100);
     const [wordCount, setWordCount] = useState(0);
@@ -365,6 +370,10 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
             setIsBold(document.queryCommandState("bold"));
             setIsItalic(document.queryCommandState("italic"));
             setIsUnderline(document.queryCommandState("underline"));
+            const raw = document.queryCommandValue("fontName") || "";
+            const norm = raw.replace(/['"]/g, "").split(",")[0].trim().toLowerCase();
+            const match = FONT_OPTIONS.find((f) => f.toLowerCase() === norm);
+            if (match) setDisplayFont(match);
         } catch {
             setIsBold(false);
             setIsItalic(false);
@@ -1538,12 +1547,12 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                                 <ToolbarDropdown
-                                    value={fontFamily}
+                                    value={displayFont}
                                     widthClass={mobileStyles.editorMobileFontSelect}
-                                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                                    options={FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                                     onSelect={(value) => {
                                         const font = String(value);
-                                        setFontFamily(font);
+                                        setDisplayFont(font);
                                         execCommand("fontName", font);
                                     }}
                                 />
@@ -1695,12 +1704,12 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                 <TbSep />
 
                 <ToolbarDropdown
-                    value={fontFamily}
+                    value={displayFont}
                     widthClass="w-[130px]"
-                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                    options={FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                     onSelect={(value) => {
                         const font = String(value);
-                        setFontFamily(font);
+                        setDisplayFont(font);
                         execCommand("fontName", font);
                     }}
                 />
