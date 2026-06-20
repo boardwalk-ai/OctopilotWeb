@@ -63,13 +63,6 @@ interface PageFormatMeta {
     lineHeight?: number;
 }
 
-const TEXT_STYLE_PRESETS = {
-    p: { label: "Normal text", block: "p", size: 12, bold: false },
-    h1: { label: "Heading 1", block: "h1", size: 24, bold: true },
-    h2: { label: "Heading 2", block: "h2", size: 20, bold: true },
-    h3: { label: "Heading 3", block: "h3", size: 16, bold: true },
-    h4: { label: "Heading 4", block: "h4", size: 14, bold: true },
-} as const;
 
 /* ─── Toolbar Icon Component ─── */
 const TbIcon = ({ children, active, onClick, title, disabled }: { children: React.ReactNode; active?: boolean; onClick?: () => void; title?: string; disabled?: boolean }) => (
@@ -179,7 +172,8 @@ const ToolbarDropdown = ({
     );
 };
 
-const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
+
+const CORE_FONT_OPTIONS = ["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"];
 
 /* ─── Grammar check helpers ──────────────────────────────────────────────── */
 type GMatch = {
@@ -374,6 +368,54 @@ function getReferenceHeading(root: HTMLElement | null): HTMLElement | null {
     return root?.querySelector("[data-reference-heading='1']") ?? null;
 }
 
+/* ── Single-editor selection helpers ────────────────────────────────────────
+ * Selection save/restore by absolute text-character offset within the editor —
+ * stable across the margin changes pagination performs, and used to keep a
+ * toolbar command (font etc.) acting on the right range. */
+
+// Map an absolute text-char offset back to a DOM (node, offset) position.
+function posFromCharOffset(root: HTMLElement, offset: number): { node: Node; offset: number } {
+    let remaining = offset;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n = walker.nextNode() as Text | null;
+    while (n) {
+        const len = n.nodeValue?.length ?? 0;
+        if (remaining <= len) return { node: n, offset: remaining };
+        remaining -= len;
+        n = walker.nextNode() as Text | null;
+    }
+    return { node: root, offset: root.childNodes.length };
+}
+
+// Selection as absolute char offsets {start,end} — stable across the DOM
+// splitting/merging that pagination performs (node refs are not).
+function getSelCharRange(editor: HTMLElement): { start: number; end: number } | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const r = sel.getRangeAt(0);
+    if (!editor.contains(r.startContainer) || !editor.contains(r.endContainer)) return null;
+    const a = document.createRange();
+    a.selectNodeContents(editor);
+    a.setEnd(r.startContainer, r.startOffset);
+    const start = a.toString().length;
+    const b = document.createRange();
+    b.selectNodeContents(editor);
+    b.setEnd(r.endContainer, r.endOffset);
+    const end = b.toString().length;
+    return { start, end };
+}
+
+function setSelCharRange(editor: HTMLElement, range: { start: number; end: number } | null): void {
+    if (!range) return;
+    const s = posFromCharOffset(editor, range.start);
+    const e = posFromCharOffset(editor, range.end);
+    const r = document.createRange();
+    r.setStart(s.node, s.offset);
+    r.setEnd(e.node, e.offset);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+}
 
 export default function FormatterEditorCore({
     onBack, onFinish, content,
@@ -520,9 +562,29 @@ export default function FormatterEditorCore({
         return acc;
     }, {});
 
+    // ── Single-editor prototype (branch: dococt-single-editor) ──────────────────
+    // One contentEditable holds every page's blocks; page rectangles are drawn as
+    // overlays behind it and content is pushed to page tops by spacer margins.
+    // This gives native Ctrl+A / drag-select / backspace-merge / font-to-selection
+    // that the per-page-contentEditable model can't. Old per-page render stays as
+    // a fallback behind this flag.
+    const USE_SINGLE_EDITOR = true;
+    // Combined initial HTML: concatenate every page's blocks, marking the first
+    // block of each subsequent formatter page as a forced page start so the
+    // semantic breaks (title / abstract / body / references) are preserved.
+    const combinedInitialHtml = initialPageHtmls
+        .map((html, i) =>
+            i === 0
+                ? html
+                : `<div data-page-start="1" contenteditable="false" style="height:0;margin:0;padding:0;user-select:none"></div>${html}`,
+        )
+        .join("");
+
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
-    const [textStyle, setTextStyle] = useState("p");
-    const [fontFamily, setFontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    const [fontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    // Font dropdown reflects the caret's font; picking one applies to the
+    // selection only (not a global document restyle).
+    const [displayFont, setDisplayFont] = useState(formattedDoc.profile.defaultFont || "Arial");
     const [baseFontSizePt] = useState(formattedDoc.profile.defaultFontSize ?? 12);
     const [lineHeight] = useState(formattedDoc.profile.lineHeight || 1.5);
     const [zoom, setZoom] = useState(100);
@@ -580,6 +642,18 @@ export default function FormatterEditorCore({
     const editorRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const pageShellRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const headerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+    // Single-editor prototype refs/state
+    const singleEditorRef = useRef<HTMLDivElement | null>(null);
+    // Selection stored as char offsets so it survives pagination's DOM edits.
+    const singleSelRef = useRef<{ start: number; end: number } | null>(null);
+    const [singlePageCount, setSinglePageCount] = useState(initialPageList.length || 1);
+    const [firstPageCentered] = useState(Boolean(structuredPages[0]?.centerVertically));
+    // Grammar is rendered as an OVERLAY (underline marks positioned over the text),
+    // never inside the editable DOM, so it stays fully independent of undo/redo.
+    const singleWrapRef = useRef<HTMLDivElement | null>(null);
+    const [grammarMatches, setGrammarMatches] = useState<GMatch[]>([]);
+    const [grammarRects, setGrammarRects] = useState<{ left: number; top: number; width: number; msg: string; fix: string }[]>([]);
     const pageContentRef = useRef<Record<number, string>>(initialPageContentMap);
 
     // Expose bibliography-append function to parent via ref
@@ -665,6 +739,13 @@ export default function FormatterEditorCore({
     }, [getDefaultPageNumber, pageNumberOverrides]);
 
     const updateStats = useCallback(() => {
+        if (USE_SINGLE_EDITOR) {
+            const allText = singleEditorRef.current?.innerText || "";
+            const words = allText.split(/\s+/).filter(w => w.length > 0).length;
+            setWordCount(words);
+            setCharCount(allText.length);
+            return;
+        }
         const parser = document.createElement("div");
         const allText = pages.map((p) => {
             const editor = editorRefs.current[p.id];
@@ -684,6 +765,10 @@ export default function FormatterEditorCore({
             setIsBold(document.queryCommandState("bold"));
             setIsItalic(document.queryCommandState("italic"));
             setIsUnderline(document.queryCommandState("underline"));
+            const raw = document.queryCommandValue("fontName") || "";
+            const norm = raw.replace(/['"]/g, "").split(",")[0].trim().toLowerCase();
+            const match = CORE_FONT_OPTIONS.find((f) => f.toLowerCase() === norm);
+            if (match) setDisplayFont(match);
         } catch {
             setIsBold(false);
             setIsItalic(false);
@@ -697,9 +782,16 @@ export default function FormatterEditorCore({
         const range = sel.getRangeAt(0);
         if (!pageEditableRef.current.contains(range.commonAncestorContainer)) return;
         selectionRangeRef.current = range.cloneRange();
+        if (USE_SINGLE_EDITOR && singleEditorRef.current) {
+            singleSelRef.current = getSelCharRange(singleEditorRef.current);
+        }
     }, []);
 
     const restoreSelection = useCallback(() => {
+        if (USE_SINGLE_EDITOR && singleEditorRef.current) {
+            setSelCharRange(singleEditorRef.current, singleSelRef.current);
+            return;
+        }
         const sel = window.getSelection();
         const range = selectionRangeRef.current;
         if (!sel || !range) return;
@@ -1197,6 +1289,25 @@ export default function FormatterEditorCore({
         // command runs against nothing and the toolbar appears dead.
         const savedRange = selectionRangeRef.current?.cloneRange() ?? null;
 
+        if (USE_SINGLE_EDITOR) {
+            const editor = singleEditorRef.current;
+            if (!editor) return;
+            editor.focus({ preventScroll: true });
+            // Undo/redo operate on the browser's own history and must NOT have a
+            // selection forced on them first. Everything else acts on the saved
+            // selection (restored by char offset so it survives pagination).
+            if (cmd !== "undo" && cmd !== "redo") {
+                setSelCharRange(editor, singleSelRef.current);
+            }
+            document.execCommand(cmd, false, value);
+            // execCommand mutates the DOM and fires `input`, so handleSingleInput
+            // re-paginates automatically — no explicit reflow call needed here.
+            saveSelection();
+            queryFormattingState();
+            updateStats();
+            return;
+        }
+
         const targetPageId = savedRange
             ? Number(
                 Object.entries(editorRefs.current).find(([, el]) =>
@@ -1224,63 +1335,6 @@ export default function FormatterEditorCore({
         queryFormattingState();
         updateStats();
     }, [activePageId, queryFormattingState, saveSelection, updateStats]);
-
-    const applyFontSizeToSelection = useCallback((size: number) => {
-        const safe = Math.max(1, Math.min(254, Math.round(size)));
-        const root = editorRefs.current[activePageId];
-        if (!root) return;
-        const legacySize = (LEGACY_FONT_SIZE_PT.reduce((bestIdx, pt, idx) => {
-            const best = LEGACY_FONT_SIZE_PT[bestIdx];
-            return Math.abs(pt - safe) < Math.abs(best - safe) ? idx : bestIdx;
-        }, 0) + 1);
-
-        const preservedRange = selectionRangeRef.current?.cloneRange() ?? null;
-        root.focus({ preventScroll: true });
-        if (preservedRange) selectionRangeRef.current = preservedRange;
-        restoreSelection();
-
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-        const activeRange = sel.getRangeAt(0);
-        if (!root.contains(activeRange.commonAncestorContainer)) return;
-
-        document.execCommand("styleWithCSS", false, "false");
-        document.execCommand("fontSize", false, String(legacySize));
-
-        const legacyTags = Array.from(root.querySelectorAll(`font[size="${legacySize}"]`));
-        for (const tag of legacyTags) {
-            const span = document.createElement("span");
-            span.style.fontSize = `${safe}pt`;
-            while (tag.firstChild) span.appendChild(tag.firstChild);
-            tag.replaceWith(span);
-        }
-
-        const cssSized = Array.from(root.querySelectorAll("span[style*='font-size']"));
-        for (const span of cssSized) {
-            const style = span.getAttribute("style") || "";
-            if (/xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large/i.test(style)) {
-                (span as HTMLElement).style.fontSize = `${safe}pt`;
-            }
-        }
-
-        cleanupEditorArtifacts(root);
-
-        const html = editorRefs.current[activePageId]?.innerHTML || "<br/>";
-        pageContentRef.current[activePageId] = html;
-        updateStats();
-        saveSelection();
-        queryFormattingState();
-    }, [activePageId, cleanupEditorArtifacts, queryFormattingState, restoreSelection, saveSelection, updateStats]);
-
-    const applyTextPreset = useCallback((presetKey: keyof typeof TEXT_STYLE_PRESETS) => {
-        const preset = TEXT_STYLE_PRESETS[presetKey];
-        execCommand("formatBlock", preset.block);
-        applyFontSizeToSelection(preset.size);
-        const boldNow = document.queryCommandState("bold");
-        if (preset.bold && !boldNow) execCommand("bold");
-        if (!preset.bold && boldNow) execCommand("bold");
-        setTextStyle(presetKey);
-    }, [applyFontSizeToSelection, execCommand]);
 
     const activateHeaderEditing = useCallback((pageId: number) => {
         setIsHeaderEditing(true);
@@ -1418,35 +1472,227 @@ export default function FormatterEditorCore({
         }
     }, [handlePageInput, mergePageIntoPrevious]);
 
+    // ── Single-editor pagination ────────────────────────────────────────────────
+    // Walk the top-level blocks; whenever a block would cross past the current
+    // page's content area (or is a forced page start), push it down to the next
+    // page's content top with a spacer margin. All measurements are in rendered
+    // (zoom-scaled) px since offsetTop/offsetHeight are already scaled.
+    const repaginateSingle = useCallback(() => {
+        const editor = singleEditorRef.current;
+        if (!editor) return;
+        const scale = zoom / 100;
+        const pad = pagePadding * scale;
+        const gap = 24 * scale;
+        const pageH = pageHeight * scale;
+        const contentH = pageH - 2 * pad;
+        const gutter = gap + 2 * pad; // vertical jump from one page's content to the next
+
+        // IMPORTANT: pagination is margin-only — it never adds/removes/splits nodes.
+        // Structural DOM surgery during editing corrupts the browser's native undo
+        // stack and execCommand toggle state (bold/italic). We only set marginTop on
+        // existing blocks to push whole blocks onto the next page, which leaves the
+        // editable content (and the caret) untouched. A block taller than a page
+        // simply overflows slightly; perfect page-fill would need a custom undo
+        // stack, which is out of scope for the prototype.
+        const blocks = Array.from(editor.children) as HTMLElement[];
+        for (const b of blocks) b.style.marginTop = "0px";
+
+        const pageContentTop = (page: number) => pad + page * (contentH + gutter);
+        const pageContentBottom = (page: number) => pageContentTop(page) + contentH;
+
+        // Vertical centering for title pages that ask for it (e.g. Harvard).
+        if (firstPageCentered && blocks.length) {
+            const first = blocks[0];
+            let n = first;
+            for (let i = 1; i < blocks.length && blocks[i].dataset.pageStart !== "1"; i++) n = blocks[i];
+            const used = (n.offsetTop + n.offsetHeight) - first.offsetTop;
+            const extra = (contentH - used) / 2;
+            if (extra > 0) first.style.marginTop = `${extra}px`;
+        }
+
+        let p = 0;
+        for (let i = 0; i < blocks.length; i++) {
+            const node = blocks[i];
+            const top = node.offsetTop;
+            const h = node.offsetHeight;
+            const forced = node.dataset.pageStart === "1" && i !== 0;
+            if (forced || top + h > pageContentBottom(p) + 1) {
+                p += 1;
+                const delta = pageContentTop(p) - top;
+                if (delta > 0) node.style.marginTop = `${delta}px`;
+            }
+        }
+
+        setSinglePageCount(p + 1);
+    }, [zoom, pageHeight, pagePadding, firstPageCentered]);
+
+    const repaginateRafRef = useRef<number | null>(null);
+    const scheduleRepaginate = useCallback(() => {
+        if (repaginateRafRef.current) cancelAnimationFrame(repaginateRafRef.current);
+        repaginateRafRef.current = requestAnimationFrame(() => repaginateSingle());
+    }, [repaginateSingle]);
+
+    const handleSingleInput = useCallback(() => {
+        // NOTE: do NOT mutate the DOM synchronously here (e.g. cleanupEditorArtifacts'
+        // normalize()) — doing so inside the input event corrupts the browser's
+        // native undo stack, breaking Ctrl+Z and the undo/redo buttons. Pagination
+        // runs in rAF and only touches margins; cleanup happens at export time.
+        scheduleRepaginate();
+        saveSelection();
+        // Debounced grammar pass (refs are stable; declared later in the body).
+        if (grammarOn) {
+            if (grammarTimerRef.current) clearTimeout(grammarTimerRef.current);
+            grammarTimerRef.current = setTimeout(() => void runGrammarCheckRef.current(0), 2000);
+        }
+    }, [scheduleRepaginate, saveSelection, grammarOn]);
+
+    // Apply a font family to the current selection by wrapping it directly,
+    // instead of execCommand("fontName") which proved unreliable in this single
+    // editor. Wraps each text node that intersects the selection in a
+    // span[font-family]; works across paragraph boundaries.
+    const applyFontFamilyToSingleSelection = useCallback((font: string) => {
+        const editor = singleEditorRef.current;
+        if (!editor) return;
+        editor.focus({ preventScroll: true });
+        setSelCharRange(editor, singleSelRef.current);
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) { setDisplayFont(font); return; }
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) { setDisplayFont(font); return; }
+
+        // Snapshot the text nodes that fall inside the selection.
+        const startNode = range.startContainer;
+        const startOff = range.startOffset;
+        const endNode = range.endContainer;
+        const endOff = range.endOffset;
+        const nodes: Text[] = [];
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+            acceptNode: (n) =>
+                range.intersectsNode(n) && (n.textContent?.length ?? 0) > 0
+                    ? NodeFilter.FILTER_ACCEPT
+                    : NodeFilter.FILTER_REJECT,
+        });
+        let w = walker.nextNode() as Text | null;
+        while (w) { nodes.push(w); w = walker.nextNode() as Text | null; }
+
+        for (let node of nodes) {
+            // Trim the end first (splitting end doesn't shift the start node).
+            if (node === endNode && endOff < (node.nodeValue?.length ?? 0)) {
+                node.splitText(endOff);
+            }
+            if (node === startNode && startOff > 0) {
+                node = node.splitText(startOff);
+            }
+            const parent = node.parentElement;
+            // If already wrapped in a plain styling span, just set its font.
+            if (parent && parent.tagName === "SPAN" && parent.childNodes.length === 1) {
+                parent.style.fontFamily = font;
+                continue;
+            }
+            const span = document.createElement("span");
+            span.style.fontFamily = font;
+            node.parentNode?.insertBefore(span, node);
+            span.appendChild(node);
+        }
+
+        cleanupEditorArtifacts(editor);
+        setSelCharRange(editor, singleSelRef.current); // text length unchanged
+        saveSelection();
+        setDisplayFont(font);
+        queryFormattingState();
+        scheduleRepaginate();
+        updateStats();
+    }, [cleanupEditorArtifacts, queryFormattingState, saveSelection, scheduleRepaginate, updateStats]);
+
+    // Re-paginate on mount, zoom change, and after fonts settle.
+    useLayoutEffect(() => {
+        if (!USE_SINGLE_EDITOR) return;
+        scheduleRepaginate();
+    }, [scheduleRepaginate]);
+
     // ── Grammar check ──────────────────────────────────────────────────────────
+    // Compute screen positions for every grammar match and store them as overlay
+    // rects. Runs on every match update / scroll / zoom / reflow. Touches NOTHING
+    // in the editable DOM, so it can never interfere with undo/redo.
+    const recomputeGrammarRects = useCallback(() => {
+        const el = singleEditorRef.current;
+        const wrap = singleWrapRef.current;
+        if (!el || !wrap || grammarMatches.length === 0) { setGrammarRects([]); return; }
+        const { text, nodes: index } = buildTextAndIndex(el);
+        const total = text.length;
+        const wr = wrap.getBoundingClientRect();
+        const out: { left: number; top: number; width: number; msg: string; fix: string }[] = [];
+        for (const m of grammarMatches) {
+            if (m.offset < 0 || m.offset + m.length > total) continue;
+            const s1 = index.find(t => t.start <= m.offset && t.start + (t.node.textContent?.length ?? 0) > m.offset);
+            const s2 = index.find(t => t.start < m.offset + m.length && t.start + (t.node.textContent?.length ?? 0) >= m.offset + m.length);
+            if (!s1 || !s2) continue;
+            try {
+                const range = document.createRange();
+                range.setStart(s1.node, m.offset - s1.start);
+                range.setEnd(s2.node, m.offset + m.length - s2.start);
+                const fix = m.replacements.slice(0, 3).map(r => r.value).join(" / ");
+                for (const r of Array.from(range.getClientRects())) {
+                    if (r.width < 1) continue;
+                    out.push({ left: r.left - wr.left, top: r.bottom - wr.top, width: r.width, msg: m.message, fix });
+                }
+            } catch { /* skip */ }
+        }
+        setGrammarRects(out);
+    }, [grammarMatches]);
+
     const runGrammarCheck = useCallback(async (pageId: number) => {
-        const el = editorRefs.current[pageId];
+        const el = USE_SINGLE_EDITOR ? singleEditorRef.current : editorRefs.current[pageId];
         if (!el) return;
         // Build text WITH block-boundary newlines — must match offset index
         const { text } = buildTextAndIndex(el);
-        if (text.trim().length < 8) { removeGrammarSpans(el); return; }
+        if (text.trim().length < 8) {
+            if (USE_SINGLE_EDITOR) setGrammarMatches([]); else removeGrammarSpans(el);
+            return;
+        }
         setGrammarLoading(true);
         try {
             const res = await fetch("/api/grammar/check", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: text.slice(0, 5000), language: "en-US" }),
+                // Whole document (cap high so long essays are fully checked).
+                body: JSON.stringify({ text: text.slice(0, 40000), language: "en-US" }),
             });
             if (!res.ok) return;
             const data = (await res.json()) as { matches?: GMatch[] };
             // Filter out pure style suggestions — keep spelling + grammar
             const relevant = (data.matches ?? []).filter(m => m.rule.issueType !== "style");
-            applyGrammarHighlights(el, relevant);
+            if (USE_SINGLE_EDITOR) setGrammarMatches(relevant);   // overlay — no DOM mutation
+            else applyGrammarHighlights(el, relevant);
         } catch { /* network error — silently ignore */ }
         finally { setGrammarLoading(false); }
     }, []);
 
-    // Clear all grammar spans from every page
+    // Clear all grammar highlights (overlay matches, or legacy per-page spans)
     const clearAllGrammarSpans = useCallback(() => {
+        if (USE_SINGLE_EDITOR) {
+            setGrammarMatches([]);
+            return;
+        }
         for (const el of Object.values(editorRefs.current)) {
             if (el) removeGrammarSpans(el);
         }
     }, []);
+
+    // Recompute overlay positions whenever matches change, the doc reflows,
+    // the user scrolls, or the window resizes.
+    useEffect(() => { recomputeGrammarRects(); }, [recomputeGrammarRects, singlePageCount, zoom]);
+    useEffect(() => {
+        if (!USE_SINGLE_EDITOR) return;
+        const viewport = pagesViewportRef.current;
+        const onChange = () => recomputeGrammarRects();
+        viewport?.addEventListener("scroll", onChange, { passive: true });
+        window.addEventListener("resize", onChange);
+        return () => {
+            viewport?.removeEventListener("scroll", onChange);
+            window.removeEventListener("resize", onChange);
+        };
+    }, [recomputeGrammarRects]);
 
     // Keep a stable ref to runGrammarCheck for use inside handlePageInput-level events
     const runGrammarCheckRef = useRef(runGrammarCheck);
@@ -1461,6 +1707,64 @@ export default function FormatterEditorCore({
 
     const buildExportSnapshot = useCallback((): ExportDocumentSnapshot => {
         const parser = document.createElement("div");
+
+        if (USE_SINGLE_EDITOR) {
+            // Reconstruct semantic pages from the single editor by splitting at the
+            // forced page-break markers (data-page-start). Overflow page breaks are
+            // visual only (margin spacers) and are dropped — the exporter paginates
+            // long sections itself.
+            const editor = singleEditorRef.current;
+            const groups: HTMLElement[][] = [[]];
+            if (editor) {
+                for (const child of Array.from(editor.children) as HTMLElement[]) {
+                    if (child.dataset.pageStart === "1") {
+                        groups.push([]);   // marker begins a new page; the marker itself is dropped
+                        continue;
+                    }
+                    groups[groups.length - 1].push(child);
+                }
+            }
+            const singlePages = groups.map((blocks, idx) => {
+                const tmp = document.createElement("div");
+                for (const b of blocks) {
+                    const clone = b.cloneNode(true) as HTMLElement;
+                    clone.style.marginTop = "";   // strip pagination spacer
+                    tmp.appendChild(clone);
+                }
+                removeGrammarSpans(tmp);
+                removeOctoSpans(tmp);
+                const html = tmp.innerHTML || "<br/>";
+                const pageId = idx + 1;
+                const pageMeta = pageFormatMap[pageId] || {};
+                parser.innerHTML = html;
+                const plainText = parser.innerText.replace(/\n{3,}/g, "\n\n").trim();
+                return {
+                    id: pageId,
+                    title: `Page ${idx + 1}`,
+                    html,
+                    plainText,
+                    textAlign: pageMeta.textAlign,
+                    centerVertically: pageMeta.centerVertically,
+                    showPageNumber: pageMeta.showPageNumber ?? showPageNumber,
+                    lineHeight: pageMeta.lineHeight || lineHeight,
+                };
+            });
+            return {
+                title: docTitle.trim() || "Untitled document",
+                pages: singlePages,
+                profile: {
+                    defaultFont: fontFamily,
+                    lineHeight,
+                    marginInch: formattedDoc.profile.marginInch || 1,
+                    headerText: headerText.trim(),
+                    showPageNumber,
+                    pageNumberStartPage,
+                    pageNumberStartNumber,
+                },
+                generatedAt: new Date().toISOString(),
+            };
+        }
+
         const pagesSnapshot = pages.map((page, idx) => {
             const rawHtml = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
             // Strip grammar-error spans so they don't appear in exports/citations
@@ -1897,13 +2201,13 @@ export default function FormatterEditorCore({
                                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                                 <ToolbarDropdown
-                                    value={fontFamily}
+                                    value={displayFont}
                                     widthClass={mobileStyles.editorMobileFontSelect}
-                                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                                    options={CORE_FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                                     onSelect={(value) => {
                                         const font = String(value);
-                                        setFontFamily(font);
-                                        execCommand("fontName", font);
+                                        if (USE_SINGLE_EDITOR) applyFontFamilyToSingleSelection(font);
+                                        else { setDisplayFont(font); execCommand("fontName", font); }
                                     }}
                                 />
                             </div>
@@ -1996,7 +2300,9 @@ export default function FormatterEditorCore({
             className="flex h-full min-h-0 flex-col bg-[var(--ed-bg)]"
             style={{ fontFamily: "'Poppins', sans-serif" }}
             onMouseMove={(e) => {
-                if (!grammarOn) return;
+                // Single-editor mode handles grammar tooltips on the page wrapper
+                // (overlay rects); skip the legacy per-span detection here.
+                if (!grammarOn || USE_SINGLE_EDITOR) return;
                 const target = e.target as HTMLElement;
                 const span = target.closest("[data-ge]") as HTMLElement | null;
                 if (span) {
@@ -2020,6 +2326,21 @@ export default function FormatterEditorCore({
                 .oct-doc-page h4:not([style*="margin"]),
                 .oct-doc-page h5:not([style*="margin"]),
                 .oct-doc-page h6:not([style*="margin"]) { margin: 0; }
+
+                /* Flashy grammar underline — animated squiggle + glow, drawn in
+                   the overlay layer (never inside the editable content). */
+                .dococt-grammar-mark {
+                    position: absolute;
+                    height: 4px;
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='4'><path d='M0 3 Q2 0 4 3 T8 3' stroke='%23ef4444' fill='none' stroke-width='1.4'/></svg>");
+                    background-repeat: repeat-x;
+                    background-position: 0 100%;
+                    animation: dococt-grammar-pulse 1.5s ease-in-out infinite;
+                }
+                @keyframes dococt-grammar-pulse {
+                    0%, 100% { opacity: 0.78; filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
+                    50%      { opacity: 1;    filter: drop-shadow(0 0 3px rgba(239,68,68,0.85)); }
+                }
             `}</style>
             <div className="flex h-[48px] items-center gap-2 bg-[var(--ed-bg-bar)] px-4" style={insetStyle}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full" title="Document">
@@ -2093,24 +2414,13 @@ export default function FormatterEditorCore({
                 <TbSep />
 
                 <ToolbarDropdown
-                    value={textStyle}
+                    value={displayFont}
                     widthClass="w-[130px]"
-                    options={Object.entries(TEXT_STYLE_PRESETS).map(([key, preset]) => ({ label: preset.label, value: key }))}
-                    onSelect={(value) => {
-                        const val = String(value) as keyof typeof TEXT_STYLE_PRESETS;
-                        applyTextPreset(val);
-                    }}
-                />
-                <TbSep />
-
-                <ToolbarDropdown
-                    value={fontFamily}
-                    widthClass="w-[130px]"
-                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                    options={CORE_FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                     onSelect={(value) => {
                         const font = String(value);
-                        setFontFamily(font);
-                        execCommand("fontName", font);
+                        if (USE_SINGLE_EDITOR) applyFontFamilyToSingleSelection(font);
+                        else { setDisplayFont(font); execCommand("fontName", font); }
                     }}
                 />
                 <TbIcon active={isBold} onClick={() => execCommand("bold")} title="Bold (⌘B)"><span className="text-[16px] font-bold">B</span></TbIcon>
@@ -2178,7 +2488,98 @@ export default function FormatterEditorCore({
                         </div>
                     </div>
 
-                    <div ref={pageEditableRef} className="mx-auto my-6 flex flex-col gap-6">
+                    <div ref={pageEditableRef} className="mx-auto my-6">
+                      {USE_SINGLE_EDITOR ? (() => {
+                        const scale = zoom / 100;
+                        const W = pageWidth * scale;
+                        const H = pageHeight * scale;
+                        const GAP = 24 * scale;
+                        const PAD = pagePadding * scale;
+                        return (
+                            <div
+                                ref={singleWrapRef}
+                                className="relative mx-auto"
+                                style={{ width: W, height: singlePageCount * H + (singlePageCount - 1) * GAP }}
+                                onMouseMove={(e) => {
+                                    const wrap = singleWrapRef.current;
+                                    if (!wrap) return;
+                                    const wr = wrap.getBoundingClientRect();
+                                    const mx = e.clientX - wr.left;
+                                    const my = e.clientY - wr.top;
+                                    const hit = grammarRects.find(r =>
+                                        mx >= r.left && mx <= r.left + r.width && my >= r.top - 14 * scale && my <= r.top + 4 * scale);
+                                    if (hit) setGrammarTip({ x: e.clientX, y: e.clientY, msg: hit.msg, fix: hit.fix });
+                                    else if (grammarTip) setGrammarTip(null);
+                                }}
+                            >
+                                {/* Page rectangles drawn behind the single editor */}
+                                {Array.from({ length: singlePageCount }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="absolute left-0 overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)]"
+                                        style={{ top: i * (H + GAP), width: W, height: H }}
+                                    >
+                                        {showPageNumber && (
+                                            <div
+                                                className="absolute text-[#374151]"
+                                                style={{ top: PAD * 0.42, right: PAD, fontSize: 12 * scale }}
+                                            >
+                                                {i + 1}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {/* The single contentEditable, transparent, sitting on top */}
+                                <div
+                                    ref={(el) => {
+                                        singleEditorRef.current = el;
+                                        if (el && el.dataset.hydrated !== "1") {
+                                            el.innerHTML = combinedInitialHtml || "<br/>";
+                                            el.dataset.hydrated = "1";
+                                        }
+                                    }}
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onInput={handleSingleInput}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Tab") {
+                                            e.preventDefault();
+                                            document.execCommand("insertHTML", false, '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>');
+                                            handleSingleInput();
+                                        }
+                                    }}
+                                    onKeyUp={() => { queryFormattingState(); saveSelection(); }}
+                                    onMouseUp={() => { queryFormattingState(); saveSelection(); }}
+                                    onFocus={() => { setIsHeaderEditing(false); setHeaderEditingPageId(null); saveSelection(); }}
+                                    className="oct-doc-page relative outline-none"
+                                    style={{
+                                        width: W,
+                                        padding: PAD,
+                                        boxSizing: "border-box",
+                                        minHeight: H,
+                                        fontFamily,
+                                        fontSize: `${baseFontSizePt * scale}pt`,
+                                        lineHeight: String(lineHeight),
+                                        color: "#1f1f1f",
+                                        whiteSpace: "pre-wrap",
+                                        wordBreak: "break-word",
+                                    }}
+                                />
+                                {/* Grammar overlay — flashy underlines drawn OVER the text,
+                                    never inside the editable DOM (so undo stays clean). */}
+                                <div className="pointer-events-none absolute inset-0">
+                                    {grammarRects.map((r, i) => (
+                                        <div
+                                            key={i}
+                                            className="dococt-grammar-mark"
+                                            style={{ left: r.left, top: r.top - 2 * scale, width: r.width }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                      })() : (
+                        <div className="flex flex-col gap-6">
                         {pages.map((page) => {
                             const pageMeta = pageFormatMap[page.id] || {};
                             const pageNumberText = getPageNumberLabel(page.id);
@@ -2369,6 +2770,8 @@ export default function FormatterEditorCore({
                                 </div>
                             );
                         })}
+                        </div>
+                      )}
                     </div>
                 </div>
             </div>
