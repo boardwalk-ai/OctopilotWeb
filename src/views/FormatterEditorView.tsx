@@ -1204,6 +1204,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Paraphraser panel ── */
   const [humProvider, setHumProvider] = useState<"StealthGPT" | "UndetectableAI">("StealthGPT");
   const [stealthRephrase, setStealthRephrase] = useState(false);
+  const [stealthEducation, setStealthEducation] = useState("Standard");
+  const [stealthStrength, setStealthStrength] = useState("Medium");
+  const [stealthDetector, setStealthDetector] = useState("GPTZero");
   const [uaiReadability, setUaiReadability] = useState("University");
   const [uaiPurpose, setUaiPurpose] = useState("Essay");
   const [uaiStrength, setUaiStrength] = useState("More Human");
@@ -2575,7 +2578,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         const res = await fetchWithUserAuthorization("/api/humanize/stealthgpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: text, rephrase: stealthRephrase }),
+          body: JSON.stringify({
+            prompt: text,
+            rephrase: stealthRephrase,
+            educationLevel: stealthEducation,
+            strength: stealthStrength,
+            detector: stealthDetector,
+          }),
         });
         const data = (await res.json()) as { result?: string; error?: string };
         if (!res.ok || !data.result) throw new Error(data.error ?? "StealthGPT returned empty result.");
@@ -2596,7 +2605,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     } finally {
       setHumPanelLoading(false);
     }
-  }, [humInput, humProvider, stealthRephrase, uaiReadability, uaiPurpose, uaiStrength, showToast]);
+  }, [humInput, humProvider, stealthRephrase, stealthEducation, stealthStrength, stealthDetector, uaiReadability, uaiPurpose, uaiStrength, showToast]);
 
   /* ── Parse status ── */
   function renderParseStatus() {
@@ -3305,15 +3314,47 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
               {/* Provider-specific params */}
               {humProvider === "StealthGPT" ? (
-                <div className="flex items-center justify-between rounded-xl bg-[var(--ed-bg-pill)] px-3 py-2">
-                  <span className="text-[11.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
-                  <button
-                    type="button"
-                    onClick={() => setStealthRephrase((v) => !v)}
-                    className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${stealthRephrase ? "bg-[#ea4335]" : "bg-[var(--ed-border)]"}`}
-                  >
-                    <span className={`absolute top-[2px] h-4 w-4 rounded-full bg-white shadow transition-all ${stealthRephrase ? "left-[18px]" : "left-[2px]"}`} />
-                  </button>
+                <div className="flex flex-col gap-1.5">
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Education Level</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["Standard", "High School", "College", "PHD"].map((v) => (
+                        <button key={v} type="button" onClick={() => setStealthEducation(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${stealthEducation === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Strength</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["Low", "Medium", "High"].map((v) => (
+                        <button key={v} type="button" onClick={() => setStealthStrength(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${stealthStrength === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ed-text-dim)]">Detector</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["Turnitin", "GPTZero"].map((v) => (
+                        <button key={v} type="button" onClick={() => setStealthDetector(v)}
+                          className={`rounded-full px-2 py-[3px] text-[10.5px] font-medium transition ${stealthDetector === v ? "bg-[#ea4335] text-white" : "bg-[var(--ed-surface-4)] text-[var(--ed-text-faint)] hover:text-[var(--ed-text-muted)]"}`}
+                        >{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-[var(--ed-bg-pill)] px-3 py-2">
+                    <span className="text-[11.5px] text-[var(--ed-text-muted)]">Rephrase mode</span>
+                    <button
+                      type="button"
+                      onClick={() => setStealthRephrase((v) => !v)}
+                      className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${stealthRephrase ? "bg-[#ea4335]" : "bg-[var(--ed-border)]"}`}
+                    >
+                      <span className={`absolute top-[2px] h-4 w-4 rounded-full bg-white shadow transition-all ${stealthRephrase ? "left-[18px]" : "left-[2px]"}`} />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5">
