@@ -34,13 +34,6 @@ interface PageOutlineItem {
 
 type PageOutlineMap = Record<number, PageOutlineItem[]>;
 
-const TEXT_STYLE_PRESETS = {
-    p: { label: "Normal text", block: "p", size: 12, bold: false },
-    h1: { label: "Heading 1", block: "h1", size: 24, bold: true },
-    h2: { label: "Heading 2", block: "h2", size: 20, bold: true },
-    h3: { label: "Heading 3", block: "h3", size: 16, bold: true },
-    h4: { label: "Heading 4", block: "h4", size: 14, bold: true },
-} as const;
 
 /* ─── Toolbar Icon Component ─── */
 const TbIcon = ({ children, active, onClick, title, disabled }: { children: React.ReactNode; active?: boolean; onClick?: () => void; title?: string; disabled?: boolean }) => (
@@ -184,7 +177,6 @@ const ToolbarDropdown = ({
     );
 };
 
-const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
 
 function getLeadingElement(root: HTMLElement | null): HTMLElement | null {
     if (!root) return null;
@@ -331,7 +323,6 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
     const initialHeadings = initialLines.filter(l => l.trim().length < 60 && l.trim().length > 3).slice(0, 8);
 
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
-    const [textStyle, setTextStyle] = useState("p");
     const [fontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
     // What the font dropdown shows — tracks the font at the caret, not a global
     // document font. Picking a font applies only to the selection.
@@ -976,63 +967,6 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
         saveSelection();
         queryFormattingState();
     }, [activePageId, queryFormattingState, restoreSelection, saveSelection, updateStats]);
-
-    const applyFontSizeToSelection = useCallback((size: number) => {
-        const safe = Math.max(1, Math.min(254, Math.round(size)));
-        const root = editorRefs.current[activePageId];
-        if (!root) return;
-        const legacySize = (LEGACY_FONT_SIZE_PT.reduce((bestIdx, pt, idx) => {
-            const best = LEGACY_FONT_SIZE_PT[bestIdx];
-            return Math.abs(pt - safe) < Math.abs(best - safe) ? idx : bestIdx;
-        }, 0) + 1);
-
-        const preservedRange = selectionRangeRef.current?.cloneRange() ?? null;
-        root.focus({ preventScroll: true });
-        if (preservedRange) selectionRangeRef.current = preservedRange;
-        restoreSelection();
-
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-        const activeRange = sel.getRangeAt(0);
-        if (!root.contains(activeRange.commonAncestorContainer)) return;
-
-        document.execCommand("styleWithCSS", false, "false");
-        document.execCommand("fontSize", false, String(legacySize));
-
-        const legacyTags = Array.from(root.querySelectorAll(`font[size="${legacySize}"]`));
-        for (const tag of legacyTags) {
-            const span = document.createElement("span");
-            span.style.fontSize = `${safe}pt`;
-            while (tag.firstChild) span.appendChild(tag.firstChild);
-            tag.replaceWith(span);
-        }
-
-        const cssSized = Array.from(root.querySelectorAll("span[style*='font-size']"));
-        for (const span of cssSized) {
-            const style = span.getAttribute("style") || "";
-            if (/xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large/i.test(style)) {
-                (span as HTMLElement).style.fontSize = `${safe}pt`;
-            }
-        }
-
-        cleanupEditorArtifacts(root);
-
-        const html = editorRefs.current[activePageId]?.innerHTML || "<br/>";
-        pageContentRef.current[activePageId] = html;
-        updateStats();
-        saveSelection();
-        queryFormattingState();
-    }, [activePageId, cleanupEditorArtifacts, queryFormattingState, restoreSelection, saveSelection, updateStats]);
-
-    const applyTextPreset = useCallback((presetKey: keyof typeof TEXT_STYLE_PRESETS) => {
-        const preset = TEXT_STYLE_PRESETS[presetKey];
-        execCommand("formatBlock", preset.block);
-        applyFontSizeToSelection(preset.size);
-        const boldNow = document.queryCommandState("bold");
-        if (preset.bold && !boldNow) execCommand("bold");
-        if (!preset.bold && boldNow) execCommand("bold");
-        setTextStyle(presetKey);
-    }, [applyFontSizeToSelection, execCommand]);
 
     const activateHeaderEditing = useCallback((pageId: number) => {
         setIsHeaderEditing(true);
@@ -1967,17 +1901,6 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                     onSelect={(value) => setZoom(Number(value))}
                     widthClass="w-[74px]"
                     options={[50, 75, 90, 100, 110, 125, 150, 200].map((z) => ({ label: `${z}%`, value: z }))}
-                />
-                <TbSep />
-
-                <ToolbarDropdown
-                    value={textStyle}
-                    widthClass="w-[130px]"
-                    options={Object.entries(TEXT_STYLE_PRESETS).map(([key, preset]) => ({ label: preset.label, value: key }))}
-                    onSelect={(value) => {
-                        const val = String(value) as keyof typeof TEXT_STYLE_PRESETS;
-                        applyTextPreset(val);
-                    }}
                 />
                 <TbSep />
 
