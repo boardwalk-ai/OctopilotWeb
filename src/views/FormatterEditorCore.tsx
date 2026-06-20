@@ -181,6 +181,8 @@ const ToolbarDropdown = ({
 
 const LEGACY_FONT_SIZE_PT = [8, 10, 12, 14, 18, 24, 36, 48, 72];
 
+const CORE_FONT_OPTIONS = ["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"];
+
 /* ─── Grammar check helpers ──────────────────────────────────────────────── */
 type GMatch = {
     message: string;
@@ -374,6 +376,54 @@ function getReferenceHeading(root: HTMLElement | null): HTMLElement | null {
     return root?.querySelector("[data-reference-heading='1']") ?? null;
 }
 
+/* ── Single-editor selection helpers ────────────────────────────────────────
+ * Selection save/restore by absolute text-character offset within the editor —
+ * stable across the margin changes pagination performs, and used to keep a
+ * toolbar command (font etc.) acting on the right range. */
+
+// Map an absolute text-char offset back to a DOM (node, offset) position.
+function posFromCharOffset(root: HTMLElement, offset: number): { node: Node; offset: number } {
+    let remaining = offset;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n = walker.nextNode() as Text | null;
+    while (n) {
+        const len = n.nodeValue?.length ?? 0;
+        if (remaining <= len) return { node: n, offset: remaining };
+        remaining -= len;
+        n = walker.nextNode() as Text | null;
+    }
+    return { node: root, offset: root.childNodes.length };
+}
+
+// Selection as absolute char offsets {start,end} — stable across the DOM
+// splitting/merging that pagination performs (node refs are not).
+function getSelCharRange(editor: HTMLElement): { start: number; end: number } | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const r = sel.getRangeAt(0);
+    if (!editor.contains(r.startContainer) || !editor.contains(r.endContainer)) return null;
+    const a = document.createRange();
+    a.selectNodeContents(editor);
+    a.setEnd(r.startContainer, r.startOffset);
+    const start = a.toString().length;
+    const b = document.createRange();
+    b.selectNodeContents(editor);
+    b.setEnd(r.endContainer, r.endOffset);
+    const end = b.toString().length;
+    return { start, end };
+}
+
+function setSelCharRange(editor: HTMLElement, range: { start: number; end: number } | null): void {
+    if (!range) return;
+    const s = posFromCharOffset(editor, range.start);
+    const e = posFromCharOffset(editor, range.end);
+    const r = document.createRange();
+    r.setStart(s.node, s.offset);
+    r.setEnd(e.node, e.offset);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+}
 
 export default function FormatterEditorCore({
     onBack, onFinish, content,
@@ -520,9 +570,30 @@ export default function FormatterEditorCore({
         return acc;
     }, {});
 
+    // ── Single-editor prototype (branch: dococt-single-editor) ──────────────────
+    // One contentEditable holds every page's blocks; page rectangles are drawn as
+    // overlays behind it and content is pushed to page tops by spacer margins.
+    // This gives native Ctrl+A / drag-select / backspace-merge / font-to-selection
+    // that the per-page-contentEditable model can't. Old per-page render stays as
+    // a fallback behind this flag.
+    const USE_SINGLE_EDITOR = true;
+    // Combined initial HTML: concatenate every page's blocks, marking the first
+    // block of each subsequent formatter page as a forced page start so the
+    // semantic breaks (title / abstract / body / references) are preserved.
+    const combinedInitialHtml = initialPageHtmls
+        .map((html, i) =>
+            i === 0
+                ? html
+                : `<div data-page-start="1" contenteditable="false" style="height:0;margin:0;padding:0;user-select:none"></div>${html}`,
+        )
+        .join("");
+
     const [docTitle, setDocTitle] = useState(org.finalEssayTitle || "Untitled document");
     const [textStyle, setTextStyle] = useState("p");
-    const [fontFamily, setFontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    const [fontFamily] = useState(formattedDoc.profile.defaultFont || "Arial");
+    // Font dropdown reflects the caret's font; picking one applies to the
+    // selection only (not a global document restyle).
+    const [displayFont, setDisplayFont] = useState(formattedDoc.profile.defaultFont || "Arial");
     const [baseFontSizePt] = useState(formattedDoc.profile.defaultFontSize ?? 12);
     const [lineHeight] = useState(formattedDoc.profile.lineHeight || 1.5);
     const [zoom, setZoom] = useState(100);
@@ -580,6 +651,13 @@ export default function FormatterEditorCore({
     const editorRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const pageShellRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const headerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+    // Single-editor prototype refs/state
+    const singleEditorRef = useRef<HTMLDivElement | null>(null);
+    // Selection stored as char offsets so it survives pagination's DOM edits.
+    const singleSelRef = useRef<{ start: number; end: number } | null>(null);
+    const [singlePageCount, setSinglePageCount] = useState(initialPageList.length || 1);
+    const [firstPageCentered] = useState(Boolean(structuredPages[0]?.centerVertically));
     const pageContentRef = useRef<Record<number, string>>(initialPageContentMap);
 
     // Expose bibliography-append function to parent via ref
@@ -665,6 +743,13 @@ export default function FormatterEditorCore({
     }, [getDefaultPageNumber, pageNumberOverrides]);
 
     const updateStats = useCallback(() => {
+        if (USE_SINGLE_EDITOR) {
+            const allText = singleEditorRef.current?.innerText || "";
+            const words = allText.split(/\s+/).filter(w => w.length > 0).length;
+            setWordCount(words);
+            setCharCount(allText.length);
+            return;
+        }
         const parser = document.createElement("div");
         const allText = pages.map((p) => {
             const editor = editorRefs.current[p.id];
@@ -684,6 +769,10 @@ export default function FormatterEditorCore({
             setIsBold(document.queryCommandState("bold"));
             setIsItalic(document.queryCommandState("italic"));
             setIsUnderline(document.queryCommandState("underline"));
+            const raw = document.queryCommandValue("fontName") || "";
+            const norm = raw.replace(/['"]/g, "").split(",")[0].trim().toLowerCase();
+            const match = CORE_FONT_OPTIONS.find((f) => f.toLowerCase() === norm);
+            if (match) setDisplayFont(match);
         } catch {
             setIsBold(false);
             setIsItalic(false);
@@ -697,9 +786,16 @@ export default function FormatterEditorCore({
         const range = sel.getRangeAt(0);
         if (!pageEditableRef.current.contains(range.commonAncestorContainer)) return;
         selectionRangeRef.current = range.cloneRange();
+        if (USE_SINGLE_EDITOR && singleEditorRef.current) {
+            singleSelRef.current = getSelCharRange(singleEditorRef.current);
+        }
     }, []);
 
     const restoreSelection = useCallback(() => {
+        if (USE_SINGLE_EDITOR && singleEditorRef.current) {
+            setSelCharRange(singleEditorRef.current, singleSelRef.current);
+            return;
+        }
         const sel = window.getSelection();
         const range = selectionRangeRef.current;
         if (!sel || !range) return;
@@ -1197,6 +1293,25 @@ export default function FormatterEditorCore({
         // command runs against nothing and the toolbar appears dead.
         const savedRange = selectionRangeRef.current?.cloneRange() ?? null;
 
+        if (USE_SINGLE_EDITOR) {
+            const editor = singleEditorRef.current;
+            if (!editor) return;
+            editor.focus({ preventScroll: true });
+            // Undo/redo operate on the browser's own history and must NOT have a
+            // selection forced on them first. Everything else acts on the saved
+            // selection (restored by char offset so it survives pagination).
+            if (cmd !== "undo" && cmd !== "redo") {
+                setSelCharRange(editor, singleSelRef.current);
+            }
+            document.execCommand(cmd, false, value);
+            // execCommand mutates the DOM and fires `input`, so handleSingleInput
+            // re-paginates automatically — no explicit reflow call needed here.
+            saveSelection();
+            queryFormattingState();
+            updateStats();
+            return;
+        }
+
         const targetPageId = savedRange
             ? Number(
                 Object.entries(editorRefs.current).find(([, el]) =>
@@ -1227,7 +1342,7 @@ export default function FormatterEditorCore({
 
     const applyFontSizeToSelection = useCallback((size: number) => {
         const safe = Math.max(1, Math.min(254, Math.round(size)));
-        const root = editorRefs.current[activePageId];
+        const root = USE_SINGLE_EDITOR ? singleEditorRef.current : editorRefs.current[activePageId];
         if (!root) return;
         const legacySize = (LEGACY_FONT_SIZE_PT.reduce((bestIdx, pt, idx) => {
             const best = LEGACY_FONT_SIZE_PT[bestIdx];
@@ -1265,8 +1380,10 @@ export default function FormatterEditorCore({
 
         cleanupEditorArtifacts(root);
 
-        const html = editorRefs.current[activePageId]?.innerHTML || "<br/>";
-        pageContentRef.current[activePageId] = html;
+        if (!USE_SINGLE_EDITOR) {
+            const html = editorRefs.current[activePageId]?.innerHTML || "<br/>";
+            pageContentRef.current[activePageId] = html;
+        }
         updateStats();
         saveSelection();
         queryFormattingState();
@@ -1418,9 +1535,144 @@ export default function FormatterEditorCore({
         }
     }, [handlePageInput, mergePageIntoPrevious]);
 
+    // ── Single-editor pagination ────────────────────────────────────────────────
+    // Walk the top-level blocks; whenever a block would cross past the current
+    // page's content area (or is a forced page start), push it down to the next
+    // page's content top with a spacer margin. All measurements are in rendered
+    // (zoom-scaled) px since offsetTop/offsetHeight are already scaled.
+    const repaginateSingle = useCallback(() => {
+        const editor = singleEditorRef.current;
+        if (!editor) return;
+        const scale = zoom / 100;
+        const pad = pagePadding * scale;
+        const gap = 24 * scale;
+        const pageH = pageHeight * scale;
+        const contentH = pageH - 2 * pad;
+        const gutter = gap + 2 * pad; // vertical jump from one page's content to the next
+
+        // IMPORTANT: pagination is margin-only — it never adds/removes/splits nodes.
+        // Structural DOM surgery during editing corrupts the browser's native undo
+        // stack and execCommand toggle state (bold/italic). We only set marginTop on
+        // existing blocks to push whole blocks onto the next page, which leaves the
+        // editable content (and the caret) untouched. A block taller than a page
+        // simply overflows slightly; perfect page-fill would need a custom undo
+        // stack, which is out of scope for the prototype.
+        const blocks = Array.from(editor.children) as HTMLElement[];
+        for (const b of blocks) b.style.marginTop = "0px";
+
+        const pageContentTop = (page: number) => pad + page * (contentH + gutter);
+        const pageContentBottom = (page: number) => pageContentTop(page) + contentH;
+
+        // Vertical centering for title pages that ask for it (e.g. Harvard).
+        if (firstPageCentered && blocks.length) {
+            const first = blocks[0];
+            let n = first;
+            for (let i = 1; i < blocks.length && blocks[i].dataset.pageStart !== "1"; i++) n = blocks[i];
+            const used = (n.offsetTop + n.offsetHeight) - first.offsetTop;
+            const extra = (contentH - used) / 2;
+            if (extra > 0) first.style.marginTop = `${extra}px`;
+        }
+
+        let p = 0;
+        for (let i = 0; i < blocks.length; i++) {
+            const node = blocks[i];
+            const top = node.offsetTop;
+            const h = node.offsetHeight;
+            const forced = node.dataset.pageStart === "1" && i !== 0;
+            if (forced || top + h > pageContentBottom(p) + 1) {
+                p += 1;
+                const delta = pageContentTop(p) - top;
+                if (delta > 0) node.style.marginTop = `${delta}px`;
+            }
+        }
+
+        setSinglePageCount(p + 1);
+    }, [zoom, pageHeight, pagePadding, firstPageCentered]);
+
+    const repaginateRafRef = useRef<number | null>(null);
+    const scheduleRepaginate = useCallback(() => {
+        if (repaginateRafRef.current) cancelAnimationFrame(repaginateRafRef.current);
+        repaginateRafRef.current = requestAnimationFrame(() => repaginateSingle());
+    }, [repaginateSingle]);
+
+    const handleSingleInput = useCallback(() => {
+        cleanupEditorArtifacts(singleEditorRef.current);
+        scheduleRepaginate();
+        saveSelection();
+        // Debounced grammar pass (refs are stable; declared later in the body).
+        if (grammarOn) {
+            if (grammarTimerRef.current) clearTimeout(grammarTimerRef.current);
+            grammarTimerRef.current = setTimeout(() => void runGrammarCheckRef.current(0), 2000);
+        }
+    }, [cleanupEditorArtifacts, scheduleRepaginate, saveSelection, grammarOn]);
+
+    // Apply a font family to the current selection by wrapping it directly,
+    // instead of execCommand("fontName") which proved unreliable in this single
+    // editor. Wraps each text node that intersects the selection in a
+    // span[font-family]; works across paragraph boundaries.
+    const applyFontFamilyToSingleSelection = useCallback((font: string) => {
+        const editor = singleEditorRef.current;
+        if (!editor) return;
+        editor.focus({ preventScroll: true });
+        setSelCharRange(editor, singleSelRef.current);
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) { setDisplayFont(font); return; }
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) { setDisplayFont(font); return; }
+
+        // Snapshot the text nodes that fall inside the selection.
+        const startNode = range.startContainer;
+        const startOff = range.startOffset;
+        const endNode = range.endContainer;
+        const endOff = range.endOffset;
+        const nodes: Text[] = [];
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+            acceptNode: (n) =>
+                range.intersectsNode(n) && (n.textContent?.length ?? 0) > 0
+                    ? NodeFilter.FILTER_ACCEPT
+                    : NodeFilter.FILTER_REJECT,
+        });
+        let w = walker.nextNode() as Text | null;
+        while (w) { nodes.push(w); w = walker.nextNode() as Text | null; }
+
+        for (let node of nodes) {
+            // Trim the end first (splitting end doesn't shift the start node).
+            if (node === endNode && endOff < (node.nodeValue?.length ?? 0)) {
+                node.splitText(endOff);
+            }
+            if (node === startNode && startOff > 0) {
+                node = node.splitText(startOff);
+            }
+            const parent = node.parentElement;
+            // If already wrapped in a plain styling span, just set its font.
+            if (parent && parent.tagName === "SPAN" && parent.childNodes.length === 1) {
+                parent.style.fontFamily = font;
+                continue;
+            }
+            const span = document.createElement("span");
+            span.style.fontFamily = font;
+            node.parentNode?.insertBefore(span, node);
+            span.appendChild(node);
+        }
+
+        cleanupEditorArtifacts(editor);
+        setSelCharRange(editor, singleSelRef.current); // text length unchanged
+        saveSelection();
+        setDisplayFont(font);
+        queryFormattingState();
+        scheduleRepaginate();
+        updateStats();
+    }, [cleanupEditorArtifacts, queryFormattingState, saveSelection, scheduleRepaginate, updateStats]);
+
+    // Re-paginate on mount, zoom change, and after fonts settle.
+    useLayoutEffect(() => {
+        if (!USE_SINGLE_EDITOR) return;
+        scheduleRepaginate();
+    }, [scheduleRepaginate]);
+
     // ── Grammar check ──────────────────────────────────────────────────────────
     const runGrammarCheck = useCallback(async (pageId: number) => {
-        const el = editorRefs.current[pageId];
+        const el = USE_SINGLE_EDITOR ? singleEditorRef.current : editorRefs.current[pageId];
         if (!el) return;
         // Build text WITH block-boundary newlines — must match offset index
         const { text } = buildTextAndIndex(el);
@@ -1441,8 +1693,12 @@ export default function FormatterEditorCore({
         finally { setGrammarLoading(false); }
     }, []);
 
-    // Clear all grammar spans from every page
+    // Clear all grammar spans from every page (or the single editor)
     const clearAllGrammarSpans = useCallback(() => {
+        if (USE_SINGLE_EDITOR) {
+            if (singleEditorRef.current) removeGrammarSpans(singleEditorRef.current);
+            return;
+        }
         for (const el of Object.values(editorRefs.current)) {
             if (el) removeGrammarSpans(el);
         }
@@ -1461,6 +1717,64 @@ export default function FormatterEditorCore({
 
     const buildExportSnapshot = useCallback((): ExportDocumentSnapshot => {
         const parser = document.createElement("div");
+
+        if (USE_SINGLE_EDITOR) {
+            // Reconstruct semantic pages from the single editor by splitting at the
+            // forced page-break markers (data-page-start). Overflow page breaks are
+            // visual only (margin spacers) and are dropped — the exporter paginates
+            // long sections itself.
+            const editor = singleEditorRef.current;
+            const groups: HTMLElement[][] = [[]];
+            if (editor) {
+                for (const child of Array.from(editor.children) as HTMLElement[]) {
+                    if (child.dataset.pageStart === "1") {
+                        groups.push([]);   // marker begins a new page; the marker itself is dropped
+                        continue;
+                    }
+                    groups[groups.length - 1].push(child);
+                }
+            }
+            const singlePages = groups.map((blocks, idx) => {
+                const tmp = document.createElement("div");
+                for (const b of blocks) {
+                    const clone = b.cloneNode(true) as HTMLElement;
+                    clone.style.marginTop = "";   // strip pagination spacer
+                    tmp.appendChild(clone);
+                }
+                removeGrammarSpans(tmp);
+                removeOctoSpans(tmp);
+                const html = tmp.innerHTML || "<br/>";
+                const pageId = idx + 1;
+                const pageMeta = pageFormatMap[pageId] || {};
+                parser.innerHTML = html;
+                const plainText = parser.innerText.replace(/\n{3,}/g, "\n\n").trim();
+                return {
+                    id: pageId,
+                    title: `Page ${idx + 1}`,
+                    html,
+                    plainText,
+                    textAlign: pageMeta.textAlign,
+                    centerVertically: pageMeta.centerVertically,
+                    showPageNumber: pageMeta.showPageNumber ?? showPageNumber,
+                    lineHeight: pageMeta.lineHeight || lineHeight,
+                };
+            });
+            return {
+                title: docTitle.trim() || "Untitled document",
+                pages: singlePages,
+                profile: {
+                    defaultFont: fontFamily,
+                    lineHeight,
+                    marginInch: formattedDoc.profile.marginInch || 1,
+                    headerText: headerText.trim(),
+                    showPageNumber,
+                    pageNumberStartPage,
+                    pageNumberStartNumber,
+                },
+                generatedAt: new Date().toISOString(),
+            };
+        }
+
         const pagesSnapshot = pages.map((page, idx) => {
             const rawHtml = editorRefs.current[page.id]?.innerHTML || pageContentRef.current[page.id] || "";
             // Strip grammar-error spans so they don't appear in exports/citations
@@ -1897,13 +2211,13 @@ export default function FormatterEditorCore({
                                 <TbIcon title="Undo (⌘Z)" onClick={() => execCommand("undo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h14a4 4 0 0 1 0 8H9" /><polyline points="7 14 3 10 7 6" /></svg></TbIcon>
                                 <TbIcon title="Redo (⌘Y)" onClick={() => execCommand("redo")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H7a4 4 0 0 0 0 8h8" /><polyline points="17 14 21 10 17 6" /></svg></TbIcon>
                                 <ToolbarDropdown
-                                    value={fontFamily}
+                                    value={displayFont}
                                     widthClass={mobileStyles.editorMobileFontSelect}
-                                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                                    options={CORE_FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                                     onSelect={(value) => {
                                         const font = String(value);
-                                        setFontFamily(font);
-                                        execCommand("fontName", font);
+                                        if (USE_SINGLE_EDITOR) applyFontFamilyToSingleSelection(font);
+                                        else { setDisplayFont(font); execCommand("fontName", font); }
                                     }}
                                 />
                             </div>
@@ -2104,13 +2418,13 @@ export default function FormatterEditorCore({
                 <TbSep />
 
                 <ToolbarDropdown
-                    value={fontFamily}
+                    value={displayFont}
                     widthClass="w-[130px]"
-                    options={["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New", "Trebuchet MS"].map((f) => ({ label: f, value: f }))}
+                    options={CORE_FONT_OPTIONS.map((f) => ({ label: f, value: f }))}
                     onSelect={(value) => {
                         const font = String(value);
-                        setFontFamily(font);
-                        execCommand("fontName", font);
+                        if (USE_SINGLE_EDITOR) applyFontFamilyToSingleSelection(font);
+                        else { setDisplayFont(font); execCommand("fontName", font); }
                     }}
                 />
                 <TbIcon active={isBold} onClick={() => execCommand("bold")} title="Bold (⌘B)"><span className="text-[16px] font-bold">B</span></TbIcon>
@@ -2178,7 +2492,75 @@ export default function FormatterEditorCore({
                         </div>
                     </div>
 
-                    <div ref={pageEditableRef} className="mx-auto my-6 flex flex-col gap-6">
+                    <div ref={pageEditableRef} className="mx-auto my-6">
+                      {USE_SINGLE_EDITOR ? (() => {
+                        const scale = zoom / 100;
+                        const W = pageWidth * scale;
+                        const H = pageHeight * scale;
+                        const GAP = 24 * scale;
+                        const PAD = pagePadding * scale;
+                        return (
+                            <div
+                                className="relative mx-auto"
+                                style={{ width: W, height: singlePageCount * H + (singlePageCount - 1) * GAP }}
+                            >
+                                {/* Page rectangles drawn behind the single editor */}
+                                {Array.from({ length: singlePageCount }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="absolute left-0 overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)]"
+                                        style={{ top: i * (H + GAP), width: W, height: H }}
+                                    >
+                                        {showPageNumber && (
+                                            <div
+                                                className="absolute text-[#374151]"
+                                                style={{ top: PAD * 0.42, right: PAD, fontSize: 12 * scale }}
+                                            >
+                                                {i + 1}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {/* The single contentEditable, transparent, sitting on top */}
+                                <div
+                                    ref={(el) => {
+                                        singleEditorRef.current = el;
+                                        if (el && el.dataset.hydrated !== "1") {
+                                            el.innerHTML = combinedInitialHtml || "<br/>";
+                                            el.dataset.hydrated = "1";
+                                        }
+                                    }}
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onInput={handleSingleInput}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Tab") {
+                                            e.preventDefault();
+                                            document.execCommand("insertHTML", false, '<span data-tab-stop="1" style="display:inline-block;width:0.5in;"></span>');
+                                            handleSingleInput();
+                                        }
+                                    }}
+                                    onKeyUp={() => { queryFormattingState(); saveSelection(); }}
+                                    onMouseUp={() => { queryFormattingState(); saveSelection(); }}
+                                    onFocus={() => { setIsHeaderEditing(false); setHeaderEditingPageId(null); saveSelection(); }}
+                                    className="oct-doc-page relative outline-none"
+                                    style={{
+                                        width: W,
+                                        padding: PAD,
+                                        boxSizing: "border-box",
+                                        minHeight: H,
+                                        fontFamily,
+                                        fontSize: `${baseFontSizePt * scale}pt`,
+                                        lineHeight: String(lineHeight),
+                                        color: "#1f1f1f",
+                                        whiteSpace: "pre-wrap",
+                                        wordBreak: "break-word",
+                                    }}
+                                />
+                            </div>
+                        );
+                      })() : (
+                        <div className="flex flex-col gap-6">
                         {pages.map((page) => {
                             const pageMeta = pageFormatMap[page.id] || {};
                             const pageNumberText = getPageNumberLabel(page.id);
@@ -2369,6 +2751,8 @@ export default function FormatterEditorCore({
                                 </div>
                             );
                         })}
+                        </div>
+                      )}
                     </div>
                 </div>
             </div>
