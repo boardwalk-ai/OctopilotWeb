@@ -11,6 +11,7 @@
  * merged into production routes as-is.
  */
 
+import { notFound } from "next/navigation";
 import FormatterEditorCore from "@/views/FormatterEditorCore";
 
 const PARA = (n: number) =>
@@ -34,6 +35,8 @@ const SAMPLE_BIB = [
 ].join("\n");
 
 export default function DocOctProtoPage() {
+    // Dev-only harness — never exposed in production.
+    if (process.env.NODE_ENV === "production") notFound();
     return (
         <div className="h-screen w-screen">
             <FormatterEditorCore
