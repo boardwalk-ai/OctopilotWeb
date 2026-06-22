@@ -1439,6 +1439,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   // Whether Firebase has reported initial auth state — gates the home view so
   // the logged-out welcome doesn't flash before the Save Deck for signed-in users.
   const [authChecked, setAuthChecked] = useState(false);
+  // Branded boot loader: real progress through auth → plan/deck fetch → ready.
+  const [booted, setBooted] = useState(false);
+  const [bootProgress, setBootProgress] = useState(0);
+  const deckLoadedOnceRef = useRef(false);
   const lastSavedRef = useRef<string>("");
   const savingRef = useRef(false);
   const currentDocIdRef = useRef<string | null>(null);
@@ -1596,7 +1600,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setDeckDocs(documents);
       setDocLimit(limit);
     } catch { /* ignore */ }
-    finally { setDeckLoading(false); }
+    finally { setDeckLoading(false); deckLoadedOnceRef.current = true; }
   }, []);
 
   // Start a fresh document from a template → setup wizard. "none" = Blank
@@ -1623,6 +1627,31 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   useEffect(() => {
     if (viewState === "welcome" && currentUser) void refreshDeck();
   }, [viewState, currentUser, refreshDeck]);
+
+  // Boot loader progress — eases toward a target set by real milestones:
+  // engine start → auth resolved → plan/deck fetched → ready.
+  useEffect(() => {
+    if (booted) return;
+    const startedAt = Date.now();
+    const tick = setInterval(() => {
+      setBootProgress((prev) => {
+        const elapsed = Date.now() - startedAt;
+        let target = elapsed > 220 ? 36 : 20;                                   // engine starting
+        if (authChecked) target = currentUser ? 64 : 90;                        // warming up
+        if (authChecked && (!currentUser || deckLoadedOnceRef.current)) target = 100; // ready
+        const next = prev + Math.max(0.5, (target - prev) * 0.12);
+        return Math.min(next, target);
+      });
+    }, 28);
+    return () => clearInterval(tick);
+  }, [booted, authChecked, currentUser]);
+
+  // Once progress reaches the top, hold a beat then reveal the app.
+  useEffect(() => {
+    if (booted || bootProgress < 99.4) return;
+    const t = setTimeout(() => setBooted(true), 460);
+    return () => clearTimeout(t);
+  }, [booted, bootProgress]);
 
   /* ── Draft save ── */
   const saveDraft = useCallback(() => {
@@ -2809,6 +2838,59 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Render ── */
   return (
     <div ref={fmtRootRef} data-theme={theme} className="fmt-root flex h-screen flex-col overflow-hidden bg-[var(--ed-bg-canvas)]">
+
+      {/* ── Branded boot loader — covers the app while auth + plan + deck load ── */}
+      {!booted && (() => {
+        const pct = Math.min(100, Math.round(bootProgress));
+        const stage = pct < 40 ? "Doc Oct Engine is starting" : pct < 82 ? "Warming up" : "Entering";
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#070a0f]"
+            style={{ opacity: pct >= 100 ? 0 : 1, transition: "opacity 0.45s ease", pointerEvents: pct >= 100 ? "none" : "auto" }}
+          >
+            <style>{`
+              @keyframes bl-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+              @keyframes bl-orb { 0%,100% { transform: translate(0,0) scale(1); opacity:.5 } 50% { transform: translate(20px,-26px) scale(1.18); opacity:.85 } }
+              @keyframes bl-shine { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+              @keyframes bl-blink { 0%,100% { opacity:1 } 50% { opacity:.25 } }
+            `}</style>
+            {/* ambient glow orbs */}
+            <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-[#ea4335]/20 blur-[90px]" style={{ animation: "bl-orb 7s ease-in-out infinite" }} />
+            <div className="pointer-events-none absolute -right-24 bottom-1/4 h-80 w-80 rounded-full bg-[#7c3aed]/15 blur-[100px]" style={{ animation: "bl-orb 9s ease-in-out infinite reverse" }} />
+
+            <div className="relative flex flex-col items-center px-8">
+              {/* wordmark */}
+              <div style={{ animation: "bl-rise 0.7s cubic-bezier(0.22,1,0.36,1) both" }}>
+                <h1 className="text-center text-[clamp(44px,9vw,104px)] font-black leading-[0.92] tracking-tight text-white">
+                  Doc<span className="text-[#ea4335]">Oct</span>
+                </h1>
+                <p className="mt-2 text-center text-[12px] font-semibold uppercase tracking-[0.5em] text-white/30">Formatter Engine</p>
+              </div>
+
+              {/* percentage */}
+              <div className="mt-12 flex items-end gap-1 tabular-nums" style={{ animation: "bl-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both" }}>
+                <span className="text-[64px] font-black leading-none text-white">{pct}</span>
+                <span className="mb-2 text-[24px] font-bold text-white/40">%</span>
+              </div>
+
+              {/* progress bar */}
+              <div className="relative mt-5 h-[5px] w-[min(420px,72vw)] overflow-hidden rounded-full bg-white/[0.08]">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#ea4335] to-[#ff7a6d]"
+                  style={{ width: `${pct}%`, transition: "width 0.12s linear", boxShadow: "0 0 14px rgba(234,67,53,0.7)" }}
+                />
+                <div className="absolute inset-y-0 w-1/3" style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)", animation: "bl-shine 1.6s ease-in-out infinite" }} />
+              </div>
+
+              {/* stage label */}
+              <div className="mt-7 flex items-center gap-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" style={{ animation: "bl-blink 1.1s ease-in-out infinite" }} />
+                <p key={stage} className="text-[14px] font-medium tracking-wide text-white/55" style={{ animation: "bl-rise 0.4s ease both" }}>{stage}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Liquid-glass displacement filter (refraction + chromatic aberration) — used by .liquid-glass */}
       <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute" }}>
