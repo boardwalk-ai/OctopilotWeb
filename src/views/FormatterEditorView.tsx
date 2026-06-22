@@ -2887,24 +2887,52 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
             </div>
 
-            {/* ── Single scrollable column: wizard-generated outline ── */}
+            {/* ── Single scrollable column: assignment analysis + wizard outline ── */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              {outlines.length > 0 ? (
-                <div className="flex flex-col gap-2.5 p-3">
-                  <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
-                  {outlines.map((o, i) => (
-                    <OutlineCard key={i} o={o} index={i}
-                            onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
-                            onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
-                  ))}
+              {(assignmentAnalysis || outlines.length > 0) ? (
+                <div className="flex flex-col gap-4 p-3">
+                  {/* Assignment analysis (mirrors the setup wizard) */}
+                  {assignmentAnalysis && (
+                    <div className="flex flex-col gap-2">
+                      <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">Analysis</p>
+                      <div className="rounded-xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] p-3">
+                        <p className="text-[12.5px] leading-relaxed text-[var(--ed-text-muted)]">{assignmentAnalysis.analysis}</p>
+                        <div className="mt-2.5 grid grid-cols-1 gap-2 border-t border-[var(--ed-border)] pt-2.5">
+                          {([
+                            ["Topic", assignmentAnalysis.essayTopic],
+                            ["Essay type", assignmentAnalysis.essayType],
+                            ["Scope", assignmentAnalysis.scope],
+                            ["Structure", assignmentAnalysis.structure],
+                          ] as [string, string][]).filter(([, v]) => v?.trim()).map(([label, val]) => (
+                            <div key={label}>
+                              <span className="text-[9.5px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">{label}</span>
+                              <p className="mt-0.5 text-[12px] leading-snug text-[var(--ed-text-faint)]">{val}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Wizard-generated outline */}
+                  {outlines.length > 0 && (
+                    <div className="flex flex-col gap-2.5">
+                      <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
+                      {outlines.map((o, i) => (
+                        <OutlineCard key={i} o={o} index={i}
+                                onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
+                                onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 py-10 text-center">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
                   </div>
-                  <p className="text-[12.5px] font-medium text-[var(--ed-text-muted)]">No outline yet</p>
-                  <p className="text-[11px] leading-relaxed text-[var(--ed-text-dim)]">Generate an outline in the setup wizard and it&apos;ll show up here as you write.</p>
+                  <p className="text-[12.5px] font-medium text-[var(--ed-text-muted)]">Nothing here yet</p>
+                  <p className="text-[11px] leading-relaxed text-[var(--ed-text-dim)]">Analyze your assignment and generate an outline in the setup wizard — both show up here as you write.</p>
                 </div>
               )}
 
