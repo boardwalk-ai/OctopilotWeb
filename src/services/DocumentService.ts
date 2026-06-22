@@ -1,5 +1,15 @@
 import { fetchWithUserAuthorization } from "./authenticatedFetch";
 
+/** Thrown by create() when the user is at their saved-document quota. */
+export class DocumentLimitError extends Error {
+    limit: number;
+    constructor(message: string, limit: number) {
+        super(message);
+        this.name = "DocumentLimitError";
+        this.limit = limit;
+    }
+}
+
 export interface DocumentSummary {
     id: string;
     title: string;
@@ -31,11 +41,11 @@ export interface DocumentPayload {
 
 /** Client for the Save Deck documents API (Firebase-token authed). */
 export const DocumentService = {
-    async list(): Promise<DocumentSummary[]> {
+    async list(): Promise<{ documents: DocumentSummary[]; limit: number }> {
         const res = await fetchWithUserAuthorization("/api/documents");
         if (!res.ok) throw new Error("Failed to load documents.");
-        const data = (await res.json()) as { documents?: DocumentSummary[] };
-        return data.documents ?? [];
+        const data = (await res.json()) as { documents?: DocumentSummary[]; limit?: number };
+        return { documents: data.documents ?? [], limit: data.limit ?? 10 };
     },
 
     async create(payload: DocumentPayload): Promise<string> {
@@ -44,6 +54,10 @@ export const DocumentService = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
         });
+        if (res.status === 403) {
+            const d = (await res.json().catch(() => ({}))) as { message?: string; limit?: number };
+            throw new DocumentLimitError(d.message || "Saved-document limit reached.", d.limit ?? 10);
+        }
         if (!res.ok) throw new Error("Failed to create document.");
         const data = (await res.json()) as { id: string };
         return data.id;

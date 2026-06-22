@@ -19,9 +19,20 @@ function decodeFirebaseUid(authorization: string): string | null {
     }
 }
 
-export type ResolvedUser = { userId: string; firebaseUid: string };
+export type ResolvedUser = { userId: string; firebaseUid: string; plan: string; subscriptionStatus: string };
 
-/** Validate auth and resolve the internal users.id for the caller. */
+/** Heuristic: a paid/pro user gets the larger document quota. All current users
+ *  are "Guest Plan"/"guest" (free) — this matches paid plans when they appear. */
+export function isProPlan(plan?: string | null, subscriptionStatus?: string | null): boolean {
+    return /pro|premium|plus|paid/i.test(plan || "") || /active/i.test(subscriptionStatus || "");
+}
+
+/** Per-plan cap on saved documents. */
+export function documentLimitFor(plan?: string | null, subscriptionStatus?: string | null): number {
+    return isProPlan(plan, subscriptionStatus) ? 50 : 10;
+}
+
+/** Validate auth and resolve the internal users.id (+ plan) for the caller. */
 export async function resolveDocumentUser(
     request: NextRequest,
 ): Promise<ResolvedUser | { response: NextResponse }> {
@@ -33,12 +44,17 @@ export async function resolveDocumentUser(
         return { response: NextResponse.json({ error: "Could not resolve user." }, { status: 401 }) };
     }
 
-    const rows = await query<{ id: string }>(
-        "SELECT id FROM users WHERE firebase_uid = $1 LIMIT 1",
+    const rows = await query<{ id: string; plan: string | null; subscription_status: string | null }>(
+        "SELECT id, plan, subscription_status FROM users WHERE firebase_uid = $1 LIMIT 1",
         [firebaseUid],
     );
     if (!rows.length) {
         return { response: NextResponse.json({ error: "User not found." }, { status: 404 }) };
     }
-    return { userId: rows[0].id, firebaseUid };
+    return {
+        userId: rows[0].id,
+        firebaseUid,
+        plan: rows[0].plan ?? "",
+        subscriptionStatus: rows[0].subscription_status ?? "",
+    };
 }

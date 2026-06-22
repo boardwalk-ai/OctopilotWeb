@@ -9,7 +9,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 import { AuthService } from "@/services/AuthService";
 import { CreditService } from "@/services/CreditService";
-import { DocumentService, type DocumentPayload, type DocumentSummary } from "@/services/DocumentService";
+import { DocumentService, DocumentLimitError, type DocumentPayload, type DocumentSummary } from "@/services/DocumentService";
 import type { ParsedDocumentResult } from "@/app/api/formatter/parse/route";
 import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 import type { FormatStyleId } from "./FormatStyleView";
@@ -1435,6 +1435,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [deckDocs, setDeckDocs] = useState<DocumentSummary[]>([]);
   const [deckLoading, setDeckLoading] = useState(false);
+  const [docLimit, setDocLimit] = useState(10);
+  // Whether Firebase has reported initial auth state — gates the home view so
+  // the logged-out welcome doesn't flash before the Save Deck for signed-in users.
+  const [authChecked, setAuthChecked] = useState(false);
   const lastSavedRef = useRef<string>("");
   const savingRef = useRef(false);
   const currentDocIdRef = useRef<string | null>(null);
@@ -1523,12 +1527,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       }
       lastSavedRef.current = serialized;
       setSaveStatus("saved");
-    } catch {
+    } catch (e) {
       setSaveStatus("error");
+      if (e instanceof DocumentLimitError) showToast(e.message);
     } finally {
       savingRef.current = false;
     }
-  }, [buildSavePayload]);
+  }, [buildSavePayload, showToast]);
 
   // Autosave: every 10s while editing, save if anything changed (overwrite).
   useEffect(() => {
@@ -1586,14 +1591,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const refreshDeck = useCallback(async () => {
     if (!AuthService.getCurrentUser()) return;
     setDeckLoading(true);
-    try { setDeckDocs(await DocumentService.list()); }
-    catch { /* ignore */ }
+    try {
+      const { documents, limit } = await DocumentService.list();
+      setDeckDocs(documents);
+      setDocLimit(limit);
+    } catch { /* ignore */ }
     finally { setDeckLoading(false); }
   }, []);
 
   // Start a fresh document from a template → setup wizard. "none" = Blank
   // (format left unselected so the user picks it).
   const startNewDocument = useCallback((style: FormatStyleId | null) => {
+    if (deckDocs.length >= docLimit) {
+      showToast(`You've reached your ${docLimit}-document limit. Delete one to start a new paper.`);
+      return;
+    }
     setCurrentDocId(null);
     setRestoredPages(null);
     lastSavedRef.current = "";
@@ -1605,7 +1617,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     // Blank (null) → wizard with no format forced; otherwise pre-select it.
     if (style) { setFormatStyle(style); transitionTo("setup", { style }); }
     else transitionTo("setup");
-  }, [transitionTo]);
+  }, [transitionTo, deckDocs.length, docLimit, showToast]);
 
   // Refresh the deck whenever the signed-in user lands on the home view.
   useEffect(() => {
@@ -1644,6 +1656,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   useEffect(() => {
     const unsub = AuthService.subscribe(async (user) => {
       setCurrentUser(user);
+      setAuthChecked(true);
       if (user) {
         try {
           const c = await CreditService.getAvailableCredits();
@@ -3141,7 +3154,15 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         <div className="absolute inset-0 overflow-hidden bg-[var(--ed-app-bg)]">
 
           {/* ── WELCOME PANEL ── */}
-          {viewState === "welcome" && !currentUser && (
+          {/* Auth still resolving — hold a neutral splash so the logged-out
+              welcome never flashes before the Save Deck for signed-in users. */}
+          {viewState === "welcome" && !authChecked && (
+            <div className="flex h-full items-center justify-center bg-[#0b0e13]">
+              <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-[#ea4335]" />
+            </div>
+          )}
+
+          {viewState === "welcome" && authChecked && !currentUser && (
             <WizardShell
               step={1}
               exiting={viewExiting}
@@ -3182,7 +3203,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           )}
 
           {/* ── SAVE DECK (logged-in home) ── */}
-          {viewState === "welcome" && currentUser && (
+          {viewState === "welcome" && authChecked && currentUser && (
             <div className={`h-full overflow-y-auto bg-[#0b0e13] ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
               <div className="mx-auto max-w-[1100px] px-8 py-10">
                 {/* Greeting */}
@@ -3232,7 +3253,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                 {/* Recent documents */}
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/35">Recent documents</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/35">Recent documents</p>
+                    <span className={`text-[11px] font-medium ${deckDocs.length >= docLimit ? "text-[#ea4335]" : "text-white/30"}`}>
+                      {deckDocs.length} / {docLimit}
+                    </span>
+                  </div>
                   <button type="button" onClick={() => void refreshDeck()} className="text-[11px] font-medium text-white/40 transition hover:text-white/70">Refresh</button>
                 </div>
 
@@ -3259,6 +3285,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             title="Delete"
                             onClick={async (e) => {
                               e.stopPropagation();
+                              if (!window.confirm(`Delete “${d.title}”? This can't be undone.`)) return;
                               try { await DocumentService.remove(d.id); setDeckDocs((prev) => prev.filter((x) => x.id !== d.id)); }
                               catch { showToast("Couldn't delete."); }
                             }}

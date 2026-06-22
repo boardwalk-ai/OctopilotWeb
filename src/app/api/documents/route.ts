@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "@/server/db";
-import { resolveDocumentUser } from "@/server/documentUser";
+import { resolveDocumentUser, documentLimitFor } from "@/server/documentUser";
 
 export const runtime = "nodejs";
 
@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
              FROM documents WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 200`,
             [user.userId],
         );
-        return NextResponse.json({ documents: rows });
+        const limit = documentLimitFor(user.plan, user.subscriptionStatus);
+        return NextResponse.json({ documents: rows, limit, count: rows.length });
     } catch (e) {
         console.error("[documents] GET error:", e);
         return NextResponse.json({ error: "Failed to list documents." }, { status: 500 });
@@ -89,6 +90,19 @@ export async function POST(request: NextRequest) {
         const user = await resolveDocumentUser(request);
         if ("response" in user) return user.response;
         const body = (await request.json()) as DocumentPayload;
+
+        // Enforce the per-plan saved-document quota.
+        const limit = documentLimitFor(user.plan, user.subscriptionStatus);
+        const counts = await query<{ count: number }>(
+            "SELECT count(*)::int AS count FROM documents WHERE user_id = $1",
+            [user.userId],
+        );
+        if ((counts[0]?.count ?? 0) >= limit) {
+            return NextResponse.json(
+                { error: "limit_reached", limit, message: `You've reached your saved-document limit (${limit}). Delete one or upgrade to save more.` },
+                { status: 403 },
+            );
+        }
 
         const id = await withTransaction(async (client) => {
             const { rows } = await client.query<{ id: string }>(
