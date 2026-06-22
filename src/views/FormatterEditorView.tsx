@@ -2843,49 +2843,85 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       {!booted && (() => {
         const pct = Math.min(100, Math.round(bootProgress));
         const stage = pct < 40 ? "Doc Oct Engine is starting" : pct < 82 ? "Warming up" : "Entering";
+        const R = 52, C = 2 * Math.PI * R;
         return (
           <div
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#070a0f]"
-            style={{ opacity: pct >= 100 ? 0 : 1, transition: "opacity 0.45s ease", pointerEvents: pct >= 100 ? "none" : "auto" }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden"
+            style={{
+              background: "radial-gradient(120% 90% at 50% 18%, #11151f 0%, #080b11 55%, #05070b 100%)",
+              opacity: pct >= 100 ? 0 : 1,
+              transition: "opacity 0.5s ease",
+              pointerEvents: pct >= 100 ? "none" : "auto",
+            }}
           >
             <style>{`
-              @keyframes bl-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-              @keyframes bl-orb { 0%,100% { transform: translate(0,0) scale(1); opacity:.5 } 50% { transform: translate(20px,-26px) scale(1.18); opacity:.85 } }
-              @keyframes bl-shine { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
-              @keyframes bl-blink { 0%,100% { opacity:1 } 50% { opacity:.25 } }
+              @keyframes octopilot-char-scan { 0%{color:#ff2200;transform:scale(1)}8%{color:#ffb199;transform:scale(1.34)}22%{color:#ff2200;transform:scale(1)}100%{color:#ff2200;transform:scale(1)} }
+              @keyframes bl-rise { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+              @keyframes bl-aurora { 0%,100%{transform:translate(-6%,-4%) rotate(0deg)} 50%{transform:translate(6%,4%) rotate(8deg)} }
+              @keyframes bl-aurora2 { 0%,100%{transform:translate(5%,3%) scale(1)} 50%{transform:translate(-5%,-3%) scale(1.15)} }
+              @keyframes bl-shine { 0%{transform:translateX(-130%)} 100%{transform:translateX(420%)} }
+              @keyframes bl-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+              @keyframes bl-spin { to{transform:rotate(360deg)} }
+              @keyframes bl-grid { from{background-position:0 0} to{background-position:0 38px} }
             `}</style>
-            {/* ambient glow orbs */}
-            <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-[#ea4335]/20 blur-[90px]" style={{ animation: "bl-orb 7s ease-in-out infinite" }} />
-            <div className="pointer-events-none absolute -right-24 bottom-1/4 h-80 w-80 rounded-full bg-[#7c3aed]/15 blur-[100px]" style={{ animation: "bl-orb 9s ease-in-out infinite reverse" }} />
+
+            {/* faint moving dot-grid */}
+            <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{
+              backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
+              backgroundSize: "38px 38px", animation: "bl-grid 6s linear infinite",
+            }} />
+            {/* aurora glows */}
+            <div className="pointer-events-none absolute -left-[12%] top-[8%] h-[42vmax] w-[42vmax] rounded-full" style={{ background: "radial-gradient(circle,rgba(234,67,53,0.22),transparent 62%)", filter: "blur(40px)", animation: "bl-aurora 12s ease-in-out infinite" }} />
+            <div className="pointer-events-none absolute -right-[14%] bottom-[2%] h-[46vmax] w-[46vmax] rounded-full" style={{ background: "radial-gradient(circle,rgba(124,58,237,0.16),transparent 64%)", filter: "blur(48px)", animation: "bl-aurora2 15s ease-in-out infinite" }} />
+            {/* vignette */}
+            <div className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 240px 60px rgba(0,0,0,0.65)" }} />
 
             <div className="relative flex flex-col items-center px-8">
-              {/* wordmark */}
-              <div style={{ animation: "bl-rise 0.7s cubic-bezier(0.22,1,0.36,1) both" }}>
-                <h1 className="text-center text-[clamp(44px,9vw,104px)] font-black leading-[0.92] tracking-tight text-white">
-                  Doc<span className="text-[#ea4335]">Oct</span>
-                </h1>
-                <p className="mt-2 text-center text-[12px] font-semibold uppercase tracking-[0.5em] text-white/30">Formatter Engine</p>
+              {/* Octopilot Doc Oct wordmark — header char-scan, scaled up */}
+              <div style={{ animation: "bl-rise 0.8s cubic-bezier(0.22,1,0.36,1) both", filter: "drop-shadow(0 6px 30px rgba(255,34,0,0.28))" }}>
+                <span className="font-extrabold italic tracking-tight leading-none">
+                  <span style={{ fontSize: "clamp(40px,8vw,84px)", color: "#ff2200" }}>
+                    {"Octopilot".split("").map((char, i) => (
+                      <span key={i} style={{ display: "inline-block", animation: "octopilot-char-scan 2.4s linear infinite", animationDelay: `${(i / 9) * 2.4}s` }}>{char}</span>
+                    ))}
+                  </span>
+                  <span style={{ fontSize: "clamp(26px,5.2vw,54px)" }} className="ml-2 text-white"> Doc Oct</span>
+                </span>
+              </div>
+              <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.62em] text-white/25" style={{ animation: "bl-rise 0.8s ease 0.1s both" }}>Academic Formatter Engine</p>
+
+              {/* Progress — circular ring + percentage, with a glowing arc */}
+              <div className="relative mt-14 flex items-center justify-center" style={{ width: 168, height: 168, animation: "bl-rise 0.8s cubic-bezier(0.22,1,0.36,1) 0.15s both" }}>
+                <svg width="168" height="168" viewBox="0 0 120 120" className="absolute -rotate-90">
+                  <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3" />
+                  <circle cx="60" cy="60" r={R} fill="none" stroke="url(#blgrad)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} style={{ transition: "stroke-dashoffset 0.14s linear", filter: "drop-shadow(0 0 6px rgba(255,80,55,0.9))" }} />
+                  <defs>
+                    <linearGradient id="blgrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#ff2200" /><stop offset="100%" stopColor="#ff8a7a" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* spinning tick accent */}
+                <div className="absolute" style={{ width: 168, height: 168, animation: "bl-spin 3.2s linear infinite" }}>
+                  <span className="absolute left-1/2 top-[6px] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#ff5a3c]" style={{ boxShadow: "0 0 8px #ff5a3c" }} />
+                </div>
+                <div className="flex items-end tabular-nums">
+                  <span className="text-[48px] font-black leading-none text-white">{pct}</span>
+                  <span className="mb-1.5 text-[18px] font-bold text-white/35">%</span>
+                </div>
               </div>
 
-              {/* percentage */}
-              <div className="mt-12 flex items-end gap-1 tabular-nums" style={{ animation: "bl-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both" }}>
-                <span className="text-[64px] font-black leading-none text-white">{pct}</span>
-                <span className="mb-2 text-[24px] font-bold text-white/40">%</span>
-              </div>
-
-              {/* progress bar */}
-              <div className="relative mt-5 h-[5px] w-[min(420px,72vw)] overflow-hidden rounded-full bg-white/[0.08]">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#ea4335] to-[#ff7a6d]"
-                  style={{ width: `${pct}%`, transition: "width 0.12s linear", boxShadow: "0 0 14px rgba(234,67,53,0.7)" }}
-                />
-                <div className="absolute inset-y-0 w-1/3" style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)", animation: "bl-shine 1.6s ease-in-out infinite" }} />
+              {/* slim bar with shimmer */}
+              <div className="relative mt-9 h-[3px] w-[min(380px,68vw)] overflow-hidden rounded-full bg-white/[0.06]" style={{ animation: "bl-rise 0.8s ease 0.2s both" }}>
+                <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#ff2200,#ff8a7a)", transition: "width 0.14s linear", boxShadow: "0 0 12px rgba(255,60,40,0.8)" }} />
+                <div className="absolute inset-y-0 w-1/4" style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)", animation: "bl-shine 1.7s ease-in-out infinite" }} />
               </div>
 
               {/* stage label */}
-              <div className="mt-7 flex items-center gap-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#ea4335]" style={{ animation: "bl-blink 1.1s ease-in-out infinite" }} />
-                <p key={stage} className="text-[14px] font-medium tracking-wide text-white/55" style={{ animation: "bl-rise 0.4s ease both" }}>{stage}</p>
+              <div className="mt-7 flex items-center gap-2.5" style={{ animation: "bl-rise 0.8s ease 0.25s both" }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ff2200]" style={{ animation: "bl-blink 1.1s ease-in-out infinite", boxShadow: "0 0 8px #ff2200" }} />
+                <p key={stage} className="text-[13.5px] font-medium tracking-[0.04em] text-white/55" style={{ animation: "bl-rise 0.45s ease both" }}>{stage}</p>
               </div>
             </div>
           </div>
