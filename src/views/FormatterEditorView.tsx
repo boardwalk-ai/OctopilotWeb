@@ -9,6 +9,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 import { AuthService } from "@/services/AuthService";
 import { CreditService } from "@/services/CreditService";
+import { DocumentService, type DocumentPayload, type DocumentSummary } from "@/services/DocumentService";
 import type { ParsedDocumentResult } from "@/app/api/formatter/parse/route";
 import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 import type { FormatStyleId } from "./FormatStyleView";
@@ -715,6 +716,23 @@ function OctoMiniPreview({
 
 /* ── Outline card (title + tag hue + glass bullets) ──────────────────────────── */
 interface OutlineData { type: string; title: string; description: string; bullets: string[] }
+
+type RestoredPage = { content: string; textAlign?: "left" | "center" | "right" | "justify"; centerVertically?: boolean; showPageNumber?: boolean; lineHeight?: number };
+
+/** Full document state persisted in documents.state (JSONB) — restored verbatim. */
+interface SavedState {
+  v?: number;
+  formatStyle?: FormatStyleId;
+  onboardingTopic?: string;
+  rawContent?: string;
+  assignmentAnalysis?: AssignmentAnalysis | null;
+  analyzedTopic?: string;
+  outlines?: OutlineData[];
+  sourceResults?: SourceResult[];
+  citCards?: CitationCard[];
+  sourceColors?: Record<string, string>;
+  snapshot?: ExportDocumentSnapshot | null;
+}
 function outlineTagColor(type: string): string {
   const t = type.toLowerCase();
   if (t.includes("introduction")) return "#3b82f6"; // blue
@@ -1411,6 +1429,17 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   // Editor is always active — users type directly without uploading
   const editorActive = true;
 
+  /* ── Save Deck: per-document save state ── */
+  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
+  const [restoredPages, setRestoredPages] = useState<RestoredPage[] | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [deckDocs, setDeckDocs] = useState<DocumentSummary[]>([]);
+  const [deckLoading, setDeckLoading] = useState(false);
+  const lastSavedRef = useRef<string>("");
+  const savingRef = useRef(false);
+  const currentDocIdRef = useRef<string | null>(null);
+  useEffect(() => { currentDocIdRef.current = currentDocId; }, [currentDocId]);
+
   /* ── Refs ── */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -1449,6 +1478,139 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setViewExiting(false);
     }, 480);
   }, []);
+
+  /* ── Save Deck: serialize → save (auto every 10s on change + Ctrl+S) ── */
+  const buildSavePayload = useCallback((): DocumentPayload => {
+    const snap = getSnapshotRef.current?.() ?? null;
+    const wordCount = snap
+      ? snap.pages.reduce((n, p) => n + (p.plainText || "").split(/\s+/).filter(Boolean).length, 0)
+      : 0;
+    const preview = ((snap?.pages.map((p) => p.plainText).join(" ")) || rawContent || "")
+      .replace(/\s+/g, " ").trim().slice(0, 160);
+    const title = (snap?.title || onboardingTopic || "Untitled document").trim();
+    const state: SavedState = {
+      v: 1, formatStyle, onboardingTopic, rawContent,
+      assignmentAnalysis, analyzedTopic, outlines,
+      sourceResults, citCards, sourceColors, snapshot: snap,
+    };
+    return {
+      title,
+      format_style: formatStyle,
+      word_count: wordCount,
+      preview,
+      state,
+      sources: sourceResults.map((s) => ({ source_ref: s.url, title: s.title, url: s.url, content: s.fullContent })),
+      outlines: outlines.map((o) => ({ type: o.type, title: o.title, bullets: o.bullets.map((b) => ({ text: b })) })),
+    };
+  }, [formatStyle, onboardingTopic, rawContent, assignmentAnalysis, analyzedTopic, outlines, sourceResults, citCards, sourceColors]);
+
+  const saveNow = useCallback(async (opts?: { force?: boolean }) => {
+    if (savingRef.current) return;
+    if (!AuthService.getCurrentUser()) return;        // signed-in users only
+    let payload: DocumentPayload;
+    try { payload = buildSavePayload(); } catch { return; }
+    if (payload.word_count === 0 && !opts?.force) return;   // nothing meaningful yet
+    const serialized = JSON.stringify(payload);
+    if (!opts?.force && serialized === lastSavedRef.current) return;  // unchanged → skip
+    savingRef.current = true;
+    setSaveStatus("saving");
+    try {
+      if (!currentDocIdRef.current) {
+        const id = await DocumentService.create(payload);
+        setCurrentDocId(id);
+      } else {
+        await DocumentService.save(currentDocIdRef.current, payload);
+      }
+      lastSavedRef.current = serialized;
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    } finally {
+      savingRef.current = false;
+    }
+  }, [buildSavePayload]);
+
+  // Autosave: every 10s while editing, save if anything changed (overwrite).
+  useEffect(() => {
+    if (viewState !== "editor") return;
+    const t = setInterval(() => { void saveNow(); }, 10_000);
+    return () => clearInterval(t);
+  }, [viewState, saveNow]);
+
+  // Manual save: Ctrl/Cmd+S saves the exact current state immediately.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        void saveNow({ force: true });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [saveNow]);
+
+  // Open a saved document → rehydrate every field + the exact editor pages.
+  const openDocument = useCallback(async (id: string) => {
+    try {
+      const doc = await DocumentService.load(id);
+      const st = (doc.state || {}) as SavedState;
+      setFormatStyle((st.formatStyle as FormatStyleId) || (doc.format_style as FormatStyleId) || "mla");
+      setOnboardingTopic(st.onboardingTopic || "");
+      setRawContent(st.rawContent || "");
+      setAssignmentAnalysis(st.assignmentAnalysis ?? null);
+      setAnalyzedTopic(st.analyzedTopic || "");
+      setOutlines(Array.isArray(st.outlines) ? st.outlines : []);
+      setSourceResults(Array.isArray(st.sourceResults) ? st.sourceResults : []);
+      setCitCards(Array.isArray(st.citCards) ? st.citCards : []);
+      setSourceColors(st.sourceColors || {});
+      const snap = st.snapshot ?? null;
+      if (snap?.pages?.length) {
+        setRestoredPages(snap.pages.map((p) => ({
+          content: p.html, textAlign: p.textAlign, centerVertically: p.centerVertically,
+          showPageNumber: p.showPageNumber, lineHeight: p.lineHeight,
+        })));
+        setCoreSnapshot((prev) => ({ ...prev, initialDocTitle: snap.title || prev.initialDocTitle, content: "" }));
+      } else {
+        setRestoredPages(null);
+      }
+      setCurrentDocId(id);
+      lastSavedRef.current = "";
+      setEditorKey((k) => k + 1);
+      transitionTo("editor");
+    } catch {
+      showToast("Couldn't open that document.");
+    }
+  }, [transitionTo, showToast]);
+
+  // Load the Save Deck's recent documents.
+  const refreshDeck = useCallback(async () => {
+    if (!AuthService.getCurrentUser()) return;
+    setDeckLoading(true);
+    try { setDeckDocs(await DocumentService.list()); }
+    catch { /* ignore */ }
+    finally { setDeckLoading(false); }
+  }, []);
+
+  // Start a fresh document from a template → setup wizard. "none" = Blank
+  // (format left unselected so the user picks it).
+  const startNewDocument = useCallback((style: FormatStyleId | null) => {
+    setCurrentDocId(null);
+    setRestoredPages(null);
+    lastSavedRef.current = "";
+    setSaveStatus("idle");
+    setOutlines([]);
+    setAssignmentAnalysis(null);
+    setAnalyzedTopic("");
+    setCoreSnapshot(EMPTY_SNAPSHOT);
+    // Blank (null) → wizard with no format forced; otherwise pre-select it.
+    if (style) { setFormatStyle(style); transitionTo("setup", { style }); }
+    else transitionTo("setup");
+  }, [transitionTo]);
+
+  // Refresh the deck whenever the signed-in user lands on the home view.
+  useEffect(() => {
+    if (viewState === "welcome" && currentUser) void refreshDeck();
+  }, [viewState, currentUser, refreshDeck]);
 
   /* ── Draft save ── */
   const saveDraft = useCallback(() => {
@@ -2803,16 +2965,36 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         {/* ── RIGHT controls ── */}
         <div className="flex items-center gap-2">
-          {/* Save Draft — glass pill */}
-          <button
-            type="button"
-            onClick={saveDraft}
-            disabled={!rawContent.trim()}
-            className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)] disabled:opacity-40"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-            Save
-          </button>
+          {/* Save (cloud) — glass pill with autosave status. Signed-in only. */}
+          {currentUser ? (
+            <button
+              type="button"
+              onClick={() => void saveNow({ force: true })}
+              title="Save now (Ctrl+S) · autosaves every 10s"
+              className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)]"
+            >
+              {saveStatus === "saving" ? (
+                <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+              ) : saveStatus === "saved" ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              ) : saveStatus === "error" ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              )}
+              {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Retry" : "Save"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={saveDraft}
+              disabled={!rawContent.trim()}
+              className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)] disabled:opacity-40"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              Save
+            </button>
+          )}
 
           {/* Humanizer credits — glass pill */}
           {currentUser && humanizerCredits !== null && (
@@ -2959,7 +3141,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         <div className="absolute inset-0 overflow-hidden bg-[var(--ed-app-bg)]">
 
           {/* ── WELCOME PANEL ── */}
-          {viewState === "welcome" && (
+          {viewState === "welcome" && !currentUser && (
             <WizardShell
               step={1}
               exiting={viewExiting}
@@ -2997,6 +3179,105 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </button>
               </div>
             </WizardShell>
+          )}
+
+          {/* ── SAVE DECK (logged-in home) ── */}
+          {viewState === "welcome" && currentUser && (
+            <div className={`h-full overflow-y-auto bg-[#0b0e13] ${viewExiting ? "cinematic-exit" : "cinematic-enter"}`}>
+              <div className="mx-auto max-w-[1100px] px-8 py-10">
+                {/* Greeting */}
+                <div className="mb-8">
+                  <h1 className="text-[26px] font-bold text-white">
+                    Your <span className="text-[#ea4335]">Doc Oct</span> workspace
+                  </h1>
+                  <p className="mt-1 text-[14px] text-white/45">Start a new paper or pick up where you left off — everything autosaves.</p>
+                </div>
+
+                {/* Templates */}
+                <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-white/35">Start a new document</p>
+                <div className="mb-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                  {([
+                    { id: null, label: "Blank", sub: "No format" },
+                    { id: "mla", label: "MLA Paper", sub: "MLA 9th" },
+                    { id: "apa", label: "APA Paper", sub: "APA 7th" },
+                    { id: "ieee", label: "IEEE Paper", sub: "IEEE" },
+                    { id: "chicago", label: "Chicago Paper", sub: "Chicago" },
+                    { id: "harvard", label: "Harvard Paper", sub: "Harvard" },
+                  ] as { id: FormatStyleId | null; label: string; sub: string }[]).map((t) => (
+                    <button
+                      key={t.id ?? "blank"}
+                      type="button"
+                      onClick={() => startNewDocument(t.id)}
+                      className="group flex flex-col items-stretch text-left transition active:scale-[0.98]"
+                    >
+                      <div className="relative mb-2 aspect-[8.5/11] overflow-hidden rounded-lg border border-white/10 bg-white shadow-sm transition group-hover:border-[#ea4335]/60 group-hover:shadow-[0_0_0_2px_rgba(234,67,53,0.35)]">
+                        {t.id === null ? (
+                          <div className="flex h-full items-center justify-center">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="1.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                          </div>
+                        ) : (
+                          <div className="flex h-full flex-col gap-[5px] px-3 py-3">
+                            <div className="mx-auto mb-1 h-[5px] w-[60%] rounded-full bg-[#c9ced6]" />
+                            {Array.from({ length: 8 }).map((_, i) => (
+                              <div key={i} className="h-[3px] rounded-full bg-[#e2e5ea]" style={{ width: `${[100, 92, 96, 84, 98, 90, 94, 70][i]}%` }} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[13px] font-semibold text-white/85 group-hover:text-white">{t.label}</span>
+                      <span className="text-[11px] text-white/35">{t.sub}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Recent documents */}
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/35">Recent documents</p>
+                  <button type="button" onClick={() => void refreshDeck()} className="text-[11px] font-medium text-white/40 transition hover:text-white/70">Refresh</button>
+                </div>
+
+                {deckLoading && deckDocs.length === 0 ? (
+                  <div className="flex items-center gap-2.5 py-10 text-[13px] text-white/40">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Loading your documents…
+                  </div>
+                ) : deckDocs.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-12 text-center">
+                    <p className="text-[14px] font-medium text-white/60">No saved documents yet</p>
+                    <p className="mt-1 text-[12px] text-white/35">Pick a template above — your work will appear here automatically.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                    {deckDocs.map((d) => (
+                      <div key={d.id} className="group relative cursor-pointer" onClick={() => void openDocument(d.id)}>
+                        <div className="relative mb-2 aspect-[8.5/11] overflow-hidden rounded-lg border border-white/10 bg-white shadow-sm transition group-hover:border-[#ea4335]/60 group-hover:shadow-[0_0_0_2px_rgba(234,67,53,0.35)]">
+                          <div className="flex h-full flex-col gap-[4px] px-3 py-3">
+                            <div className="mb-1 h-[5px] w-[55%] rounded-full bg-[#c9ced6]" />
+                            <p className="line-clamp-[9] text-[5.5px] leading-[1.7] text-[#9aa0aa]">{d.preview || "Empty document"}</p>
+                          </div>
+                          <button
+                            type="button"
+                            title="Delete"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try { await DocumentService.remove(d.id); setDeckDocs((prev) => prev.filter((x) => x.id !== d.id)); }
+                              catch { showToast("Couldn't delete."); }
+                            }}
+                            className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white/80 transition hover:bg-[#ea4335] group-hover:flex"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                          </button>
+                        </div>
+                        <span className="block truncate text-[13px] font-semibold text-white/85 group-hover:text-white">{d.title}</span>
+                        <span className="text-[11px] text-white/35">
+                          {d.format_style && d.format_style !== "none" ? `${d.format_style.toUpperCase()} · ` : ""}
+                          {new Date(d.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* ── SETUP PANEL ── */}
@@ -3214,6 +3495,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             >
               <FormatterEditorCore
                 content={coreSnapshot.content}
+                restoredPages={restoredPages ?? undefined}
                 bibliography={coreSnapshot.bibliography}
                 initialDocTitle={coreSnapshot.initialDocTitle}
                 studentName={coreSnapshot.studentName}

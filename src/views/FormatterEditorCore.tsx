@@ -16,6 +16,10 @@ export interface EditorViewProps {
     onFinish?: (snapshot: ExportDocumentSnapshot) => void;
     // Raw essay body
     content: string;
+    // Restore from a saved document: exact per-page HTML + meta. When provided,
+    // the editor hydrates from these instead of re-formatting `content`, so a
+    // reopened document is byte-identical to what was saved.
+    restoredPages?: { content: string; textAlign?: "left" | "center" | "right" | "justify"; centerVertically?: boolean; showPageNumber?: boolean; lineHeight?: number }[];
     // Parsed fields (from document parser)
     bibliography?: string;
     initialDocTitle?: string;
@@ -418,7 +422,7 @@ function setSelCharRange(editor: HTMLElement, range: { start: number; end: numbe
 }
 
 export default function FormatterEditorCore({
-    onBack, onFinish, content,
+    onBack, onFinish, content, restoredPages,
     bibliography, initialDocTitle, studentName, instructorName, institutionName, courseInfo, subjectCode, essayDate,
     citations = [], formatStyle = "mla",
     onReformat,
@@ -533,9 +537,11 @@ export default function FormatterEditorCore({
         .filter(Boolean);
     const fallbackPages: FormatterPage[] = (legacyParsedPages.length > 0 ? legacyParsedPages : [initialText])
         .map((content) => ({ content }));
-    const structuredPages = formattedDoc.pages && formattedDoc.pages.length > 0
-        ? formattedDoc.pages
-        : fallbackPages;
+    const structuredPages = restoredPages && restoredPages.length > 0
+        ? restoredPages
+        : formattedDoc.pages && formattedDoc.pages.length > 0
+            ? formattedDoc.pages
+            : fallbackPages;
 
     const initialPageHtmls = structuredPages.map((page) => {
         const raw = page.content || "";
