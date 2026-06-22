@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
+    "@types/pg": "^8.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.7.1",
@@ -21,6 +22,7 @@
     "next": "16.1.6",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.5.207",
+    "pg": "^8.22.0",
     "pngjs": "^7.0.0",
     "pptxgenjs": "^4.0.1",
     "react": "19.2.3",
