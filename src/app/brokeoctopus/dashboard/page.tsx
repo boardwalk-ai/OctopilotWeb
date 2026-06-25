@@ -427,11 +427,9 @@ function CreditEditModal({
   saving: boolean;
   error: string | null;
   onClose: () => void;
-  onSave: (payload: { wordCredits: number; humanizerCredits: number; sourceCredits: number }) => Promise<void>;
+  onSave: (payload: { octoCredits: number }) => Promise<void>;
 }) {
-  const [wordCredits, setWordCredits] = useState(String(row.word ?? 0));
-  const [humanizerCredits, setHumanizerCredits] = useState(String(row.humanizer ?? 0));
-  const [sourceCredits, setSourceCredits] = useState(String(row.source ?? 0));
+  const [octoCredits, setOctoCredits] = useState(String(row.octo ?? 0));
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4">
@@ -447,36 +445,17 @@ function CreditEditModal({
           </button>
         </div>
 
-        <div className="mt-7 grid gap-4 md:grid-cols-3">
+        <div className="mt-7">
           <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
-            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Word Credits</span>
+            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">OctoCredits</span>
             <input
               type="number"
               min="0"
-              value={wordCredits}
-              onChange={(event) => setWordCredits(event.target.value)}
+              value={octoCredits}
+              onChange={(event) => setOctoCredits(event.target.value)}
               className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
             />
-          </label>
-          <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
-            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Humanizer Credits</span>
-            <input
-              type="number"
-              min="0"
-              value={humanizerCredits}
-              onChange={(event) => setHumanizerCredits(event.target.value)}
-              className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
-            />
-          </label>
-          <label className="block rounded-[22px] border border-white/8 bg-[#111111] p-4">
-            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Source Credits</span>
-            <input
-              type="number"
-              min="0"
-              value={sourceCredits}
-              onChange={(event) => setSourceCredits(event.target.value)}
-              className="w-full rounded-[16px] border border-white/10 bg-[#181818] px-4 py-3 text-base font-semibold text-white outline-none transition focus:border-red-500/40"
-            />
+            <span className="mt-2 block text-[11px] text-white/35">Sets the user&rsquo;s exact OctoCredit balance. 100 OC = $1 of usage.</span>
           </label>
         </div>
 
@@ -490,13 +469,7 @@ function CreditEditModal({
             Cancel
           </button>
           <button
-            onClick={() =>
-              onSave({
-                wordCredits: Number(wordCredits || 0),
-                humanizerCredits: Number(humanizerCredits || 0),
-                sourceCredits: Number(sourceCredits || 0),
-              })
-            }
+            onClick={() => onSave({ octoCredits: Number(octoCredits || 0) })}
             disabled={saving}
             className="min-w-[168px] rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -1314,7 +1287,7 @@ export default function BrokeOctopusPage() {
     }
   };
 
-  const handleSaveCredits = async (payload: { wordCredits: number; humanizerCredits: number; sourceCredits: number }) => {
+  const handleSaveCredits = async (payload: { octoCredits: number }) => {
     if (!editingRow?.userId) {
       setCreditModalError("Missing user identifier for this row.");
       return;
@@ -1355,12 +1328,7 @@ export default function BrokeOctopusPage() {
             ...current.sections,
             "subscription-management": (current.sections["subscription-management"] || []).map((row) =>
               row.userId === editingRow.userId
-                ? {
-                    ...row,
-                    word: payload.wordCredits,
-                    humanizer: payload.humanizerCredits,
-                    source: payload.sourceCredits,
-                  }
+                ? { ...row, octo: payload.octoCredits }
                 : row
             ),
           },
