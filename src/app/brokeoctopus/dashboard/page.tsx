@@ -93,7 +93,7 @@ const menuItems: MenuItem[] = [
     label: "Subscription Management",
     description: "Plans, billing, and credits",
     icon: <CreditCardIcon />,
-    columns: ["No", "Name", "Email", "Next Billing", "Current Plan", "Word", "Humanizer", "Source", "Actions"],
+    columns: ["No", "Name", "Email", "Next Billing", "Current Plan", "OctoCredits", "Actions"],
   },
   { id: "reports", label: "Reports", description: "Support and issue intake", icon: <FlagIcon />, columns: ["No", "Email", "Status", "Timestamp", "Action"] },
   { id: "metadata", label: "Metadata", description: "Sessions and activity health", icon: <ClockIcon />, columns: ["No", "Email", "Sessions", "Last Activity", "Status", "Action"] },
@@ -125,7 +125,7 @@ const menuItems: MenuItem[] = [
 
 const keyOrderBySection: Record<string, string[]> = {
   "user-management": ["no", "name", "email", "status", "role", "actions"],
-  "subscription-management": ["no", "name", "email", "nextBilling", "currentPlan", "word", "humanizer", "source", "actions"],
+  "subscription-management": ["no", "name", "email", "nextBilling", "currentPlan", "octo", "actions"],
   reports: ["no", "email", "status", "timestamp", "action"],
   metadata: ["no", "email", "sessions", "lastActivity", "status", "action"],
   "market-data": ["no", "email", "ipAddress", "plan", "customerSince"],
