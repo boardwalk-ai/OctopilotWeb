@@ -3,6 +3,11 @@ import { OctopilotAPIService } from "./OctopilotAPIService";
 
 export type AccountSnapshot = {
   plan?: string | null;
+  // Unified OctoCredit balance (single source of truth post-migration).
+  octo_credits?: number | null;
+  octoCredits?: number | null;
+  free_grant_claimed?: boolean | null;
+  // Legacy 3-bucket fields (read-only; retained for back-compat during rollout).
   word_credits?: number | null;
   humanizer_credits?: number | null;
   source_credits?: number | null;
@@ -30,9 +35,13 @@ function normalizeSnapshot(snapshot?: AccountSnapshot | null): AccountSnapshot |
     return null;
   }
 
+  const octo = snapshot.octo_credits ?? snapshot.octoCredits ?? null;
   return {
     ...snapshot,
     plan: snapshot.plan ?? null,
+    octo_credits: octo,
+    octoCredits: octo,
+    free_grant_claimed: snapshot.free_grant_claimed ?? null,
     word_credits: snapshot.word_credits ?? snapshot.wordCredits ?? null,
     humanizer_credits: snapshot.humanizer_credits ?? snapshot.humanizerCredits ?? null,
     source_credits: snapshot.source_credits ?? snapshot.sourceCredits ?? null,

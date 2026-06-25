@@ -17,13 +17,12 @@ interface PlanInfoProps {
 }
 
 const defaultCredits: Credit[] = [
-  { label: "Essay", value: 50 },
-  { label: "Humanizer", value: 50 },
-  { label: "Source", value: 5 },
+  { label: "OctoCredits", value: 0 },
 ];
 
 type StreamCreditsPayload = {
   plan?: string | null;
+  octoCredits?: number | null;
   wordCredits?: number | null;
   humanizerCredits?: number | null;
   sourceCredits?: number | null;
@@ -84,14 +83,9 @@ function mapMeToCredits(payload?: AccountSnapshot | StreamCreditsPayload | null)
     | (StreamCreditsPayload & Partial<AccountSnapshot>)
     | null
     | undefined;
-  const wordCredits = resolvedPayload?.word_credits ?? resolvedPayload?.wordCredits;
-  const humanizerCredits = resolvedPayload?.humanizer_credits ?? resolvedPayload?.humanizerCredits;
-  const sourceCredits = resolvedPayload?.source_credits ?? resolvedPayload?.sourceCredits;
-
+  const octo = resolvedPayload?.octo_credits ?? resolvedPayload?.octoCredits;
   return [
-    { label: "Essay", value: Number(wordCredits ?? 50) },
-    { label: "Humanizer", value: Number(humanizerCredits ?? 50) },
-    { label: "Source", value: Number(sourceCredits ?? 5) },
+    { label: "OctoCredits", value: Number(octo ?? 0) },
   ];
 }
 
