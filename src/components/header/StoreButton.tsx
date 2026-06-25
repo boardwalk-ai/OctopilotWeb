@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AuthService } from "@/services/AuthService";
+import { OctopilotAPIService } from "@/services/OctopilotAPIService";
 
 /* ━━━ OctoCredit Store (Pricing Final v1.0) ━━━━━━━━━━━━━━━━━━━━━━━━━
- * Unified OctoCredit pricing. Stripe checkout is not wired yet (Finance
- * pending), so purchase actions show a "coming soon" notice instead of
- * calling the billing endpoint. Plans/packs are informational + accurate. */
+ * Unified OctoCredit pricing wired to Stripe Checkout. */
 
 type ProTerm = { key: string; label: string; price: string; unit: string; struck?: string; badge?: string };
 
@@ -16,12 +16,12 @@ const PRO_TERMS: ProTerm[] = [
 ];
 
 const TOPUPS: Array<{ key: string; oc: string; price: string }> = [
-  { key: "t50", oc: "50", price: "$0.99" },
-  { key: "t300", oc: "300", price: "$4.99" },
-  { key: "t500", oc: "500", price: "$7.99" },
-  { key: "t1000", oc: "1,000", price: "$9.99" },
-  { key: "t2500", oc: "2,500", price: "$19.99" },
-  { key: "t5000", oc: "5,000", price: "$39.99" },
+  { key: "topup_50", oc: "50", price: "$0.99" },
+  { key: "topup_300", oc: "300", price: "$4.99" },
+  { key: "topup_500", oc: "500", price: "$7.99" },
+  { key: "topup_1000", oc: "1,000", price: "$9.99" },
+  { key: "topup_2500", oc: "2,500", price: "$19.99" },
+  { key: "topup_5000", oc: "5,000", price: "$39.99" },
 ];
 
 function StoreIcon() {
@@ -47,6 +47,7 @@ export default function StoreButton() {
   const [view, setView] = useState<"plans" | "topups">("plans");
   const [proTerm, setProTerm] = useState("monthly");
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -58,7 +59,21 @@ export default function StoreButton() {
   }, [open]);
 
   const term = PRO_TERMS.find((t) => t.key === proTerm) ?? PRO_TERMS[0];
-  const comingSoon = () => setNotice("Checkout is opening soon — paid plans are being finalised. Your Free OctoCredits work right now.");
+
+  async function checkout(payload: { kind: "subscription"; plan_key: "pro"; billing_key: string } | { kind: "addon"; addon_key: string }) {
+    if (!AuthService.getCurrentUser()) { setNotice("Please sign in first to purchase."); return; }
+    setNotice(null);
+    setBusy(true);
+    try {
+      const res = await OctopilotAPIService.post<{ url: string }>("/api/v1/billing/checkout-session", payload);
+      window.location.assign(res.url);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Checkout could not be started.");
+      setBusy(false);
+    }
+  }
+  const buyPro = () => checkout({ kind: "subscription", plan_key: "pro", billing_key: proTerm });
+  const buyTopup = (key: string) => checkout({ kind: "addon", addon_key: key });
 
   return (
     <>
@@ -143,7 +158,7 @@ export default function StoreButton() {
                         <span key={f} className="flex items-center gap-2"><Check />{f}</span>
                       ))}
                     </div>
-                    <button type="button" onClick={comingSoon} className="mt-auto rounded-full bg-amber-400 py-2.5 text-[0.82rem] font-bold text-neutral-950 transition hover:bg-amber-300">Choose Pro · {term.label}</button>
+                    <button type="button" onClick={buyPro} disabled={busy} className="mt-auto rounded-full bg-amber-400 py-2.5 text-[0.82rem] font-bold text-neutral-950 transition hover:bg-amber-300 disabled:opacity-60">{busy ? "Opening checkout…" : `Choose Pro · ${term.label}`}</button>
                   </div>
                 </div>
               ) : (
@@ -151,8 +166,8 @@ export default function StoreButton() {
                   <p className="mb-4 text-[0.82rem] text-neutral-400">One-time <span className="font-semibold text-white">OctoCredit</span> top-ups — land in your account immediately. <span className="text-neutral-500">100 OctoCredits = $1 of usage.</span></p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     {TOPUPS.map((p) => (
-                      <button key={p.key} type="button" onClick={comingSoon}
-                        className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-red-500/40 hover:bg-red-500/[0.04]">
+                      <button key={p.key} type="button" onClick={() => buyTopup(p.key)} disabled={busy}
+                        className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-red-500/40 hover:bg-red-500/[0.04] disabled:opacity-60">
                         <span className="text-[1.5rem] font-extrabold text-white">{p.oc}</span>
                         <span className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">OctoCredits</span>
                         <span className="mt-2 rounded-full bg-white/5 px-3 py-1 text-[0.78rem] font-bold text-red-400">{p.price}</span>
@@ -164,7 +179,7 @@ export default function StoreButton() {
             </div>
 
             <div className="border-t border-white/8 px-6 py-3 text-center text-[0.7rem] text-neutral-500">
-              Cost-based pricing · you only spend OctoCredits on what you generate. Secure checkout via Stripe (coming soon).
+              Cost-based pricing · you only spend OctoCredits on what you generate. Secure checkout via Stripe.
             </div>
           </div>
         </div>
