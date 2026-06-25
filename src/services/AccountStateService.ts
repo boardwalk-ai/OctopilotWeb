@@ -20,7 +20,9 @@ export type AccountSnapshot = {
   subscriptionEndDate?: string | null;
 };
 
-const STORAGE_KEY = "octopilot.account.snapshot";
+// Bump the version suffix to invalidate stale client caches (e.g. snapshots
+// taken before the OctoCredit migration that lack octo_credits → would show 0).
+const STORAGE_KEY = "octopilot.account.snapshot.v2";
 let memorySnapshot: AccountSnapshot | null = null;
 let hydratedUserId: string | null = null;
 let bootstrapPromise: Promise<AccountSnapshot | null> | null = null;
