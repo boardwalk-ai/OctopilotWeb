@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { User } from "firebase/auth";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { AuthService } from "@/services/AuthService";
+import { BetaAccessService, DEFAULT_BETA_ACCESS } from "@/services/BetaAccessService";
 import {
   AppHeader,
   LogoNav,
@@ -15,20 +16,6 @@ import styles from "./MethodologyViewMobile.module.css";
 interface MethodologyViewProps {
   onSelect: (method: "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter") => void;
 }
-
-type BetaAccessFeatures = {
-  ghostwriter: boolean;
-  octopilotSlides: boolean;
-  humanizerHub: boolean;
-  ghostCiter: boolean;
-};
-
-const DEFAULT_BETA_ACCESS: BetaAccessFeatures = {
-  ghostwriter: false,
-  octopilotSlides: false,
-  humanizerHub: false,
-  ghostCiter: false,
-};
 
 const automationFeatures = [
   {
@@ -299,7 +286,9 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const org = useOrganizer();
   const [selected, setSelected] = useState<"automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter">(org.writingMode || "automation");
   const [user, setUser] = useState<User | null>(() => AuthService.getCurrentUser());
-  const [betaAccess, setBetaAccess] = useState<BetaAccessFeatures>(DEFAULT_BETA_ACCESS);
+  // Seed from the cached snapshot so a return visit renders the final card set
+  // synchronously — no flash of the non-beta layout while the request resolves.
+  const [betaAccess, setBetaAccess] = useState(() => BetaAccessService.read() ?? DEFAULT_BETA_ACCESS);
   const canSeeGhostwriter = true;
   const canSeeOctopilotSlides = betaAccess.octopilotSlides;
   const canSeeHumanizerHub = betaAccess.humanizerHub;
@@ -318,50 +307,20 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    // Reflect the cache immediately, subscribe for updates, and (re)validate once.
+    // bootstrap() is a no-op when the cache is already warm for this user, so
+    // returning to this screen never re-checks or flickers.
+    const cached = BetaAccessService.read();
+    if (cached) {
+      setBetaAccess(cached);
+    } else if (!user) {
+      setBetaAccess(DEFAULT_BETA_ACCESS);
+    }
 
-    const loadBetaAccess = async () => {
-      if (!user) {
-        if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
-        return;
-      }
+    const unsubscribe = BetaAccessService.subscribe(setBetaAccess);
+    void BetaAccessService.bootstrap();
 
-      try {
-        const token = await AuthService.getIdToken();
-        if (!token) {
-          if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
-          return;
-        }
-
-        const response = await fetch("/api/beta-access/me", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
-          return;
-        }
-
-        const payload = (await response.json()) as { features?: Partial<BetaAccessFeatures> };
-        if (cancelled) return;
-
-        setBetaAccess({
-          ghostwriter: Boolean(payload.features?.ghostwriter),
-          octopilotSlides: Boolean(payload.features?.octopilotSlides),
-          humanizerHub: Boolean(payload.features?.humanizerHub),
-          ghostCiter: Boolean(payload.features?.ghostCiter),
-        });
-      } catch {
-        if (!cancelled) setBetaAccess(DEFAULT_BETA_ACCESS);
-      }
-    };
-
-    void loadBetaAccess();
-
-    return () => {
-      cancelled = true;
-    };
+    return unsubscribe;
   }, [user]);
 
   return (

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AccountSnapshot, AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
+import { BetaAccessService } from "@/services/BetaAccessService";
 import { StreamService } from "@/services/StreamService";
 
 interface Credit {
@@ -105,10 +106,17 @@ export default function PlanInfo({
     ? "Loading"
     : getDisplayPlanName(accountSnapshot?.plan ?? planName);
   const resolvedCredits = accountSnapshot ? mapMeToCredits(accountSnapshot) : credits;
-  const shellHeight = "var(--plan-height, 46px)";
-  const creditWidth = "var(--plan-credit-width, 82px)";
-  const creditsMaxWidth = expanded ? "var(--plan-credits-max-width, 250px)" : "0px";
   const theme = getPlanTheme(shouldHoldPlan ? "Pro" : resolvedPlanName);
+  const balance = Number(resolvedCredits[0]?.value ?? 0);
+  const isPro = /^pro/i.test(resolvedPlanName);
+  const renewalDate = (() => {
+    const raw = accountSnapshot?.subscription_end_date;
+    if (!isPro || !raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  })();
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -152,6 +160,7 @@ export default function PlanInfo({
       const currentUser = authReadyUser;
       if (!currentUser) {
         AccountStateService.clear();
+        BetaAccessService.clear();
         setIsBootstrapping(false);
         return;
       }
@@ -167,6 +176,10 @@ export default function PlanInfo({
           setIsBootstrapping(false);
         }
       }
+
+      // Warm the beta-access cache during the same auth-resolve pass so the
+      // methodology screen renders its final card set without a flash later.
+      void BetaAccessService.bootstrap();
 
       try {
         stopStream = await StreamService.connect({
@@ -199,67 +212,102 @@ export default function PlanInfo({
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="group relative inline-flex items-center overflow-hidden rounded-full border-[1.5px] transition-[box-shadow,border-color] duration-900 ease-[cubic-bezier(0.2,1,0.22,1)]"
-        style={{ height: shellHeight, borderColor: theme.border, background: theme.background, boxShadow: theme.glow }}
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="group relative flex items-center gap-1.5 overflow-hidden rounded-full border py-[5px] pl-[5px] pr-2.5 transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-px active:translate-y-0"
+        style={{ borderColor: `${theme.border}66`, background: theme.background, boxShadow: theme.glow }}
       >
-        {/* Glow overlay */}
-        <span className="pointer-events-none absolute inset-0 opacity-90" style={{ background: theme.overlay }} />
-        {/* Inner top edge glow */}
-        <span className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-30" style={{ background: `linear-gradient(90deg, transparent, ${theme.text}, transparent)` }} />
+        {/* Accent wash + top hairline */}
+        <span className="pointer-events-none absolute inset-0 opacity-80" style={{ background: theme.overlay }} />
+        <span className="pointer-events-none absolute inset-x-4 top-0 h-px opacity-50" style={{ background: `linear-gradient(90deg, transparent, ${theme.text}, transparent)` }} />
 
-        {/* Plan name area — centered */}
+        {/* Plan badge */}
         <span
-          className="relative flex h-full items-center justify-center gap-2.5"
-          style={{ minWidth: "var(--plan-collapsed-width, 138px)", paddingInline: "var(--plan-horizontal-padding, 1rem)", color: theme.text }}
+          className="relative flex items-center gap-1.5 rounded-full px-2.5 py-[3px]"
+          style={{ background: `${theme.text}1f`, boxShadow: `inset 0 0 0 1px ${theme.text}26` }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[14px] w-[14px] shrink-0">
-            <path d="m4 18 2-9 6 4 6-4 2 9H4Z" />
-            <path d="M7 9 4.5 5.5" />
-            <path d="M12 9V4.5" />
-            <path d="M17 9 19.5 5.5" />
-            <circle cx="4.5" cy="5.5" r="1" fill="currentColor" stroke="none" />
-            <circle cx="12" cy="4.5" r="1" fill="currentColor" stroke="none" />
-            <circle cx="19.5" cy="5.5" r="1" fill="currentColor" stroke="none" />
-          </svg>
-          <span className="text-[0.92rem] font-bold tracking-[-0.01em]">{resolvedPlanName}</span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`shrink-0 transition-transform duration-700 ease-[cubic-bezier(0.2,1,0.22,1)] ${expanded ? "rotate-180" : ""}`}
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: theme.text, boxShadow: `0 0 7px ${theme.text}` }} />
+          <span
+            className={`text-[0.74rem] font-bold leading-none tracking-[-0.01em] ${shouldHoldPlan ? "animate-pulse" : ""}`}
+            style={{ color: theme.text }}
           >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+            {resolvedPlanName}
+          </span>
         </span>
 
-        {/* Credits panel */}
-        <span
-          className={`relative flex h-[30px] items-stretch overflow-hidden transition-[max-width,opacity] duration-900 ease-[cubic-bezier(0.2,1,0.22,1)] ${expanded ? "opacity-100" : "opacity-0"}`}
-          style={{ maxWidth: creditsMaxWidth }}
-        >
-          {resolvedCredits.map((credit, index) => (
-            <span
-              key={credit.label}
-              className={`flex min-w-[82px] flex-col items-center justify-center px-2 text-center ${index === 0 ? "border-l" : index !== credits.length ? "border-l" : ""
-                }`}
-              style={{ minWidth: creditWidth, borderColor: `${theme.text}22` }}
-            >
-              <span className="text-[0.84rem] font-bold tabular-nums tracking-[-0.02em] text-white">
-                {credit.value.toLocaleString()}
-              </span>
-              <span className="mt-px text-[0.5rem] font-semibold uppercase tracking-[0.2em]" style={{ color: `${theme.text}88` }}>
-                {credit.label}
-              </span>
+        {/* Balance */}
+        <span className="relative ml-0.5 flex items-center gap-1.5">
+          <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] shrink-0" fill="none">
+            <circle cx="12" cy="12" r="9" fill={`${theme.text}1f`} stroke={theme.text} strokeWidth="1.6" />
+            <path d="M12 7.5l1.3 2.9 3.2.3-2.4 2.1.7 3.1-2.8-1.7-2.8 1.7.7-3.1-2.4-2.1 3.2-.3z" fill={theme.text} />
+          </svg>
+          <span className="flex items-baseline gap-1">
+            <span className={`text-[0.92rem] font-extrabold leading-none tabular-nums tracking-[-0.02em] text-white ${shouldHoldPlan ? "animate-pulse" : ""}`}>
+              {shouldHoldPlan ? "•••" : balance.toLocaleString()}
             </span>
-          ))}
+            <span className="text-[0.56rem] font-bold uppercase leading-none tracking-[0.16em]" style={{ color: `${theme.text}b0` }}>
+              OC
+            </span>
+          </span>
         </span>
+
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={`${theme.text}cc`}
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`relative ml-0.5 shrink-0 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
+
+      {/* Wallet popover */}
+      <div
+        className={`absolute right-0 top-[calc(100%+10px)] z-[70] w-[252px] origin-top-right rounded-2xl border p-4 transition-all duration-200 ease-out ${
+          expanded ? "pointer-events-auto translate-y-0 scale-100 opacity-100" : "pointer-events-none -translate-y-1 scale-[0.97] opacity-0"
+        }`}
+        style={{
+          borderColor: `${theme.border}55`,
+          background: "linear-gradient(180deg, rgba(17,17,20,0.98), rgba(9,9,11,0.98))",
+          boxShadow: `0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px ${theme.text}14`,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-white/40">OctoCredits</span>
+          <span
+            className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.62rem] font-bold tracking-[-0.01em]"
+            style={{ background: `${theme.text}1c`, color: theme.text }}
+          >
+            <span className="h-1 w-1 rounded-full" style={{ background: theme.text }} />
+            {resolvedPlanName}
+          </span>
+        </div>
+
+        <div className="mt-2 flex items-baseline gap-1.5">
+          <span className="text-[1.7rem] font-extrabold leading-none tabular-nums tracking-[-0.04em] text-white">
+            {shouldHoldPlan ? "•••" : balance.toLocaleString()}
+          </span>
+          <span className="text-[0.62rem] font-bold uppercase tracking-[0.16em] text-white/35">credits</span>
+        </div>
+
+        <div className="mt-3 h-px w-full" style={{ background: `linear-gradient(90deg, transparent, ${theme.text}33, transparent)` }} />
+
+        <p className="mt-3 text-[0.7rem] leading-relaxed text-white/45">
+          {renewalDate ? (
+            <>Renews on <span className="font-semibold text-white/70">{renewalDate}</span>.</>
+          ) : isPro ? (
+            <>Your Pro plan refills 1,000 credits every cycle.</>
+          ) : (
+            <>100 credits = <span className="font-semibold text-white/70">$1</span> of usage. Top up anytime in the Store.</>
+          )}
+        </p>
+      </div>
     </div>
   );
 }
