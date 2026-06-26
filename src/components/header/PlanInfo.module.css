@@ -1,0 +1,61 @@
+/* ── Luxury matte header pills: mount, odometer roll, and credit delta ── */
+
+@keyframes octoMountIn {
+  from { transform: translateY(5px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* A changed digit: the old glyph rolls up and out, the new rolls in from below. */
+@keyframes octoRollOut {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-118%); opacity: 0; }
+}
+
+@keyframes octoRollIn {
+  0% { transform: translateY(118%); opacity: 0; }
+  55% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* The -630 / +500 delta: slides in, holds, fades back out in one shot. */
+@keyframes octoDeltaPop {
+  0% { transform: translateY(-5px); opacity: 0; }
+  16% { transform: translateY(0); opacity: 1; }
+  74% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-7px); opacity: 0; }
+}
+
+.mountIn {
+  animation: octoMountIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reel {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  height: 1em;
+  width: 1ch;
+  line-height: 1;
+  vertical-align: bottom;
+  text-align: center;
+}
+
+.reel > span {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+.rollOut {
+  position: absolute;
+  inset: 0;
+  animation: octoRollOut 0.55s cubic-bezier(0.6, 0, 0.25, 1) forwards;
+}
+
+.rollIn {
+  animation: octoRollIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.deltaPop {
+  animation: octoDeltaPop 1.7s ease-in-out forwards;
+}

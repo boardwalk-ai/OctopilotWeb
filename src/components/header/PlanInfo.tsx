@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AccountSnapshot, AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { BetaAccessService } from "@/services/BetaAccessService";
 import { StreamService } from "@/services/StreamService";
+import styles from "./PlanInfo.module.css";
 
 interface Credit {
   label: string;
@@ -16,9 +17,7 @@ interface PlanInfoProps {
   credits?: Credit[];
 }
 
-const defaultCredits: Credit[] = [
-  { label: "OctoCredits", value: 0 },
-];
+const defaultCredits: Credit[] = [{ label: "OctoCredits", value: 0 }];
 
 type StreamCreditsPayload = {
   plan?: string | null;
@@ -28,16 +27,16 @@ type StreamCreditsPayload = {
   sourceCredits?: number | null;
 };
 
+// Matte, jewel-toned accents per plan — restrained and metallic, not neon.
 function getPlanTheme(planName: string) {
   const normalized = planName.toLowerCase();
-
   if (normalized.includes("premium")) {
-    return { dot: "#c084fc", text: "#d8b4fe", ring: "rgba(168, 85, 247, 0.35)" };
+    return { dot: "#b69ad8", text: "#d6c6ec", halo: "rgba(182,154,216,0.45)" };
   }
   if (normalized.includes("pro")) {
-    return { dot: "#facc15", text: "#fde047", ring: "rgba(234, 179, 8, 0.35)" };
+    return { dot: "#d4b15e", text: "#e7cf95", halo: "rgba(212,177,94,0.5)" };
   }
-  return { dot: "#4f9dff", text: "#93c5fd", ring: "rgba(59, 130, 246, 0.32)" };
+  return { dot: "#94a6b8", text: "#c2cedb", halo: "rgba(148,166,184,0.4)" };
 }
 
 function getDisplayPlanName(planName: string) {
@@ -59,11 +58,64 @@ function mapMeToCredits(payload?: AccountSnapshot | StreamCreditsPayload | null)
   return [{ label: "OctoCredits", value: Number(octo ?? 0) }];
 }
 
+const MATTE_SURFACE: React.CSSProperties = {
+  background: "#161719",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 0 0.5px rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.5)",
+};
+
+// One odometer digit: when the glyph changes it rolls up and out while the new
+// glyph rolls in from below. Unchanged digits never animate.
+function Digit({ char }: { char: string }) {
+  const [view, setView] = useState({ cur: char, prev: null as string | null, n: 0 });
+
+  useEffect(() => {
+    setView((value) => (value.cur === char ? value : { cur: char, prev: value.cur, n: value.n + 1 }));
+  }, [char]);
+
+  return (
+    <span className={styles.reel}>
+      {view.prev !== null ? (
+        <span key={`out-${view.n}`} className={styles.rollOut}>
+          {view.prev}
+        </span>
+      ) : null}
+      <span key={`in-${view.n}`} className={view.n > 0 ? styles.rollIn : undefined}>
+        {view.cur}
+      </span>
+    </span>
+  );
+}
+
+function RollingNumber({ value }: { value: number }) {
+  const text = Math.max(0, Math.round(value)).toLocaleString();
+  const chars = text.split("");
+  return (
+    <span className="inline-flex items-stretch tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>
+      {chars.map((char, index) => {
+        // Key by distance from the right so a digit keeps its identity (and avoids
+        // a spurious roll) when the number's length changes across a comma.
+        const fromRight = chars.length - index;
+        if (!/\d/.test(char)) {
+          return (
+            <span key={`sep-${fromRight}`} className="px-[0.01em]">
+              {char}
+            </span>
+          );
+        }
+        return <Digit key={`digit-${fromRight}`} char={char} />;
+      })}
+    </span>
+  );
+}
+
 export default function PlanInfo({ planName = "Guest", credits = defaultCredits }: PlanInfoProps) {
   const [authReadyUser, setAuthReadyUser] = useState<ReturnType<typeof AuthService.getCurrentUser>>(null);
   const [isAuthResolved, setIsAuthResolved] = useState(false);
   const [accountSnapshot, setAccountSnapshot] = useState<AccountSnapshot | null>(() => AccountStateService.read());
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [delta, setDelta] = useState<{ amount: number; id: number } | null>(null);
+  const prevBalanceRef = useRef<number | null>(null);
+  const deltaIdRef = useRef(0);
 
   const shouldHoldPlan = !isAuthResolved || (isAuthResolved && !!authReadyUser && !accountSnapshot && isBootstrapping);
   const resolvedPlanName = shouldHoldPlan ? "Loading" : getDisplayPlanName(accountSnapshot?.plan ?? planName);
@@ -71,11 +123,30 @@ export default function PlanInfo({ planName = "Guest", credits = defaultCredits 
   const balance = Number(resolvedCredits[0]?.value ?? 0);
   const theme = getPlanTheme(shouldHoldPlan ? "Pro" : resolvedPlanName);
 
+  // Flash a coloured delta (-630 / +500) whenever the balance moves.
+  useEffect(() => {
+    const previous = prevBalanceRef.current;
+    if (previous !== null && !shouldHoldPlan && balance !== previous) {
+      const diff = balance - previous;
+      if (diff !== 0) {
+        deltaIdRef.current += 1;
+        setDelta({ amount: diff, id: deltaIdRef.current });
+      }
+    }
+    prevBalanceRef.current = balance;
+  }, [balance, shouldHoldPlan]);
+
+  useEffect(() => {
+    if (!delta) return;
+    const timeout = window.setTimeout(() => {
+      setDelta((current) => (current && current.id === delta.id ? null : current));
+    }, 1700);
+    return () => window.clearTimeout(timeout);
+  }, [delta]);
+
   useEffect(() => {
     setAccountSnapshot(AccountStateService.read());
-    const unsubscribeAccount = AccountStateService.subscribe((snapshot) => {
-      setAccountSnapshot(snapshot);
-    });
+    const unsubscribeAccount = AccountStateService.subscribe((snapshot) => setAccountSnapshot(snapshot));
     const unsubscribeAuth = AuthService.subscribe((nextUser) => {
       setAuthReadyUser(nextUser);
       setIsAuthResolved(true);
@@ -145,42 +216,56 @@ export default function PlanInfo({ planName = "Guest", credits = defaultCredits 
   }, [authReadyUser, isAuthResolved]);
 
   return (
-    <div
-      className="group inline-flex h-9 select-none items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] pl-2.5 pr-3.5 transition-colors duration-300 hover:border-white/[0.16] hover:bg-white/[0.06] max-md:h-8 max-md:gap-2 max-md:pl-2 max-md:pr-2.5"
-      style={{ boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05)` }}
-    >
-      {/* Plan badge */}
-      <span className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2.5 max-md:gap-1.5">
+      {/* Plan badge — standalone */}
+      <div
+        className={`${styles.mountIn} inline-flex h-9 items-center gap-2 rounded-full border border-white/[0.06] pl-2.5 pr-3 transition-colors duration-300 hover:border-white/[0.13] max-md:h-8 max-md:pr-2.5`}
+        style={MATTE_SURFACE}
+      >
         <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ background: theme.dot, boxShadow: `0 0 7px ${theme.dot}` }}
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: theme.dot, boxShadow: `0 0 0 2px ${theme.dot}1f, 0 0 7px ${theme.halo}` }}
         />
         <span
-          className={`text-[0.74rem] font-semibold leading-none tracking-[-0.01em] ${shouldHoldPlan ? "animate-pulse" : ""}`}
+          className={`text-[0.72rem] font-semibold uppercase leading-none tracking-[0.11em] ${shouldHoldPlan ? "animate-pulse" : ""}`}
           style={{ color: theme.text }}
         >
           {resolvedPlanName}
         </span>
-      </span>
+      </div>
 
-      {/* Divider */}
-      <span className="h-4 w-px bg-white/[0.12]" />
-
-      {/* Credit balance */}
-      <span className="flex items-center gap-1.5">
+      {/* Credit balance — standalone */}
+      <div
+        className={`${styles.mountIn} inline-flex h-9 items-center gap-2 rounded-full border border-white/[0.06] pl-2.5 pr-3.5 transition-colors duration-300 hover:border-white/[0.13] max-md:h-8 max-md:pr-2.5`}
+        style={{ ...MATTE_SURFACE, animationDelay: "70ms" }}
+      >
         <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] shrink-0" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" fill="rgba(250,204,21,0.14)" stroke="#facc15" strokeWidth="1.6" />
-          <path d="M12 7.4l1.35 2.95 3.25.3-2.45 2.15.73 3.2-2.88-1.74-2.88 1.74.73-3.2-2.45-2.15 3.25-.3z" fill="#facc15" />
+          <circle cx="12" cy="12" r="9" fill="#2a2410" stroke="#caa45a" strokeWidth="1.5" />
+          <path d="M12 7.6l1.3 2.85 3.1.28-2.35 2.05.7 3.05-2.75-1.67-2.75 1.67.7-3.05L9.6 10.73l3.1-.28z" fill="#d4b15e" />
         </svg>
-        <span className="flex items-baseline gap-1.5">
-          <span className={`text-[0.92rem] font-bold leading-none tabular-nums tracking-[-0.02em] text-white ${shouldHoldPlan ? "animate-pulse" : ""}`}>
-            {shouldHoldPlan ? "•••" : balance.toLocaleString()}
+
+        <span className="flex items-baseline gap-1.5 leading-none">
+          <span className={`text-[0.92rem] font-bold leading-none tracking-[-0.01em] text-[#f5f5f6] ${shouldHoldPlan ? "animate-pulse" : ""}`}>
+            {shouldHoldPlan ? "•••" : <RollingNumber value={balance} />}
           </span>
-          <span className="text-[0.58rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/40 max-md:hidden">
+          <span className="text-[0.56rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/35 max-md:hidden">
             OctoCredits
           </span>
         </span>
-      </span>
+
+        {/* Spend / top-up delta */}
+        {delta ? (
+          <span
+            key={delta.id}
+            className={`${styles.deltaPop} ml-0.5 text-[0.68rem] font-bold leading-none tabular-nums ${
+              delta.amount < 0 ? "text-red-400" : "text-emerald-400"
+            }`}
+          >
+            {delta.amount > 0 ? "+" : ""}
+            {delta.amount.toLocaleString()}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
