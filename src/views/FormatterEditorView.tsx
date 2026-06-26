@@ -1196,6 +1196,28 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [octoExpanded, setOctoExpanded] = useState(false);
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const priorWidthsRef = useRef<{ left: number; right: number } | null>(null);
+  // The expanded Octo panel lives inside a nested positioned container whose
+  // bottom can sit past the viewport, so `bottom-3` alone doesn't keep it on
+  // screen. Measure the panel's real top and cap its height to the visible area.
+  const octoPanelRef = useRef<HTMLDivElement | null>(null);
+  const [octoPanelMaxH, setOctoPanelMaxH] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!octoExpanded) return;
+    const measure = () => {
+      const el = octoPanelRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setOctoPanelMaxH(Math.max(220, window.innerHeight - top - 12));
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [octoExpanded]);
 
   const openOctoExpanded = useCallback(() => {
     // Remember current panel widths, collapse both, then expand Octo
@@ -4752,10 +4774,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {/* ══ OCTO EXPANDED — floating glass card on the LEFT, editor on the right ══ */}
         {viewState === "editor" && octoExpanded && (
           <div
-            className="liquid-glass absolute left-3 top-3 bottom-3 z-30 grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[22px]"
+            ref={octoPanelRef}
+            className="liquid-glass absolute left-3 top-3 z-30 grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[22px]"
             style={{
               width: OCTO_PANEL_W,
-              maxHeight: "calc(100dvh - 1.5rem)",
+              height: octoPanelMaxH ? `${octoPanelMaxH}px` : "calc(100dvh - 1.5rem)",
               animation: "octo-slide-in 0.36s cubic-bezier(0.22,1,0.36,1) both",
             }}
           >
