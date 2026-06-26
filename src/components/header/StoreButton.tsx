@@ -80,7 +80,7 @@ export default function StoreButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-xl border border-red-500/30 px-4 py-2 text-sm font-medium text-red-400 transition hover:border-red-500/50 hover:bg-red-500/10"
+        className="inline-flex h-9 items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-4 text-[0.82rem] font-semibold text-red-300 transition-colors duration-300 hover:border-red-500/40 hover:bg-red-500/[0.16] hover:text-red-200"
       >
         <StoreIcon />
         Store
