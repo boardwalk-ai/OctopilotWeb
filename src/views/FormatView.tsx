@@ -412,16 +412,19 @@ export default function FormatView({ onBack, onNext }: FormatViewProps) {
                         Back
                     </button>
 
-                    <button
-                        onClick={handleContinue}
-                        className={`group relative flex min-w-[250px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 md:flex-[2] ${styles.formatContinueButton}`}
-                    >
-                        Generate Essay
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
-                            <path d="m9 18 6-6-6-6" />
-                        </svg>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
-                    </button>
+                    <div className="flex flex-1 flex-col items-center gap-1 md:flex-[2]">
+                        <button
+                            onClick={handleContinue}
+                            className={`group relative flex w-full min-w-[250px] items-center justify-center gap-2 overflow-hidden rounded-full bg-red-500 px-10 py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] transition hover:bg-red-400 ${styles.formatContinueButton}`}
+                        >
+                            Generate Essay
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
+                                <path d="m9 18 6-6-6-6" />
+                            </svg>
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
+                        </button>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">Costs ~100 OctoCredits</span>
+                    </div>
                 </div>
             </div>
         </div>

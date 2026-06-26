@@ -1889,7 +1889,7 @@ export default function ConfigurationView({ onBack, onNext }: ConfigurationViewP
                                 <span className="flex items-center gap-1 text-[13px] font-bold">
                                     ✨ Let AI find sources
                                 </span>
-                                <span className="text-[9px] opacity-80">free searches remaining: 2</span>
+                                <span className="text-[9px] opacity-80">Costs ~100 OctoCredits</span>
                             </button>
                         </div>
 
