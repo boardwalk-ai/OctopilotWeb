@@ -26,6 +26,8 @@ type EditableSubscriptionRow = DataRow & {
   name?: string;
   email?: string;
   currentPlan?: string;
+  octo?: string | number | null;
+  isAmbassador?: boolean;
   word?: string | number | null;
   humanizer?: string | number | null;
   source?: string | number | null;
@@ -422,14 +424,19 @@ function CreditEditModal({
   error,
   onClose,
   onSave,
+  onToggleAmbassador,
+  togglingAmbassador,
 }: {
   row: EditableSubscriptionRow;
   saving: boolean;
   error: string | null;
   onClose: () => void;
   onSave: (payload: { octoCredits: number }) => Promise<void>;
+  onToggleAmbassador: () => Promise<void>;
+  togglingAmbassador: boolean;
 }) {
   const [octoCredits, setOctoCredits] = useState(String(row.octo ?? 0));
+  const isAmbassador = Boolean(row.isAmbassador);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4">
@@ -457,6 +464,20 @@ function CreditEditModal({
             />
             <span className="mt-2 block text-[11px] text-white/35">Sets the user&rsquo;s exact OctoCredit balance. 100 OC = $1 of usage.</span>
           </label>
+
+          <div className="mt-4 flex items-center justify-between rounded-[22px] border border-white/8 bg-[#111111] p-4">
+            <div>
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-white/38">Ambassador {isAmbassador ? "⭐" : ""}</span>
+              <span className="mt-1 block text-[11px] text-white/35">Earns a 25% OctoCredit commission on their referrals&rsquo; first purchase.</span>
+            </div>
+            <button
+              onClick={() => void onToggleAmbassador()}
+              disabled={togglingAmbassador}
+              className={`min-w-[120px] rounded-full px-5 py-2.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isAmbassador ? "bg-amber-400 text-neutral-950 hover:bg-amber-300" : "border border-white/12 bg-[#181818] text-white/72 hover:border-amber-400/40 hover:text-amber-300"}`}
+            >
+              {togglingAmbassador ? "Saving…" : isAmbassador ? "Revoke" : "Make Ambassador"}
+            </button>
+          </div>
         </div>
 
         {error ? <div className="mt-4 rounded-[18px] border border-red-500/25 bg-[#170c0c] px-4 py-3 text-sm text-red-100">{error}</div> : null}
@@ -990,6 +1011,7 @@ export default function BrokeOctopusPage() {
   const [password, setPassword] = useState("");
   const [editingRow, setEditingRow] = useState<EditableSubscriptionRow | null>(null);
   const [isSavingCredits, setIsSavingCredits] = useState(false);
+  const [isTogglingAmbassador, setIsTogglingAmbassador] = useState(false);
   const [creditModalError, setCreditModalError] = useState<string | null>(null);
   const [inspectingReport, setInspectingReport] = useState<ReportRow | null>(null);
   const [isResolvingReport, setIsResolvingReport] = useState(false);
@@ -1340,6 +1362,57 @@ export default function BrokeOctopusPage() {
       setCreditModalError(error instanceof Error ? error.message : "Failed to update credits.");
     } finally {
       setIsSavingCredits(false);
+    }
+  };
+
+  const handleToggleAmbassador = async () => {
+    if (!editingRow?.userId) {
+      setCreditModalError("Missing user identifier for this row.");
+      return;
+    }
+
+    const token = await AuthService.getIdToken(true);
+    if (!token) {
+      setCreditModalError("You need to be signed in as an admin.");
+      return;
+    }
+
+    setIsTogglingAmbassador(true);
+    setCreditModalError(null);
+
+    try {
+      const response = await fetch(`/backend/api/v1/dashboard/users/${editingRow.userId}/ambassador`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const responsePayload = await response.json();
+      if (!response.ok) {
+        throw new Error(responsePayload.detail || responsePayload.error || "Failed to update ambassador status.");
+      }
+
+      const nextValue = Boolean(responsePayload.isAmbassador);
+      setEditingRow((current) => (current ? ({ ...current, isAmbassador: nextValue } as EditableSubscriptionRow) : current));
+      setData((current) => {
+        if (!current) {
+          return current;
+        }
+        const apply = (rows?: DataRow[]) =>
+          (rows || []).map((row) =>
+            row.userId === editingRow.userId ? ({ ...row, isAmbassador: nextValue } as unknown as DataRow) : row
+          );
+        return {
+          ...current,
+          sections: {
+            ...current.sections,
+            "subscription-management": apply(current.sections["subscription-management"]),
+            "user-management": apply(current.sections["user-management"]),
+          },
+        };
+      });
+    } catch (error) {
+      setCreditModalError(error instanceof Error ? error.message : "Failed to update ambassador status.");
+    } finally {
+      setIsTogglingAmbassador(false);
     }
   };
 
@@ -1916,6 +1989,8 @@ export default function BrokeOctopusPage() {
             }
           }}
           onSave={handleSaveCredits}
+          onToggleAmbassador={handleToggleAmbassador}
+          togglingAmbassador={isTogglingAmbassador}
         />
       ) : null}
       {inspectingReport ? (
