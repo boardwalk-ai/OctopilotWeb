@@ -503,7 +503,7 @@ function OctoChatPanel({
 }: OctoChatPanelProps) {
   const expanded = variant === "expanded";
   return (
-    <div className={`flex min-h-0 flex-col ${expanded ? "min-h-0 flex-1" : ""}`}>
+    <div className={`flex min-h-0 flex-col ${expanded ? "h-full min-h-0 overflow-hidden" : ""}`}>
       {/* Tone pills */}
       <div className="overflow-x-auto px-3 pb-2 pt-1 flex-shrink-0">
         <div className="flex gap-1.5 pb-0.5">
@@ -4752,9 +4752,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         {/* ══ OCTO EXPANDED — floating glass card on the LEFT, editor on the right ══ */}
         {viewState === "editor" && octoExpanded && (
           <div
-            className="liquid-glass absolute left-3 top-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-[22px]"
+            className="liquid-glass absolute left-3 top-3 bottom-3 z-30 grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[22px]"
             style={{
               width: OCTO_PANEL_W,
+              maxHeight: "calc(100dvh - 1.5rem)",
               animation: "octo-slide-in 0.36s cubic-bezier(0.22,1,0.36,1) both",
             }}
           >
