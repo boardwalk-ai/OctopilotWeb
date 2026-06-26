@@ -660,6 +660,14 @@ export default function FormatterEditorCore({
     const singleWrapRef = useRef<HTMLDivElement | null>(null);
     const [grammarMatches, setGrammarMatches] = useState<GMatch[]>([]);
     const [grammarRects, setGrammarRects] = useState<{ left: number; top: number; width: number; msg: string; fix: string }[]>([]);
+    // Octo critique highlights — same undo-safe overlay model as grammar:
+    // quotes are stored as items and painted as positioned rectangles, never
+    // injected into the editable DOM (the legacy per-page span model below is
+    // dead under USE_SINGLE_EDITOR, which is why highlights/jump used to no-op).
+    const [octoItems, setOctoItems] = useState<OctoHighlightItem[]>([]);
+    const [octoRects, setOctoRects] = useState<{ id: string; left: number; top: number; width: number; height: number; color: string }[]>([]);
+    const [octoFlashId, setOctoFlashId] = useState<string | null>(null);
+    const octoRectsRef = useRef<{ id: string; left: number; top: number; width: number; height: number; color: string }[]>([]);
     const pageContentRef = useRef<Record<number, string>>(initialPageContentMap);
 
     // Expose bibliography-append function to parent via ref
@@ -681,17 +689,27 @@ export default function FormatterEditorCore({
         return () => { insertBibEntryRef.current = null; };
     }, [insertBibEntryRef]);
 
-    // Expose Octo critique highlighting to parent via refs
+    // Expose Octo critique highlighting to parent via refs.
     useEffect(() => {
         if (!octoHighlightRef) return;
         octoHighlightRef.current = (items: OctoHighlightItem[]) => {
+            const valid = items.filter((it) => it.quote?.trim());
+            if (USE_SINGLE_EDITOR) {
+                // Overlay model: store the items; rects are painted by the effect
+                // below. Report how many quotes actually resolve to a location.
+                setOctoItems(valid);
+                const el = singleEditorRef.current;
+                if (!el) return valid.length;
+                const { text } = buildTextAndIndex(el);
+                return valid.filter((it) => findQuoteRange(text, it.quote)).length;
+            }
+            // Legacy per-page span model (kept for completeness; dead under single editor).
             let matched = 0;
             for (const page of pagesRef.current) {
                 const ed = editorRefs.current[page.id];
                 if (ed) removeOctoSpans(ed);
             }
-            for (const item of items) {
-                if (!item.quote?.trim()) continue;
+            for (const item of valid) {
                 for (const page of pagesRef.current) {
                     const ed = editorRefs.current[page.id];
                     if (!ed) continue;
@@ -710,12 +728,25 @@ export default function FormatterEditorCore({
     useEffect(() => {
         if (!octoJumpRef) return;
         octoJumpRef.current = (id: string) => {
+            if (USE_SINGLE_EDITOR) {
+                const rect = octoRectsRef.current.find((r) => r.id === id);
+                const vp = pagesViewportRef.current;
+                const wrap = singleWrapRef.current;
+                if (rect && vp && wrap) {
+                    const vpRect = vp.getBoundingClientRect();
+                    const wrapRect = wrap.getBoundingClientRect();
+                    const contentY = (wrapRect.top - vpRect.top) + vp.scrollTop + rect.top;
+                    vp.scrollTo({ top: contentY - vp.clientHeight / 2 + rect.height / 2, behavior: "smooth" });
+                    setOctoFlashId(id);
+                    window.setTimeout(() => setOctoFlashId((c) => (c === id ? null : c)), 900);
+                }
+                return;
+            }
             for (const page of pagesRef.current) {
                 const ed = editorRefs.current[page.id];
                 const sp = ed?.querySelector(`[data-octo-id="${id}"]`) as HTMLElement | null;
                 if (sp) {
                     sp.scrollIntoView({ behavior: "smooth", block: "center" });
-                    // Flash the highlight so the eye lands on it
                     const original = sp.style.background;
                     sp.style.background = sp.style.borderBottomColor;
                     setTimeout(() => { sp.style.background = original; }, 650);
@@ -725,6 +756,37 @@ export default function FormatterEditorCore({
         };
         return () => { octoJumpRef.current = null; };
     }, [octoJumpRef]);
+
+    // Paint Octo highlight rectangles (multi-line aware) from the stored quotes.
+    const recomputeOctoRects = useCallback(() => {
+        const el = singleEditorRef.current;
+        const wrap = singleWrapRef.current;
+        if (!el || !wrap || octoItems.length === 0) { setOctoRects([]); return; }
+        const { text, nodes: index } = buildTextAndIndex(el);
+        const wr = wrap.getBoundingClientRect();
+        const out: { id: string; left: number; top: number; width: number; height: number; color: string }[] = [];
+        for (const item of octoItems) {
+            if (!item.quote?.trim()) continue;
+            const found = findQuoteRange(text, item.quote);
+            if (!found) continue;
+            const s1 = index.find((t) => t.start <= found.start && t.start + (t.node.textContent?.length ?? 0) > found.start);
+            const s2 = index.find((t) => t.start < found.end && t.start + (t.node.textContent?.length ?? 0) >= found.end);
+            if (!s1 || !s2) continue;
+            try {
+                const range = document.createRange();
+                range.setStart(s1.node, found.start - s1.start);
+                range.setEnd(s2.node, found.end - s2.start);
+                for (const r of Array.from(range.getClientRects())) {
+                    if (r.width < 1) continue;
+                    out.push({ id: item.id, left: r.left - wr.left, top: r.top - wr.top, width: r.width, height: r.height, color: item.color });
+                }
+            } catch { /* skip */ }
+        }
+        setOctoRects(out);
+    }, [octoItems]);
+
+    useEffect(() => { octoRectsRef.current = octoRects; }, [octoRects]);
+    useEffect(() => { recomputeOctoRects(); }, [recomputeOctoRects, singlePageCount, zoom]);
 
     useEffect(() => {
         pagesRef.current = pages;
@@ -1691,14 +1753,14 @@ export default function FormatterEditorCore({
     useEffect(() => {
         if (!USE_SINGLE_EDITOR) return;
         const viewport = pagesViewportRef.current;
-        const onChange = () => recomputeGrammarRects();
+        const onChange = () => { recomputeGrammarRects(); recomputeOctoRects(); };
         viewport?.addEventListener("scroll", onChange, { passive: true });
         window.addEventListener("resize", onChange);
         return () => {
             viewport?.removeEventListener("scroll", onChange);
             window.removeEventListener("resize", onChange);
         };
-    }, [recomputeGrammarRects]);
+    }, [recomputeGrammarRects, recomputeOctoRects]);
 
     // Keep a stable ref to runGrammarCheck for use inside handlePageInput-level events
     const runGrammarCheckRef = useRef(runGrammarCheck);
@@ -2571,6 +2633,30 @@ export default function FormatterEditorCore({
                                         wordBreak: "break-word",
                                     }}
                                 />
+                                {/* Octo critique overlay — highlighter fills painted OVER the
+                                    text, never inside the editable DOM (so undo stays clean). */}
+                                <div className="pointer-events-none absolute inset-0">
+                                    {octoRects.map((r, i) => {
+                                        const flashing = r.id === octoFlashId;
+                                        return (
+                                            <div
+                                                key={`${r.id}-${i}`}
+                                                style={{
+                                                    position: "absolute",
+                                                    left: r.left,
+                                                    top: r.top,
+                                                    width: r.width,
+                                                    height: r.height,
+                                                    background: `${r.color}${flashing ? "55" : "2b"}`,
+                                                    borderBottom: `2px solid ${r.color}`,
+                                                    borderRadius: 2,
+                                                    boxShadow: flashing ? `0 0 0 2px ${r.color}aa` : "none",
+                                                    transition: "background 0.3s, box-shadow 0.3s",
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </div>
                                 {/* Grammar overlay — flashy underlines drawn OVER the text,
                                     never inside the editable DOM (so undo stays clean). */}
                                 <div className="pointer-events-none absolute inset-0">
