@@ -6,9 +6,11 @@ import { AuthService } from "@/services/AuthService";
 type PromoCodeRow = {
   id: string;
   code: string;
-  word_credits: number;
-  humanizer_credits: number;
-  source_credits: number;
+  octo_credits: number;
+  // Legacy 3-bucket fields kept for back-compat display of older codes.
+  word_credits?: number;
+  humanizer_credits?: number;
+  source_credits?: number;
   code_valid_until?: string | null;
   max_uses: number;
   current_uses: number;
@@ -33,12 +35,8 @@ type ReferralClaim = {
 };
 
 type ReferralSettings = {
-  referrer_word_credits: number;
-  referrer_humanizer_credits: number;
-  referrer_source_credits: number;
-  referred_word_credits: number;
-  referred_humanizer_credits: number;
-  referred_source_credits: number;
+  referrer_octo_credits: number;
+  referred_octo_credits: number;
 };
 
 type PromoAreaPanelProps = {
@@ -105,19 +103,13 @@ function SectionFrame({
 
 export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps) {
   const [promoCodeDraft, setPromoCodeDraft] = useState(() => generateCode(6));
-  const [promoWordCredits, setPromoWordCredits] = useState(0);
-  const [promoHumanizerCredits, setPromoHumanizerCredits] = useState(0);
-  const [promoSourceCredits, setPromoSourceCredits] = useState(0);
+  const [promoOctoCredits, setPromoOctoCredits] = useState(0);
   const [promoExpiry, setPromoExpiry] = useState("");
   const [promoCodes, setPromoCodes] = useState<PromoCodeRow[]>([]);
   const [referralCodes, setReferralCodes] = useState<ReferralCodeRow[]>([]);
   const [referralSettings, setReferralSettings] = useState<ReferralSettings>({
-    referrer_word_credits: 100,
-    referrer_humanizer_credits: 100,
-    referrer_source_credits: 10,
-    referred_word_credits: 100,
-    referred_humanizer_credits: 100,
-    referred_source_credits: 10,
+    referrer_octo_credits: 250,
+    referred_octo_credits: 250,
   });
   const [claimsModal, setClaimsModal] = useState<{ code: string; claims: ReferralClaim[] } | null>(null);
   const [isBusy, setIsBusy] = useState(true);
@@ -132,12 +124,8 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
   const referralRows = useMemo(() => referralCodes.map((code, index) => ({ ...code, no: index + 1 })), [referralCodes]);
 
   const referralSettingRows = [
-    { key: "referrer_word_credits", label: "Owner Word" },
-    { key: "referrer_humanizer_credits", label: "Owner Humanizer" },
-    { key: "referrer_source_credits", label: "Owner Source" },
-    { key: "referred_word_credits", label: "Claimant Word" },
-    { key: "referred_humanizer_credits", label: "Claimant Humanizer" },
-    { key: "referred_source_credits", label: "Claimant Source" },
+    { key: "referrer_octo_credits", label: "Owner OctoCredits" },
+    { key: "referred_octo_credits", label: "Claimant OctoCredits" },
   ] as const;
 
   const load = async () => {
@@ -196,9 +184,7 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
         method: "POST",
         body: JSON.stringify({
           code: promoCodeDraft,
-          word_credits: promoWordCredits,
-          humanizer_credits: promoHumanizerCredits,
-          source_credits: promoSourceCredits,
+          octo_credits: promoOctoCredits,
           code_valid_until: promoExpiry ? new Date(promoExpiry).toISOString() : null,
           max_uses: 1,
         }),
@@ -206,9 +192,7 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
 
       setPromoCodes((current) => [payload, ...current]);
       setPromoCodeDraft(generateCode(6));
-      setPromoWordCredits(0);
-      setPromoHumanizerCredits(0);
-      setPromoSourceCredits(0);
+      setPromoOctoCredits(0);
       setPromoExpiry("");
       setSuccess(`Promo code ${payload.code} created.`);
     } catch (createError) {
@@ -278,7 +262,7 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
         <>
           <SectionFrame
             title="Promo Generator"
-            description="Generate single-use promo codes with a custom 6-character code, explicit credit bundles, and an exact expiry timestamp."
+            description="Generate single-use promo codes with a custom 6-character code, an OctoCredit reward, and an exact expiry timestamp."
           >
             <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="space-y-4">
@@ -299,23 +283,18 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3">
-                  {[
-                    { label: "Word Credits", value: promoWordCredits, setValue: setPromoWordCredits },
-                    { label: "Humanizer Credits", value: promoHumanizerCredits, setValue: setPromoHumanizerCredits },
-                    { label: "Source Credits", value: promoSourceCredits, setValue: setPromoSourceCredits },
-                  ].map((field) => (
-                    <div key={field.label}>
-                      <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={field.value}
-                        onChange={(event) => field.setValue(Math.max(0, Number(event.target.value || 0)))}
-                        className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
-                      />
-                    </div>
-                  ))}
+                <div className="grid gap-3 sm:max-w-xs">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">OctoCredits</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={promoOctoCredits}
+                      onChange={(event) => setPromoOctoCredits(Math.max(0, Number(event.target.value || 0)))}
+                      className="w-full rounded-[18px] border border-white/10 bg-[#131313] px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/35"
+                    />
+                    <p className="mt-2 text-xs leading-5 text-white/38">OctoCredits granted to the user when this code is redeemed.</p>
+                  </div>
                 </div>
               </div>
 
@@ -361,7 +340,7 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
                         <td className="px-3 py-4">
                           <div className="text-sm font-semibold tracking-[0.22em] text-white">{row.code}</div>
                           <div className="mt-1 text-xs text-white/42">
-                            {row.word_credits}W / {row.humanizer_credits}H / {row.source_credits}S
+                            {row.octo_credits ?? 0} OctoCredits
                           </div>
                         </td>
                         <td className="px-3 py-4 text-sm text-white/76">{formatDateTime(row.code_valid_until)}</td>
@@ -395,7 +374,7 @@ export default function PromoAreaPanel({ refreshKey, mode }: PromoAreaPanelProps
             title="Referral Rewards"
             description="Every user gets one 5-character referral code. Owners cannot claim their own code, and each code can be claimed by up to 5 users."
           >
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 sm:max-w-2xl">
               {referralSettingRows.map((field) => (
                 <div key={field.key}>
                   <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>

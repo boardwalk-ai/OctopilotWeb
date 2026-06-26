@@ -24,22 +24,10 @@ type SettingField = {
 
 const GUEST_CREDIT_FIELDS: SettingField[] = [
   {
-    key: "guest_word_credits",
-    label: "Guest Word Credits",
-    description: "Starter word credits granted to each newly created guest user.",
-    defaultValue: 300,
-  },
-  {
-    key: "guest_humanizer_credits",
-    label: "Guest Humanizer Credits",
-    description: "Starter humanizer credits granted to each newly created guest user.",
-    defaultValue: 300,
-  },
-  {
-    key: "guest_source_credits",
-    label: "Guest Source Credits",
-    description: "Starter source credits granted to each newly created guest user.",
-    defaultValue: 30,
+    key: "guest_octo_credits",
+    label: "Guest OctoCredits",
+    description: "One-time OctoCredit grant given to each newly created guest user on first sign-in.",
+    defaultValue: 1000,
   },
 ];
 
@@ -153,7 +141,7 @@ export default function AdminSystemSettingsPanel({ refreshKey }: AdminSystemSett
         )
       );
 
-      setSuccess("Guest starter credits updated. New users will receive the new amounts.");
+      setSuccess("Guest starter OctoCredits updated. New users will receive the new amount.");
       await loadSettings();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to save guest starter credits.");
@@ -168,7 +156,7 @@ export default function AdminSystemSettingsPanel({ refreshKey }: AdminSystemSett
       {success ? <div className="rounded-[22px] border border-emerald-500/25 bg-[#0d1510] px-5 py-4 text-sm text-emerald-100">{success}</div> : null}
 
       <section className="rounded-[26px] border border-white/8 bg-[#101010] p-4">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:max-w-xs">
           {GUEST_CREDIT_FIELDS.map((field) => (
             <div key={field.key} className="rounded-[20px] border border-white/8 bg-[#151515] px-4 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">{field.label}</div>
@@ -188,7 +176,7 @@ export default function AdminSystemSettingsPanel({ refreshKey }: AdminSystemSett
           </div>
         </div>
         <div className="p-5">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:max-w-xs">
             {GUEST_CREDIT_FIELDS.map((field) => (
               <div key={field.key}>
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/38">{field.label}</label>
