@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./training.module.css";
 
 /* ----------------------------------------------------------------------------
-   Content model — Week 1, written as pure mentorship prose
-   (the in-room familiarity checks / stage directions are intentionally removed)
+   Content model — pure mentorship prose
+   (in-room familiarity checks / stage directions are intentionally removed)
 ---------------------------------------------------------------------------- */
 
 type Block =
@@ -18,275 +18,311 @@ type Block =
 
 type Section = { id: string; kicker: string; title: string; blocks: Block[] };
 
-const SECTIONS: Section[] = [
+type Challenge = {
+  n: number;
+  kind: "Audit" | "Fill" | "Code";
+  title: string;
+  prompt: ReactNode;
+  code?: string[];
+  note?: ReactNode;
+};
+
+type Module = {
+  id: string;
+  num: string;
+  title: string;
+  live: boolean;
+  sections: Section[];
+  challenges: Challenge[];
+};
+
+/* ===================== SESSION 1 ===================== */
+const SESSION1: Section[] = [
   {
-    id: "welcome",
-    kicker: "Begin here",
-    title: "Welcome to Week 1",
+    id: "s1-welcome", kicker: "Begin here", title: "Welcome to Session 1",
     blocks: [
-      { k: "p", t: "This week is called Architectural Foundations, Dart Reading, and Git. By the end of it you'll be able to open a Flutter file you've never seen before and understand what it's doing." },
-      { k: "p", t: "You haven't written Flutter before, and that's completely fine. We're going to lean hard on what you already know — React and TypeScript — and I'll show you exactly where the new ideas fit. A lot of this will feel familiar; where it's different, I'll point it out clearly." },
+      { k: "p", t: "This module is called Architectural Foundations, Dart Reading, and Git. By the end of it you'll be able to open a Flutter file you've never seen before and understand what it's doing." },
+      { k: "p", t: "You haven't written Flutter before, and that's completely fine. We're going to lean hard on what you already know — React and TypeScript — and show you exactly where the new ideas fit." },
     ],
   },
   {
-    id: "who-we-are",
-    kicker: "Orientation",
-    title: "Who we are, and what we actually teach",
+    id: "s1-who", kicker: "Orientation", title: "Who we are, and what we actually teach",
     blocks: [
-      { k: "p", t: "Before any code, understand who we are, because it changes what this month is about. We are a tech company that sells AI tools. We use AI in our own development every single day — we practice what we sell." },
-      { k: "p", t: "It's the AI era. Writing code line by line, by hand, from memory, is a waste of time now. The machine produces code faster than any of us can type. So the developer's role has shifted: you're not here to be a coder. You're here to be a code reviewer and a builder — an engineer who assembles, judges, and corrects what the AI produces." },
+      { k: "p", t: "We are a tech company that sells AI tools, and we use AI in our own development every day. It's the AI era — writing code line by line, by hand, from memory, is a waste of time now. The machine produces code faster than any of us can type." },
+      { k: "p", t: "So the developer's role has shifted: you're not here to be a coder. You're here to be a code reviewer and a builder — an engineer who assembles, judges, and corrects what the AI produces." },
       { k: "quote", t: "We are not teaching you Dart. We are teaching you how to Dart." },
-      { k: "p", t: "Learning Dart would mean memorizing syntax so you can write it from a blank page — the AI does that part now. “How to Dart” means how to move through Flutter code: how to read it, how to spot when the AI got it wrong, how to fix it, and how to ship something that works. You're the pilot, not the engine." },
-      { k: "p", t: "Three skills carry the whole program: read the code, judge whether it's correct, and assemble the working result. And there is one rule for the entire month." },
+      { k: "p", t: "“How to Dart” means how to move through Flutter code: how to read it, how to spot when the AI got it wrong, how to fix it, and how to ship something that works. You're the pilot, not the engine. Three skills carry the whole program: read the code, judge whether it's correct, assemble the working result." },
       { k: "quote", t: "If you can't explain why the code is right or wrong, you don't ship it." },
-      { k: "p", t: "The AI is like a very fast junior developer who is sometimes confidently, completely wrong. Your value is being the senior who catches that." },
     ],
   },
   {
-    id: "paradigm",
-    kicker: "Part 1 · The Paradigm Shift",
-    title: "Get the mental model right first",
+    id: "s1-declarative", kicker: "The Paradigm Shift", title: "You already think declaratively",
     blocks: [
-      { k: "p", t: "Before any syntax, get the big picture: how is the Flutter world the same as React, and how is it different? If your mental model is right, the code starts to read itself. If it's wrong, every line fights you. This matters more than it looks." },
+      { k: "p", t: "The most important idea in React is also the most important idea in Flutter, and you already own it: the UI is a function of state. You describe what the screen should look like for a given set of data, and the framework draws it. When the data changes, it redraws." },
+      { k: "code", label: "React / TSX", lines: ["function Hello({ name }) {", "  return (", "    <Text>Hello {name}</Text>", "  );", "}"] },
+      { k: "code", label: "Flutter / Dart", lines: ["class Hello extends StatelessWidget {", "  Widget build(context) {", "    return Text('Hello $name');", "  }", "}"] },
+      { k: "p", t: "Different words — class instead of function, build instead of the function body, a Text widget instead of JSX — but the same shape: given data, return a description of the UI. build is simply Flutter's render." },
     ],
   },
   {
-    id: "declarative",
-    kicker: "Part 1",
-    title: "You already think declaratively",
+    id: "s1-render", kicker: "The Paradigm Shift", title: "How the screen is drawn",
     blocks: [
-      { k: "p", t: "The most important idea in React is also the most important idea in Flutter, and you already own it: the UI is a function of state. You describe what the screen should look like for a given set of data, and the framework draws it. When the data changes, it redraws. You never grab an element and move it by hand — you describe the result. That's React's philosophy, and it's Flutter's too." },
-      { k: "code", label: "React / TSX", lines: [
-        "function Hello({ name }) {",
-        "  return (",
-        "    <Text>Hello {name}</Text>",
-        "  );",
-        "}",
-      ] },
-      { k: "p", t: "On the left, React: a component — which is just a function — that takes a name and returns JSX showing “Hello name”. You've written this a hundred times." },
-      { k: "code", label: "Flutter / Dart", lines: [
-        "class Hello extends StatelessWidget {",
-        "  Widget build(context) {",
-        "    return Text('Hello $name');",
-        "  }",
-        "}",
-      ] },
-      { k: "p", t: "On the right, Flutter: a class with a build method that returns a Text widget saying “Hello name”. Different words — class instead of function, build instead of the function body, a Text widget instead of JSX — but the same shape: given data, return a description of the UI. The $name inside the quotes is string interpolation, exactly like a JavaScript template string. And build is simply Flutter's render." },
+      { k: "p", t: "React on the web outputs HTML and CSS into the browser's DOM; the browser does the drawing, so how your app looks can depend on the browser. Flutter ships its own rendering engine — Skia, and the newer Impeller — and paints every pixel itself onto a blank canvas. No HTML, no CSS, no DOM. The consequence: a Flutter app looks identical on every device." },
+      { k: "callout", title: "What this means for you", t: "There is no CSS. Styling lives inside the widget as properties you pass in. When you audit Flutter code and go looking for a CSS file, there isn't one. That's not a bug; that's Flutter." },
     ],
   },
   {
-    id: "rendering",
-    kicker: "Part 1",
-    title: "How the screen is actually drawn",
-    blocks: [
-      { k: "p", t: "Now the first deep difference: how the screen actually gets painted. React on the web outputs HTML and CSS into the browser's DOM — the browser's live tree of elements. React keeps a lightweight copy, the Virtual DOM, works out what changed, and asks the browser to repaint those parts. The browser does the drawing, so how your app looks can depend on the browser and the platform." },
-      { k: "p", t: "Flutter does something radically different. It ships its own rendering engine — Skia, and the newer one, Impeller. It does not use HTML, CSS, or the DOM. It paints every single pixel itself onto a blank canvas, closer to a game engine than a web page. The consequence: a Flutter app looks identical on every device." },
-      { k: "callout", title: "What this means for you", t: "There is no CSS. Styling — padding, colors, fonts — lives inside the widget as properties you pass in, not in a separate stylesheet. So when you audit Flutter code and go looking for a CSS file, there isn't one. That's not a bug; that's Flutter." },
-    ],
-  },
-  {
-    id: "one-codebase",
-    kicker: "Part 1",
-    title: "One codebase, many targets",
-    blocks: [
-      { k: "p", t: "The second difference: one codebase, many targets. You write Dart once and Flutter compiles it to Android, iOS, web, and desktop. On mobile it's native ARM machine code, not a web page wrapped in an app. ARM is the processor your phone uses, so the code runs directly on the chip, which is fast. For web it compiles to JavaScript or WebAssembly (Wasm), a fast low-level format browsers can run." },
-      { k: "callout", title: "Why it matters for auditing", t: "Because Flutter draws its own pixels and there's no per-platform CSS or browser quirks, the widget you read is exactly what renders everywhere. When something looks broken, it's a bug in the code in front of you — not some mysterious platform ghost. The code is the truth." },
-    ],
-  },
-  {
-    id: "translation",
-    kicker: "Part 1",
-    title: "React → Flutter, translated",
+    id: "s1-translate", kicker: "The Paradigm Shift", title: "React → Flutter, translated",
     blocks: [
       { k: "p", t: "Keep this map close. The left is what you already know; the right is the Flutter word for the same thing. Learn the shape, not the spelling." },
-      { k: "map", rows: [
-        ["Component", "Widget"],
-        ["JSX markup", "Dart widget tree"],
-        ["props", "constructor parameters"],
-        ["useState / hooks", "StatefulWidget + setState"],
-        ["CSS / styled", "widget properties"],
-        ["package.json", "pubspec.yaml"],
-        ["npm install", "flutter pub get"],
-      ] },
-      { k: "p", t: "flutter pub get downloads your dependencies, exactly like npm install. You already understood it — you just learned its Flutter name. When you read AI code this week and hit something unfamiliar, come back to this map and translate it into the React concept you already own." },
+      { k: "map", rows: [["Component", "Widget"], ["JSX markup", "Dart widget tree"], ["props", "constructor parameters"], ["useState / hooks", "StatefulWidget + setState"], ["CSS / styled", "widget properties"], ["package.json", "pubspec.yaml"], ["npm install", "flutter pub get"]] },
     ],
   },
   {
-    id: "dart-intro",
-    kicker: "Part 2 · Dart Reading",
-    title: "Dart you can read",
+    id: "s1-dart", kicker: "Dart Reading", title: "The three things you'll read everywhere",
     blocks: [
-      { k: "p", t: "We're not teaching you to write Dart from a blank page — we're teaching you to read it, because you cannot audit code you can't read. Here are the three things you'll see in almost every file: types and null safety, classes with named parameters, and async. Read these three well and you can read most Flutter code you'll ever meet. We'll go slowly, line by line." },
+      { k: "p", t: "We're not teaching you to write Dart from a blank page — we're teaching you to read it. Three things show up in almost every file: types and null safety, classes with named parameters, and async." },
+      { k: "code", label: "types & null safety", lines: ["String name = 'Lucas';   // non-null text", "String? nickname;        // CAN be null", "int count = nickname!.length;  // '!' = trust me, not null", "late String token;       // set before first use"] },
+      { k: "p", t: "The question mark means the value is allowed to be null. The exclamation mark forces “not null” and crashes if you're wrong. late means “I'll set it before I use it.” The single most common bug all month is a nullable value used without handling the null case." },
+      { k: "code", label: "classes & named params", lines: ["class TopicCard extends StatelessWidget {", "  final String title;", "  const TopicCard({ required this.title });", "}", "TopicCard(title: 'DNA')   // arguments are named"] },
+      { k: "p", t: "Widgets are classes, constructors use named parameters in curly braces, and required means mandatory. A Future is a value that arrives later (like a JS Promise); you await it. Forget await and you hold the Future, not the value." },
     ],
   },
   {
-    id: "types",
-    kicker: "Part 2 · Essential 1 of 3",
-    title: "Types & null safety",
+    id: "s1-git", kicker: "Git & Teamwork", title: "How we work together",
     blocks: [
-      { k: "code", label: "Dart", lines: [
-        "String name = 'Lucas';   // non-null text",
-        "String? nickname;        // CAN be null",
-        "",
-        "int count = nickname!.length;",
-        "//                    ^ '!' = trust me, not null",
-        "",
-        "late String token;       // set before first use",
-      ] },
-      { k: "p", t: "Read it slowly. In String name = 'Lucas', String is the type — it means text; name is the variable, the label; the equals sign assigns the value; 'Lucas' in quotes is the text itself; and the semicolon ends the statement, same as JavaScript. A type in Dart is the same idea as TypeScript's string, number, boolean — Dart just enforces it at runtime too, so it's stricter." },
-      { k: "p", t: "In String? nickname, that question mark is one of the most important characters in all of Dart. It means the value is allowed to be null. Null means nothing, no value, empty. Without the question mark Dart forces the value to always exist; with it, you're telling Dart this one could be empty." },
-      { k: "p", t: "In nickname!.length, the exclamation mark means “I promise this is not null — trust me.” It's dangerous: if you're wrong and it really is null, the app crashes right there. Whenever you see a !, slow down and prove the value can't actually be null." },
-      { k: "p", t: "And late String token means “I'll set this before I use it.” It's a promise. Break it — use it before setting it — and it crashes." },
-      { k: "callout", title: "The bug you'll catch most", t: "The single most common bug all month is a nullable value used without handling the null case. The AI does this constantly." },
-    ],
-  },
-  {
-    id: "classes",
-    kicker: "Part 2 · Essential 2 of 3",
-    title: "Classes & named parameters",
-    blocks: [
-      { k: "code", label: "Dart", lines: [
-        "class TopicCard extends StatelessWidget {",
-        "  final String title;",
-        "  final int mastery;",
-        "",
-        "  const TopicCard({",
-        "    required this.title,   // must pass it",
-        "    this.mastery = 0,      // optional, default 0",
-        "  });",
-        "}",
-        "",
-        "// usage — arguments are named:",
-        "TopicCard(title: 'DNA', mastery: 40)",
-      ] },
-      { k: "p", t: "This is the shape of Flutter, because every widget is a class. class TopicCard extends StatelessWidget defines a widget called TopicCard. A class is a blueprint that bundles data and behavior together. extends StatelessWidget means it's a kind of widget — one whose content doesn't change over time (stateful versus stateless is next week)." },
-      { k: "p", t: "final String title and final int mastery are the data the widget holds: text called title, a whole number called mastery. The word final means once set, it never changes; widget data is final because a widget's configuration is fixed once it's created. These two fields are the Flutter version of props." },
-      { k: "p", t: "The constructor is what builds the object. The curly braces around the parameters make them named, so you pass arguments by name. required this.title means title is mandatory; this.mastery = 0 gives mastery a default, so it's optional. And the usage — TopicCard(title: 'DNA', mastery: 40) — passes arguments by name, just like props in React." },
-      { k: "callout", title: "Recognize this shape", t: "Widgets are classes, constructors use named parameters in curly braces, and required means mandatory. A common AI mistake is forgetting required on a field that has no default." },
-    ],
-  },
-  {
-    id: "async",
-    kicker: "Part 2 · Essential 3 of 3",
-    title: "Future, async & await",
-    blocks: [
-      { k: "p", t: "Anything that takes time — a server call, reading a file — doesn't finish instantly. Dart represents “a value that will arrive later” with a type called Future, which is the same idea as a JavaScript Promise. If you know Promises, you're most of the way there." },
-      { k: "code", label: "Dart", lines: [
-        "Future<String> loadNotes() async {",
-        "  final res = await api.get('/notes');",
-        "  return res.body;",
-        "}",
-        "",
-        "// the caller must await too:",
-        "final notes = await loadNotes();",
-      ] },
-      { k: "p", t: "Future<String> loadNotes() async means this function will eventually return a String, but later; the async keyword marks it as doing work that takes time. await api.get('/notes') means pause here, wait for the result, then continue — because of await, the code reads top to bottom even though it's waiting. It returns the response body, the actual data. And the caller has to await it too, to get the real value out." },
-      { k: "p", t: "Picture ordering food at a counter. They hand you a receipt with a number — that receipt is the Future, a promise of food, not the food yet. await is you waiting at the counter until your number is called and you get the actual dish." },
-      { k: "callout", title: "The bug to catch", t: "Forget the await and it's like trying to eat the receipt — you're holding the Future object, not the value, and everything downstream breaks. Call loadNotes() without await and you get a Future, not the String." },
-    ],
-  },
-  {
-    id: "read-widget",
-    kicker: "Part 2 · Putting it together",
-    title: "Reading a real widget",
-    blocks: [
-      { k: "p", t: "Now let's combine all three and read a complete, real widget file, top to bottom. This is the skill to walk away with." },
-      { k: "code", label: "lib/topic_card.dart", lines: [
-        "import 'package:flutter/material.dart';   // 1",
-        "",
-        "class TopicCard extends StatelessWidget {  // 2",
-        "  final String title;                      // 3",
-        "  const TopicCard({required this.title});  // 4",
-        "",
-        "  Widget build(BuildContext context) {     // 5",
-        "    return Card(",
-        "      child: Text(title),                  // 6",
-        "    );",
-        "  }",
-        "}",
-      ] },
-      { k: "p", t: "Line 1 — import pulls in code from elsewhere, like in JavaScript; this line pulls in Flutter's UI toolkit, Material, which is Google's design system, full of ready-made widgets. Almost every file starts with it. Line 2 — we define a widget, which is a class; stateless means it doesn't change over time. Line 3 — the data the widget needs: text called title, locked with final. Line 4 — the constructor; to make a TopicCard you must give it a title." },
-      { k: "p", t: "Line 5 — the build method, where the UI is described and returned; this is your render. BuildContext context is information about where the widget sits in the app — its location and theme; you rarely touch it directly this week. Line 6 — it returns a Card, and inside it, as its child, a Text showing the title. In plain English: this widget draws a little card with the title written on it. Card contains Text — a widget inside a widget. That nesting is the widget tree, Flutter's version of nested JSX." },
-      { k: "p", t: "That's a whole Flutter widget. Six ideas, nothing magic. By the end of the week you should be able to open a file like this and explain every line." },
-    ],
-  },
-  {
-    id: "git",
-    kicker: "Part 3 · Git & Teamwork",
-    title: "Git & how we work together",
-    blocks: [
-      { k: "p", t: "The code matters, but if we keep overwriting each other's work, we lose whole days. So we follow a simple, strict workflow. Picture main as the clean, always-working version of the app. It's protected, and you never commit directly to it. When you start a task you create a branch off main, named for the feature, like feature/quiz-card, and you do all your work there. If you break something on your branch, main stays clean — that's the whole point of branching." },
-      { k: "p", t: "A commit is a labeled snapshot of your work. We use conventions: feat: for a new feature, fix: for a bug fix, chore: for maintenance. A clear message tells the Lead what changed at a glance, without opening the code." },
-      { k: "code", label: "the daily loop", lines: [
-        "git checkout -b feature/quiz-card   // branch + switch",
-        "git add .                           // stage changes",
-        "git commit -m \"feat: quiz card\"     // labeled snapshot",
-        "git push                            // upload to GitHub",
-      ] },
-      { k: "p", t: "Your work gets into main through a Pull Request. You branch, commit, and push; you open a PR on GitHub; and it gets reviewed two ways — automated CI checks and a human Lead — and only then does it merge into main. CI stands for Continuous Integration: a robot that checks every PR, like formatting and tests; we build it ourselves in Week 4. Nothing reaches main without being checked twice, and you never merge your own code to main." },
-      { k: "callout", title: "Merge conflicts — don't panic", t: "A conflict just means two people changed the same lines and Git can't decide which to keep. It marks both versions with <<<<<<<, =======, and >>>>>>>. You look at both, choose the correct final result, delete the marker lines, and commit. When you're not sure which version is right, ask the Lead before forcing anything — and never force-push a shared branch." },
-    ],
-  },
-  {
-    id: "ai-guardrails",
-    kicker: "Part 4 · Working with AI",
-    title: "Driving the AI without getting burned",
-    blocks: [
-      { k: "p", t: "Three habits make the AI help you instead of hurt you. First, feed it context. The AI hallucinates — makes things up — when it's guessing, so don't make it guess. Give it the real data: paste the actual schema you're working with so it uses the correct field names and types instead of inventing fields that don't exist. To hallucinate, in the AI sense, is to confidently produce something that looks right but is made up — a function that doesn't exist, a field name it invented. Catching exactly that is your job." },
-      { k: "p", t: "Second, make small, specific asks. “Build one static Quiz card from this mock JSON” gives you clean, reviewable code; “build the quiz feature” gives you a pile of half-correct guesses you can't audit. Small scope, mock data, one widget at a time. Mock data is fake-but-realistic sample data, so you can build and test the UI without a real backend wired up — we lean on it heavily in Week 3." },
-      { k: "quote", t: "Explain or reject. If you can't say why the code is correct, you don't merge it." },
-    ],
-  },
-  {
-    id: "audit",
-    kicker: "Hands-on",
-    title: "Audit Challenge #1",
-    blocks: [
-      { k: "p", t: "Now you apply it. Here's a small widget the AI produced, with three bugs planted in it. The goal is to find them — and, more importantly, to explain why each one is wrong." },
-      { k: "code", label: "spot the bugs", lines: [
-        "class TopicCard extends StatelessWidget {",
-        "  String title;                 // a)",
-        "  TopicCard({this.title});      // b)",
-        "",
-        "  Widget build(context) {",
-        "    int m = mastery.length;     // c)",
-        "    return Text(title);",
-        "  }",
-        "}",
-      ] },
-      { k: "p", t: "Bug (a): String title; should be final String title; — widget fields are final because the configuration shouldn't change after the widget is created. It's not a crash, but a good reviewer flags it. Bug (b): the constructor TopicCard({this.title}); is missing required — title has no default and the widget needs it, so it must be TopicCard({required this.title});. Without required, someone could build a card with no title and hit a null error." },
-      { k: "p", t: "Bug (c): int m = mastery.length; has two problems. First, mastery is never defined anywhere in this class — the AI invented it. Second, even if it did exist, .length doesn't work on an int; length is for strings and lists, not numbers. That's a classic hallucination: an invented variable and a method that doesn't fit the type." },
-      { k: "callout", title: "The real measure", t: "Your score is bugs caught over bugs planted — but the real skill is the explanation. Catching a bug by luck doesn't count; explaining why it's wrong does." },
-    ],
-  },
-  {
-    id: "deliverable",
-    kicker: "Wrap-up",
-    title: "What “done” looks like",
-    blocks: [
-      { k: "p", t: "Here's what “done” means for Week 1:" },
-      { k: "list", items: [
-        "Your local environment runs — Flutter, Git, and Cursor installed and working",
-        "You can open a Dart file and explain it out loud",
-        "You can map the key web vs mobile architectural differences",
-        "You pass Audit Challenge #1",
-      ] },
-      { k: "p", t: "Hit those four and you are exactly where you need to be. Nobody expects you to write a Flutter app yet — reading it and judging it is this week's win." },
-    ],
-  },
-  {
-    id: "next",
-    kicker: "Wrap-up",
-    title: "Where we go next",
-    blocks: [
-      { k: "p", t: "Think about where you started — not knowing Flutter at all — and where you are now: you can open a widget, follow the types, the null safety, the constructor, the async, and say what the code does. That is a real skill, and it's the foundation everything else is built on." },
-      { k: "p", t: "Next week we go under the hood — how Flutter actually works inside: the Three Trees, how state and lifecycle work, and the specific, sneaky bugs they create that you'll learn to hunt down." },
+      { k: "p", t: "main is the clean, always-working version of the app. You never commit directly to it — you branch off main, work there, and open a Pull Request. It's reviewed twice — automated CI checks and a human Lead — and only then merges. A commit is a labeled snapshot; we use feat:, fix:, and chore: prefixes." },
+      { k: "callout", title: "Merge conflicts — don't panic", t: "A conflict just means two people changed the same lines. Git marks both versions; you pick the correct result, delete the markers, and commit. When unsure, ask the Lead before forcing anything — and never force-push a shared branch." },
     ],
   },
 ];
 
+/* ===================== SESSION 2 ===================== */
+const SESSION2: Section[] = [
+  {
+    id: "s2-recap", kicker: "Where we go now", title: "From reading to debugging",
+    blocks: [
+      { k: "p", t: "In Session 1 you learned to read Flutter. This module is about how it works while it runs — so you can debug it. The worst AI-generated bugs aren't spelling mistakes you can see by reading; they're runtime bugs that compile fine, look fine, and then leak memory or crash the layout when the app actually runs." },
+      { k: "quote", t: "Reading told you what the code says. Now you learn what it does while it runs." },
+    ],
+  },
+  {
+    id: "s2-trees", kicker: "The Three Trees", title: "What you wrote, what's alive, what's painted",
+    blocks: [
+      { k: "p", t: "The single most useful mental model in Flutter: while your app runs, Flutter keeps three parallel trees in sync, each with a different job. Separating them is what makes Flutter both fast and debuggable." },
+      { k: "list", items: ["Widget Tree — configuration. What you wrote: immutable, cheap, rebuilt often.", "Element Tree — the living layer. What's alive: holds your state, links the other two.", "RenderObject Tree — layout & paint. What's drawn: measures, positions, paints pixels."] },
+      { k: "p", t: "Because widgets are cheap throwaways, Flutter can rebuild them many times a second without redrawing everything — the Element layer decides what actually changes. Knowing which tree a bug lives in is how you reason about it." },
+    ],
+  },
+  {
+    id: "s2-widget", kicker: "The Three Trees", title: "Widget Tree — configuration",
+    blocks: [
+      { k: "p", t: "A widget is just a description of the UI for a given state — a blueprint. It holds no live state and paints no pixels; it only describes. Because it's immutable and cheap, Flutter throws widgets away and rebuilds them constantly. That is normal, not wasteful." },
+      { k: "callout", title: "Audit note", t: "If someone — human or AI — claims “it's slow because the widget rebuilds,” be skeptical. Rebuilding widgets is cheap by design. The expensive layer is rendering, not the widget." },
+    ],
+  },
+  {
+    id: "s2-element", kicker: "The Three Trees", title: "Element Tree — the living layer",
+    blocks: [
+      { k: "p", t: "For every widget, Flutter creates an Element — the long-lived object that stays mounted on screen. While widgets come and go on every rebuild, the Element persists, and critically, it holds your State. On a rebuild, the Element decides whether to reuse itself and update, or tear down and rebuild." },
+      { k: "p", t: "That is how your state survives a rebuild — your scroll position, your typed text, your score all live in the Element layer, not the widget. The Element is the bridge: it links the throwaway Widget to the heavy RenderObject." },
+    ],
+  },
+  {
+    id: "s2-render", kicker: "The Three Trees", title: "RenderObject Tree — layout & paint",
+    blocks: [
+      { k: "p", t: "The heavy layer that does the real work: measure, position, and paint. This is where Flutter follows its golden rule of layout." },
+      { k: "quote", t: "Constraints go down. Sizes go up. Parent sets position." },
+      { k: "p", t: "The parent passes constraints down (“you can be up to 360 wide”). The child decides its size and passes it back up (“then I'll be 360 × 120”). The parent then positions the child. Break that flow and you get a layout crash — which is exactly one of the AI failure modes below." },
+    ],
+  },
+  {
+    id: "s2-stateful", kicker: "State & Lifecycle", title: "Stateless vs Stateful",
+    blocks: [
+      { k: "p", t: "A StatelessWidget draws once from the data it's handed; it has no internal data that changes. A TopicCard that just shows a title is stateless — same input, same output." },
+      { k: "p", t: "A StatefulWidget holds data that changes over time and can call setState to rebuild itself: a quiz tracking a score, a text field, a timer, anything animated or streaming. The key difference: a StatefulWidget has a State object and a lifecycle you must manage — and managing it wrong is the bug." },
+    ],
+  },
+  {
+    id: "s2-lifecycle", kicker: "State & Lifecycle", title: "initState → build → dispose",
+    blocks: [
+      { k: "p", t: "A StatefulWidget has three moments that matter most. initState runs once, at birth — set things up here. build runs often, on every rebuild — keep it cheap and just describe the UI. dispose runs once, at removal — clean up here." },
+      { k: "code", label: "the lifecycle", lines: ["void initState() { super.initState(); _ctrl = TextEditingController(); }  // once", "Widget build(ctx) { return TextField(controller: _ctrl); }               // many", "void dispose() { _ctrl.dispose(); super.dispose(); }                      // once"] },
+      { k: "quote", t: "What you OPEN in initState, you must CLOSE in dispose." },
+    ],
+  },
+  {
+    id: "s2-leaks", kicker: "State & Lifecycle", title: "Memory leaks: forgetting dispose()",
+    blocks: [
+      { k: "p", t: "This is the number one lifecycle bug, and AI produces it constantly. A controller created in initState but never closed leaks every time the widget is rebuilt or removed. They pile up — the app slowly bloats, janks, and can crash." },
+      { k: "code", label: "leaks — opened, never closed", lines: ["void initState() {", "  super.initState();", "  _scroll = ScrollController();   // opened", "}", "// no dispose() -> the controller leaks"] },
+      { k: "callout", title: "Your audit reflex", t: "The moment you see a Controller, StreamSubscription, or AnimationController created in AI code, scroll straight to dispose() and confirm it's closed. No dispose, or not closed there? You've found a leak. The AI forgets this almost every time." },
+    ],
+  },
+  {
+    id: "s2-async", kicker: "Async & the UI Thread", title: "Don't block the one thread that draws",
+    blocks: [
+      { k: "p", t: "Flutter builds and paints on a single main thread, aiming for about 60 frames a second. Do something slow directly on it — a heavy loop, or waiting on the network the wrong way — and you blow the frame budget; the screen freezes and stops responding to taps and scroll." },
+      { k: "code", label: "async — UI stays smooth", lines: ["Future<void> loadFeed() async {", "  setState(() => _loading = true);", "  final res = await api.get('/feed');   // awaits off the critical path", "  setState(() { _items = res.items; _loading = false; });", "}"] },
+      { k: "callout", title: "Audit reflex", t: "A network or file call with no await — or a giant loop inside build() — is a red flag. Without await you also get a Future instead of the value (Session 1's bug). Same keyword, two ways it bites." },
+    ],
+  },
+  {
+    id: "s2-modes", kicker: "The Heart", title: "The three AI failure modes",
+    blocks: [
+      { k: "p", t: "Everything above was so you could understand this: the three specific ways AI-generated Flutter fails most often. This is your daily hunt." },
+      { k: "list", items: ["Unbounded layout — a greedy scrolling child (ListView) inside an unbounded parent (Column/Row) → layout crash.", "Memory leaks — controllers, streams, listeners created but never closed in dispose().", "Hallucinated syntax — outdated or invented package names, methods, and parameters that don't exist."] },
+      { k: "p", t: "These map exactly to today's theory: layout (RenderObject + the golden rule), lifecycle (initState/dispose), and verification (read it, don't trust it)." },
+    ],
+  },
+  {
+    id: "s2-crash", kicker: "The Heart", title: "The unbounded-constraint crash, up close",
+    blocks: [
+      { k: "p", t: "A Column tells its children “you can be as tall as you want” — unbounded height. A ListView also wants unbounded height to scroll. So you have a parent offering infinite height and a child demanding infinite height, and nobody can decide a size. Flutter crashes." },
+      { k: "code", label: "broken → fixed", lines: ["Column(children: [ Header(), ListView(children: items) ])       // crash", "", "Column(children: [ Header(), Expanded(child: ListView(...)) ])   // fixed"] },
+      { k: "callout", title: "What you'll see & the fix", t: "The error reads like “Vertical viewport was given unbounded height” or a RenderFlex overflow. Expanded says “take exactly the leftover space,” giving the ListView a bounded height to live in. Constraints down, sizes up — the flow works again." },
+    ],
+  },
+  {
+    id: "s2-next", kicker: "Where we go next", title: "From auditing to building",
+    blocks: [
+      { k: "p", t: "You now know Flutter keeps three trees, the lifecycle of open-and-close, that the UI runs on one thread you mustn't block, and the three ways AI code fails. Next we start building real UI with AI — mock data, modular widgets, and animation — using everything you can now audit." },
+    ],
+  },
+];
+
+/* ===================== SESSION 2 — 10 CHALLENGES ===================== */
+const SESSION2_CHALLENGES: Challenge[] = [
+  {
+    n: 1, kind: "Audit", title: "The leaky animation",
+    prompt: "This widget animates a spinner but something is missing. Find the bug, name the failure mode, and write the fix.",
+    code: [
+      "class _SpinnerState extends State<Spinner>",
+      "    with SingleTickerProviderStateMixin {",
+      "  late final AnimationController _c;",
+      "",
+      "  void initState() {",
+      "    super.initState();",
+      "    _c = AnimationController(vsync: this, duration: oneSecond)..repeat();",
+      "  }",
+      "",
+      "  Widget build(BuildContext context) => RotationTransition(turns: _c, child: icon);",
+      "  // ??? ",
+      "}",
+    ],
+  },
+  {
+    n: 2, kind: "Audit", title: "The list that crashes",
+    prompt: "This screen throws “Vertical viewport was given unbounded height” at runtime. Explain WHY, then fix it.",
+    code: [
+      "Column(",
+      "  children: [",
+      "    Text('My feed'),",
+      "    ListView(children: posts),  // crashes here",
+      "  ],",
+      ")",
+    ],
+  },
+  {
+    n: 3, kind: "Audit", title: "The frozen screen",
+    prompt: "Users report the app “hangs” for a second when this screen opens, and the data is sometimes empty. Identify both problems and rewrite it correctly.",
+    code: [
+      "Widget build(BuildContext context) {",
+      "  final res = api.get('/feed');      // no await",
+      "  for (var i = 0; i < 5000000; i++) {} // busy work",
+      "  return Text(res.body);",
+      "}",
+    ],
+  },
+  {
+    n: 4, kind: "Audit", title: "Reborn every frame",
+    prompt: "A teammate says this controller “acts weird and the scroll keeps resetting.” Spot the bug, explain which tree/lifecycle rule it breaks, and fix it.",
+    code: [
+      "Widget build(BuildContext context) {",
+      "  final scroll = ScrollController();   // created in build()",
+      "  return ListView(controller: scroll, children: items);",
+      "}",
+    ],
+  },
+  {
+    n: 5, kind: "Fill", title: "Complete the lifecycle",
+    prompt: "Fill each blank so the resource is opened once and closed once. The comments define the goal.",
+    code: [
+      "class _ClockState extends State<Clock> {",
+      "  late final Timer _timer;",
+      "",
+      "  void ______() {                 // runs once, at birth",
+      "    super.initState();",
+      "    _timer = Timer.periodic(oneSecond, _tick);",
+      "  }",
+      "",
+      "  void ______() {                 // runs once, at removal",
+      "    _timer.cancel();",
+      "    super.________();             // always call this last",
+      "  }",
+      "}",
+    ],
+  },
+  {
+    n: 6, kind: "Fill", title: "Bound the scroll",
+    prompt: "The ListView must scroll inside the Column without crashing. Fill the blank with the widget that gives it the leftover space.",
+    code: [
+      "Column(",
+      "  children: [",
+      "    Header(),",
+      "    ________(                    // take the remaining height",
+      "      child: ListView(children: items),",
+      "    ),",
+      "  ],",
+      ")",
+    ],
+  },
+  {
+    n: 7, kind: "Fill", title: "Keep the UI smooth",
+    prompt: "This must fetch without freezing the UI thread. Fill in the two keywords that make a function asynchronous and wait for a Future.",
+    code: [
+      "Future<String> loadName() ______ {   // mark it asynchronous",
+      "  final res = ______ api.get('/me');  // wait for the value",
+      "  return res.body;",
+      "}",
+    ],
+  },
+  {
+    n: 8, kind: "Code", title: "Combine two Futures",
+    prompt: (
+      <>Write a Dart function <code>loadProfile()</code> that fetches a name and an avatar URL from two separate async calls <em>at the same time</em> (look into <code>Future.wait</code>), then returns them together as a single object/record.</>
+    ),
+    note: (
+      <>Use AI to help — but <b>read every line and explain it in your own words</b>: what is a <code>Future</code>, what does <code>await</code> do, and why is fetching both at once better than one after the other? If you can&apos;t explain it, you haven&apos;t finished.</>
+    ),
+  },
+  {
+    n: 9, kind: "Code", title: "A self-cleaning ticker",
+    prompt: (
+      <>Build a <code>StatefulWidget</code> called <code>Ticker</code> that shows a number counting up every second using <code>Timer.periodic</code>. Start the timer in <code>initState</code>, update with <code>setState</code>, and cancel it in <code>dispose</code>.</>
+    ),
+    note: (
+      <>Have AI scaffold it, then <b>explain in your own words</b>: why does the timer start in <code>initState</code> and not <code>build</code>, and what exactly leaks if you delete <code>dispose</code>?</>
+    ),
+  },
+  {
+    n: 10, kind: "Code", title: "Async feed screen",
+    prompt: (
+      <>Build a <code>FeedScreen</code> that loads a <code>List&lt;String&gt;</code> from an async source, shows a loading spinner while it waits, then displays the items in a scrollable list <em>inside a Column with a header</em> — without the unbounded-height crash.</>
+    ),
+    note: (
+      <>AI will write most of it. Your job: <b>explain in your own words</b> why the list needs <code>Expanded</code>, where the <code>await</code> goes, and which lifecycle method cleans up if you add a controller.</>
+    ),
+  },
+];
+
+const MODULES: Module[] = [
+  { id: "s1", num: "01", title: "Architectural Foundations, Dart Reading & Git", live: true, sections: SESSION1, challenges: [] },
+  { id: "s2", num: "02", title: "Flutter Runtime Mechanics & Code Auditing", live: true, sections: SESSION2, challenges: SESSION2_CHALLENGES },
+];
+
 /* ---- tiny Dart syntax highlighter ---- */
-const TOKEN = /('[^']*'|\b(?:class|extends|final|const|late|return|required|await|async|import|this|true|false|null|void)\b|\b(?:String|int|bool|double|Widget|Future|BuildContext|StatelessWidget|StatefulWidget|Card|Text)\b|\b\d+\b)/g;
+const TOKEN = /('[^']*'|\b(?:class|extends|final|const|late|return|required|await|async|import|this|true|false|null|void|with|for|var)\b|\b(?:String|int|bool|double|Widget|Future|Timer|BuildContext|StatelessWidget|StatefulWidget|State|AnimationController|ScrollController|TextEditingController|Column|ListView|Expanded|Text|Header|Card)\b|\b\d+\b)/g;
 
 function highlight(code: string, keyPrefix: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -300,7 +336,7 @@ function highlight(code: string, keyPrefix: string): ReactNode[] {
     let cls = styles.kw;
     if (tok.startsWith("'")) cls = styles.str;
     else if (/^\d+$/.test(tok)) cls = styles.num;
-    else if (/^(String|int|bool|double|Widget|Future|BuildContext|StatelessWidget|StatefulWidget|Card|Text)$/.test(tok)) cls = styles.typ;
+    else if (/^[A-Z]/.test(tok)) cls = styles.typ;
     out.push(<span key={`${keyPrefix}-${i++}`} className={cls}>{tok}</span>);
     last = m.index + tok.length;
   }
@@ -311,17 +347,31 @@ function highlight(code: string, keyPrefix: string): ReactNode[] {
 function CodeLine({ line, lk }: { line: string; lk: string }) {
   const ci = line.indexOf("//");
   if (ci >= 0) {
-    const codePart = line.slice(0, ci);
-    const comment = line.slice(ci);
     return (
       <>
-        {highlight(codePart, lk)}
-        <span className={styles.cm}>{comment}</span>
+        {highlight(line.slice(0, ci), lk)}
+        <span className={styles.cm}>{line.slice(ci)}</span>
         {"\n"}
       </>
     );
   }
   return <>{highlight(line, lk)}{"\n"}</>;
+}
+
+function CodeCard({ label, lines }: { label?: string; lines: string[] }) {
+  return (
+    <div className={styles.code}>
+      <div className={styles.codeBar}>
+        <span className={styles.dot} style={{ background: "#ff5f57" }} />
+        <span className={styles.dot} style={{ background: "#febc2e" }} />
+        <span className={styles.dot} style={{ background: "#28c840" }} />
+        {label && <span className={styles.codeLabel}>{label}</span>}
+      </div>
+      <pre className={styles.codePre}>
+        {lines.map((ln, j) => <CodeLine key={`l${j}`} line={ln} lk={`l${j}`} />)}
+      </pre>
+    </div>
+  );
 }
 
 function CheckIcon() {
@@ -335,10 +385,8 @@ function CheckIcon() {
 function renderBlock(b: Block, sid: string, idx: number): ReactNode {
   const key = `${sid}-b${idx}`;
   switch (b.k) {
-    case "p":
-      return <p key={key} className={styles.p}>{b.t}</p>;
-    case "quote":
-      return <p key={key} className={styles.quote}>{b.t}</p>;
+    case "p": return <p key={key} className={styles.p}>{b.t}</p>;
+    case "quote": return <p key={key} className={styles.quote}>{b.t}</p>;
     case "callout":
       return (
         <div key={key} className={styles.callout}>
@@ -346,22 +394,7 @@ function renderBlock(b: Block, sid: string, idx: number): ReactNode {
           <p className={styles.calloutText}>{b.t}</p>
         </div>
       );
-    case "code":
-      return (
-        <div key={key} className={styles.code}>
-          <div className={styles.codeBar}>
-            <span className={styles.dot} style={{ background: "#ff5f57" }} />
-            <span className={styles.dot} style={{ background: "#febc2e" }} />
-            <span className={styles.dot} style={{ background: "#28c840" }} />
-            {b.label && <span className={styles.codeLabel}>{b.label}</span>}
-          </div>
-          <pre className={styles.codePre}>
-            {b.lines.map((ln, j) => (
-              <CodeLine key={`${key}-l${j}`} line={ln} lk={`${key}-l${j}`} />
-            ))}
-          </pre>
-        </div>
-      );
+    case "code": return <div key={key}><CodeCard label={b.label} lines={b.lines} /></div>;
     case "map":
       return (
         <div key={key} className={styles.map}>
@@ -378,22 +411,28 @@ function renderBlock(b: Block, sid: string, idx: number): ReactNode {
       return (
         <div key={key} className={styles.list}>
           {b.items.map((it, j) => (
-            <div key={`${key}-i${j}`} className={styles.listItem}>
-              <CheckIcon />
-              <span>{it}</span>
-            </div>
+            <div key={`${key}-i${j}`} className={styles.listItem}><CheckIcon /><span>{it}</span></div>
           ))}
         </div>
       );
   }
 }
 
+const BADGE: Record<Challenge["kind"], { cls: string; label: string }> = {
+  Audit: { cls: styles.badgeAudit, label: "Audit" },
+  Fill: { cls: styles.badgeFill, label: "Fill in the blank" },
+  Code: { cls: styles.badgeCode, label: "Coding" },
+};
+
 export default function TrainingProgramsPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
-  const [active, setActive] = useState<string>(SECTIONS[0].id);
+  const [activeMod, setActiveMod] = useState<string>("s2");
+  const [active, setActive] = useState<string>("");
 
-  // reading progress + cursor glow
+  const mod = MODULES.find((m) => m.id === activeMod) ?? MODULES[0];
+
+  // reading progress + cursor glow (mount once)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -414,49 +453,47 @@ export default function TrainingProgramsPage() {
     };
   }, []);
 
-  // scroll-reveal + scrollspy
+  // reveal + scrollspy — re-run when the active module changes
   useEffect(() => {
     const root = scrollRef.current;
     if (!root) return;
 
-    const revealEls = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
     const revealObs = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add(styles.in);
-            revealObs.unobserve(e.target);
-          }
+          if (e.isIntersecting) { e.target.classList.add(styles.in); revealObs.unobserve(e.target); }
         }
       },
       { root, threshold: 0.12 }
     );
-    revealEls.forEach((el) => revealObs.observe(el));
+    root.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => revealObs.observe(el));
 
-    const sectionEls = Array.from(root.querySelectorAll<HTMLElement>("[data-section]"));
     const spyObs = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
+        const visible = entries.filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visible[0]) setActive(visible[0].target.id);
       },
       { root, rootMargin: "-25% 0px -65% 0px", threshold: 0 }
     );
-    sectionEls.forEach((el) => spyObs.observe(el));
+    root.querySelectorAll<HTMLElement>("[data-section]").forEach((el) => spyObs.observe(el));
 
-    return () => {
-      revealObs.disconnect();
-      spyObs.disconnect();
-    };
-  }, []);
+    return () => { revealObs.disconnect(); spyObs.disconnect(); };
+  }, [activeMod]);
 
   const goTo = (id: string) => {
     const root = scrollRef.current;
     const target = root?.querySelector<HTMLElement>(`#${id}`);
-    if (root && target) {
-      root.scrollTo({ top: target.offsetTop - 24, behavior: "smooth" });
-    }
+    if (root && target) root.scrollTo({ top: target.offsetTop - 24, behavior: "smooth" });
+  };
+
+  const switchMod = (id: string) => {
+    if (id === activeMod) return;
+    setActiveMod(id);
+    setActive("");
+    const root = scrollRef.current;
+    const banner = root?.querySelector<HTMLElement>("#program");
+    if (root && banner) root.scrollTo({ top: banner.offsetTop - 12, behavior: "smooth" });
   };
 
   return (
@@ -474,47 +511,37 @@ export default function TrainingProgramsPage() {
 
       {/* HERO */}
       <header className={styles.hero}>
-        <span className={styles.eyebrow}>
-          <span className={styles.eyebrowDot} />
-          OctoPilot · Developer Enablement
-        </span>
+        <span className={styles.eyebrow}><span className={styles.eyebrowDot} />OctoPilot · Developer Enablement</span>
         <h1 className={styles.heroTitle}>Training<br />Programs</h1>
-        <p className={styles.heroSub}>
-          Structured, mentor-led tracks that turn capable engineers into AI-augmented
-          builders — fast.
-        </p>
+        <p className={styles.heroSub}>Structured, mentor-led tracks that turn capable engineers into AI-augmented builders — fast.</p>
         <div className={styles.heroMeta}>
           <span className={styles.metaPill}>Flutter Intern Program</span>
-          <span className={styles.metaPill}>4-week track</span>
           <span className={styles.metaPill}>Mentorship format</span>
+          <span className={styles.metaPill}>Audit-first</span>
         </div>
-        <span className={styles.scrollCue}>
-          <span className={styles.scrollCueLine} /> Scroll to begin
-        </span>
+        <span className={styles.scrollCue}><span className={styles.scrollCueLine} /> Scroll to begin</span>
       </header>
 
-      {/* PROGRAM BANNER */}
-      <section className={styles.program}>
+      {/* PROGRAM BANNER + SESSION SWITCHER */}
+      <section id="program" className={styles.program}>
         <div className={`${styles.programCard} ${styles.reveal}`} data-reveal>
-          <div className={styles.programIndex}>Program 01</div>
-          <h2 className={styles.programTitle}>Architectural Foundations, Dart Reading &amp; Git</h2>
-          <div className={styles.weekRow}>
-            <div className={`${styles.week} ${styles.weekActive}`}>
-              <span className={styles.weekNum}>W1</span> Week 1
-              <span className={styles.weekTag}>Live</span>
-            </div>
-            <div className={`${styles.week} ${styles.weekLocked}`}>
-              <span className={styles.weekNum}>W2</span> Runtime &amp; Auditing
-              <span className={styles.weekTag}>Soon</span>
-            </div>
-            <div className={`${styles.week} ${styles.weekLocked}`}>
-              <span className={styles.weekNum}>W3</span> UI &amp; Mock Data
-              <span className={styles.weekTag}>Soon</span>
-            </div>
-            <div className={`${styles.week} ${styles.weekLocked}`}>
-              <span className={styles.weekNum}>W4</span> DevOps &amp; CI
-              <span className={styles.weekTag}>Soon</span>
-            </div>
+          <div className={styles.programIndex}>Program 01 · Flutter</div>
+          <h2 className={styles.programTitle}>{mod.title}</h2>
+          <div className={styles.sessTabs} role="tablist">
+            {MODULES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="tab"
+                aria-selected={m.id === activeMod}
+                onClick={() => switchMod(m.id)}
+                className={`${styles.sessTab} ${m.id === activeMod ? styles.sessTabActive : ""}`}
+              >
+                <span className={styles.sessTabNum}>{m.num}</span>
+                <span className={styles.sessTabName}>{m.id === "s1" ? "Foundations & Dart" : "Runtime & Auditing"}</span>
+                <span className={`${styles.sessTabTag} ${m.live ? styles.sessTagLive : ""}`}>{m.live ? "Live" : "Soon"}</span>
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -522,48 +549,80 @@ export default function TrainingProgramsPage() {
       {/* BODY */}
       <div className={styles.layout}>
         <aside className={styles.rail}>
-          <div className={styles.railLabel}>Week 1 · On this page</div>
+          <div className={styles.railLabel}>Session {mod.num} · On this page</div>
           <ul className={styles.toc}>
-            {SECTIONS.map((s, i) => (
+            {mod.sections.map((s, i) => (
               <li key={s.id} className={styles.tocItem}>
-                <button
-                  type="button"
-                  onClick={() => goTo(s.id)}
-                  className={`${styles.tocLink} ${active === s.id ? styles.tocActive : ""}`}
-                >
+                <button type="button" onClick={() => goTo(s.id)} className={`${styles.tocLink} ${active === s.id ? styles.tocActive : ""}`}>
                   <span className={styles.tocIdx}>{String(i + 1).padStart(2, "0")}</span>
                   <span>{s.title}</span>
                 </button>
               </li>
             ))}
+            {mod.challenges.length > 0 && (
+              <li className={styles.tocItem}>
+                <button type="button" onClick={() => goTo(`${mod.id}-lab`)} className={`${styles.tocLink} ${active === `${mod.id}-lab` ? styles.tocActive : ""}`}>
+                  <span className={styles.tocIdx}>★</span>
+                  <span>Challenge Lab</span>
+                </button>
+              </li>
+            )}
           </ul>
         </aside>
 
         <article className={styles.article}>
-          {SECTIONS.map((s, i) => (
+          {mod.sections.map((s, i) => (
             <section key={s.id} id={s.id} data-section className={styles.section}>
-              <div className={`${styles.reveal}`} data-reveal>
-                <div className={styles.kicker}>
-                  <span className={styles.kickerNum}>{String(i + 1).padStart(2, "0")}</span>
-                  {s.kicker}
-                </div>
+              <div className={styles.reveal} data-reveal>
+                <div className={styles.kicker}><span className={styles.kickerNum}>{String(i + 1).padStart(2, "0")}</span>{s.kicker}</div>
                 <h2 className={styles.h2}>{s.title}</h2>
               </div>
               {s.blocks.map((b, j) => (
-                <div key={`${s.id}-w${j}`} className={`${styles.reveal}`} data-reveal>
-                  {renderBlock(b, s.id, j)}
-                </div>
+                <div key={`${s.id}-w${j}`} className={styles.reveal} data-reveal>{renderBlock(b, s.id, j)}</div>
               ))}
             </section>
           ))}
+
+          {mod.challenges.length > 0 && (
+            <section id={`${mod.id}-lab`} data-section className={styles.section}>
+              <div className={styles.reveal} data-reveal>
+                <div className={styles.kicker}><span className={styles.kickerNum}>★</span>Hands-on</div>
+                <h2 className={styles.h2}>Challenge Lab</h2>
+              </div>
+              <div className={`${styles.chIntro} ${styles.reveal}`} data-reveal>
+                <p className={styles.p}>Ten problems on everything in this session. Three flavours — and the same rule runs through all of them: you must be able to explain your answer in your own words.</p>
+                <div className={styles.chLegend}>
+                  <span className={`${styles.chBadge} ${styles.badgeAudit}`}>Audit · find the bug</span>
+                  <span className={`${styles.chBadge} ${styles.badgeFill}`}>Fill in the blank</span>
+                  <span className={`${styles.chBadge} ${styles.badgeCode}`}>Coding · build &amp; explain</span>
+                </div>
+              </div>
+              <div className={styles.chGrid}>
+                {mod.challenges.map((c) => (
+                  <div key={c.n} className={`${styles.chCard} ${styles.reveal}`} data-reveal>
+                    <div className={styles.chHead}>
+                      <span className={styles.chNum}>{String(c.n).padStart(2, "0")}</span>
+                      <span className={`${styles.chBadge} ${BADGE[c.kind].cls}`}>{BADGE[c.kind].label}</span>
+                      <span className={styles.chTitle}>{c.title}</span>
+                    </div>
+                    <p className={styles.chPrompt}>{c.prompt}</p>
+                    {c.code && <CodeCard lines={c.code} />}
+                    {c.note && <div className={styles.chNote}>{c.note}</div>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </article>
       </div>
 
       {/* FOOTER */}
       <footer className={styles.footer}>
         <p className={styles.footerNext}>
-          <b>Next — Week 2:</b> how Flutter works under the hood — the Three Trees, state
-          &amp; lifecycle, and the bugs they create.
+          <b>{activeMod === "s2" ? "Next:" : "Continue:"}</b>{" "}
+          {activeMod === "s2"
+            ? "building real UI with AI — mock data, modular widgets, and animation, using everything you can now audit."
+            : "Session 02 — how Flutter works under the hood: the Three Trees, state & lifecycle, and the bugs they create."}
         </p>
         <div className={styles.brand}>
           <span className={styles.brandMark}><span className={styles.brandDot} /></span>

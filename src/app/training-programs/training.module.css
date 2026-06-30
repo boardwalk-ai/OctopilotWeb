@@ -323,3 +323,58 @@
 .brand { display: flex; align-items: center; gap: 0.6rem; color: #c8c8d2; font-weight: 600; }
 .brandMark { width: 22px; height: 22px; border-radius: 7px; background: var(--crimson); display: grid; place-items: center; box-shadow: 0 0 16px var(--crimson-soft); }
 .brandDot { width: 8px; height: 8px; border-radius: 999px; background: #fff; }
+
+/* ---- session switcher ---- */
+.sessTabs { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.7rem; }
+.sessTab {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.75rem 1.15rem; border-radius: 14px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+  font-size: 0.92rem; color: #b7b7c1; transition: all 200ms ease; text-align: left;
+}
+.sessTab:hover { color: #e7e7ee; border-color: rgba(255,255,255,0.18); }
+.sessTabActive {
+  border-color: rgba(229,72,77,0.55); color: #fff;
+  background: linear-gradient(120deg, rgba(229,72,77,0.16), rgba(229,72,77,0.03));
+  box-shadow: 0 10px 40px -18px rgba(229,72,77,0.7);
+}
+.sessTabNum { font-family: var(--font-title); font-weight: 700; font-size: 0.82rem; color: var(--crimson); }
+.sessTabActive .sessTabNum { color: #fff; }
+.sessTabName { font-weight: 500; }
+.sessTabTag {
+  margin-left: 0.2rem; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 0.16rem 0.46rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); color: #9a9aa6;
+}
+.sessTagLive { color: #6ee7a8; border-color: rgba(110,231,168,0.4); }
+
+/* ---- challenge lab ---- */
+.chIntro { margin: 0.5rem 0 2rem; }
+.chLegend { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+.chGrid { display: flex; flex-direction: column; gap: 1.1rem; }
+.chCard {
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 18px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
+  padding: 1.3rem 1.5rem; position: relative; overflow: hidden;
+}
+.chHead { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
+.chNum { font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; color: var(--crimson); min-width: 2.2rem; }
+.chBadge {
+  font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700;
+  padding: 0.26rem 0.6rem; border-radius: 999px;
+}
+.badgeAudit { color: #f0b86b; background: rgba(233,184,114,0.12); border: 1px solid rgba(233,184,114,0.3); }
+.badgeFill  { color: #7fd3e8; background: rgba(79,214,232,0.10); border: 1px solid rgba(79,214,232,0.28); }
+.badgeCode  { color: #6ee7a8; background: rgba(110,231,168,0.10); border: 1px solid rgba(110,231,168,0.3); }
+.chTitle { font-family: var(--font-title); font-weight: 600; font-size: 1.12rem; color: #fff; }
+.chPrompt { font-size: 1rem; line-height: 1.65; color: #c4c4ce; margin: 0.2rem 0 0; }
+.chPrompt code {
+  font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
+  font-size: 0.88em; padding: 0.1em 0.4em; border-radius: 6px;
+  background: rgba(229,72,77,0.12); color: #f3b0b2; border: 1px solid rgba(229,72,77,0.18);
+}
+.chNote {
+  margin-top: 0.9rem; padding: 0.75rem 1rem; border-radius: 12px;
+  border: 1px solid rgba(110,231,168,0.22); background: rgba(110,231,168,0.05);
+  font-size: 0.9rem; line-height: 1.55; color: #b9d6c5;
+}
+.chNote b { color: #8ef0bb; font-weight: 600; }
