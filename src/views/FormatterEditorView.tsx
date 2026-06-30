@@ -739,26 +739,59 @@ function outlineTagColor(type: string): string {
   if (t.includes("conclusion")) return "#0d9488";   // teal
   return "#f59e0b";                                  // body — amber
 }
-function OutlineCard({ o, index, onRemove, onUpdate }: {
+function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, onDragEnd, dragging }: {
   o: OutlineData; index: number;
   onRemove?: () => void;
   onUpdate?: (updated: OutlineData) => void;
+  onMoreIdeas?: (prompt: string) => Promise<void>;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  dragging?: boolean;
 }) {
   const hue = outlineTagColor(o.type);
   const editable = Boolean(onUpdate);
   const setBullet = (i: number, val: string) => onUpdate?.({ ...o, bullets: o.bullets.map((b, j) => (j === i ? val : b)) });
   const removeBullet = (i: number) => onUpdate?.({ ...o, bullets: o.bullets.filter((_, j) => j !== i) });
-  const addBullet = () => onUpdate?.({ ...o, bullets: [...o.bullets, ""] });
+  const [ideaPrompt, setIdeaPrompt] = useState("");
+  const [ideaLoading, setIdeaLoading] = useState(false);
+
+  const submitIdeas = async () => {
+    const prompt = ideaPrompt.trim();
+    if (!prompt || ideaLoading || !onMoreIdeas) return;
+    setIdeaLoading(true);
+    try {
+      await onMoreIdeas(prompt);
+      setIdeaPrompt("");
+    } finally {
+      setIdeaLoading(false);
+    }
+  };
 
   const grow = { fieldSizing: "content" } as React.CSSProperties;
   return (
-    <div className="group rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] p-3.5" style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}>
+    <div
+      className={`group rounded-2xl border border-[var(--ed-border)] bg-[var(--ed-surface-2)] p-3.5 transition-opacity ${dragging ? "opacity-40" : ""}`}
+      style={{ animation: `chat-msg-in 0.3s ease-out ${index * 0.04}s both` }}
+    >
       {/* Tag row */}
       <div className="mb-1.5 flex items-center justify-between">
-        <span
-          className="glass-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
-          style={{ background: `${hue}26`, borderColor: `${hue}59`, color: hue }}
-        >{o.type}</span>
+        <div className="flex items-center gap-1.5">
+          {onDragStart && (
+            <span
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              title="Drag to reorder"
+              className="flex cursor-grab items-center text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text-muted)] active:cursor-grabbing"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+            </span>
+          )}
+          <span
+            className="glass-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+            style={{ background: `${hue}26`, borderColor: `${hue}59`, color: hue }}
+          >{o.type}</span>
+        </div>
         {onRemove && (
           <button type="button" title="Remove section" onClick={onRemove}
             className="flex-shrink-0 rounded-full p-1 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[var(--ed-text)] group-hover:opacity-100">
@@ -805,14 +838,36 @@ function OutlineCard({ o, index, onRemove, onUpdate }: {
             )}
           </div>
         ))}
-        {editable && (
-          <button type="button" onClick={addBullet}
-            className="flex items-center gap-1.5 self-start rounded-full px-2 py-1 text-[11px] font-medium text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text)]">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            Add point
-          </button>
-        )}
       </div>
+
+      {/* More ideas — AI generates new points from a prompt (not a manual bullet) */}
+      {editable && onMoreIdeas && (
+        <div className="mt-3 border-t border-[var(--ed-border)] pt-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">More ideas</span>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <input
+              type="text"
+              value={ideaPrompt}
+              onChange={(e) => setIdeaPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submitIdeas(); } }}
+              disabled={ideaLoading}
+              placeholder="Ask Octo for more points…"
+              className="min-w-0 flex-1 rounded-full border border-[var(--ed-border)] bg-[var(--ed-surface-3)] px-3 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[var(--ed-border-2)] disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={() => void submitIdeas()}
+              disabled={ideaLoading || !ideaPrompt.trim()}
+              title="Generate more points"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
+            >
+              {ideaLoading
+                ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1168,7 +1223,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [parseStatus, setParseStatus] = useState<ParseStatus>({ kind: "idle" });
   const [toast, setToast] = useState<string | null>(null);
   // ── Panel widths (0 = collapsed) ──
-  const LEFT_DEFAULT = 260;
+  const LEFT_DEFAULT = 340;
   const RIGHT_DEFAULT = 320;
   const LEFT_SNAPS  = [0, LEFT_DEFAULT];
   const RIGHT_SNAPS = [0, RIGHT_DEFAULT];
@@ -1337,6 +1392,50 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       setOutlinesLoading(false);
     }
   }, [assignmentAnalysis, outlinesLoading]);
+
+  // Drag-to-reorder outline cards.
+  const [dragOutlineIndex, setDragOutlineIndex] = useState<number | null>(null);
+  const moveOutline = useCallback((from: number | null, to: number) => {
+    if (from === null || from === to) return;
+    setOutlines((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  // "More ideas" — ask Lily for NEW bullets for one section and append them.
+  // These land in `outlines` state, so they flow into the save snapshot too.
+  const moreIdeasForOutline = useCallback(async (idx: number, prompt: string) => {
+    const section = outlines[idx];
+    if (!assignmentAnalysis || !section) return;
+    try {
+      const res = await fetchWithUserAuthorization("/api/lily/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysis: assignmentAnalysis.analysis,
+          essayTopic: assignmentAnalysis.essayTopic,
+          essayType: assignmentAnalysis.essayType,
+          scope: assignmentAnalysis.scope,
+          structure: assignmentAnalysis.structure,
+          mode: "build",
+          requestedType: section.type,
+          customTitle: `${section.title}. The writer wants additional NEW points about: "${prompt}". Points already covered (do NOT repeat these): ${section.bullets.filter(Boolean).join("; ") || "none yet"}.`,
+          bullets: true,
+        }),
+      });
+      const data = await res.json() as { outlines?: { bullets?: string[] }[] };
+      const newBullets = (data.outlines?.[0]?.bullets ?? []).filter((b) => typeof b === "string" && b.trim());
+      if (newBullets.length) {
+        setOutlines((prev) => prev.map((x, j) => (j === idx ? { ...x, bullets: [...x.bullets, ...newBullets] } : x)));
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }, [outlines, assignmentAnalysis]);
 
   // When the analysis page opens, run Hein — but only if we don't already have
   // an analysis for THIS topic (so a new prompt re-analyzes; the same prompt
@@ -3548,6 +3647,18 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   )}
                 </div>
 
+                {/* Continue — pill, right-aligned, between breakdown and outline */}
+                <div className="ob-item mb-6 flex flex-shrink-0 justify-end" style={{ animationDelay: "210ms" }}>
+                  <button
+                    type="button"
+                    onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
+                    className="group inline-flex items-center gap-2 rounded-full bg-[#ea4335] px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97]"
+                  >
+                    Continue to Editor
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+
                 {/* Outlines (optional) — 3 modes like Guided Generation */}
                 <div className="ob-item mb-6 flex-shrink-0" style={{ animationDelay: "240ms" }}>
                   <h3 className="text-[15px] font-semibold text-white">Outline <span className="text-white/40">(optional)</span></h3>
@@ -3630,9 +3741,20 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       {outlines.length > 0 && (
                         <div className="mt-3 space-y-2.5">
                           {outlines.map((o, i) => (
-                            <OutlineCard key={i} o={o} index={i}
-                            onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
-                            onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
+                            <div
+                              key={i}
+                              onDragOver={(e) => { if (dragOutlineIndex !== null) e.preventDefault(); }}
+                              onDrop={(e) => { e.preventDefault(); moveOutline(dragOutlineIndex, i); setDragOutlineIndex(null); }}
+                            >
+                              <OutlineCard o={o} index={i}
+                                onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
+                                onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))}
+                                onMoreIdeas={(p) => moreIdeasForOutline(i, p)}
+                                onDragStart={() => setDragOutlineIndex(i)}
+                                onDragEnd={() => setDragOutlineIndex(null)}
+                                dragging={dragOutlineIndex === i}
+                              />
+                            </div>
                           ))}
                         </div>
                       )}
@@ -3640,17 +3762,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   )}
                 </div>
 
-                {/* Continue */}
-                <div className="ob-item flex-shrink-0 pb-2 pt-2" style={{ animationDelay: "300ms" }}>
-                  <button
-                    type="button"
-                    onClick={() => transitionTo("editor", { topic: onboardingTopic, style: onboardingFormat })}
-                    className="group flex items-center justify-center gap-2 rounded-2xl bg-[#ea4335] px-8 py-4 text-[16px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.98]"
-                  >
-                    {outlines.length ? "Continue to Editor" : "Skip outline & write"}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </button>
-                </div>
             </WizardShell>
           )}
 
