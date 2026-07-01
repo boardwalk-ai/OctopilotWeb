@@ -743,7 +743,7 @@ function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, o
   o: OutlineData; index: number;
   onRemove?: () => void;
   onUpdate?: (updated: OutlineData) => void;
-  onMoreIdeas?: (prompt: string) => Promise<void>;
+  onMoreIdeas?: () => Promise<void>;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   dragging?: boolean;
@@ -752,16 +752,13 @@ function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, o
   const editable = Boolean(onUpdate);
   const setBullet = (i: number, val: string) => onUpdate?.({ ...o, bullets: o.bullets.map((b, j) => (j === i ? val : b)) });
   const removeBullet = (i: number) => onUpdate?.({ ...o, bullets: o.bullets.filter((_, j) => j !== i) });
-  const [ideaPrompt, setIdeaPrompt] = useState("");
   const [ideaLoading, setIdeaLoading] = useState(false);
 
-  const submitIdeas = async () => {
-    const prompt = ideaPrompt.trim();
-    if (!prompt || ideaLoading || !onMoreIdeas) return;
+  const requestMoreIdeas = async () => {
+    if (ideaLoading || !onMoreIdeas) return;
     setIdeaLoading(true);
     try {
-      await onMoreIdeas(prompt);
-      setIdeaPrompt("");
+      await onMoreIdeas();
     } finally {
       setIdeaLoading(false);
     }
@@ -794,8 +791,8 @@ function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, o
         </div>
         {onRemove && (
           <button type="button" title="Remove section" onClick={onRemove}
-            className="flex-shrink-0 rounded-full p-1 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[var(--ed-text)] group-hover:opacity-100">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            className="flex-shrink-0 rounded-full p-1 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[#f87171] group-hover:opacity-100">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>
           </button>
         )}
       </div>
@@ -829,8 +826,8 @@ function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, o
                   className="min-w-0 flex-1 resize-none overflow-hidden break-words bg-transparent py-[1px] text-[12px] leading-relaxed text-[var(--ed-text-muted)] placeholder-[var(--ed-text-label)] outline-none"
                 />
                 <button type="button" title="Remove point" onClick={() => removeBullet(i)}
-                  className="mt-[3px] flex-shrink-0 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[var(--ed-text)] group-hover/b:opacity-100">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  className="mt-[3px] flex-shrink-0 text-[var(--ed-text-dim)] opacity-0 transition hover:text-[#f87171] group-hover/b:opacity-100">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>
                 </button>
               </>
             ) : (
@@ -840,35 +837,114 @@ function OutlineCard({ o, index, onRemove, onUpdate, onMoreIdeas, onDragStart, o
         ))}
       </div>
 
-      {/* More ideas — AI generates new points from a prompt (not a manual bullet) */}
+      {/* More ideas — one click, Octo adds fresh points to this section */}
       {editable && onMoreIdeas && (
-        <div className="mt-3 border-t border-[var(--ed-border)] pt-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">More ideas</span>
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <input
-              type="text"
-              value={ideaPrompt}
-              onChange={(e) => setIdeaPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submitIdeas(); } }}
-              disabled={ideaLoading}
-              placeholder="Ask Octo for more points…"
-              className="min-w-0 flex-1 rounded-full border border-[var(--ed-border)] bg-[var(--ed-surface-3)] px-3 py-1.5 text-[12px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[var(--ed-border-2)] disabled:opacity-50"
-            />
-            <button
-              type="button"
-              onClick={() => void submitIdeas()}
-              disabled={ideaLoading || !ideaPrompt.trim()}
-              title="Generate more points"
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white transition hover:bg-[#dc2626] active:scale-[0.93] disabled:opacity-40"
-            >
-              {ideaLoading
-                ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>}
-            </button>
+        <button
+          type="button"
+          onClick={() => void requestMoreIdeas()}
+          disabled={ideaLoading}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#ea4335]/25 bg-[#ea4335]/[0.08] py-1.5 text-[11px] font-semibold text-[#ea4335] transition hover:border-[#ea4335]/45 hover:bg-[#ea4335]/[0.14] active:scale-[0.98] disabled:opacity-50"
+        >
+          {ideaLoading ? (
+            <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[#ea4335]/40 border-t-[#ea4335]" />Adding ideas…</>
+          ) : (
+            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>More ideas</>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Outline generation modes (shared by the setup wizard + editor panel) ────── */
+type OutlineRunMode = "auto" | "build" | "single";
+function OutlineModeControls({
+  outlinesLoading, outlineMode, setOutlineMode,
+  buildType, setBuildType, buildTitle, setBuildTitle, runOutline,
+}: {
+  outlinesLoading: boolean;
+  outlineMode: null | "single" | "build";
+  setOutlineMode: React.Dispatch<React.SetStateAction<null | "single" | "build">>;
+  buildType: "Introduction" | "Body Paragraph" | "Conclusion";
+  setBuildType: (t: "Introduction" | "Body Paragraph" | "Conclusion") => void;
+  buildTitle: string;
+  setBuildTitle: (v: string) => void;
+  runOutline: (mode: OutlineRunMode, requestedType?: string, customTitle?: string) => void;
+}) {
+  return (
+    <>
+      {/* Mode buttons */}
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          ["build", "Build My Way", "M12 5v14M5 12h14"],
+          ["auto", "Auto Outline", "M3 12h7l2-3 2 6 2-3h5"],
+          ["single", "One Paragraph", "M4 6h16M4 12h10M4 18h7"],
+        ] as [string, string, string][]).map(([m, label, icon]) => (
+          <button
+            key={m}
+            type="button"
+            disabled={outlinesLoading}
+            onClick={() => {
+              if (m === "auto") void runOutline("auto");
+              else setOutlineMode((prev) => (prev === m ? null : (m as "single" | "build")));
+            }}
+            className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-[11px] font-semibold transition active:scale-[0.97] disabled:opacity-50 ${outlineMode === m ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/20 hover:text-white/80"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon}/></svg>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* One Paragraph Only — 3 type params */}
+      {outlineMode === "single" && (
+        <div className="mt-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">Which paragraph?</p>
+          <div className="flex flex-wrap gap-2">
+            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
+              <button key={t} type="button" disabled={outlinesLoading}
+                onClick={() => void runOutline("single", t)}
+                className="rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-2 text-[12px] font-medium text-white/75 transition hover:border-[#ea4335]/50 hover:text-white active:scale-[0.96] disabled:opacity-50">
+                {t}
+              </button>
+            ))}
           </div>
         </div>
       )}
-    </div>
+
+      {/* Build My Way — type + custom title */}
+      {outlineMode === "build" && (
+        <div className="mt-2.5 space-y-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
+          <div className="flex flex-wrap gap-2">
+            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
+              <button key={t} type="button"
+                onClick={() => setBuildType(t)}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition active:scale-[0.96] ${buildType === t ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/15 bg-white/[0.04] text-white/60 hover:text-white/85"}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={buildTitle}
+            onChange={(e) => setBuildTitle(e.target.value)}
+            placeholder="What should this paragraph focus on?"
+            className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2.5 text-[12px] text-white placeholder-white/25 outline-none focus:border-[#ea4335]/50"
+          />
+          <button type="button" disabled={outlinesLoading || !buildTitle.trim()}
+            onClick={() => void runOutline("build", buildType, buildTitle.trim())}
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-40">
+            {outlinesLoading ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />Building…</> : "Build paragraph"}
+          </button>
+        </div>
+      )}
+
+      {outlinesLoading && outlineMode === null && (
+        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/50">
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />Generating outline…
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1406,9 +1482,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     });
   }, []);
 
-  // "More ideas" — ask Lily for NEW bullets for one section and append them.
-  // These land in `outlines` state, so they flow into the save snapshot too.
-  const moreIdeasForOutline = useCallback(async (idx: number, prompt: string) => {
+  // "More ideas" — one click asks Lily for fresh bullets for a section (no user
+  // typing) and appends them. They land in `outlines` state, so they flow into
+  // the save snapshot too.
+  const moreIdeasForOutline = useCallback(async (idx: number) => {
     const section = outlines[idx];
     if (!assignmentAnalysis || !section) return;
     try {
@@ -1423,7 +1500,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           structure: assignmentAnalysis.structure,
           mode: "build",
           requestedType: section.type,
-          customTitle: `${section.title}. The writer wants additional NEW points about: "${prompt}". Points already covered (do NOT repeat these): ${section.bullets.filter(Boolean).join("; ") || "none yet"}.`,
+          customTitle: `${section.title}. Generate additional NEW supporting points for this section. Points already covered (do NOT repeat these): ${section.bullets.filter(Boolean).join("; ") || "none yet"}.`,
           bullets: true,
         }),
       });
@@ -3348,14 +3425,53 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                     </div>
                   )}
 
-                  {/* Wizard-generated outline */}
-                  {outlines.length > 0 && (
+                  {/* Ask Octo — sits between the analysis and the outline */}
+                  {assignmentAnalysis && (
+                    <div className="rounded-xl border border-[var(--ed-border)] bg-gradient-to-br from-[#ea4335]/[0.09] to-transparent p-3.5">
+                      <p className="text-[12.5px] font-semibold text-[var(--ed-text)]">Something on your mind?</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--ed-text-muted)]">Ask Octo — our writing bot — about your topic, sources, or how to sharpen this draft.</p>
+                      <button
+                        type="button"
+                        onClick={openOctoExpanded}
+                        className="mt-2.5 flex items-center gap-1.5 rounded-full bg-[#ea4335] px-3.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97]"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Ask Octo
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Outline — generation modes + draggable cards */}
+                  {assignmentAnalysis && (
                     <div className="flex flex-col gap-2.5">
-                      <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">Your outline · {outlines.length} section{outlines.length === 1 ? "" : "s"}</p>
+                      <p className="px-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--ed-text-dim)]">
+                        {outlines.length > 0 ? `Your outline · ${outlines.length} section${outlines.length === 1 ? "" : "s"}` : "Build an outline"}
+                      </p>
+                      <OutlineModeControls
+                        outlinesLoading={outlinesLoading}
+                        outlineMode={outlineMode}
+                        setOutlineMode={setOutlineMode}
+                        buildType={buildType}
+                        setBuildType={setBuildType}
+                        buildTitle={buildTitle}
+                        setBuildTitle={setBuildTitle}
+                        runOutline={runOutline}
+                      />
                       {outlines.map((o, i) => (
-                        <OutlineCard key={i} o={o} index={i}
-                                onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
-                                onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))} />
+                        <div
+                          key={i}
+                          onDragOver={(e) => { if (dragOutlineIndex !== null) e.preventDefault(); }}
+                          onDrop={(e) => { e.preventDefault(); moveOutline(dragOutlineIndex, i); setDragOutlineIndex(null); }}
+                        >
+                          <OutlineCard o={o} index={i}
+                            onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
+                            onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))}
+                            onMoreIdeas={() => moreIdeasForOutline(i)}
+                            onDragStart={() => setDragOutlineIndex(i)}
+                            onDragEnd={() => setDragOutlineIndex(null)}
+                            dragging={dragOutlineIndex === i}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -3666,77 +3782,16 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
                   {assignmentAnalysis && (
                     <>
-                      {/* Mode buttons */}
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          ["build", "Build My Way", "M12 5v14M5 12h14"],
-                          ["auto", "Auto Outline", "M3 12h7l2-3 2 6 2-3h5"],
-                          ["single", "One Paragraph", "M4 6h16M4 12h10M4 18h7"],
-                        ] as [string, string, string][]).map(([m, label, icon]) => (
-                          <button
-                            key={m}
-                            type="button"
-                            disabled={outlinesLoading}
-                            onClick={() => {
-                              if (m === "auto") void runOutline("auto");
-                              else setOutlineMode((prev) => (prev === m ? null : (m as "single" | "build")));
-                            }}
-                            className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-[11px] font-semibold transition active:scale-[0.97] disabled:opacity-50 ${outlineMode === m ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/20 hover:text-white/80"}`}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon}/></svg>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* One Paragraph Only — 3 type params */}
-                      {outlineMode === "single" && (
-                        <div className="mt-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
-                          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">Which paragraph?</p>
-                          <div className="flex flex-wrap gap-2">
-                            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
-                              <button key={t} type="button" disabled={outlinesLoading}
-                                onClick={() => void runOutline("single", t)}
-                                className="rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-2 text-[12px] font-medium text-white/75 transition hover:border-[#ea4335]/50 hover:text-white active:scale-[0.96] disabled:opacity-50">
-                                {t}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Build My Way — type + custom title */}
-                      {outlineMode === "build" && (
-                        <div className="mt-2.5 space-y-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-3" style={{ animation: "dict-in 0.18s ease-out both" }}>
-                          <div className="flex flex-wrap gap-2">
-                            {(["Introduction", "Body Paragraph", "Conclusion"] as const).map((t) => (
-                              <button key={t} type="button"
-                                onClick={() => setBuildType(t)}
-                                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition active:scale-[0.96] ${buildType === t ? "border-[#ea4335] bg-[#ea4335]/15 text-white" : "border-white/15 bg-white/[0.04] text-white/60 hover:text-white/85"}`}>
-                                {t}
-                              </button>
-                            ))}
-                          </div>
-                          <input
-                            type="text"
-                            value={buildTitle}
-                            onChange={(e) => setBuildTitle(e.target.value)}
-                            placeholder="What should this paragraph focus on?"
-                            className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2.5 text-[12px] text-white placeholder-white/25 outline-none focus:border-[#ea4335]/50"
-                          />
-                          <button type="button" disabled={outlinesLoading || !buildTitle.trim()}
-                            onClick={() => void runOutline("build", buildType, buildTitle.trim())}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-40">
-                            {outlinesLoading ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />Building…</> : "Build paragraph"}
-                          </button>
-                        </div>
-                      )}
-
-                      {outlinesLoading && outlineMode === null && (
-                        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/50">
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />Generating outline…
-                        </div>
-                      )}
+                      <OutlineModeControls
+                        outlinesLoading={outlinesLoading}
+                        outlineMode={outlineMode}
+                        setOutlineMode={setOutlineMode}
+                        buildType={buildType}
+                        setBuildType={setBuildType}
+                        buildTitle={buildTitle}
+                        setBuildTitle={setBuildTitle}
+                        runOutline={runOutline}
+                      />
 
                       {outlines.length > 0 && (
                         <div className="mt-3 space-y-2.5">
@@ -3749,7 +3804,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                               <OutlineCard o={o} index={i}
                                 onUpdate={(u) => setOutlines((prev) => prev.map((x, j) => (j === i ? u : x)))}
                                 onRemove={() => setOutlines((prev) => prev.filter((_, j) => j !== i))}
-                                onMoreIdeas={(p) => moreIdeasForOutline(i, p)}
+                                onMoreIdeas={() => moreIdeasForOutline(i)}
                                 onDragStart={() => setDragOutlineIndex(i)}
                                 onDragEnd={() => setDragOutlineIndex(null)}
                                 dragging={dragOutlineIndex === i}
