@@ -170,7 +170,9 @@ interface SourceModalState {
   citLoading: boolean;
   citError: string | null;
   activeStyle: FormatStyleId;
-  suggestions: string[];
+  // Suggestions are cached per citation style, so switching APA↔MLA keeps each
+  // style's generated continuations independently.
+  suggestionsByStyle: Partial<Record<FormatStyleId, string[]>>;
   suggestLoading: boolean;
   suggestError: string | null;
 }
@@ -1603,12 +1605,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [sourceColors, setSourceColors] = useState<Record<string, string>>({});
   const [sourceModal, setSourceModal] = useState<SourceModalState | null>(null);
   const [contentSelection, setContentSelection] = useState("");
-  const [autoSuggest, setAutoSuggest] = useState(true);
   const [autoHumanize, setAutoHumanize] = useState(true);
   // Citation cache keyed by source URL — avoids re-fetching on modal reopen
   const citCacheRef = useRef<Record<string, Partial<Record<FormatStyleId, SourceCitStyle>>>>({});
-  // Suggestion cache keyed by source URL — avoids re-generating on modal reopen
-  const suggestCacheRef = useRef<Record<string, string[]>>({});
+  // Suggestion cache keyed by source URL then citation style — preserves each
+  // format's continuations independently across format switches + modal reopens.
+  const suggestCacheRef = useRef<Record<string, Partial<Record<FormatStyleId, string[]>>>>({});
 
   /* ── Selection tracking (for insert-at-cursor) ── */
   const savedRangeRef = useRef<Range | null>(null);
@@ -2681,7 +2683,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       citLoading: !cached,
       citError: null,
       activeStyle: currentEssayFormat,
-      suggestions: suggestCacheRef.current[source.url] ?? [],
+      suggestionsByStyle: suggestCacheRef.current[source.url] ?? {},
       suggestLoading: false,
       suggestError: null,
     });
@@ -2751,22 +2753,19 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       if (!res.ok || !data.suggestion) throw new Error(data.error ?? "No suggestion");
       setSourceModal((prev) => {
         if (!prev) return null;
-        const updated = [...prev.suggestions, data.suggestion!];
-        suggestCacheRef.current[prev.source.url] = updated;
-        return { ...prev, suggestions: updated, suggestLoading: false };
+        const style = prev.activeStyle;
+        const updatedForStyle = [...(prev.suggestionsByStyle[style] ?? []), data.suggestion!];
+        const nextByStyle = { ...prev.suggestionsByStyle, [style]: updatedForStyle };
+        suggestCacheRef.current[prev.source.url] = nextByStyle;
+        return { ...prev, suggestionsByStyle: nextByStyle, suggestLoading: false };
       });
     } catch {
       setSourceModal((prev) => prev ? { ...prev, suggestLoading: false, suggestError: "Could not generate suggestion." } : null);
     }
   }, [sourceModal, autoHumanize, rawContent]);
 
-  // Auto-fetch first suggestion when modal opens
-  useEffect(() => {
-    if (autoSuggest && sourceModal && !sourceModal.citLoading && sourceModal.suggestions.length === 0 && !sourceModal.suggestLoading) {
-      void fetchSuggestion();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceModal?.source.url, sourceModal?.citLoading, autoSuggest]);
+  // Suggestions are on-demand only — generated when the user clicks the button,
+  // never auto-called on open (per source-modal UX).
 
   /* ── Source card: one-click add to Works Cited / Bibliography ── */
   const [bibAddingUrl, setBibAddingUrl] = useState<string | null>(null);
@@ -4586,7 +4585,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       </div>
                       {/* ── Docked controls ── */}
                       <div className="mt-2 flex items-center gap-3">
-                        {([ ["autoSuggest", "Auto Suggest", autoSuggest, setAutoSuggest], ["autoHumanize", "Auto Humanize", autoHumanize, setAutoHumanize] ] as [string, string, boolean, (v: boolean) => void][]).map(([key, label, val, setter]) => (
+                        {([ ["autoHumanize", "Auto Humanize", autoHumanize, setAutoHumanize] ] as [string, string, boolean, (v: boolean) => void][]).map(([key, label, val, setter]) => (
                           <button
                             key={key}
                             type="button"
@@ -5017,6 +5016,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         const domain = getDomain(source.url);
         const { label: typeLabel } = getSourceType(source.url);
         const activeCit = citations[activeStyle];
+        const activeSuggestions = sourceModal.suggestionsByStyle[activeStyle] ?? [];
         const STYLES: FormatStyleId[] = ["mla", "apa", "chicago", "ieee", "harvard"];
         const STYLE_LABELS: Record<FormatStyleId, string> = { mla: "MLA", apa: "APA", chicago: "Chicago", ieee: "IEEE", harvard: "Harvard" };
         return (
@@ -5024,7 +5024,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
             onClick={(e) => { if (e.target === e.currentTarget) { setSourceModal(null); setContentSelection(""); } }}
           >
-            <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col rounded-[20px] bg-[var(--ed-bg-subbar)] shadow-2xl"
+            <div className="flex max-h-[90vh] w-full max-w-[940px] flex-col rounded-[20px] bg-[var(--ed-bg-subbar)] shadow-2xl"
               style={{ border: `1px solid ${modalColor}40`, animation: "editor-enter 0.22s cubic-bezier(0.22,1,0.36,1) both" }}
             >
               {/* Modal header */}
@@ -5043,8 +5043,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 </button>
               </div>
 
-              {/* Scrollable body */}
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              {/* Body — two columns: the reference on the left, suggestions on the right */}
+              <div className="flex min-h-0 flex-1">
+                {/* LEFT — source, content, citations */}
+                <div className="min-h-0 flex-1 overflow-y-auto border-r border-[var(--ed-surface-4)]">
 
                 {/* ── Source info ── */}
                 <div className="border-b border-[var(--ed-surface-4)] px-5 py-4">
@@ -5121,12 +5123,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setSourceModal((prev) => {
-                              if (!prev || prev.activeStyle === s) return prev;
-                              // Clear suggestion cache so new style's citation is used
-                              suggestCacheRef.current[prev.source.url] = [];
-                              return { ...prev, activeStyle: s, suggestions: [], suggestLoading: false };
-                            })}
+                        onClick={() => setSourceModal((prev) => (
+                              prev && prev.activeStyle !== s
+                                ? { ...prev, activeStyle: s, suggestLoading: false, suggestError: null }
+                                : prev
+                            ))}
                         className={`rounded-full px-3 py-1 text-[11px] font-semibold transition active:scale-[0.95] ${activeStyle === s ? "text-white" : "bg-[var(--ed-bg-pill)] text-[var(--ed-text-dim)] hover:text-[var(--ed-text-muted)]"}`}
                         style={activeStyle === s ? { background: modalColor } : undefined}
                       >
@@ -5198,49 +5199,83 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                   )}
                 </div>
 
-                {/* ── Suggested continuation ── */}
-                {autoSuggest && (
-                  <div className="border-t border-[var(--ed-surface-4)] px-5 py-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Suggested</span>
-                      {autoHumanize && (
-                        <span className="rounded-full bg-[#0d9488]/15 px-2 py-0.5 text-[9px] font-semibold text-[#0d9488]">Humanized</span>
-                      )}
-                    </div>
+                </div> {/* end LEFT column */}
 
-                    {sourceModal.suggestLoading && (
+                {/* RIGHT — on-demand suggestions, cached per citation style */}
+                <div className="flex min-h-0 w-[42%] max-w-[400px] flex-col">
+                  <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--ed-surface-4)] px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ed-text-label)]">Suggested</span>
+                      <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `${modalColor}22`, color: modalColor }}>{STYLE_LABELS[activeStyle]}</span>
+                    </div>
+                    {autoHumanize && (
+                      <span className="rounded-full bg-[#0d9488]/15 px-2 py-0.5 text-[9px] font-semibold text-[#0d9488]">Humanized</span>
+                    )}
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                    {sourceModal.suggestLoading && activeSuggestions.length === 0 ? (
                       <div className="flex items-center gap-2 py-3 text-[12px] text-[var(--ed-text-dim)]">
                         <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ed-text-dim)] border-t-transparent" />
                         {autoHumanize ? "Generating & humanizing…" : "Generating suggestion…"}
                       </div>
-                    )}
-
-                    {sourceModal.suggestError && !sourceModal.suggestLoading && (
-                      <p className="text-[12px] text-[#f87171]">{sourceModal.suggestError}</p>
-                    )}
-
-                    {!sourceModal.suggestLoading && sourceModal.suggestions.length > 0 && (
-                      <div className="flex flex-col gap-2">
-                        {sourceModal.suggestions.map((s, i) => (
-                          <div key={i} className="flex items-start gap-2 rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5">
-                            <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-[#c4b5fd]">{s}</p>
-                            <button
-                              type="button"
-                              onClick={() => { navigator.clipboard?.writeText(s).catch(() => {}); showToast("Suggestion copied ✓"); }}
-                              className="flex-shrink-0 rounded-full bg-[var(--ed-surface-4)] px-2.5 py-1 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
-                            >Copy</button>
-                          </div>
-                        ))}
+                    ) : activeSuggestions.length === 0 ? (
+                      <div className="flex flex-col items-center gap-3 py-10 text-center">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ed-surface-4)]">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={modalColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+                        </div>
+                        <p className="text-[12.5px] font-medium text-[var(--ed-text-muted)]">No suggestions yet</p>
+                        <p className="text-[11px] leading-relaxed text-[var(--ed-text-dim)]">Generate a source-grounded sentence with the {STYLE_LABELS[activeStyle]} in-text citation baked in.</p>
                         <button
                           type="button"
                           onClick={() => void fetchSuggestion()}
-                          disabled={sourceModal.suggestLoading}
-                          className="self-start rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-3 py-1 text-[11px] font-semibold text-[var(--ed-text-faint)] transition hover:border-[var(--ed-border-2)] hover:text-[var(--ed-text-muted)] active:scale-[0.96] disabled:opacity-40"
-                        >+ more</button>
+                          disabled={sourceModal.suggestLoading || citLoading || !activeCit}
+                          className="mt-1 flex items-center gap-1.5 rounded-full bg-[#ea4335] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#dc2626] active:scale-[0.97] disabled:opacity-40"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                          Generate suggestion
+                        </button>
+                        {citLoading && <p className="text-[10px] text-[var(--ed-text-dim)]">Preparing the citation first…</p>}
+                        {!citLoading && !activeCit && <p className="text-[10px] text-[var(--ed-text-dim)]">No {STYLE_LABELS[activeStyle]} citation available yet.</p>}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {activeSuggestions.map((s, i) => (
+                          <div key={i} className="flex items-start gap-2 rounded-xl border border-[var(--ed-surface-4)] bg-[var(--ed-surface-3)] px-3 py-2.5">
+                            <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-[#c4b5fd]">{s}</p>
+                            <div className="flex flex-shrink-0 flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() => { navigator.clipboard?.writeText(s).catch(() => {}); showToast("Suggestion copied ✓"); }}
+                                className="rounded-[5px] bg-[var(--ed-surface-4)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+                              >Copy</button>
+                              <button
+                                type="button"
+                                onClick={() => handleInsertInText(s)}
+                                className="rounded-[5px] bg-[#ea4335]/20 px-2 py-0.5 text-[10px] font-semibold text-[#ea4335] transition hover:bg-[#ea4335]/30"
+                              >Insert</button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {sourceModal.suggestError && (
+                          <p className="text-[12px] text-[#f87171]">{sourceModal.suggestError}</p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => void fetchSuggestion()}
+                          disabled={sourceModal.suggestLoading || !activeCit}
+                          className="mt-1 flex items-center justify-center gap-1.5 self-start rounded-full border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] px-3.5 py-1.5 text-[11px] font-semibold text-[var(--ed-text-faint)] transition hover:border-[var(--ed-border-2)] hover:text-[var(--ed-text-muted)] active:scale-[0.96] disabled:opacity-40"
+                        >
+                          {sourceModal.suggestLoading
+                            ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--ed-text-dim)] border-t-transparent" />Adding…</>
+                            : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Generate another</>}
+                        </button>
                       </div>
                     )}
                   </div>
-                )}
+                </div>
 
               </div>
             </div>
