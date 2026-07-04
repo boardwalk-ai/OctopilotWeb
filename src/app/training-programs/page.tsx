@@ -31,6 +31,8 @@ type Module = {
   id: string;
   num: string;
   title: string;
+  tab: string;
+  next: string;
   live: boolean;
   sections: Section[];
   challenges: Challenge[];
@@ -316,13 +318,179 @@ const SESSION2_CHALLENGES: Challenge[] = [
   },
 ];
 
+/* ===================== SESSION 3 ===================== */
+const SESSION3: Section[] = [
+  {
+    id: "s3-build", kicker: "Where we go now", title: "From understanding to building",
+    blocks: [
+      { k: "p", t: "Session 1 you learned to read Flutter. Session 2 you learned how it works. This module is where you build — using AI to assemble real UI, but staying the engineer who reviews every line. We do it like a production line: small, isolated pieces built from controlled mock data." },
+      { k: "quote", t: "AI is the hands. You are the judgment." },
+    ],
+  },
+  {
+    id: "s3-rule", kicker: "Layout in Practice", title: "Constraints down, sizes up",
+    blocks: [
+      { k: "p", t: "Every layout traces back to one flow. The parent passes constraints down (“you can be up to 360 wide”). The child decides its size and passes it back up (“then I'll be 360 × 120”). The parent then positions it. Down, up, position — break that flow and you get a layout crash." },
+    ],
+  },
+  {
+    id: "s3-toolbox", kicker: "Layout in Practice", title: "The widgets you build with",
+    blocks: [
+      { k: "p", t: "About ninety percent of every screen is six widgets, nested. Learn them and you can read any layout the AI produces." },
+      { k: "list", items: ["Row / Column — lay children out horizontally or vertically.", "Expanded / Flexible — fill or share the leftover space.", "SizedBox — a fixed size, or a gap between two widgets.", "Padding — breathing room around a child.", "Container — size, color, and padding bundled into one box.", "Stack — layer widgets on top of each other."] },
+      { k: "p", t: "When you read AI layout, don't panic at the nesting — just ask: which of these six, inside which?" },
+    ],
+  },
+  {
+    id: "s3-card", kicker: "Layout in Practice", title: "Anatomy of a card",
+    blocks: [
+      { k: "p", t: "Here's the shape of nearly every card in the app — a Topic or Dashboard card." },
+      { k: "code", label: "a Topic / Dashboard card", lines: ["Padding(", "  padding: EdgeInsets.all(16),", "  child: Column(", "    children: [", "      Text(title),", "      SizedBox(height: 8),", "      Row(children: [", "        Expanded(child: ProgressBar(mastery)),", "        Text('$percent%'),", "      ]),", "    ],", "  ),", ")"] },
+      { k: "p", t: "Padding gives space around everything; the Column stacks the title over a row; the SizedBox is the gap; the Row puts the bar and percentage side by side; and Expanded makes the bar take the leftover width while the percentage keeps its natural size. That's constraints-down, sizes-up in one line." },
+    ],
+  },
+  {
+    id: "s3-anim", kicker: "Animation & Gesture", title: "Two kinds of animation",
+    blocks: [
+      { k: "p", t: "Implicit is the easy kind: you change a value and Flutter animates the change for you — the widgets are named Animated-something (AnimatedContainer, AnimatedOpacity). Explicit is the controlled kind: you drive it yourself with an AnimationController — more power, but a controller is a resource you must manage." },
+      { k: "p", t: "Rule of thumb: reach for implicit first. Go explicit only when you truly need control — the flashcard flip, custom motion." },
+    ],
+  },
+  {
+    id: "s3-implicit", kicker: "Animation & Gesture", title: "Change a value, Flutter animates it",
+    blocks: [
+      { k: "code", label: "AnimatedContainer", lines: ["AnimatedContainer(", "  duration: Duration(milliseconds: 300),", "  curve: Curves.easeOut,", "  height: expanded ? 200 : 80,   // just flip the value", "  color:  expanded ? amber : grey,", ")", "// setState(() => expanded = !expanded);"] },
+      { k: "p", t: "You change the flag with setState and Flutter smoothly tweens from the old value to the new — no controller, no dispose. For most polish, reach for an Animated widget first." },
+      { k: "callout", title: "Audit note", t: "If AI spins up a full AnimationController just to fade or resize something, that's over-engineering — and a controller it probably forgot to dispose." },
+    ],
+  },
+  {
+    id: "s3-explicit", kicker: "Animation & Gesture", title: "Drive it yourself — the flashcard flip",
+    blocks: [
+      { k: "code", label: "AnimationController + Tween", lines: ["late final AnimationController _c;", "", "void initState() {", "  super.initState();", "  _c = AnimationController(vsync: this, duration: ms(400));", "}", "", "final flip = Tween(begin: 0.0, end: pi).animate(_c);", "// _c.forward();  on tap to flip", "", "void dispose() { _c.dispose(); super.dispose(); }"] },
+      { k: "p", t: "A controller is created in initState, so it must be closed in dispose — the exact open-and-close rule from Session 2. Explicit animation is where AI leaks controllers most." },
+      { k: "quote", t: "Open a controller? Confirm dispose() closes it. No exceptions." },
+    ],
+  },
+  {
+    id: "s3-gesture", kicker: "Animation & Gesture", title: "Gestures — tap, flip, swipe",
+    blocks: [
+      { k: "p", t: "GestureDetector gives raw taps and swipes; InkWell adds a Material ripple for buttons and cards; Dismissible handles swipe-to-remove. The pattern that ties it together: wrap a widget in a gesture, and in the callback call setState (implicit) or controller.forward() (explicit)." },
+      { k: "quote", t: "Gesture → state change → animation. That's the flashcard flip, end to end." },
+    ],
+  },
+  {
+    id: "s3-json", kicker: "Data: JSON → Dart", title: "Raw JSON is a trap",
+    blocks: [
+      { k: "p", t: "Our app lives on JSON from the server. When you decode it you get a Map<String, dynamic> — every key is a guess and every value type is unknown. A typo like data['titel'] silently gives null; a value that's a String where you expected an int crashes at runtime." },
+      { k: "p", t: "A model class turns that into named, typed fields, so a typo or wrong type becomes a compile-time error on your machine instead of a runtime crash on a user's phone." },
+      { k: "callout", title: "The move", t: "This is where you convert the AI's optimistic guesses into something the compiler can defend." },
+    ],
+  },
+  {
+    id: "s3-model", kicker: "Data: JSON → Dart", title: "fromJson / toJson",
+    blocks: [
+      { k: "code", label: "StudyObject model", lines: ["class StudyObject {", "  final String title;", "  final int difficulty;", "  StudyObject({required this.title, required this.difficulty});", "", "  factory StudyObject.fromJson(Map<String, dynamic> j) => StudyObject(", "    title: j['title'] as String,", "    difficulty: j['difficulty'] as int,", "  );", "", "  Map<String, dynamic> toJson() => { 'title': title, 'difficulty': difficulty };", "}"] },
+      { k: "p", t: "fromJson is map-to-object — it reads each key and assigns a typed field, and it's where deserialization bugs hide. toJson is the reverse, object-to-map. factory just means a constructor that builds and returns an instance." },
+    ],
+  },
+  {
+    id: "s3-mismatch", kicker: "Data: JSON → Dart", title: "The mapping mismatch",
+    blocks: [
+      { k: "p", t: "The bug that ships silently: the API sends difficulty as \"3\" — a String — but the model asserts it's an int. That line compiles perfectly and only explodes at runtime, often in production on a user's phone." },
+      { k: "code", label: "broken → fixed", lines: ["difficulty: j['difficulty'] as int,               // crashes: String is not int", "", "difficulty: int.tryParse('${j['difficulty']}') ?? 0,  // parse + default"] },
+      { k: "callout", title: "Audit reflex", t: "In any fromJson, check every field — does the JSON type match the Dart type, and is null handled? AI loves to assume the happy path; real APIs are messy." },
+    ],
+  },
+  {
+    id: "s3-ai", kicker: "Building with AI", title: "Small, isolated, mock-first",
+    blocks: [
+      { k: "p", t: "Three rules for driving the AI: ask for ONE widget (“build a static QuizCard from this mock JSON,” not “build the quiz”); feed it mock data so it can't invent fields; and get it rendering with fake data first, wired to real data later. Small scope means code you can actually read, explain, and trust." },
+      { k: "quote", t: "Build with AI and understand it — anything less is just faster tech debt." },
+    ],
+  },
+  {
+    id: "s3-next", kicker: "Where we go next", title: "From building to wiring",
+    blocks: [
+      { k: "p", t: "You can now assemble a screen from the six core layout widgets, make it move with the right kind of animation, and turn messy JSON into safe typed objects — and still audit every line the AI wrote. Next we wire it up: real state management, connecting these mock shells to live data so the app works end to end." },
+    ],
+  },
+];
+
+/* ===================== SESSION 3 — 10 CHALLENGES ===================== */
+const SESSION3_CHALLENGES: Challenge[] = [
+  {
+    n: 1, kind: "Audit", title: "The overflowing row",
+    prompt: "At runtime this throws “RenderFlex overflowed” — the long title runs off the screen. Explain why, and fix it.",
+    code: ["Row(", "  children: [", "    Text(veryLongTitle),   // pushes off-screen", "    Icon(Icons.star),", "  ],", ")"],
+  },
+  {
+    n: 2, kind: "Audit", title: "The over-engineered fade",
+    prompt: "This just fades an icon, but it leaks. Name the leak — then suggest a simpler widget that avoids a controller entirely.",
+    code: ["class _FadeState extends State<Fade>", "    with SingleTickerProviderStateMixin {", "  late final AnimationController _c;", "  void initState() {", "    super.initState();", "    _c = AnimationController(vsync: this, duration: oneSecond)..repeat();", "  }", "  Widget build(_) => FadeTransition(opacity: _c, child: icon);", "  // ???", "}"],
+  },
+  {
+    n: 3, kind: "Audit", title: "The silent parse",
+    prompt: "This fromJson compiles fine but crashes for some records at runtime. Which field, why, and what's the fix?",
+    code: ["factory Topic.fromJson(Map<String, dynamic> j) => Topic(", "  title: j['title'] as String,", "  mastery: j['mastery'] as double,   // sometimes int, sometimes \"0.4\"", ");"],
+  },
+  {
+    n: 4, kind: "Audit", title: "The card that won't move",
+    prompt: "Tapping should expand the card, and the value does change — but nothing happens on screen. What's missing, and why?",
+    code: ["void _toggle() { expanded = !expanded; }   // value changes...", "", "AnimatedContainer(", "  duration: ms(300),", "  height: expanded ? 200 : 80,   // ...but the UI never rebuilds", ")"],
+  },
+  {
+    n: 5, kind: "Fill", title: "Complete the card",
+    prompt: "Fill the blanks so the bar fills the leftover width and there's an 8px gap under the title. The comments define the goal.",
+    code: ["Column(", "  children: [", "    Text(title),", "    ________(height: 8),          // the gap under the title", "    Row(children: [", "      ________(child: ProgressBar(mastery)),  // take leftover width", "      Text('$percent%'),", "    ]),", "  ],", ")"],
+  },
+  {
+    n: 6, kind: "Fill", title: "Wire up fromJson",
+    prompt: "Fill the blanks so this safely turns JSON into a typed object. The comments define the goal.",
+    code: ["class Flashcard {", "  final String front;", "  final int difficulty;", "  Flashcard({required this.front, required this.difficulty});", "", "  ________ Flashcard.fromJson(Map<String, dynamic> j) => Flashcard(  // build & return", "    front: j['front'] ____ String,                 // assert the type", "    difficulty: int.tryParse('${j['difficulty']}') ____ 0,  // default if bad/null", "  );", "}"],
+  },
+  {
+    n: 7, kind: "Fill", title: "Make it animate",
+    prompt: "Fill the blanks so changing `big` smoothly animates the box. The comments define the goal.",
+    code: ["________(                          // the implicit-animation widget", "  duration: Duration(milliseconds: 300),", "  height: big ? 200 : 80,", ")", "", "void grow() => ________(() => big = true);   // change state + rebuild"],
+  },
+  {
+    n: 8, kind: "Code", title: "A safe Flashcard model",
+    prompt: (
+      <>Write a Dart <code>Flashcard</code> class with <code>front</code> (String), <code>back</code> (String), and <code>difficulty</code> (int), plus <code>fromJson</code> and <code>toJson</code>. In the API, <code>difficulty</code> sometimes arrives as a String like <code>&quot;3&quot;</code> and <code>back</code> is sometimes missing — handle both safely.</>
+    ),
+    note: (
+      <>Use AI, then <b>explain in your own words</b>: what deserialization is, why a model beats using the raw map, and how you defended each field against bad data.</>
+    ),
+  },
+  {
+    n: 9, kind: "Code", title: "Build a TopicCard",
+    prompt: (
+      <>Build a <code>StatelessWidget</code> called <code>TopicCard</code> that renders from the mock map <code>{"{ 'title': 'DNA', 'mastery': 0.4 }"}</code>: a padded card with the title, an 8px gap, and a row with a progress bar (using <code>Expanded</code>) beside the percentage.</>
+    ),
+    note: (
+      <>AI will write it. <b>Explain in your own words</b> why the bar uses <code>Expanded</code> and the percentage doesn&apos;t, and what each of <code>Padding</code>, <code>Column</code>, <code>SizedBox</code>, and <code>Row</code> is doing.</>
+    ),
+  },
+  {
+    n: 10, kind: "Code", title: "The flip",
+    prompt: (
+      <>Build a <code>Flashcard</code> widget that shows the front and flips to the back when tapped, using an explicit <code>AnimationController</code>. Start it in <code>initState</code> and close it in <code>dispose</code>.</>
+    ),
+    note: (
+      <>Use AI, then <b>explain in your own words</b>: the gesture → state → animation chain, why the controller must be disposed, and when you&apos;d have used an implicit animation instead.</>
+    ),
+  },
+];
+
 const MODULES: Module[] = [
-  { id: "s1", num: "01", title: "Architectural Foundations, Dart Reading & Git", live: true, sections: SESSION1, challenges: [] },
-  { id: "s2", num: "02", title: "Flutter Runtime Mechanics & Code Auditing", live: true, sections: SESSION2, challenges: SESSION2_CHALLENGES },
+  { id: "s1", num: "01", title: "Architectural Foundations, Dart Reading & Git", tab: "Foundations & Dart", next: "Session 02 — how Flutter works under the hood: the Three Trees, state & lifecycle, and the bugs they create.", live: true, sections: SESSION1, challenges: [] },
+  { id: "s2", num: "02", title: "Flutter Runtime Mechanics & Code Auditing", tab: "Runtime & Auditing", next: "Session 03 — building real UI with AI: layout, animation, mock data, and JSON models.", live: true, sections: SESSION2, challenges: SESSION2_CHALLENGES },
+  { id: "s3", num: "03", title: "Production-Line UI Engineering & Mock Data", tab: "UI & Mock Data", next: "Session 04 — wiring it up: real state management and connecting your mock shells to live data.", live: true, sections: SESSION3, challenges: SESSION3_CHALLENGES },
 ];
 
 /* ---- tiny Dart syntax highlighter ---- */
-const TOKEN = /('[^']*'|\b(?:class|extends|final|const|late|return|required|await|async|import|this|true|false|null|void|with|for|var)\b|\b(?:String|int|bool|double|Widget|Future|Timer|BuildContext|StatelessWidget|StatefulWidget|State|AnimationController|ScrollController|TextEditingController|Column|ListView|Expanded|Text|Header|Card)\b|\b\d+\b)/g;
+const TOKEN = /('[^']*'|\b(?:class|extends|final|const|late|return|required|await|async|import|this|true|false|null|void|with|for|var|factory|get|set)\b|\b[A-Z][A-Za-z0-9_]*\b|\b\d+\b)/g;
 
 function highlight(code: string, keyPrefix: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -427,7 +595,7 @@ const BADGE: Record<Challenge["kind"], { cls: string; label: string }> = {
 export default function TrainingProgramsPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
-  const [activeMod, setActiveMod] = useState<string>("s2");
+  const [activeMod, setActiveMod] = useState<string>("s3");
   const [active, setActive] = useState<string>("");
 
   const mod = MODULES.find((m) => m.id === activeMod) ?? MODULES[0];
@@ -538,7 +706,7 @@ export default function TrainingProgramsPage() {
                 className={`${styles.sessTab} ${m.id === activeMod ? styles.sessTabActive : ""}`}
               >
                 <span className={styles.sessTabNum}>{m.num}</span>
-                <span className={styles.sessTabName}>{m.id === "s1" ? "Foundations & Dart" : "Runtime & Auditing"}</span>
+                <span className={styles.sessTabName}>{m.tab}</span>
                 <span className={`${styles.sessTabTag} ${m.live ? styles.sessTagLive : ""}`}>{m.live ? "Live" : "Soon"}</span>
               </button>
             ))}
@@ -619,10 +787,7 @@ export default function TrainingProgramsPage() {
       {/* FOOTER */}
       <footer className={styles.footer}>
         <p className={styles.footerNext}>
-          <b>{activeMod === "s2" ? "Next:" : "Continue:"}</b>{" "}
-          {activeMod === "s2"
-            ? "building real UI with AI — mock data, modular widgets, and animation, using everything you can now audit."
-            : "Session 02 — how Flutter works under the hood: the Three Trees, state & lifecycle, and the bugs they create."}
+          <b>Next:</b> {mod.next}
         </p>
         <div className={styles.brand}>
           <span className={styles.brandMark}><span className={styles.brandDot} /></span>
