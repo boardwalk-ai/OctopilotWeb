@@ -483,10 +483,175 @@ const SESSION3_CHALLENGES: Challenge[] = [
   },
 ];
 
+/* ===================== SESSION 4 ===================== */
+const SESSION4: Section[] = [
+  {
+    id: "s4-ship", kicker: "Where we go now", title: "From building to shipping",
+    blocks: [
+      { k: "p", t: "You can read Flutter, reason about how it runs, and build with AI. This final module is about what happens after you write the code: how it gets built, tested, and shipped without a human forgetting a step or pushing something broken to the whole team." },
+      { k: "p", t: "We keep it focused — the goal is to understand the automated pipeline and never break it, not to become a DevOps engineer overnight." },
+      { k: "quote", t: "Read → Understand → Build → Ship. Today closes the loop." },
+    ],
+  },
+  {
+    id: "s4-why", kicker: "Why We Automate", title: "“Works on my machine” isn't a strategy",
+    blocks: [
+      { k: "p", t: "Building by hand doesn't scale. Every developer runs the steps from memory — so someone forgets a step, someone skips the tests “just this once,” someone pushes broken code to main and blocks the whole team. It worked on their machine, and nowhere else." },
+      { k: "p", t: "Letting the machine do it means one script runs the same steps, the same way, every time, automatically — on every change. It never forgets, never skips a test, never has a bad day. Broken code gets caught before it reaches main. That is the entire promise of automation." },
+    ],
+  },
+  {
+    id: "s4-cicd", kicker: "Why We Automate", title: "CI / CD, in plain words",
+    blocks: [
+      { k: "p", t: "CI — Continuous Integration — means every change is automatically pulled in and checked (built, analyzed, tested) the moment it's proposed, catching breakage early while it's cheap. CD — Continuous Delivery — means that once the checks pass, the same automation builds and ships the app, with no human hand-deploying." },
+      { k: "p", t: "Together people call it “the pipeline”: an automated assembly line that carries your commit all the way to a running app." },
+    ],
+  },
+  {
+    id: "s4-pipeline", kicker: "Why We Automate", title: "Our pipeline, end to end",
+    blocks: [
+      { k: "p", t: "You already know most of this from the Git talk. You push a branch, open a Pull Request, and CI runs automatically — analyze and test. Then review: the automated checks plus a human Lead. Only when everything is green does it merge and auto-deploy." },
+      { k: "callout", title: "The gate", t: "Nothing reaches main red. The pipeline is the gate — and your new skill is simply reading it: knowing what green and red mean, and what to do about red." },
+    ],
+  },
+  {
+    id: "s4-workflow", kicker: "GitHub Actions", title: "What a workflow is",
+    blocks: [
+      { k: "p", t: "GitHub Actions runs “workflows,” and a workflow is three simple things: a file (a YAML file in .github/workflows), a trigger (“run this on every Pull Request”), and jobs and steps (the commands to run, in order). YAML is just a plain-text, indentation-based config format — you read it top to bottom." },
+      { k: "quote", t: "A workflow is a to-do list you hand a fresh, clean robot: “when X happens, run these commands and tell me if any fail.”" },
+    ],
+  },
+  {
+    id: "s4-yaml", kicker: "GitHub Actions", title: "A real Flutter CI workflow",
+    blocks: [
+      { k: "code", label: ".github/workflows/ci.yml", lines: ["name: Flutter CI", "on:", "  pull_request:", "    branches: [ main ]", "", "jobs:", "  analyze-and-test:", "    runs-on: ubuntu-latest", "    steps:", "      - uses: actions/checkout@v4", "      - uses: subosito/flutter-action@v2", "      - run: flutter pub get", "      - run: flutter analyze", "      - run: flutter test"] },
+      { k: "p", t: "Read it top-down: on decides when to run (every PR to main); runs-on gives you a clean machine each time; steps checks out the code, sets up Flutter, then runs three commands you already know from your terminal — pub get, analyze, test. A complete CI pipeline in about fifteen lines." },
+    ],
+  },
+  {
+    id: "s4-read", kicker: "GitHub Actions", title: "Reading a red check",
+    blocks: [
+      { k: "p", t: "Green means all checks passed — merge unlocked, ship it. Red means merge is blocked. And the key mindset: a red X is not a mystery, it's a to-do list. The log gives you the exact file, line, and reason." },
+      { k: "code", label: "the log tells you exactly what", lines: ["lib/topic_card.dart:14:20", "  error: The argument type 'String?'", "  can't be assigned to 'String'.", "", "1 issue found."] },
+      { k: "p", t: "You already know how to fix that. The loop is calm and mechanical: red, read the log, fix the one thing it names, push again." },
+    ],
+  },
+  {
+    id: "s4-analyze", kicker: "GitHub Actions", title: "flutter analyze — your free auditor",
+    blocks: [
+      { k: "p", t: "Remember auditing AI code by eye for null slips and missing awaits? flutter analyze does a big chunk of that automatically. It's static analysis — it reads your code without running it and flags problems: unused imports and variables, type errors (a String? where a String is required), missing awaits, and unreachable or unsafe code." },
+      { k: "callout", title: "Best habit", t: "Those are exactly the AI bugs we've hunted all program — found for free. Run flutter analyze locally before you push: green on your machine, green in CI, no surprises." },
+    ],
+  },
+  {
+    id: "s4-test", kicker: "GitHub Actions", title: "One widget test",
+    blocks: [
+      { k: "p", t: "analyze checks the code's shape; a test checks that it behaves. You don't write many, but you must be able to read them, because CI runs them." },
+      { k: "code", label: "test/topic_card_test.dart", lines: ["testWidgets('shows the title', (tester) async {", "  await tester.pumpWidget(", "    MaterialApp(home: TopicCard(title: 'DNA')),", "  );", "  expect(find.text('DNA'), findsOneWidget);", "});"] },
+      { k: "p", t: "pumpWidget builds the widget on a test screen; find.text looks for 'DNA'; expect … findsOneWidget asserts it's there exactly once. If someone later breaks the card, this test goes red before it ever reaches a user." },
+    ],
+  },
+  {
+    id: "s4-docker", kicker: "Awareness Only", title: "Docker, in one idea",
+    blocks: [
+      { k: "p", t: "Awareness only — know what it is, the Lead sets it up. A container is a sealed box that carries your app and everything it needs to run, so the same box runs identically on your laptop, a teammate's, and the server — killing “works on my machine” at the root. Docker Compose runs several boxes together, like a database plus a backend, to test against a realistic local setup." },
+      { k: "callout", title: "Why it matters to you", t: "When the Lead says “spin up the backend with docker compose up,” you'll know that means: start the sealed environment so your Flutter app has something real to talk to. You use what the Lead defines; writing containers comes later." },
+    ],
+  },
+  {
+    id: "s4-cloud", kicker: "Awareness Only", title: "Building iOS from a Windows PC",
+    blocks: [
+      { k: "p", t: "A hard fact: you cannot build an iPhone app on Windows — Apple requires a Mac. So cloud services like Codemagic and Bitrise rent you a Mac in the cloud; the pipeline sends your code there, it builds the iOS and Android packages, and hands the files back. That's how a Windows team still ships to the App Store." },
+      { k: "callout", title: "The file names", t: ".apk / .aab are Android install packages; .ipa is the iOS install package. When you see these in a build log, you'll now know which platform each belongs to." },
+    ],
+  },
+  {
+    id: "s4-boundary", kicker: "Awareness Only", title: "Your job vs the Lead's",
+    blocks: [
+      { k: "p", t: "Knowing your lane is part of not breaking the pipeline. You, right now: write and audit widget code, run analyze and tests before pushing, read CI results and fix red checks, open PRs and never push straight to main." },
+      { k: "p", t: "The Lead owns: pipeline and secrets configuration, Docker and Compose environments, cloud build and app-store signing, and production deploy approvals. This isn't a ceiling forever — master your lane and the rest opens up over time." },
+    ],
+  },
+  {
+    id: "s4-grad", kicker: "Where we go next", title: "You're an AI-augmented engineer now",
+    blocks: [
+      { k: "p", t: "Four modules ago, you'd never written a line of Flutter. Now you can open an AI-generated widget, read it, reason about how it runs, spot the classic ways it fails, fix them, and ship it behind an automated pipeline that protects the whole team." },
+      { k: "quote", t: "Read → Understand → Build → Ship. That's the whole loop — and it's yours." },
+    ],
+  },
+];
+
+/* ===================== SESSION 4 — 10 CHALLENGES ===================== */
+const SESSION4_CHALLENGES: Challenge[] = [
+  {
+    n: 1, kind: "Audit", title: "The workflow that always fails",
+    prompt: "This CI workflow fails on every run before it even analyzes. What's missing, and why does order matter?",
+    code: ["steps:", "  - uses: actions/checkout@v4", "  - uses: subosito/flutter-action@v2", "  - run: flutter analyze   # fails: packages not installed", "  - run: flutter test"],
+  },
+  {
+    n: 2, kind: "Audit", title: "The final boss (cumulative)",
+    prompt: "One AI-generated widget, bugs from every session. Find all five and explain each — this is the capstone.",
+    code: ["class _TopicState extends State<TopicCard> {", "  final _ctrl = ScrollController();      // a)", "  Map data = {};", "", "  void initState() {", "    super.initState();", "    data = api.load();                   // b)", "  }", "  void refresh() { data = {}; }          // c)", "", "  Widget build(BuildContext context) {", "    return Column(children: [", "      Text(data['title'] as String),     // d)", "      ListView(children: items),         // e)", "    ]);", "  }", "}"],
+  },
+  {
+    n: 3, kind: "Audit", title: "The test that proves nothing",
+    prompt: "This widget test is green even when the title is wrong. What makes it useless, and how would you fix the assertion?",
+    code: ["testWidgets('title', (tester) async {", "  await tester.pumpWidget(MaterialApp(home: TopicCard(title: 'DNA')));", "  expect(find.text('DNA'), findsNothing);   // ???", "});"],
+  },
+  {
+    n: 4, kind: "Audit", title: "What analyze will flag",
+    prompt: "This compiles, but flutter analyze reports two issues that would turn CI red. Name both — and note which earlier-session bug one of them is.",
+    code: ["import 'package:flutter/material.dart';", "import 'dart:convert';   // never used", "", "void save() {", "  api.persist(data);     // returns a Future, not awaited", "}"],
+  },
+  {
+    n: 5, kind: "Fill", title: "Complete the CI workflow",
+    prompt: "Fill the blanks so this runs analysis and tests on every PR to main. The comments define the goal.",
+    code: ["name: Flutter CI", "on:", "  ____________:            # trigger on every PR", "    branches: [ main ]", "jobs:", "  check:", "    runs-on: ubuntu-latest", "    steps:", "      - uses: actions/checkout@v4", "      - uses: subosito/flutter-action@v2", "      - run: flutter pub get", "      - run: flutter ________   # static checks", "      - run: flutter ________   # run the tests"],
+  },
+  {
+    n: 6, kind: "Fill", title: "Complete the widget test",
+    prompt: "Fill the blanks so this builds the card and asserts the title is on screen exactly once. The comments define the goal.",
+    code: ["testWidgets('shows the title', (tester) async {", "  await tester.____________(          // build it on a test screen", "    MaterialApp(home: TopicCard(title: 'DNA')),", "  );", "  expect(find.________('DNA'), ____________);  // exactly one", "});"],
+  },
+  {
+    n: 7, kind: "Fill", title: "Guard the trigger",
+    prompt: "Fill the blanks so the workflow only runs on pull requests targeting main. The comments define the goal.",
+    code: ["____:                      # the trigger block", "  pull_request:", "    ____________: [ main ]   # only PRs into main"],
+  },
+  {
+    n: 8, kind: "Code", title: "Write a CI workflow",
+    prompt: (
+      <>Write a minimal GitHub Actions workflow (<code>.github/workflows/ci.yml</code>) that, on every Pull Request to <code>main</code>, checks out the code, sets up Flutter, and runs <code>flutter analyze</code> and <code>flutter test</code>.</>
+    ),
+    note: (
+      <>Use AI, then <b>explain in your own words</b>: what the <code>on:</code> block does, why <code>runs-on</code> uses a fresh machine, and why <code>pub get</code> must come before <code>analyze</code>.</>
+    ),
+  },
+  {
+    n: 9, kind: "Code", title: "Test a counter",
+    prompt: (
+      <>Write a widget test for a <code>Counter</code> widget: pump it, tap the increment button, pump again, and assert the displayed count went from <code>0</code> to <code>1</code> (using <code>tester.tap</code>, <code>find.byIcon</code> or <code>find.text</code>, and <code>expect</code>).</>
+    ),
+    note: (
+      <>AI will scaffold it. <b>Explain in your own words</b> what the test proves, why you <code>pump</code> again after the tap, and how this test protects the widget in CI.</>
+    ),
+  },
+  {
+    n: 10, kind: "Code", title: "Clear the final boss",
+    prompt: (
+      <>Take the buggy widget from Challenge 02 and fix <em>all five</em> bugs: dispose the controller, load data with <code>await</code> + <code>setState</code>, rebuild on change, guard the JSON field, and bound the <code>ListView</code>.</>
+    ),
+    note: (
+      <>Use AI to help, then <b>explain each fix in your own words</b> and which session it came from. If you can explain all five, you&apos;ve completed the program.</>
+    ),
+  },
+];
+
 const MODULES: Module[] = [
   { id: "s1", num: "01", title: "Architectural Foundations, Dart Reading & Git", tab: "Foundations & Dart", next: "Session 02 — how Flutter works under the hood: the Three Trees, state & lifecycle, and the bugs they create.", live: true, sections: SESSION1, challenges: [] },
   { id: "s2", num: "02", title: "Flutter Runtime Mechanics & Code Auditing", tab: "Runtime & Auditing", next: "Session 03 — building real UI with AI: layout, animation, mock data, and JSON models.", live: true, sections: SESSION2, challenges: SESSION2_CHALLENGES },
-  { id: "s3", num: "03", title: "Production-Line UI Engineering & Mock Data", tab: "UI & Mock Data", next: "Session 04 — wiring it up: real state management and connecting your mock shells to live data.", live: true, sections: SESSION3, challenges: SESSION3_CHALLENGES },
+  { id: "s3", num: "03", title: "Production-Line UI Engineering & Mock Data", tab: "UI & Mock Data", next: "Session 04 — shipping it: CI/CD, GitHub Actions, tests, and the automated pipeline.", live: true, sections: SESSION3, challenges: SESSION3_CHALLENGES },
+  { id: "s4", num: "04", title: "Ship It — DevOps & Automated Pipelines", tab: "DevOps & CI", next: "That's the program — read, understand, build, ship. From here it's real feature work with the team.", live: true, sections: SESSION4, challenges: SESSION4_CHALLENGES },
 ];
 
 /* ---- tiny Dart syntax highlighter ---- */
@@ -595,7 +760,7 @@ const BADGE: Record<Challenge["kind"], { cls: string; label: string }> = {
 export default function TrainingProgramsPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
-  const [activeMod, setActiveMod] = useState<string>("s3");
+  const [activeMod, setActiveMod] = useState<string>("s4");
   const [active, setActive] = useState<string>("");
 
   const mod = MODULES.find((m) => m.id === activeMod) ?? MODULES[0];
