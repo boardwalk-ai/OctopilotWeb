@@ -1633,6 +1633,14 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
   const [restoredPages, setRestoredPages] = useState<RestoredPage[] | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // User-given Save Deck name. Empty until the user names the doc via "Save as".
+  const [docTitle, setDocTitle] = useState("");
+  const docTitleRef = useRef("");
+  useEffect(() => { docTitleRef.current = docTitle; }, [docTitle]);
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [saveAsName, setSaveAsName] = useState("");
+  const [renamingDocId, setRenamingDocId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [deckDocs, setDeckDocs] = useState<DocumentSummary[]>([]);
   const [deckLoading, setDeckLoading] = useState(false);
   const [docLimit, setDocLimit] = useState(10);
@@ -1695,7 +1703,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       : 0;
     const preview = ((snap?.pages.map((p) => p.plainText).join(" ")) || rawContent || "")
       .replace(/\s+/g, " ").trim().slice(0, 160);
-    const title = (snap?.title || onboardingTopic || "Untitled document").trim();
+    const title = (docTitleRef.current.trim() || snap?.title || onboardingTopic || "Untitled document").trim();
     const state: SavedState = {
       v: 1, formatStyle, onboardingTopic, rawContent,
       assignmentAnalysis, analyzedTopic, outlines,
@@ -1710,7 +1718,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       sources: sourceResults.map((s) => ({ source_ref: s.url, title: s.title, url: s.url, content: s.fullContent })),
       outlines: outlines.map((o) => ({ type: o.type, title: o.title, bullets: o.bullets.map((b) => ({ text: b })) })),
     };
-  }, [formatStyle, onboardingTopic, rawContent, assignmentAnalysis, analyzedTopic, outlines, sourceResults, citCards, sourceColors]);
+  }, [formatStyle, onboardingTopic, rawContent, assignmentAnalysis, analyzedTopic, outlines, sourceResults, citCards, sourceColors, docTitle]);
 
   const saveNow = useCallback(async (opts?: { force?: boolean }) => {
     if (savingRef.current) return;
@@ -1738,6 +1746,28 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       savingRef.current = false;
     }
   }, [buildSavePayload, showToast]);
+
+  // Manual save (header button): if the doc has no name yet, ask for one first
+  // (Save as → the name shown in the Save Deck). Once named, it's a plain save.
+  const handleManualSave = useCallback(() => {
+    if (!AuthService.getCurrentUser()) { showToast("Sign in to save your document."); return; }
+    if (!docTitleRef.current.trim()) {
+      const snap = getSnapshotRef.current?.() ?? null;
+      setSaveAsName((snap?.title || onboardingTopic || "").trim());
+      setSaveAsOpen(true);
+      return;
+    }
+    void saveNow({ force: true });
+  }, [saveNow, showToast, onboardingTopic]);
+
+  const confirmSaveAs = useCallback(() => {
+    const name = saveAsName.trim();
+    if (!name) return;
+    docTitleRef.current = name;
+    setDocTitle(name);
+    setSaveAsOpen(false);
+    void saveNow({ force: true });
+  }, [saveAsName, saveNow]);
 
   // Autosave: every 10s while editing, save if anything changed (overwrite).
   useEffect(() => {
@@ -1783,6 +1813,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
         setRestoredPages(null);
       }
       setCurrentDocId(id);
+      docTitleRef.current = doc.title || "";
+      setDocTitle(doc.title || "");
       lastSavedRef.current = "";
       setEditorKey((k) => k + 1);
       transitionTo("editor");
@@ -1803,6 +1835,21 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     finally { setDeckLoading(false); deckLoadedOnceRef.current = true; }
   }, []);
 
+  // Rename a document from the Save Deck (title-only, keeps its saved state).
+  const commitRename = useCallback(async (id: string) => {
+    const name = renameValue.trim();
+    setRenamingDocId(null);
+    const target = deckDocs.find((x) => x.id === id);
+    if (!name || !target || target.title === name) return;
+    try {
+      await DocumentService.rename(id, name);
+      setDeckDocs((prev) => prev.map((x) => (x.id === id ? { ...x, title: name } : x)));
+      if (currentDocIdRef.current === id) { docTitleRef.current = name; setDocTitle(name); }
+    } catch {
+      showToast("Couldn't rename the document.");
+    }
+  }, [renameValue, deckDocs, showToast]);
+
   // Start a fresh document from a template → setup wizard. "none" = Blank
   // (format left unselected so the user picks it).
   const startNewDocument = useCallback((style: FormatStyleId | null) => {
@@ -1811,6 +1858,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       return;
     }
     setCurrentDocId(null);
+    docTitleRef.current = "";
+    setDocTitle("");
     setRestoredPages(null);
     lastSavedRef.current = "";
     setSaveStatus("idle");
@@ -3297,8 +3346,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           {currentUser ? (
             <button
               type="button"
-              onClick={() => void saveNow({ force: true })}
-              title="Save now (Ctrl+S) · autosaves every 10s"
+              onClick={handleManualSave}
+              title="Save (Ctrl+S) · autosaves every 10s"
               className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)]"
             >
               {saveStatus === "saving" ? (
@@ -3648,7 +3697,33 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
                           </button>
                         </div>
-                        <span className="block truncate text-[13px] font-semibold text-white/85 group-hover:text-white">{d.title}</span>
+                        {renamingDocId === d.id ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            value={renameValue}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); void commitRename(d.id); }
+                              if (e.key === "Escape") setRenamingDocId(null);
+                            }}
+                            onBlur={() => void commitRename(d.id)}
+                            className="block w-full rounded-[6px] border border-[#ea4335]/50 bg-white/[0.06] px-2 py-1 text-[13px] font-semibold text-white outline-none"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="block truncate text-[13px] font-semibold text-white/85 group-hover:text-white">{d.title}</span>
+                            <button
+                              type="button"
+                              title="Rename"
+                              onClick={(e) => { e.stopPropagation(); setRenamingDocId(d.id); setRenameValue(d.title); }}
+                              className="hidden flex-shrink-0 rounded p-0.5 text-white/40 transition hover:text-white group-hover:block"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            </button>
+                          </div>
+                        )}
                         <span className="text-[11px] text-white/35">
                           {d.format_style && d.format_style !== "none" ? `${d.format_style.toUpperCase()} · ` : ""}
                           {new Date(d.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -5282,6 +5357,44 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </div>
         );
       })()}
+
+      {/* Save As — name a new document before its first save */}
+      {saveAsOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setSaveAsOpen(false); }}
+        >
+          <div className="w-[420px] rounded-[18px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] p-6 shadow-2xl" style={{ animation: "editor-enter 0.2s cubic-bezier(0.22,1,0.36,1) both" }}>
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              <h2 className="text-[16px] font-semibold text-[var(--ed-text)]">Save as</h2>
+            </div>
+            <p className="mb-4 text-[13px] leading-relaxed text-[var(--ed-text-faint)]">Give your document a name — it&rsquo;s how you&rsquo;ll find it in your Save Deck.</p>
+            <input
+              autoFocus
+              type="text"
+              value={saveAsName}
+              onChange={(e) => setSaveAsName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmSaveAs(); } }}
+              placeholder="e.g. The Viking Age essay"
+              className="w-full rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-surface-3)] px-3.5 py-2.5 text-[14px] text-[var(--ed-text)] placeholder-[var(--ed-text-label)] outline-none transition focus:border-[#ea4335]/50"
+            />
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSaveAsOpen(false)}
+                className="rounded-[10px] border border-[var(--ed-border)] px-4 py-2 text-[13px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+              >Cancel</button>
+              <button
+                type="button"
+                onClick={confirmSaveAs}
+                disabled={!saveAsName.trim()}
+                className="rounded-[10px] bg-[#ea4335] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:opacity-40"
+              >Save document</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Humanize Modal */}
       {(humanizePhase.kind === "ask" || humanizePhase.kind === "pick_provider" || humanizePhase.kind === "humanizing" || humanizePhase.kind === "error" || humanizePhase.kind === "login_required" || humanizePhase.kind === "insufficient_credits") && (

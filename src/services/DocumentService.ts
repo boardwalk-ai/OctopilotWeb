@@ -72,6 +72,16 @@ export const DocumentService = {
         if (!res.ok) throw new Error("Failed to save document.");
     },
 
+    /** Rename a document (title only) without touching its saved state. */
+    async rename(id: string, title: string): Promise<void> {
+        const res = await fetchWithUserAuthorization(`/api/documents/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title }),
+        });
+        if (!res.ok) throw new Error("Failed to rename document.");
+    },
+
     async load(id: string): Promise<DocumentDetail> {
         const res = await fetchWithUserAuthorization(`/api/documents/${id}`);
         if (!res.ok) throw new Error("Failed to load document.");

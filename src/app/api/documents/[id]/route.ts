@@ -60,6 +60,28 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
     }
 }
 
+// ── PATCH /api/documents/[id] — rename (title only), owner only ───────────────
+export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+    try {
+        const user = await resolveDocumentUser(request);
+        if ("response" in user) return user.response;
+        const { id } = await ctx.params;
+        const body = (await request.json()) as { title?: string };
+        const title = (body.title ?? "").trim();
+        if (!title) return NextResponse.json({ error: "Title is required." }, { status: 400 });
+
+        const rows = await query(
+            "UPDATE documents SET title = $1 WHERE id = $2 AND user_id = $3 RETURNING id",
+            [title, id, user.userId],
+        );
+        if (!rows.length) return NextResponse.json({ error: "Document not found." }, { status: 404 });
+        return NextResponse.json({ ok: true });
+    } catch (e) {
+        console.error("[documents/:id] PATCH error:", e);
+        return NextResponse.json({ error: "Failed to rename document." }, { status: 500 });
+    }
+}
+
 // ── DELETE /api/documents/[id] — owner only (children cascade) ────────────────
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
     try {

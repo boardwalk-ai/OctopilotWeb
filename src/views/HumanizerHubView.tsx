@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { HumanizerService } from "@/services/HumanizerService";
+import { CreditService, CreditDeductionError } from "@/services/CreditService";
+import { AppHeader, LogoNav, MainHeaderActions } from "@/components/header";
 import styles from "./HumanizerHubView.module.css";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -172,11 +174,15 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
 
   const handleHumanize = async () => {
     if (!content.trim() || isProcessing) return;
+    const words = countWords(content);
     setIsProcessing(true);
     setError(null);
     setResult("");
     setDisplayed("");
     try {
+      // Gate on OctoCredits (cost-based, humanizer rate) before spending API cost.
+      await CreditService.ensureSufficientHumanizerCreditsForWords(words);
+
       let output = "";
       if (engine === "undetectable") {
         output = await HumanizerService.undetectableAI({
@@ -194,10 +200,22 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
           detector: stealth.detector,
         });
       }
+
+      // Charge only after a successful humanization.
+      await CreditService.deductHumanizerCreditsForWords(words, {
+        idempotencyKey: CreditService.createDeductionKey(`humanizerhub:${engine}:${words}`),
+      });
+
       setResult(output);
       setPage(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Humanization failed. Please try again.");
+      setError(
+        err instanceof CreditDeductionError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Humanization failed. Please try again."
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -242,6 +260,10 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className={styles.shell}>
+
+      {/* ── Global app header (plan + credits + bell + store + save + report + profile) ── */}
+      <AppHeader left={<LogoNav />} right={<MainHeaderActions />} />
+      <div style={{ height: 64, flexShrink: 0 }} aria-hidden />
 
       {/* ── Loading overlay ── */}
       {isProcessing && (
@@ -506,6 +528,9 @@ export default function HumanizerHubView({ onBack }: { onBack: () => void }) {
                 </svg>
                 Humanize Content
               </button>
+              <p style={{ textAlign: "center", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", color: "rgba(255,255,255,0.32)", marginTop: 8 }}>
+                Costs ~{CreditService.estimateCharge(0, inputWords, 0).toLocaleString()} OctoCredits
+              </p>
 
             </div>{/* /p1Right */}
           </div>{/* /p1Body */}
