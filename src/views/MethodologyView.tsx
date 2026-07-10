@@ -6,6 +6,7 @@ import type { User } from "firebase/auth";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { AuthService } from "@/services/AuthService";
 import { BetaAccessService, DEFAULT_BETA_ACCESS } from "@/services/BetaAccessService";
+import { trackGetStarted } from "@/lib/analytics";
 import {
   AppHeader,
   LogoNav,
@@ -291,8 +292,8 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
   const [betaAccess, setBetaAccess] = useState(() => BetaAccessService.read() ?? DEFAULT_BETA_ACCESS);
   const canSeeGhostwriter = true;
   const canSeeOctopilotSlides = betaAccess.octopilotSlides;
-  const canSeeHumanizerHub = betaAccess.humanizerHub;
-  const canSeeFormatterTool = betaAccess.ghostCiter;
+  const canSeeHumanizerHub = true;   // Public access (previously beta-gated)
+  const canSeeFormatterTool = true;  // Doc Oct — public access (previously beta-gated)
   const visibleBetaCount = [canSeeOctopilotSlides, canSeeHumanizerHub, canSeeFormatterTool].filter(Boolean).length;
   const gridColsClass = (3 + visibleBetaCount) === 4 ? "md:grid-cols-2" : "md:grid-cols-3";
   const effectiveSelected = (() => {
@@ -643,7 +644,7 @@ export default function MethodologyView({ onSelect }: MethodologyViewProps) {
         {/* Get Started */}
         <div className={`pb-6 ${styles.methodologyFooter}`}>
           <button
-            onClick={() => onSelect(effectiveSelected)}
+            onClick={() => { trackGetStarted(effectiveSelected); onSelect(effectiveSelected); }}
             className={`flex items-center gap-2.5 rounded-full px-8 py-3.5 text-[15px] font-bold tracking-wide text-white transition ${styles.methodologyCta} ${
               effectiveSelected === "octopilotslides"
                 ? "bg-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.4)] hover:bg-violet-400"

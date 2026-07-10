@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Sora } from "next/font/google";
 import "./globals.css";
+import AnalyticsPixels from "@/components/AnalyticsPixels";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -30,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable} ${sora.variable} ${poppins.className} antialiased`}>
+        <AnalyticsPixels />
         {children}
       </body>
     </html>

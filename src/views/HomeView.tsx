@@ -6,6 +6,7 @@ import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { Organizer } from "@/services/OrganizerService";
 import { TrackerService } from "@/services/TrackerService";
+import { trackStartWriting } from "@/lib/analytics";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import MethodologyView from "@/views/MethodologyView";
@@ -500,7 +501,7 @@ export default function HomeView() {
 
           <div className={`flex flex-col gap-3 ${styles.homeActions}`}>
             <button
-              onClick={() => setPage("methodology")}
+              onClick={() => { trackStartWriting(); setPage("methodology"); }}
               className={`group relative overflow-hidden rounded-full bg-red-600 px-10 py-4 text-base font-semibold text-white shadow-[0_0_40px_rgba(239,68,68,0.25)] transition hover:bg-red-500 hover:shadow-[0_0_60px_rgba(239,68,68,0.35)] ${styles.homePrimaryCta}`}
             >
               <span className="relative z-10">Start Writing</span>
