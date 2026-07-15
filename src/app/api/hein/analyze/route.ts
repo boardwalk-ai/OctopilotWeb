@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenRouterConfig } from "@/server/backendConfig";
-import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -25,11 +24,7 @@ type ContentBlock =
 
 export async function POST(request: NextRequest) {
     try {
-        const auth = await requireAuthenticatedRequest(request);
-        if ("response" in auth) {
-            return auth.response;
-        }
-
+        // Assignment analysis is a free feature — no auth required (public).
         const body = await request.json();
         const { major, essayType, instructions, imageDataUrls } = body as {
             major?: string;

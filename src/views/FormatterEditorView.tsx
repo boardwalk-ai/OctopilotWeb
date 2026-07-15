@@ -1291,6 +1291,10 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   /* ── Auth / credits ── */
   const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser());
   const [humanizerCredits, setHumanizerCredits] = useState<number | null>(null);
+  // Signed-out sign-in prompt + the profile-icon tooltip.
+  const [signInPromptOpen, setSignInPromptOpen] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInTipOpen, setSignInTipOpen] = useState(false);
 
   /* ── Document state ── */
   const [docTab, setDocTab] = useState<"paste" | "upload">("paste");
@@ -1769,6 +1773,38 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     void saveNow({ force: true });
   }, [saveAsName, saveNow]);
 
+  // Google sign-in (from the profile icon or the sign-in prompt).
+  const doSignIn = useCallback(async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      await AuthService.signInWithGoogle();
+      setSignInPromptOpen(false);
+      setSignInTipOpen(false);
+    } catch {
+      showToast("Sign-in failed. Please try again.");
+    } finally {
+      setSigningIn(false);
+    }
+  }, [signingIn, showToast]);
+
+  // Gate for credit-consuming / account features: returns true if signed in,
+  // otherwise opens the sign-in prompt and returns false.
+  const requireSignIn = useCallback((): boolean => {
+    if (AuthService.getCurrentUser()) return true;
+    setSignInPromptOpen(true);
+    return false;
+  }, []);
+
+  // Nudge signed-out users toward the profile icon on the analysis step: a
+  // "click here to sign in" tooltip that fades in + out over ~5s.
+  useEffect(() => {
+    if (viewState !== "analysis" || currentUser) { setSignInTipOpen(false); return; }
+    setSignInTipOpen(true);
+    const t = window.setTimeout(() => setSignInTipOpen(false), 5000);
+    return () => window.clearTimeout(t);
+  }, [viewState, currentUser]);
+
   // Autosave: every 10s while editing, save if anything changed (overwrite).
   useEffect(() => {
     if (viewState !== "editor") return;
@@ -1903,13 +1939,6 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
   }, [booted, bootProgress]);
 
   /* ── Draft save ── */
-  const saveDraft = useCallback(() => {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ content: rawContent, formatStyle, fileName }));
-      showToast("Draft saved");
-    } catch { showToast("Could not save draft"); }
-  }, [rawContent, formatStyle, fileName, showToast]);
-
   /* ── Draft restore on mount ── */
   useEffect(() => {
     try {
@@ -2530,6 +2559,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Source: search ── */
   const runSourceSearch = useCallback(async (mode: "auto" | "keyword" | "intelligence") => {
+    if (!requireSignIn()) return;   // source search spends credits — signed-in only
     const essayText = rawContent.trim() || coreSnapshot.content.trim();
     let topic = "";
     if (mode === "auto") {
@@ -2779,6 +2809,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
   /* ── Source suggest: generate one continuation sentence ── */
   const fetchSuggestion = useCallback(async () => {
+    if (!requireSignIn()) return;   // AI suggestions spend credits — signed-in only
     setSourceModal((prev) => prev ? { ...prev, suggestLoading: true, suggestError: null } : null);
     try {
       const modal = sourceModal;
@@ -3284,6 +3315,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 from { opacity: 0; transform: translateY(22px) scale(0.982); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);     }
               }
+              @keyframes sign-in-tip-fade {
+                0%   { opacity: 0; transform: translateY(-6px); }
+                12%  { opacity: 1; transform: translateY(0); }
+                82%  { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-6px); }
+              }
               @keyframes chat-msg-in {
                 from { opacity: 0; transform: translateY(10px) scale(0.96); }
                 to   { opacity: 1; transform: translateY(0)    scale(1);    }
@@ -3364,9 +3401,9 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           ) : (
             <button
               type="button"
-              onClick={saveDraft}
-              disabled={!rawContent.trim()}
-              className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)] disabled:opacity-40"
+              onClick={() => setSignInPromptOpen(true)}
+              title="Sign in to save"
+              className="glass-chip flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)]"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
               Save
@@ -3403,8 +3440,26 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
             </div>
           ) : (
-            <div className="glass-chip flex h-8 w-8 items-center justify-center rounded-full text-[var(--ed-text-dim)]">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => void doSignIn()}
+                title="Sign in with Google"
+                className="glass-chip flex h-8 w-8 items-center justify-center rounded-full text-[var(--ed-text-dim)] transition hover:text-[var(--ed-text)]"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+              </button>
+              {signInTipOpen && (
+                <div
+                  className="pointer-events-none absolute right-0 top-[calc(100%+9px)] z-[70] whitespace-nowrap"
+                  style={{ animation: "sign-in-tip-fade 5s ease-in-out forwards" }}
+                >
+                  <span className="absolute -top-1 right-3 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[#ea4335]" />
+                  <div className="relative rounded-lg bg-[#ea4335] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_8px_24px_rgba(234,67,53,0.4)]">
+                    Click here to sign in
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -5357,6 +5412,39 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           </div>
         );
       })()}
+
+      {/* Sign-in prompt — shown when a signed-out user hits an account/credit feature */}
+      {signInPromptOpen && (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setSignInPromptOpen(false); }}
+        >
+          <div className="w-[400px] rounded-[18px] border border-[var(--ed-border)] bg-[var(--ed-bg-subbar)] p-6 text-center shadow-2xl" style={{ animation: "editor-enter 0.2s cubic-bezier(0.22,1,0.36,1) both" }}>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ea4335]/12">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea4335" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </div>
+            <h2 className="text-[17px] font-semibold text-[var(--ed-text)]">Sign in to continue</h2>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--ed-text-faint)]">Please sign in to your account to use this feature.</p>
+            <button
+              type="button"
+              onClick={() => void doSignIn()}
+              disabled={signingIn}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#ea4335] py-3 text-[14px] font-semibold text-white transition hover:bg-[#dc2626] active:translate-y-[1px] disabled:opacity-60"
+            >
+              {signingIn ? (
+                <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Signing in…</>
+              ) : (
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1-3.22 0-5.85-2.66-5.85-5.94S8.78 6.3 12 6.3c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.72 3.7 14.6 2.8 12 2.8 6.98 2.8 2.9 6.88 2.9 11.9S6.98 21 12 21c5.76 0 9.56-4.05 9.56-9.76 0-.66-.07-1.16-.21-1.14z"/></svg>Sign in with Google</>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSignInPromptOpen(false)}
+              className="mt-2 w-full rounded-[10px] py-2 text-[13px] font-semibold text-[var(--ed-text-faint)] transition hover:text-[var(--ed-text)]"
+            >Maybe later</button>
+          </div>
+        </div>
+      )}
 
       {/* Save As — name a new document before its first save */}
       {saveAsOpen && (

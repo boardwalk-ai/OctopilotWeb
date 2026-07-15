@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenRouterConfig } from "@/server/backendConfig";
-import { requireAuthenticatedRequest } from "@/server/routeAuth";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -70,11 +69,7 @@ Make it specific, detailed, and directly related to the assignment.`;
 
 export async function POST(request: NextRequest) {
     try {
-        const auth = await requireAuthenticatedRequest(request);
-        if ("response" in auth) {
-            return auth.response;
-        }
-
+        // Outline generation is a free feature — no auth required (public).
         const body = await request.json();
         const { analysis, essayTopic, essayType, scope, structure, mode, requestedType, customTitle, count, bullets } = body;
         const { apiKey, model } = await getOpenRouterConfig("secondary");
