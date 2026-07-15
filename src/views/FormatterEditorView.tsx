@@ -15,6 +15,7 @@ import type { ExportDocumentSnapshot } from "@/services/OrganizerService";
 import type { FormatStyleId } from "./FormatStyleView";
 import FormatterEditorCore from "./FormatterEditorCore";
 import StoreButton from "@/components/header/StoreButton";
+import PlanInfo from "@/components/header/PlanInfo";
 import { LIQUID_GLASS_DISPLACEMENT_MAP } from "./liquidGlassMap";
 export type { EditorViewProps } from "./FormatterEditorCore";
 
@@ -3410,15 +3411,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
             </button>
           )}
 
-          {/* Humanizer credits — glass pill */}
-          {currentUser && humanizerCredits !== null && (
-            <div className="glass-chip flex items-center gap-1.5 rounded-full px-3 py-1.5" title="Humanizer credits">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" strokeWidth="1.5" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span className="text-[12px] font-bold text-[var(--ed-text)]">{humanizerCredits.toLocaleString()}</span>
-            </div>
-          )}
+          {/* OctoCredits — the live odometer pill from the main app header */}
+          {currentUser && <PlanInfo />}
 
           {/* Avatar + Sign out — grouped glass pill */}
           {currentUser ? (
@@ -3451,11 +3445,11 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
               </button>
               {signInTipOpen && (
                 <div
-                  className="pointer-events-none absolute right-0 top-[calc(100%+9px)] z-[70] whitespace-nowrap"
+                  className="pointer-events-none fixed right-3 top-[52px] z-[300] whitespace-nowrap"
                   style={{ animation: "sign-in-tip-fade 5s ease-in-out forwards" }}
                 >
-                  <span className="absolute -top-1 right-3 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[#ea4335]" />
-                  <div className="relative rounded-lg bg-[#ea4335] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_8px_24px_rgba(234,67,53,0.4)]">
+                  <span className="absolute -top-1 right-4 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[#ea4335]" />
+                  <div className="relative rounded-lg bg-[#ea4335] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_8px_24px_rgba(234,67,53,0.45)]">
                     Click here to sign in
                   </div>
                 </div>
