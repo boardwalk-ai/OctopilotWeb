@@ -6,7 +6,7 @@ import { AccountStateService } from "@/services/AccountStateService";
 import { AuthService } from "@/services/AuthService";
 import { Organizer } from "@/services/OrganizerService";
 import { TrackerService } from "@/services/TrackerService";
-import { trackStartWriting } from "@/lib/analytics";
+import { trackStartWriting, trackGetStarted } from "@/lib/analytics";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import MethodologyView from "@/views/MethodologyView";
@@ -56,7 +56,10 @@ function hasWritingStyleAccess(plan?: string | null): boolean {
   return (normalized.includes("pro") || normalized.includes("premium")) && !normalized.includes("guest");
 }
 
-export default function HomeView() {
+/** Writing modes selectable from the methodology screen (and via deep links). */
+export type MethodMode = "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter";
+
+export default function HomeView({ initialMode }: { initialMode?: MethodMode } = {}) {
   const [page, setPage] = useState<Page>("home");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
   const [ghostciterSnapshot, setGhostciterSnapshot] = useState<ExportDocumentSnapshot | null>(null);
@@ -135,49 +138,41 @@ export default function HomeView() {
     }
   }, [accountPlan]);
 
+  // Enter a writing mode — the same path as clicking "Get Started" on the
+  // methodology screen. Shared by that button and by deep links (e.g.
+  // /ghostwriter, /guided-generation).
+  const enterMode = useCallback(async (method: MethodMode) => {
+    Organizer.set({ writingMode: method });
+    trackGetStarted(method);
+    await TrackerService.startSession(method);
+
+    if (method === "ghostwriter") { setPage("ghostwriter"); return; }
+    if (method === "octopilotslides") { setPage("octopilotslides"); return; }
+    if (method === "humanizerhub") { setPage("humanizerhub"); return; }
+    if (method === "ghostciter") { setPage("ghostciter"); return; }
+
+    const canUseWritingStyle = await resolveWritingStyleAccess();
+    if (!canUseWritingStyle) {
+      Organizer.set({ writingStyleStatus: "guest_bypass", writingStyleFileName: null });
+      await TrackerService.updateSession({ writing_style_status: "guest_bypass" });
+      setPage("instructions");
+      return;
+    }
+    setPage("writing-style");
+  }, [resolveWritingStyleAccess]);
+
+  // Deep-link entry: jump straight into the requested mode once, on mount.
+  const initialModeAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialModeAppliedRef.current || !initialMode) return;
+    initialModeAppliedRef.current = true;
+    void enterMode(initialMode);
+  }, [initialMode, enterMode]);
+
   if (page === "methodology") {
     return (
       <>
-        <MethodologyView
-          onSelect={async (method) => {
-            Organizer.set({ writingMode: method });
-            await TrackerService.startSession(method);
-
-            if (method === "ghostwriter") {
-              setPage("ghostwriter");
-              return;
-            }
-
-            if (method === "octopilotslides") {
-              setPage("octopilotslides");
-              return;
-            }
-
-            if (method === "humanizerhub") {
-              setPage("humanizerhub");
-              return;
-            }
-
-            if (method === "ghostciter") {
-              setPage("ghostciter");
-              return;
-            }
-
-            const canUseWritingStyle = await resolveWritingStyleAccess();
-
-            if (!canUseWritingStyle) {
-              Organizer.set({
-                writingStyleStatus: "guest_bypass",
-                writingStyleFileName: null,
-              });
-              await TrackerService.updateSession({ writing_style_status: "guest_bypass" });
-              setPage("instructions");
-              return;
-            }
-
-            setPage("writing-style");
-          }}
-        />
+        <MethodologyView onSelect={enterMode} />
         <OctoAssistant currentPage={page} />
       </>
     );

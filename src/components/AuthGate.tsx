@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import HomeView from "@/views/HomeView";
+import HomeView, { type MethodMode } from "@/views/HomeView";
 import AuthView from "@/views/AuthView";
 import { AuthService } from "@/services/AuthService";
 import VerifyEmailView from "@/components/VerifyEmailView";
 
-export default function AuthGate() {
+export default function AuthGate({ initialMode }: { initialMode?: MethodMode } = {}) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [isApplyingEmailAction, setIsApplyingEmailAction] = useState(false);
   const [emailActionError, setEmailActionError] = useState<string | null>(null);
@@ -50,5 +50,5 @@ export default function AuthGate() {
     return <VerifyEmailView user={user} onVerified={setUser} />;
   }
 
-  return <HomeView />;
+  return <HomeView initialMode={initialMode} />;
 }
