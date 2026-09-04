@@ -181,7 +181,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
 
     if (showFinale) {
         return (
-            <div className="relative flex h-screen overflow-hidden bg-[#060606]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+            <div className="relative flex h-screen overflow-hidden bg-[#060606]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 <AnimatedBackground />
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.22),transparent_28%),radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_35%),linear-gradient(180deg,rgba(8,8,8,0.1),rgba(8,8,8,0.94))]" />
 
@@ -258,7 +258,7 @@ export default function ExportView({ onBack, onRestart }: ExportViewProps) {
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0a0a0a]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0a0a0a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             <div className="shrink-0 border-b border-white/8 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.18),transparent_50%),linear-gradient(180deg,rgba(12,12,14,0.98),rgba(10,10,10,0.95))]">
                 <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-6 py-7 lg:px-10 xl:flex-row xl:items-end xl:justify-between">
                     <div className="max-w-2xl">

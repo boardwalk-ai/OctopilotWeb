@@ -1448,7 +1448,7 @@ export default function WritingChamberView({ onNext }: WritingChamberViewProps) 
     );
 
     return (
-        <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+        <div className="relative flex h-full min-h-0 flex-col bg-[#080808]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             <div className={`relative flex h-[68px] items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-5 ${mobileStyles.wcHeader}`}>
                 <button
                     onClick={openAddSectionModal}

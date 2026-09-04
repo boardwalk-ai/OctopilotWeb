@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Poppins, Sora } from "next/font/google";
+import { Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
 import AnalyticsPixels from "@/components/AnalyticsPixels";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} ${sora.variable} ${poppins.className} antialiased`}>
+      <body className={`${jakarta.variable} ${sora.variable} ${jakarta.className} antialiased`}>
         <AnalyticsPixels />
         {children}
       </body>

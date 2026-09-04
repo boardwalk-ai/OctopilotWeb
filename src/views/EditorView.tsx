@@ -1536,7 +1536,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                                         <span
                                             className={mobileStyles.editorMobileHeaderText}
                                             style={{
-                                                fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif",
+                                                fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
                                                 fontSize: `${headerFontSize}pt`,
                                             }}
                                         >
@@ -1564,7 +1564,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                                         <span
                                             className={mobileStyles.editorMobileHeaderText}
                                             style={{
-                                                fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif",
+                                                fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
                                                 fontSize: `${headerFontSize}pt`,
                                             }}
                                         >
@@ -1716,7 +1716,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
         return (
             <div
                 className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0f1115] ${mobileStyles.editorMobileRoot}`}
-                style={{ fontFamily: "'Poppins', sans-serif" }}
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
                 <div
                     ref={pagesViewportRef}
@@ -1853,7 +1853,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[#0f1115]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+        <div className="flex h-full min-h-0 flex-col bg-[#0f1115]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             {/* Browser-created blocks (Enter / formatBlock / paste) lack the
                 formatter's inline margin:0, so on double-spaced pages they get
                 the UA default 1em margins and open a large gap. Neutralize only
@@ -2207,7 +2207,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                                                     <div className="flex justify-end gap-2 text-right">
                                                         <span
                                                             className={`min-h-[24px] text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
-                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
                                                         >
                                                             {headerText.trim() || "Double-click to edit header"}
                                                         </span>
@@ -2232,7 +2232,7 @@ export default function EditorView({ onBack, onNext, onFinish }: EditorViewProps
                                                     <div className="flex items-center justify-between gap-2">
                                                         <span
                                                             className={`min-h-[24px] flex-1 text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
-                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Poppins', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
                                                         >
                                                             {headerText.trim() || "Double-click to edit header"}
                                                         </span>
