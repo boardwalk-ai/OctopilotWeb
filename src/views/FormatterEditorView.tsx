@@ -1909,6 +1909,35 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     else transitionTo("setup");
   }, [transitionTo, deckDocs.length, docLimit, showToast]);
 
+  // Top-bar back — step back through the Doc Oct flow one screen at a time.
+  // From the editor that means the workspace/Save Deck (not the methodology
+  // screen): only the first screen of the flow exits the tool.
+  const handleFlowBack = useCallback(() => {
+    if (viewState === "editor") {
+      // Keep the work on the way out: save (same rules as the 10s autosave —
+      // an untouched document is not worth a Save Deck slot) and stash the
+      // live pages so re-entering the editor restores what was on screen
+      // instead of an empty document.
+      const snap = getSnapshotRef.current?.() ?? null;
+      void saveNow().then(() => {
+        // The deck's own refresh may have run before the save landed.
+        if (AuthService.getCurrentUser()) void refreshDeck();
+      });
+      if (snap?.pages?.length) {
+        setRestoredPages(snap.pages.map((p) => ({
+          content: p.html, textAlign: p.textAlign, centerVertically: p.centerVertically,
+          showPageNumber: p.showPageNumber, lineHeight: p.lineHeight,
+        })));
+        setCoreSnapshot((prev) => ({ ...prev, initialDocTitle: snap.title || prev.initialDocTitle, content: "" }));
+      }
+      transitionTo("welcome");
+      return;
+    }
+    if (viewState === "analysis") { transitionTo("setup"); return; }
+    if (viewState === "setup") { transitionTo("welcome"); return; }
+    onBack();
+  }, [viewState, saveNow, refreshDeck, transitionTo, onBack]);
+
   // Refresh the deck whenever the signed-in user lands on the home view.
   useEffect(() => {
     if (viewState === "welcome" && currentUser) void refreshDeck();
@@ -3237,7 +3266,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           {!IS_STANDALONE && (
             <button
               type="button"
-              onClick={onBack}
+              onClick={handleFlowBack}
               title="Back"
               className="glass-chip flex h-8 w-8 items-center justify-center rounded-full text-[var(--ed-text-muted)] transition hover:text-[var(--ed-text)]"
             >
@@ -3966,7 +3995,7 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 onReformat={(id) => applyDocumentWithStyle(id)}
                 canReformat={true}
                 getSnapshotRef={getSnapshotRef}
-                onBack={onBack}
+                onBack={handleFlowBack}
                 onFinish={onFinish ? handleCoreFinish : undefined}
                 insertBibEntryRef={insertBibEntryRef}
                 octoHighlightRef={octoHighlightRef}
