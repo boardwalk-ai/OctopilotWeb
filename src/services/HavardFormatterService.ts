@@ -28,6 +28,7 @@ export class HavardFormatterService implements EssayFormatter {
                 indentFirstLine: true,
                 marginBottomEm: 0,
                 dataField: "essay",
+                html: input.essayIsHtml,
             }),
         ].join("");
 
@@ -39,6 +40,7 @@ export class HavardFormatterService implements EssayFormatter {
             sortAlphabetically: true,
             entrySpacingEm: 1,
             headingGapEm: 1,
+            html: input.bibliographyIsHtml,
         });
 
         const pages = [

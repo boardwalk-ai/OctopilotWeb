@@ -29,6 +29,7 @@ export class IEEEFormatterService implements EssayFormatter {
                 indentFirstLine: false,
                 marginBottomEm: 0.9,
                 dataField: "essay",
+                html: input.essayIsHtml,
             }),
         ].join("");
 
@@ -40,6 +41,7 @@ export class IEEEFormatterService implements EssayFormatter {
             alwaysShow: true,
             entrySpacingEm: 0.8,
             headingGapEm: 1,
+            html: input.bibliographyIsHtml,
         });
 
         const pages = [

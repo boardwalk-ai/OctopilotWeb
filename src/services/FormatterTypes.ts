@@ -10,6 +10,11 @@ export interface FormatterInput {
     essayDate?: string;
     abstract?: string;      // APA: abstract page content
     keywords?: string;      // APA: keywords line below abstract
+    /** `essay` / `bibliography` hold inline HTML recovered from the editor on a
+     *  re-format, not plain text. Set so the formatters keep the user's bold,
+     *  italic, underline and font runs instead of escaping them into tags. */
+    essayIsHtml?: boolean;
+    bibliographyIsHtml?: boolean;
 }
 
 export interface FormatterProfile {

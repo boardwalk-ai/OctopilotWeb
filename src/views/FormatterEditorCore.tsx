@@ -39,6 +39,11 @@ export interface EditorViewProps {
     // APA abstract page fields
     abstract?: string;
     keywords?: string;
+    // Set when `content` / `bibliography` carry inline HTML recovered from a
+    // previous format pass (a re-format), so the formatters keep the user's
+    // bold/italic/underline and font runs instead of escaping them.
+    contentIsHtml?: boolean;
+    bibliographyIsHtml?: boolean;
     // Ref populated by Core so parent can call buildExportSnapshot() directly
     getSnapshotRef?: React.MutableRefObject<(() => ExportDocumentSnapshot) | null>;
     // Ref populated by Core so parent can append a single bib entry to the last page
@@ -433,6 +438,8 @@ export default function FormatterEditorCore({
     octoJumpRef,
     abstract,
     keywords,
+    contentIsHtml,
+    bibliographyIsHtml,
     panelInsets,
     theme: controlledTheme,
     onToggleTheme,
@@ -467,6 +474,8 @@ export default function FormatterEditorCore({
         essayDate: essayDate ?? "",
         abstract: abstract ?? "",
         keywords: keywords ?? "",
+        essayIsHtml: contentIsHtml === true,
+        bibliographyIsHtml: bibliographyIsHtml === true,
     } as unknown as OrganizerState;
     // Tracks which style pill the user has selected in the toolbar
     const [selectedStyle, setSelectedStyle] = useState<FormatStyleId>(formatStyle);
@@ -1678,6 +1687,14 @@ export default function FormatterEditorCore({
         scheduleRepaginate();
     }, [scheduleRepaginate]);
 
+    // Dragging a ruler marker narrows the text column, so lines re-wrap and
+    // every block changes height. repaginateSingle only measures vertically, so
+    // it has no reason to re-run on its own — poke it here.
+    useLayoutEffect(() => {
+        if (!USE_SINGLE_EDITOR) return;
+        scheduleRepaginate();
+    }, [leftIndent, rightIndent, scheduleRepaginate]);
+
     // ── Grammar check ──────────────────────────────────────────────────────────
     // Compute screen positions for every grammar match and store them as overlay
     // rects. Runs on every match update / scroll / zoom / reflow. Touches NOTHING
@@ -2586,16 +2603,7 @@ export default function FormatterEditorCore({
                                         key={i}
                                         className="absolute left-0 overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)]"
                                         style={{ top: i * (H + GAP), width: W, height: H }}
-                                    >
-                                        {showPageNumber && (
-                                            <div
-                                                className="absolute text-[#374151]"
-                                                style={{ top: PAD * 0.42, right: PAD, fontSize: 12 * scale }}
-                                            >
-                                                {i + 1}
-                                            </div>
-                                        )}
-                                    </div>
+                                    />
                                 ))}
                                 {/* The single contentEditable, transparent, sitting on top */}
                                 <div
@@ -2622,7 +2630,13 @@ export default function FormatterEditorCore({
                                     className="oct-doc-page relative outline-none"
                                     style={{
                                         width: W,
-                                        padding: PAD,
+                                        // Top/bottom stay at the page margin; left/right follow the
+                                        // ruler's indent markers (they used to be inert here — the
+                                        // markers moved but the text column never did).
+                                        paddingTop: PAD,
+                                        paddingBottom: PAD,
+                                        paddingLeft: (leftIndent / 100) * W,
+                                        paddingRight: ((100 - rightIndent) / 100) * W,
                                         boxSizing: "border-box",
                                         minHeight: H,
                                         fontFamily,
@@ -2633,6 +2647,60 @@ export default function FormatterEditorCore({
                                         wordBreak: "break-word",
                                     }}
                                 />
+                                {/* Running head + page number. The page rectangles sit BEHIND the
+                                    transparent contentEditable, so anything drawn inside them is
+                                    unreachable by the mouse — MLA's "Lastname 1" used to be absent
+                                    from this editor entirely while still being written into the
+                                    export. It lives in its own layer above the editor now, inside
+                                    the top margin where there is never any body text. */}
+                                <div className="pointer-events-none absolute inset-0">
+                                    {Array.from({ length: singlePageCount }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="absolute flex items-baseline justify-end gap-2"
+                                            style={{
+                                                top: i * (H + GAP) + PAD * 0.42,
+                                                left: (leftIndent / 100) * W,
+                                                width: W * (rightIndent - leftIndent) / 100,
+                                            }}
+                                        >
+                                            {isHeaderEditing && i === 0 ? (
+                                                <input
+                                                    autoFocus
+                                                    value={headerText}
+                                                    onChange={(e) => setHeaderText(e.target.value)}
+                                                    onBlur={() => setIsHeaderEditing(false)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" || e.key === "Escape") {
+                                                            e.preventDefault();
+                                                            setIsHeaderEditing(false);
+                                                        }
+                                                    }}
+                                                    placeholder="Running head"
+                                                    className="pointer-events-auto min-w-0 flex-1 border-b border-[#c5ccd6] bg-transparent text-right text-[#111827] outline-none"
+                                                    style={{ fontFamily, fontSize: `${11 * scale}pt` }}
+                                                />
+                                            ) : headerText.trim() || i === 0 ? (
+                                                <span
+                                                    onDoubleClick={() => { setIsHeaderEditing(true); setHeaderEditingPageId(null); }}
+                                                    title="Double-click to edit the running head"
+                                                    className={`pointer-events-auto cursor-text ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
+                                                    style={{
+                                                        fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
+                                                        fontSize: `${11 * scale}pt`,
+                                                    }}
+                                                >
+                                                    {headerText.trim() || "Double-click to add a running head"}
+                                                </span>
+                                            ) : null}
+                                            {showPageNumber && (
+                                                <span className="text-[#374151]" style={{ fontFamily, fontSize: `${11 * scale}pt` }}>
+                                                    {i + 1}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                                 {/* Octo critique overlay — highlighter fills painted OVER the
                                     text, never inside the editable DOM (so undo stays clean). */}
                                 <div className="pointer-events-none absolute inset-0">

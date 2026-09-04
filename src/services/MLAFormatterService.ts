@@ -26,6 +26,7 @@ export class MLAFormatterService implements EssayFormatter {
                 indentFirstLine: true,
                 marginBottomEm: 0,
                 dataField: "essay",
+                html: input.essayIsHtml,
             }),
         ].join("");
 
@@ -37,6 +38,7 @@ export class MLAFormatterService implements EssayFormatter {
             alwaysShow: true,
             sortAlphabetically: true,
             entrySpacingEm: 0,
+            html: input.bibliographyIsHtml,
         });
         const lastName = getLastName(input.studentName);
 

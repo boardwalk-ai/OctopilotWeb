@@ -31,6 +31,7 @@ export class ChicagoFormatterService implements EssayFormatter {
             indentFirstLine: true,
             marginBottomEm: 0,
             dataField: "essay",
+            html: input.essayIsHtml,
         });
 
         // Turabian: "Bibliography" heading bold centered; entries single-spaced
@@ -42,6 +43,7 @@ export class ChicagoFormatterService implements EssayFormatter {
             sortAlphabetically: true,
             entrySpacingEm: 1,
             headingGapEm: 1,
+            html: input.bibliographyIsHtml,
         });
 
         const pages = [

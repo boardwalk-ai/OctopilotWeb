@@ -11,6 +11,30 @@ export function escapeHtml(text: string): string {
         .replace(/'/g, "&#39;");
 }
 
+/**
+ * Inline markup that survives a re-format. When a document is re-formatted the
+ * editor hands us the paragraph's own innerHTML (so bold/italic/underline and
+ * font spans are preserved instead of being flattened to text). That HTML came
+ * out of the user's contentEditable, but we still strip anything executable
+ * before feeding it back through innerHTML — defence in depth, and it also
+ * drops editor scaffolding that must never round-trip.
+ */
+export function sanitizeInlineHtml(html: string): string {
+    return (html || "")
+        // Whole elements that must never survive a round-trip.
+        .replace(/<(script|style|iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "")
+        .replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*>/gi, "")
+        // Inline event handlers: onclick="…" / onerror='…' / onload=…
+        .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+        // javascript:/data: URLs in href/src.
+        .replace(/\s(?:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (m) =>
+            /^\s*(?:href|src)\s*=\s*["']?\s*(?:javascript|data):/i.test(m.trim()) ? "" : m)
+        // Pagination spacers are recomputed on every layout pass — never carry
+        // one into a fresh format or the first paragraph inherits a stale gap.
+        .replace(/margin-top\s*:\s*[^;"']*;?/gi, "")
+        .trim();
+}
+
 // Escapes text while wrapping any http(s) URLs in an <a> tag so reference
 // links render as visible hyperlinks (blue + underline).
 export function escapeAndLinkify(text: string): string {
@@ -95,6 +119,9 @@ export function paragraphHtml(
         marginBottomEm?: number;
         /** data-field attribute for re-format extraction */
         dataField?: string;
+        /** `text` is already inline HTML (a re-format round-trip) — keep the
+         *  markup instead of escaping it into visible tags. */
+        html?: boolean;
     }
 ): string {
     const align = opts?.align || "left";
@@ -102,7 +129,8 @@ export function paragraphHtml(
     const weight = opts?.bold ? "font-weight:700;" : "";
     const margin = `margin:0 0 ${opts?.marginBottomEm ?? 1}em 0;`;
     const field = opts?.dataField ? ` data-field="${opts.dataField}"` : "";
-    return `<p${field} style="${margin}text-align:${align};${indent}${weight}">${escapeHtml(text)}</p>`;
+    const body = opts?.html ? sanitizeInlineHtml(text) : escapeHtml(text);
+    return `<p${field} style="${margin}text-align:${align};${indent}${weight}">${body}</p>`;
 }
 
 export function paragraphsHtml(
@@ -113,6 +141,8 @@ export function paragraphsHtml(
         marginBottomEm?: number;
         /** Tag every essay paragraph for re-format extraction */
         dataField?: string;
+        /** `text` holds inline HTML paragraphs separated by blank lines. */
+        html?: boolean;
     }
 ): string {
     const paragraphs = splitParagraphs(text);
@@ -123,6 +153,7 @@ export function paragraphsHtml(
             indentFirstLine: opts?.indentFirstLine,
             marginBottomEm: opts?.marginBottomEm,
             dataField: opts?.dataField,
+            html: opts?.html,
         }))
         .join("");
 }
@@ -172,6 +203,9 @@ export function referencesHtml(
         entrySpacingEm?: number;
         /** Space below the section heading in em. */
         headingGapEm?: number;
+        /** Entries are inline HTML from a re-format round-trip (they already
+         *  carry their own <a> tags, so skip escaping and linkifying). */
+        html?: boolean;
     }
 ): string {
     let entries = normalizeText(bibliography || "")
@@ -209,7 +243,8 @@ export function referencesHtml(
               .map((entry, index) => {
                   const numbered = opts?.numbered ? `[${index + 1}] ${entry.replace(/^\[\d+\]\s*/, "")}` : entry;
                   const hanging = opts?.hangingIndent !== false ? "padding-left:0.5in;text-indent:-0.5in;" : "";
-                  return `<p style="margin:0 0 ${entryGap}em 0;${hanging}">${escapeAndLinkify(numbered)}</p>`;
+                  const rendered = opts?.html ? sanitizeInlineHtml(numbered) : escapeAndLinkify(numbered);
+                  return `<p style="margin:0 0 ${entryGap}em 0;${hanging}">${rendered}</p>`;
               })
               .join("")
         : `<p style="margin:0;color:#9ca3af;">Add your references here.</p>`;
@@ -229,7 +264,7 @@ export function spacerHtml(count = 1): string {
  * can type directly into the editor page.
  */
 export function apaAbstractPageHtml(abstract?: string, keywords?: string): string {
-    const heading = `<p style="margin:0;text-align:center;font-weight:700;">Abstract</p>`;
+    const heading = `<p data-section-heading="1" style="margin:0;text-align:center;font-weight:700;">Abstract</p>`;
     const body = abstract?.trim()
         ? `<p data-field="abstract" style="margin:0;text-align:left;">${escapeHtml(abstract.trim())}</p>`
         : `<p data-field="abstract" style="margin:0;text-align:left;color:#9ca3af;">Write your abstract here (150–250 words). Summarise the research question, method, findings, and conclusion.</p>`;

@@ -1271,12 +1271,17 @@ interface CoreSnapshot {
   abstract: string;
   keywords: string;
   formatStyle: FormatStyleId;
+  /** `content` / `bibliography` hold inline HTML recovered from the editor
+   *  (a re-format round-trip) rather than plain text. */
+  contentIsHtml: boolean;
+  bibliographyIsHtml: boolean;
 }
 
 const EMPTY_SNAPSHOT: CoreSnapshot = {
   content: "", bibliography: "", initialDocTitle: "", studentName: "",
   instructorName: "", institutionName: "", courseInfo: "", subjectCode: "",
   essayDate: "", abstract: "", keywords: "", formatStyle: "mla",
+  contentIsHtml: false, bibliographyIsHtml: false,
 };
 
 /* ─── Component ──────────────────────────────────────────────────────────────── */
@@ -1845,7 +1850,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           content: p.html, textAlign: p.textAlign, centerVertically: p.centerVertically,
           showPageNumber: p.showPageNumber, lineHeight: p.lineHeight,
         })));
-        setCoreSnapshot((prev) => ({ ...prev, initialDocTitle: snap.title || prev.initialDocTitle, content: "" }));
+        setCoreSnapshot((prev) => ({
+          ...prev,
+          initialDocTitle: snap.title || prev.initialDocTitle,
+          content: "",
+          contentIsHtml: false,
+        }));
       } else {
         setRestoredPages(null);
       }
@@ -1928,7 +1938,12 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
           content: p.html, textAlign: p.textAlign, centerVertically: p.centerVertically,
           showPageNumber: p.showPageNumber, lineHeight: p.lineHeight,
         })));
-        setCoreSnapshot((prev) => ({ ...prev, initialDocTitle: snap.title || prev.initialDocTitle, content: "" }));
+        setCoreSnapshot((prev) => ({
+          ...prev,
+          initialDocTitle: snap.title || prev.initialDocTitle,
+          content: "",
+          contentIsHtml: false,
+        }));
       }
       transitionTo("welcome");
       return;
@@ -2174,11 +2189,38 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       const bibEntries: string[] = [];
       const meta: Record<string, string> = {};
 
+      // Block-level tags the editor (or a Word/Docs paste) can nest. A block
+      // whose children include any of these is a WRAPPER, not a paragraph:
+      // reading its textContent would weld its children into one run-on line
+      // ("…ends here.Second starts…"), so we recurse into it instead.
+      const BLOCK_TAGS = new Set([
+        "P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6",
+        "LI", "UL", "OL", "BLOCKQUOTE", "SECTION", "ARTICLE", "TABLE", "TR", "TD", "TH",
+      ]);
+      const eachLeafBlock = (root: Element, visit: (el: Element) => void) => {
+        for (const el of Array.from(root.children)) {
+          const wrapsBlocks = Array.from(el.children).some((c) => BLOCK_TAGS.has(c.tagName));
+          if (wrapsBlocks) eachLeafBlock(el, visit);
+          else visit(el);
+        }
+      };
+
+      // Inline markup is preserved across the re-format, so a paragraph is
+      // captured as its own innerHTML. Newlines inside it would be read as a
+      // paragraph split further down, so collapse them to spaces.
+      const inlineHtmlOf = (el: Element) =>
+        (el.innerHTML || "").replace(/\s*\n\s*/g, " ").trim();
+
+      // Text the templates render as a prompt when a field is empty. Without
+      // this the placeholder gets promoted to real data on the next pass.
+      const PLACEHOLDERS = [
+        "add your references here", "write your abstract here", "keyword1, keyword2",
+        "student name", "institution name", "course name", "instructor name",
+        "course information", "untitled paper",
+      ];
       const isPlaceholder = (t: string) => {
-        const low = t.toLowerCase();
-        return low.includes("add your references here")
-          || low.includes("write your abstract here")
-          || low.includes("keyword1, keyword2");
+        const low = t.trim().toLowerCase();
+        return PLACEHOLDERS.some((ph) => low === ph || low.includes(ph));
       };
 
       for (const html of pagesHtml) {
@@ -2186,27 +2228,31 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
 
         // References page → re-capture entries so user edits survive reformat
         if (doc.querySelector("[data-reference-heading]")) {
-          doc.body.querySelectorAll("p").forEach((p) => {
-            if (p.hasAttribute("data-reference-heading")) return;
-            const t = p.textContent?.trim() ?? "";
+          eachLeafBlock(doc.body, (el) => {
+            if (el.hasAttribute("data-reference-heading")) return;
+            const t = el.textContent?.trim() ?? "";
             if (!t || isPlaceholder(t)) return;
-            bibEntries.push(t.replace(/^\[\d+\]\s*/, ""));
+            bibEntries.push(inlineHtmlOf(el).replace(/^\[\d+\]\s*/, ""));
           });
           continue;
         }
 
-        for (const el of Array.from(doc.body.children)) {
+        eachLeafBlock(doc.body, (el) => {
           const t = el.textContent?.trim() ?? "";
+          // Structural headings the template owns (e.g. APA's "Abstract").
+          // They are re-emitted by the next formatter, so capturing them here
+          // would push the literal word into the essay body.
+          if (el.hasAttribute("data-section-heading")) return;
           const field = el.getAttribute("data-field");
           if (field && field !== "essay") {
-            if (!t || isPlaceholder(t) || meta[field]) continue;
-            // Strip the rendered "Keywords:" label so it doesn't double up
+            // Metadata stays plain text — it feeds getTitle()/getDate() and the
+            // document title, none of which render markup.
+            if (!t || isPlaceholder(t) || meta[field]) return;
             meta[field] = field === "keywords" ? t.replace(/^keywords:\s*/i, "") : t;
           } else if (t) {
-            // data-field="essay" OR untagged user-typed paragraph
-            essayParas.push(t);
+            essayParas.push(inlineHtmlOf(el));
           }
-        }
+        });
       }
 
       if (meta.studentName)     extracted.studentName     = meta.studentName;
@@ -2217,13 +2263,24 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
       if (meta.essayTitle)      extracted.initialDocTitle = meta.essayTitle;
       if (meta.abstract)        extracted.abstract        = meta.abstract;
       if (meta.keywords)        extracted.keywords        = meta.keywords;
-      if (essayParas.length)    extracted.content         = essayParas.join("\n\n");
-      if (bibEntries.length)    extracted.bibliography    = bibEntries.join("\n");
+      if (essayParas.length) {
+        extracted.content       = essayParas.join("\n\n");
+        extracted.contentIsHtml = true;
+      }
+      if (bibEntries.length) {
+        extracted.bibliography       = bibEntries.join("\n");
+        extracted.bibliographyIsHtml = true;
+      }
 
-      // Last-resort fallback: never lose typed text
+      // Last-resort fallback: never lose typed text. This path yields plain
+      // text, so the html flag must go back off or "5 < 10" would be parsed
+      // as markup by the formatters.
       if (!essayParas.length) {
         const plain = snap?.pages.map(p => p.plainText).join("\n\n").trim() ?? "";
-        if (plain) extracted.content = plain;
+        if (plain) {
+          extracted.content       = plain;
+          extracted.contentIsHtml = false;
+        }
       }
     }
 
@@ -2951,7 +3008,13 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
     const p = parsedResult;
     const combinedBib = [p?.bibliography, ...citCards.map((c) => c.bibliography)]
       .filter(Boolean).join("\n\n");
-    setCoreSnapshot((prev) => ({ ...prev, content: humanizedContent, bibliography: combinedBib }));
+    setCoreSnapshot((prev) => ({
+      ...prev,
+      content: humanizedContent,
+      bibliography: combinedBib,
+      contentIsHtml: false,
+      bibliographyIsHtml: false,
+    }));
     setEditorKey((k) => k + 1);
   }, [parsedResult, citCards]);
 
@@ -3991,6 +4054,8 @@ export default function FormatterEditorView({ onBack, onFinish }: Props) {
                 essayDate={coreSnapshot.essayDate}
                 abstract={coreSnapshot.abstract}
                 keywords={coreSnapshot.keywords}
+                contentIsHtml={coreSnapshot.contentIsHtml}
+                bibliographyIsHtml={coreSnapshot.bibliographyIsHtml}
                 formatStyle={formatStyle}
                 onReformat={(id) => applyDocumentWithStyle(id)}
                 canReformat={true}

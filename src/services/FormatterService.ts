@@ -39,6 +39,8 @@ export class FormatterService {
             essayDate: org.essayDate,
             abstract: typeof extOrg.abstract === "string" ? extOrg.abstract : undefined,
             keywords: typeof extOrg.keywords === "string" ? extOrg.keywords : undefined,
+            essayIsHtml: extOrg.essayIsHtml === true,
+            bibliographyIsHtml: extOrg.bibliographyIsHtml === true,
         };
 
         const formatter = this.getFormatter(org.citationStyle);
