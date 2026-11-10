@@ -8,6 +8,7 @@ import {
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import { SlideCanvas, SlideThumbnail, PropertyPanel, GoogleFontsLink } from "@/components/slides";
+
 import {
   getThemeByName,
   normalizeDeckTheme,
@@ -15,14 +16,21 @@ import {
   THEME_NAMES,
   type SlideSpec,
   type DeckTheme,
+  type DeckState,
   type AgentQuestion,
   type SlidesSSEEvent,
   type AnimationSpec,
   type TextElement,
 } from "@/types/slides";
+
 import { buildGoogleFontsCssHref } from "@/lib/slideGoogleFonts";
 import { SlidesAgentClient } from "@/services/SlidesAgentClient";
+import {
+  SlidesPersistenceClient,
+  type SavedSlideDeck,
+} from "@/services/SlidesPersistenceClient";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
+
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -297,6 +305,15 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [editingTextElementId, setEditingTextElementId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<AgentQuestion | null>(null);
+  const [deckId, setDeckId] = useState<string>("");
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const [deckTitle, setDeckTitle] = useState("Untitled presentation");
+  const [savedDecks, setSavedDecks] = useState<SavedSlideDeck[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingDeck, setIsLoadingDeck] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [showSavedDecks, setShowSavedDecks] = useState(false);
+  const [deckCreatedAt, setDeckCreatedAt] = useState(() => Date.now());
 
   const fontsHref = useMemo(() => buildGoogleFontsCssHref(theme, slides), [theme, slides]);
 
@@ -801,6 +818,145 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     return () => window.removeEventListener("keydown", onKey);
   }, [canvasMode, selectedElementId, activeSpec, patchSelectedElementStyle]);
 
+
+  const refreshSavedDecks = useCallback(async () => {
+    setIsLoadingDeck(true);
+    setSaveMessage("");
+
+    try {
+      const decks = await SlidesPersistenceClient.list();
+      setSavedDecks(decks);
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not load saved presentations.",
+      );
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  }, []);
+
+
+
+const handleSaveDeck = useCallback(async () => {
+  if (isRunning || isSaving) return;
+
+  if (slides.length === 0) {
+    setSaveMessage("There are no slides to save.");
+    return;
+  }
+
+  setIsSaving(true);
+  setSaveMessage("");
+
+  try {
+    const now = Date.now();
+    const currentDeckId = deckId || crypto.randomUUID();
+    const title = deckTitle.trim() || "Untitled presentation";
+
+    const state: DeckState = {
+      deckId: currentDeckId,
+      runId: "",
+      userId: "",
+      status: "complete",
+      theme,
+      slides,
+      sources: [],
+      pendingQuestion: null,
+      exportSnapshot: null,
+      createdAt: deckCreatedAt,
+      updatedAt: now,
+    };
+
+    const id = savedRecordId
+      ? (await SlidesPersistenceClient.update(
+          savedRecordId,
+          title,
+          state,
+        ), savedRecordId)
+      : await SlidesPersistenceClient.save(title, state);
+
+    setDeckId(currentDeckId);
+    setSavedRecordId(id);
+    setDeckTitle(title);
+    setSaveMessage("Presentation saved successfully.");
+    await refreshSavedDecks();
+    setSaveMessage("Presentation saved successfully.");
+  } catch (error) {
+    setSaveMessage(
+      error instanceof Error
+        ? error.message
+        : "Could not save presentation.",
+    );
+  } finally {
+    setIsSaving(false);
+  }
+}, [
+  isRunning,
+  isSaving,
+  slides,
+  deckId,
+  deckTitle,
+  theme,
+  deckCreatedAt,
+  savedRecordId,
+  refreshSavedDecks,
+]);
+
+
+  const handleOpenDeck = useCallback(async (id: string) => {
+    if (isRunning || isSaving || isLoadingDeck) return;
+
+    setIsLoadingDeck(true);
+    setSaveMessage("");
+
+    try {
+      const deck = await SlidesPersistenceClient.load(id);
+      const savedState = deck.state;
+
+      const restoredTheme = normalizeDeckTheme(
+        savedState.theme,
+        DEMO_THEME,
+      );
+
+      const restoredSlides = savedState.slides.map((slide, index) =>
+        normalizeSlideSpec(
+          slide,
+          { id: slide.id, position: index },
+          { theme: restoredTheme },
+        ),
+      );
+
+      setSlides(restoredSlides);
+      setTheme(restoredTheme);
+      setDeckId(savedState.deckId);
+      setSavedRecordId(deck.id);
+      setDeckTitle(deck.title);
+      setDeckCreatedAt(savedState.createdAt || Date.now());
+
+      setActiveSlide(0);
+      setSelectedElementId(null);
+      setEditingTextElementId(null);
+      setPendingQuestion(null);
+      setActivities([]);
+      setIsComplete(true);
+      setShowSavedDecks(false);
+      setSaveMessage("Presentation opened successfully.");
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not open presentation.",
+      );
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  }, [isRunning, isSaving, isLoadingDeck]);
+
+
+
+
   const exportPptx = useCallback(async () => {
     if (!slides.length) return;
 
@@ -1112,6 +1268,18 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                   ))}
                 </select>
               </div>
+
+
+              {/* Save presentation */}
+              <button
+                type="button"
+                onClick={() => void handleSaveDeck()}
+                disabled={isRunning || isSaving}
+                className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+
 
               {/* Export */}
               <button

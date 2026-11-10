@@ -69,12 +69,18 @@ export class SlidesPersistenceClient {
 
   static async load(id: string): Promise<LoadedSlideDeck> {
     const response = await fetchWithUserAuthorization(
-      `/api/slides/decks/${encodeURIComponent(id)}`,
-      { method: "GET", cache: "no-store" },
+        `/api/slides/decks/${encodeURIComponent(id)}`,
+        { method: "GET", cache: "no-store" },
     );
 
-    return parseResponse<LoadedSlideDeck>(response);
-  }
+    const data = await parseResponse<{ deck: LoadedSlideDeck }>(response);
+
+    if (!data.deck || !Array.isArray(data.deck.state?.slides)) {
+        throw new Error("The saved presentation has an invalid format.");
+    }
+
+    return data.deck;
+    }
 
   static async update(
     id: string,
