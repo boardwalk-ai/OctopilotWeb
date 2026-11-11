@@ -475,6 +475,52 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+
+
+
+
+  const handleNewPresentation = () => {
+    if (isRunning || isSaving || isLoadingDeck) return;
+
+    if (
+      slides.length > 0 &&
+      !window.confirm(
+        "Start a new presentation? Any unsaved changes will be lost."
+      )
+    ) {
+      return;
+    }
+
+    runHandleRef.current?.close();
+    runHandleRef.current = null;
+
+    setDeckId(crypto.randomUUID());
+    setSavedRecordId(null);
+    setDeckTitle("Untitled presentation");
+    setDeckCreatedAt(Date.now());
+
+    setSlides([]);
+    setTheme(DEMO_THEME);
+    setActiveSlide(0);
+    setSelectedElementId(null);
+    setEditingTextElementId(null);
+    setActivities([]);
+    setPendingThinking(null);
+    setPendingQuestion(null);
+    setIsComplete(false);
+    setInput("");
+    setIsRunning(false);
+    setSaveMessage("");
+    setShowSavedDecks(false);
+  };
+
+
+
+
+
+
+
+
   function runWorkflow(prompt: string) {
     runHandleRef.current?.close();
     runHandleRef.current = null;
@@ -1279,6 +1325,19 @@ const handleSaveDeck = useCallback(async () => {
                 </select>
               </div>
 
+
+
+
+            
+            {/* New presentation */}
+            <button
+              type="button"
+              onClick={handleNewPresentation}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              New
+            </button>
 
 
 
