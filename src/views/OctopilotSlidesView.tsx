@@ -1270,6 +1270,33 @@ const handleSaveDeck = useCallback(async () => {
               </div>
 
 
+
+
+
+
+
+            {/* Open presentation */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!showSavedDecks) {
+                  void refreshSavedDecks();
+                }
+                setShowSavedDecks(!showSavedDecks);
+              }}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isLoadingDeck ? "Loading..." : "Open"}
+            </button>
+
+
+
+
+
+
+
+
               {/* Save presentation */}
               <button
                 type="button"
@@ -1293,6 +1320,64 @@ const handleSaveDeck = useCallback(async () => {
               </button>
             </div>
           </div>
+
+
+{/* Saved presentations panel */}
+{showSavedDecks && (
+  <div className="border-b border-white/10 bg-[#15151f] px-5 py-4">
+    <div className="mb-3 flex items-center justify-between">
+      <h3 className="text-sm font-semibold text-white">
+        Saved Presentations
+      </h3>
+      <button
+        type="button"
+        onClick={() => setShowSavedDecks(false)}
+        className="text-xs text-white/50 hover:text-white"
+      >
+        Close
+      </button>
+    </div>
+
+    {isLoadingDeck ? (
+      <p className="text-sm text-white/50">
+        Loading presentations...
+      </p>
+    ) : savedDecks.length === 0 ? (
+      <p className="text-sm text-white/50">
+        No saved presentations found.
+      </p>
+    ) : (
+      <div className="max-h-48 space-y-2 overflow-y-auto">
+        {savedDecks.map((deck) => (
+          <button
+            key={deck.id}
+            type="button"
+            onClick={() => void handleOpenDeck(deck.id)}
+            disabled={isRunning || isSaving || isLoadingDeck}
+            className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 disabled:opacity-40"
+          >
+            <span className="truncate text-sm text-white">
+              {deck.title}
+            </span>
+            <span className="ml-3 shrink-0 text-xs text-white/40">
+              {deck.slide_count} slides
+            </span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{saveMessage && (
+  <div
+    role="status"
+    className="border-b border-white/10 px-5 py-2 text-xs text-white/70"
+  >
+    {saveMessage}
+  </div>
+)}
+
 
           {/* Infinite canvas */}
           <div
