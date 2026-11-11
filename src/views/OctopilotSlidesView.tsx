@@ -8,6 +8,7 @@ import {
 import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import { SlideCanvas, SlideThumbnail, PropertyPanel, GoogleFontsLink } from "@/components/slides";
+
 import {
   getThemeByName,
   normalizeDeckTheme,
@@ -15,14 +16,21 @@ import {
   THEME_NAMES,
   type SlideSpec,
   type DeckTheme,
+  type DeckState,
   type AgentQuestion,
   type SlidesSSEEvent,
   type AnimationSpec,
   type TextElement,
 } from "@/types/slides";
+
 import { buildGoogleFontsCssHref } from "@/lib/slideGoogleFonts";
 import { SlidesAgentClient } from "@/services/SlidesAgentClient";
+import {
+  SlidesPersistenceClient,
+  type SavedSlideDeck,
+} from "@/services/SlidesPersistenceClient";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
+
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -297,6 +305,15 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [editingTextElementId, setEditingTextElementId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<AgentQuestion | null>(null);
+  const [deckId, setDeckId] = useState<string>("");
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const [deckTitle, setDeckTitle] = useState("Untitled presentation");
+  const [savedDecks, setSavedDecks] = useState<SavedSlideDeck[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingDeck, setIsLoadingDeck] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [showSavedDecks, setShowSavedDecks] = useState(false);
+  const [deckCreatedAt, setDeckCreatedAt] = useState(() => Date.now());
 
   const fontsHref = useMemo(() => buildGoogleFontsCssHref(theme, slides), [theme, slides]);
 
@@ -458,9 +475,65 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+
+
+
+
+  const handleNewPresentation = () => {
+    if (isRunning || isSaving || isLoadingDeck) return;
+
+    if (
+      slides.length > 0 &&
+      !window.confirm(
+        "Start a new presentation? Any unsaved changes will be lost."
+      )
+    ) {
+      return;
+    }
+
+    runHandleRef.current?.close();
+    runHandleRef.current = null;
+
+    setDeckId(crypto.randomUUID());
+    setSavedRecordId(null);
+    setDeckTitle("Untitled presentation");
+    setDeckCreatedAt(Date.now());
+
+    setSlides([]);
+    setTheme(DEMO_THEME);
+    setActiveSlide(0);
+    setSelectedElementId(null);
+    setEditingTextElementId(null);
+    setActivities([]);
+    setPendingThinking(null);
+    setPendingQuestion(null);
+    setIsComplete(false);
+    setInput("");
+    setIsRunning(false);
+    setSaveMessage("");
+    setShowSavedDecks(false);
+  };
+
+
+
+
+
+
+
+
   function runWorkflow(prompt: string) {
     runHandleRef.current?.close();
     runHandleRef.current = null;
+
+    // A new generation must create a new saved presentation,
+    // rather than overwrite a previously opened deck.
+    setDeckId(crypto.randomUUID());
+    setSavedRecordId(null);
+    setDeckTitle("Untitled presentation");
+    setDeckCreatedAt(Date.now());
+    setSaveMessage("");
+    setShowSavedDecks(false);
+
 
     setActivities([]);
     setPendingThinking(null);
@@ -801,6 +874,145 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     return () => window.removeEventListener("keydown", onKey);
   }, [canvasMode, selectedElementId, activeSpec, patchSelectedElementStyle]);
 
+
+  const refreshSavedDecks = useCallback(async () => {
+    setIsLoadingDeck(true);
+    setSaveMessage("");
+
+    try {
+      const decks = await SlidesPersistenceClient.list();
+      setSavedDecks(decks);
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not load saved presentations.",
+      );
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  }, []);
+
+
+
+const handleSaveDeck = useCallback(async () => {
+  if (isRunning || isSaving) return;
+
+  if (slides.length === 0) {
+    setSaveMessage("There are no slides to save.");
+    return;
+  }
+
+  setIsSaving(true);
+  setSaveMessage("");
+
+  try {
+    const now = Date.now();
+    const currentDeckId = deckId || crypto.randomUUID();
+    const title = deckTitle.trim() || "Untitled presentation";
+
+    const state: DeckState = {
+      deckId: currentDeckId,
+      runId: "",
+      userId: "",
+      status: "complete",
+      theme,
+      slides,
+      sources: [],
+      pendingQuestion: null,
+      exportSnapshot: null,
+      createdAt: deckCreatedAt,
+      updatedAt: now,
+    };
+
+    const id = savedRecordId
+      ? (await SlidesPersistenceClient.update(
+          savedRecordId,
+          title,
+          state,
+        ), savedRecordId)
+      : await SlidesPersistenceClient.save(title, state);
+
+    setDeckId(currentDeckId);
+    setSavedRecordId(id);
+    setDeckTitle(title);
+    setSaveMessage("Presentation saved successfully.");
+    await refreshSavedDecks();
+    setSaveMessage("Presentation saved successfully.");
+  } catch (error) {
+    setSaveMessage(
+      error instanceof Error
+        ? error.message
+        : "Could not save presentation.",
+    );
+  } finally {
+    setIsSaving(false);
+  }
+}, [
+  isRunning,
+  isSaving,
+  slides,
+  deckId,
+  deckTitle,
+  theme,
+  deckCreatedAt,
+  savedRecordId,
+  refreshSavedDecks,
+]);
+
+
+  const handleOpenDeck = useCallback(async (id: string) => {
+    if (isRunning || isSaving || isLoadingDeck) return;
+
+    setIsLoadingDeck(true);
+    setSaveMessage("");
+
+    try {
+      const deck = await SlidesPersistenceClient.load(id);
+      const savedState = deck.state;
+
+      const restoredTheme = normalizeDeckTheme(
+        savedState.theme,
+        DEMO_THEME,
+      );
+
+      const restoredSlides = savedState.slides.map((slide, index) =>
+        normalizeSlideSpec(
+          slide,
+          { id: slide.id, position: index },
+          { theme: restoredTheme },
+        ),
+      );
+
+      setSlides(restoredSlides);
+      setTheme(restoredTheme);
+      setDeckId(savedState.deckId);
+      setSavedRecordId(deck.id);
+      setDeckTitle(deck.title);
+      setDeckCreatedAt(savedState.createdAt || Date.now());
+
+      setActiveSlide(0);
+      setSelectedElementId(null);
+      setEditingTextElementId(null);
+      setPendingQuestion(null);
+      setActivities([]);
+      setIsComplete(true);
+      setShowSavedDecks(false);
+      setSaveMessage("Presentation opened successfully.");
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not open presentation.",
+      );
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  }, [isRunning, isSaving, isLoadingDeck]);
+
+
+
+
   const exportPptx = useCallback(async () => {
     if (!slides.length) return;
 
@@ -1113,6 +1325,70 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
                 </select>
               </div>
 
+
+
+
+            
+            {/* New presentation */}
+            <button
+              type="button"
+              onClick={handleNewPresentation}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              New
+            </button>
+
+
+
+            
+            {/* Editable presentation title */}
+            <input
+              type="text"
+              value={deckTitle}
+              onChange={(e) => setDeckTitle(e.target.value)}
+              placeholder="Presentation title"
+              aria-label="Presentation title"
+              maxLength={150}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="w-44 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] text-white/80 outline-none transition focus:border-white/30 disabled:opacity-40"
+            />
+
+
+
+            {/* Open presentation */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!showSavedDecks) {
+                  void refreshSavedDecks();
+                }
+                setShowSavedDecks(!showSavedDecks);
+              }}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isLoadingDeck ? "Loading..." : "Open"}
+            </button>
+
+
+
+
+
+
+
+
+              {/* Save presentation */}
+              <button
+                type="button"
+                onClick={() => void handleSaveDeck()}
+                disabled={isRunning || isSaving}
+                className="rounded-lg border border-white/[0.10] bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-white/75 transition-all hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+
+
               {/* Export */}
               <button
                 onClick={() => void exportPptx()}
@@ -1125,6 +1401,64 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
               </button>
             </div>
           </div>
+
+
+{/* Saved presentations panel */}
+{showSavedDecks && (
+  <div className="border-b border-white/10 bg-[#15151f] px-5 py-4">
+    <div className="mb-3 flex items-center justify-between">
+      <h3 className="text-sm font-semibold text-white">
+        Saved Presentations
+      </h3>
+      <button
+        type="button"
+        onClick={() => setShowSavedDecks(false)}
+        className="text-xs text-white/50 hover:text-white"
+      >
+        Close
+      </button>
+    </div>
+
+    {isLoadingDeck ? (
+      <p className="text-sm text-white/50">
+        Loading presentations...
+      </p>
+    ) : savedDecks.length === 0 ? (
+      <p className="text-sm text-white/50">
+        No saved presentations found.
+      </p>
+    ) : (
+      <div className="max-h-48 space-y-2 overflow-y-auto">
+        {savedDecks.map((deck) => (
+          <button
+            key={deck.id}
+            type="button"
+            onClick={() => void handleOpenDeck(deck.id)}
+            disabled={isRunning || isSaving || isLoadingDeck}
+            className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 disabled:opacity-40"
+          >
+            <span className="truncate text-sm text-white">
+              {deck.title}
+            </span>
+            <span className="ml-3 shrink-0 text-xs text-white/40">
+              {deck.slide_count} slides
+            </span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{saveMessage && (
+  <div
+    role="status"
+    className="border-b border-white/10 px-5 py-2 text-xs text-white/70"
+  >
+    {saveMessage}
+  </div>
+)}
+
 
           {/* Infinite canvas */}
           <div
