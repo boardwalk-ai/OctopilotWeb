@@ -479,6 +479,16 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
     runHandleRef.current?.close();
     runHandleRef.current = null;
 
+    // A new generation must create a new saved presentation,
+    // rather than overwrite a previously opened deck.
+    setDeckId(crypto.randomUUID());
+    setSavedRecordId(null);
+    setDeckTitle("Untitled presentation");
+    setDeckCreatedAt(Date.now());
+    setSaveMessage("");
+    setShowSavedDecks(false);
+
+
     setActivities([]);
     setPendingThinking(null);
     setIsComplete(false);
