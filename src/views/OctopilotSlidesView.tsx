@@ -1282,6 +1282,18 @@ const handleSaveDeck = useCallback(async () => {
 
 
 
+            
+            {/* Editable presentation title */}
+            <input
+              type="text"
+              value={deckTitle}
+              onChange={(e) => setDeckTitle(e.target.value)}
+              placeholder="Presentation title"
+              aria-label="Presentation title"
+              maxLength={150}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="w-44 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] text-white/80 outline-none transition focus:border-white/30 disabled:opacity-40"
+            />
 
 
 
