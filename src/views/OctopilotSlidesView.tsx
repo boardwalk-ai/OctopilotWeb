@@ -315,6 +315,24 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
   const [showSavedDecks, setShowSavedDecks] = useState(false);
   const [deckCreatedAt, setDeckCreatedAt] = useState(() => Date.now());
 
+
+  const currentDeckSnapshot = useMemo(
+    () => JSON.stringify({ title: deckTitle, slides, theme }),
+    [deckTitle, slides, theme],
+  );
+
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+
+  const hasUnsavedChanges =
+    currentDeckSnapshot !== savedSnapshot;
+
+  const confirmDiscardChanges = useCallback(
+    () =>
+      !hasUnsavedChanges ||
+      window.confirm("You have unsaved changes. Discard them and continue?"),
+    [hasUnsavedChanges],
+  );
+
   const fontsHref = useMemo(() => buildGoogleFontsCssHref(theme, slides), [theme, slides]);
 
   useEffect(() => {
@@ -481,15 +499,7 @@ export default function OctopilotSlidesView({ onBack }: OctopilotSlidesViewProps
 
   const handleNewPresentation = () => {
     if (isRunning || isSaving || isLoadingDeck) return;
-
-    if (
-      slides.length > 0 &&
-      !window.confirm(
-        "Start a new presentation? Any unsaved changes will be lost."
-      )
-    ) {
-      return;
-    }
+    if (!confirmDiscardChanges()) return;
 
     runHandleRef.current?.close();
     runHandleRef.current = null;
@@ -963,6 +973,7 @@ const handleSaveDeck = useCallback(async () => {
 
   const handleOpenDeck = useCallback(async (id: string) => {
     if (isRunning || isSaving || isLoadingDeck) return;
+    if (!confirmDiscardChanges()) return;
 
     setIsLoadingDeck(true);
     setSaveMessage("");
@@ -1012,7 +1023,7 @@ const handleSaveDeck = useCallback(async () => {
     } finally {
       setIsLoadingDeck(false);
     }
-  }, [isRunning, isSaving, isLoadingDeck]);
+  }, [isRunning, isSaving, isLoadingDeck, confirmDiscardChanges]);
 
 
     const handleDeleteDeck = async (id: string, title: string) => {
