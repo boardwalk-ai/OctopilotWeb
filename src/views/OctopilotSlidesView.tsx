@@ -976,6 +976,10 @@ const handleSaveDeck = useCallback(async () => {
         DEMO_THEME,
       );
 
+
+
+
+
       const restoredSlides = savedState.slides.map((slide, index) =>
         normalizeSlideSpec(
           slide,
@@ -1010,6 +1014,39 @@ const handleSaveDeck = useCallback(async () => {
     }
   }, [isRunning, isSaving, isLoadingDeck]);
 
+
+    const handleDeleteDeck = async (id: string, title: string) => {
+      if (isRunning || isSaving || isLoadingDeck) return;
+
+      if (!window.confirm(`Permanently delete "${title}"? This cannot be undone.`)) {
+        return;
+      }
+
+      setIsLoadingDeck(true);
+      setSaveMessage("");
+
+      try {
+        await SlidesPersistenceClient.remove(id);
+
+        setSavedDecks((previous) =>
+          previous.filter((deck) => deck.id !== id)
+        );
+
+        if (savedRecordId === id) {
+          setSavedRecordId(null);
+        }
+
+        setSaveMessage("Presentation deleted successfully.");
+      } catch (error) {
+        setSaveMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not delete presentation."
+        );
+      } finally {
+        setIsLoadingDeck(false);
+      }
+    };
 
 
 
@@ -1328,7 +1365,7 @@ const handleSaveDeck = useCallback(async () => {
 
 
 
-            
+
             {/* New presentation */}
             <button
               type="button"
@@ -1341,7 +1378,7 @@ const handleSaveDeck = useCallback(async () => {
 
 
 
-            
+
             {/* Editable presentation title */}
             <input
               type="text"
@@ -1429,35 +1466,51 @@ const handleSaveDeck = useCallback(async () => {
       </p>
     ) : (
       <div className="max-h-48 space-y-2 overflow-y-auto">
-        {savedDecks.map((deck) => (
-          <button
-            key={deck.id}
-            type="button"
-            onClick={() => void handleOpenDeck(deck.id)}
-            disabled={isRunning || isSaving || isLoadingDeck}
-            className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 disabled:opacity-40"
-          >
-            <span className="truncate text-sm text-white">
-              {deck.title}
-            </span>
-            <span className="ml-3 shrink-0 text-xs text-white/40">
-              {deck.slide_count} slides
-            </span>
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-)}
 
-{saveMessage && (
-  <div
-    role="status"
-    className="border-b border-white/10 px-5 py-2 text-xs text-white/70"
-  >
-    {saveMessage}
-  </div>
-)}
+        {savedDecks.map((deck) => (
+          <div
+            key={deck.id}
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-1"
+          >
+            <button
+              type="button"
+              onClick={() => void handleOpenDeck(deck.id)}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              className="flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-left transition hover:bg-white/10 disabled:opacity-40"
+            >
+              <span className="truncate text-sm text-white">
+                {deck.title}
+              </span>
+              <span className="ml-3 shrink-0 text-xs text-white/40">
+                {deck.slide_count} slides
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleDeleteDeck(deck.id, deck.title)}
+              disabled={isRunning || isSaving || isLoadingDeck}
+              aria-label={`Delete ${deck.title}`}
+              className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {saveMessage && (
+          <div
+            role="status"
+            className="border-b border-white/10 px-5 py-2 text-xs text-white/70"
+          >
+            {saveMessage}
+          </div>
+        )}
 
 
           {/* Infinite canvas */}
