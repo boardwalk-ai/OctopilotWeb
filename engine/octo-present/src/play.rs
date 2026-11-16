@@ -41,6 +41,8 @@ pub struct Item {
     pub dx: f64,
     pub dy: f64,
     pub scale: f64,
+    /// extra rotation in degrees (emphasis)
+    pub drot: f64,
     /// reveal: (direction the element is revealed from, fraction shown)
     pub wipe: Option<(Dir, f64)>,
     /// which slide's reference render a Fallback element is cut from
@@ -205,45 +207,75 @@ impl Player {
         let (w, h) = (self.deck.width, self.deck.height);
         let mut out = Vec::with_capacity(slide.elements.len());
         for el in &slide.elements {
-            let mut item = Item { el: el.clone(), alpha: 1.0, dx: 0.0, dy: 0.0, scale: 1.0, wipe: None, slide: index };
+            let mut item = Item { el: el.clone(), alpha: 1.0, dx: 0.0, dy: 0.0, scale: 1.0, drot: 0.0, wipe: None, slide: index };
             if let Some(started) = started {
-                // the first effect that targets this shape decides its entrance
-                let hit = slide.groups.iter().enumerate().find_map(|(gi, g)| g.effects.iter().find(|e| e.shape_id == el.id).map(|e| (gi, e)));
-                if let Some((gi, fx)) = hit {
-                    let Some(t0) = started.get(gi).copied().flatten() else { continue };
-                    let p = (now - t0 - fx.start_ms) / fx.duration_ms.max(1.0);
-                    if p < 0.0 {
-                        continue;
-                    }
-                    let p = clamp01(p);
-                    match fx.kind {
-                        EffectKind::Appear => {}
-                        EffectKind::Fade => item.alpha = ease_out(p) as f32,
-                        EffectKind::Rise => {
-                            item.alpha = ease_out(p) as f32;
-                            item.dy = (1.0 - spring(p)) * h * 0.07;
-                        }
-                        EffectKind::Zoom => {
-                            item.alpha = ease_out(p * 1.6) as f32;
-                            item.scale = lerp(0.72, 1.0, spring(p));
-                        }
-                        EffectKind::Wipe => item.wipe = Some((fx.from, ease_in_out(p))),
-                        EffectKind::Fly => {
-                            let t = 1.0 - spring(p);
-                            item.alpha = ease_out(p * 2.5) as f32;
-                            match fx.from {
-                                Dir::Left => item.dx = -(el.rect.x + el.rect.w) * t,
-                                Dir::Right => item.dx = (w - el.rect.x) * t,
-                                Dir::Up => item.dy = -(el.rect.y + el.rect.h) * t,
-                                Dir::Down => item.dy = (h - el.rect.y) * t,
-                            }
-                        }
-                    }
+                // every effect on this shape (or on a group it sits in), in play order
+                let mut fxs: Vec<(usize, &Effect)> = slide
+                    .groups
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(gi, g)| g.effects.iter().filter(|e| e.shape_id == el.id || el.parents.contains(&e.shape_id)).map(move |e| (gi, e)))
+                    .collect();
+                fxs.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.start_ms.partial_cmp(&b.1.start_ms).unwrap_or(std::cmp::Ordering::Equal)));
+                if !fxs.is_empty() && !self.apply_effects(&mut item, &fxs, started, now, w, h) {
+                    continue;
                 }
             }
             out.push(item);
         }
         out
+    }
+
+    /// Plays an element's effects up to `now`. Returns false when the element is hidden.
+    fn apply_effects(&self, item: &mut Item, fxs: &[(usize, &Effect)], started: &[Option<f64>], now: f64, w: f64, h: f64) -> bool {
+        // an element whose first effect is an entrance starts hidden
+        let mut visible = fxs[0].1.class != EffectClass::Entrance;
+        for &(gi, fx) in fxs {
+            let Some(t0) = started.get(gi).copied().flatten() else { break };
+            let raw = (now - t0 - fx.start_ms) / fx.duration_ms.max(1.0);
+            if raw < 0.0 {
+                break;
+            }
+            let p = clamp01(raw);
+            match fx.class {
+                EffectClass::Entrance => {
+                    visible = true;
+                    if p < 1.0 {
+                        motion(item, fx, p, w, h);
+                        return true;
+                    }
+                }
+                EffectClass::Exit => {
+                    if p >= 1.0 {
+                        visible = false;
+                        continue;
+                    }
+                    // an exit is an entrance played backwards
+                    motion(item, fx, 1.0 - p, w, h);
+                    return visible;
+                }
+                EffectClass::Emphasis => {
+                    let e = ease_in_out(p);
+                    match fx.kind {
+                        EffectKind::Grow => item.scale *= lerp(1.0, fx.amount, e),
+                        EffectKind::Spin => item.drot += fx.amount * e,
+                        EffectKind::Transparency => item.alpha *= lerp(1.0, fx.amount, e) as f32,
+                        EffectKind::Teeter => {
+                            if p < 1.0 {
+                                item.drot += (p * std::f64::consts::PI * 6.0).sin() * 5.0 * (1.0 - p);
+                            }
+                        }
+                        _ => {
+                            // pulse: up and back, a soft heartbeat
+                            if p < 1.0 {
+                                item.scale *= 1.0 + 0.08 * (p * std::f64::consts::PI).sin();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        visible
     }
 
     fn plain_layer(&self, index: usize, items: Vec<Item>) -> SlideLayer {
@@ -363,7 +395,7 @@ impl Player {
         let leave = (1.0 - ease_out(p * 2.2)) as f32;
         for (ai, a) in a_els.iter().enumerate() {
             if !a_used[ai] && leave > 0.001 {
-                items.push(Item { el: (*a).clone(), alpha: leave, dx: 0.0, dy: 0.0, scale: lerp(1.0, 0.97, p), wipe: None, slide: from });
+                items.push(Item { el: (*a).clone(), alpha: leave, dx: 0.0, dy: 0.0, scale: lerp(1.0, 0.97, p), drot: 0.0, wipe: None, slide: from });
             }
         }
         // arriving elements settle in late
@@ -372,7 +404,7 @@ impl Player {
             match pair_of_b[bi] {
                 None => {
                     if arrive > 0.001 {
-                        items.push(Item { el: (*b).clone(), alpha: arrive, dx: 0.0, dy: (1.0 - spring((p - 0.35) / 0.65)) * self.deck.height * 0.025, scale: 1.0, wipe: None, slide: to });
+                        items.push(Item { el: (*b).clone(), alpha: arrive, dx: 0.0, dy: (1.0 - spring((p - 0.35) / 0.65)) * self.deck.height * 0.025, scale: 1.0, drot: 0.0, wipe: None, slide: to });
                     }
                 }
                 Some(ai) => {
@@ -389,11 +421,12 @@ impl Player {
                     let rot = a.rot + dr * t;
                     match blend(a, b, t) {
                         Some(kind) => items.push(Item {
-                            el: Element { id: b.id, name: b.name.clone(), rect, rot, flip_h: b.flip_h, flip_v: b.flip_v, kind },
+                            el: Element { id: b.id, name: b.name.clone(), rect, rot, flip_h: b.flip_h, flip_v: b.flip_v, kind, parents: b.parents.clone() },
                             alpha: 1.0,
                             dx: 0.0,
                             dy: 0.0,
                             scale: 1.0,
+                            drot: 0.0,
                             wipe: None,
                             slide: to,
                         }),
@@ -405,8 +438,8 @@ impl Player {
                             let mut eb = (*b).clone();
                             eb.rect = rect;
                             eb.rot = rot;
-                            items.push(Item { el: ea, alpha: 1.0 - tf, dx: 0.0, dy: 0.0, scale: 1.0, wipe: None, slide: from });
-                            items.push(Item { el: eb, alpha: tf, dx: 0.0, dy: 0.0, scale: 1.0, wipe: None, slide: to });
+                            items.push(Item { el: ea, alpha: 1.0 - tf, dx: 0.0, dy: 0.0, scale: 1.0, drot: 0.0, wipe: None, slide: from });
+                            items.push(Item { el: eb, alpha: tf, dx: 0.0, dy: 0.0, scale: 1.0, drot: 0.0, wipe: None, slide: to });
                         }
                     }
                 }
@@ -419,6 +452,38 @@ impl Player {
             (x, y) => (x.clone(), Some((y.clone(), tf))),
         };
         SlideLayer { background, background_over, alpha: 1.0, dx: 0.0, dy: 0.0, scale: 1.0, clip: None, items }
+    }
+}
+
+/// Entrance motion at progress p (exits call it with 1 - p).
+fn motion(item: &mut Item, fx: &Effect, p: f64, w: f64, h: f64) {
+    let el = &item.el;
+    match fx.kind {
+        EffectKind::Appear => {
+            if p <= 0.0 {
+                item.alpha = 0.0;
+            }
+        }
+        EffectKind::Rise => {
+            item.alpha *= ease_out(p) as f32;
+            item.dy += (1.0 - spring(p)) * h * 0.07;
+        }
+        EffectKind::Zoom => {
+            item.alpha *= ease_out(p * 1.6) as f32;
+            item.scale *= lerp(0.72, 1.0, spring(p));
+        }
+        EffectKind::Wipe => item.wipe = Some((fx.from, ease_in_out(p))),
+        EffectKind::Fly => {
+            let t = 1.0 - spring(p);
+            item.alpha *= ease_out(p * 2.5) as f32;
+            match fx.from {
+                Dir::Left => item.dx += -(el.rect.x + el.rect.w) * t,
+                Dir::Right => item.dx += (w - el.rect.x) * t,
+                Dir::Up => item.dy += -(el.rect.y + el.rect.h) * t,
+                Dir::Down => item.dy += (h - el.rect.y) * t,
+            }
+        }
+        _ => item.alpha *= ease_out(p) as f32,
     }
 }
 
@@ -460,7 +525,7 @@ fn blend(a: &Element, b: &Element, t: f64) -> Option<Kind> {
             alpha: a1 + (a2 - a1) * tf,
             geom: blend_geom(g1, g2, t),
         }),
-        (Kind::Shape { geom: g1, fill: f1, stroke: s1, shadow: sh1, text: t1 }, Kind::Shape { geom: g2, fill: f2, stroke: s2, shadow: sh2, text: t2 }) => {
+        (Kind::Shape { geom: g1, fill: f1, gradient: gr1, stroke: s1, shadow: sh1, text: t1 }, Kind::Shape { geom: g2, fill: f2, gradient: gr2, stroke: s2, shadow: sh2, text: t2 }) => {
             let text = match (t1, t2) {
                 (None, None) => None,
                 (Some(x), Some(y)) if x.plain() == y.plain() && x.paragraphs.len() == y.paragraphs.len() => {
@@ -501,7 +566,16 @@ fn blend(a: &Element, b: &Element, t: f64) -> Option<Kind> {
                     }
                 }
             };
-            Some(Kind::Shape { geom: blend_geom(g1, g2, t), fill: blend_color(*f1, *f2, tf), stroke, shadow, text })
+            // gradients blend stop by stop; a solid side acts as a one-color gradient
+            let gradient = match (gr1, gr2) {
+                (None, None) => None,
+                (a, b) => {
+                    let ga = a.clone().unwrap_or_else(|| Gradient::solid(f1.unwrap_or(Color { a: 0.0, ..Color::BLACK })));
+                    let gb = b.clone().unwrap_or_else(|| Gradient::solid(f2.unwrap_or(Color { a: 0.0, ..Color::BLACK })));
+                    Some(ga.lerp(&gb, t))
+                }
+            };
+            Some(Kind::Shape { geom: blend_geom(g1, g2, t), fill: blend_color(*f1, *f2, tf), gradient, stroke, shadow, text })
         }
         (Kind::Fallback, Kind::Fallback) => None,
         _ => None,

@@ -6,7 +6,7 @@ fn main() {
     for (i, s) in deck.slides.iter().enumerate() {
         println!("--- slide {} bg={:?} transition={:?} groups={} notes={}ch", i + 1, s.background, s.transition, s.groups.len(), s.notes.len());
         for g in &s.groups {
-            println!("    group auto={} {:?}", g.auto, g.effects.iter().map(|e| (e.shape_id, e.kind, e.start_ms, e.duration_ms)).collect::<Vec<_>>());
+            println!("    group auto={} {:?}", g.auto, g.effects.iter().map(|e| (e.shape_id, e.class, e.kind, e.amount, e.start_ms, e.duration_ms)).collect::<Vec<_>>());
         }
         for e in &s.elements {
             let d = match &e.kind {
@@ -20,6 +20,8 @@ fn main() {
                     })
                 ),
                 Kind::Picture { media, .. } => format!("pic {media}"),
+                Kind::Table(t) => format!("table {} cols x {} rows", t.cols.len(), t.rows.len()),
+                Kind::Chart(c) => format!("chart {:?} {} series x {} cats, values={} pct={} legend={:?} title={:?}", c.kind, c.series.len(), c.categories.len(), c.show_values, c.show_percent, c.legend, c.title),
                 Kind::Fallback => "fallback".into(),
             };
             println!("  #{:<3} {:<22} {:>5.2},{:>5.2} {:>5.2}x{:<5.2} {}", e.id, e.name, e.rect.x / 914400.0, e.rect.y / 914400.0, e.rect.w / 914400.0, e.rect.h / 914400.0, d);

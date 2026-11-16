@@ -9,10 +9,10 @@ use std::io::{Cursor, Read};
 type Files = HashMap<String, Vec<u8>>;
 
 // ── small XML helpers (match by local name; namespaces are not needed for our subset) ──
-fn kids<'a>(n: Node<'a, 'a>, name: &'a str) -> impl Iterator<Item = Node<'a, 'a>> {
+pub(crate) fn kids<'a>(n: Node<'a, 'a>, name: &'a str) -> impl Iterator<Item = Node<'a, 'a>> {
     n.children().filter(move |c| c.is_element() && c.tag_name().name() == name)
 }
-fn kid<'a>(n: Node<'a, 'a>, name: &'a str) -> Option<Node<'a, 'a>> {
+pub(crate) fn kid<'a>(n: Node<'a, 'a>, name: &'a str) -> Option<Node<'a, 'a>> {
     kids(n, name).next()
 }
 fn path<'a>(n: Node<'a, 'a>, names: &[&'a str]) -> Option<Node<'a, 'a>> {
@@ -22,13 +22,13 @@ fn path<'a>(n: Node<'a, 'a>, names: &[&'a str]) -> Option<Node<'a, 'a>> {
     }
     Some(cur)
 }
-fn desc<'a>(n: Node<'a, 'a>, name: &'a str) -> Option<Node<'a, 'a>> {
+pub(crate) fn desc<'a>(n: Node<'a, 'a>, name: &'a str) -> Option<Node<'a, 'a>> {
     n.descendants().find(|c| c.is_element() && c.tag_name().name() == name)
 }
-fn attr_f(n: Node, name: &str) -> Option<f64> {
+pub(crate) fn attr_f(n: Node, name: &str) -> Option<f64> {
     n.attribute(name).and_then(|v| v.trim().parse::<f64>().ok())
 }
-fn attr_b(n: Node, name: &str) -> Option<bool> {
+pub(crate) fn attr_b(n: Node, name: &str) -> Option<bool> {
     n.attribute(name).map(|v| v == "1" || v == "true")
 }
 
@@ -201,7 +201,7 @@ struct Layer {
     statics: Vec<Element>,
 }
 
-struct Env {
+pub(crate) struct Env {
     theme: HashMap<String, Color>,
     clr_map: HashMap<String, String>,
     major: String,
@@ -213,6 +213,7 @@ struct Env {
 
 struct PartCtx<'a> {
     env: &'a Env,
+    files: &'a Files,
     rels: &'a HashMap<String, (String, String)>,
     slide_no: usize,
     /// placeholder sources, nearest first (layout, then master)
@@ -267,7 +268,7 @@ fn hsl_to_rgb(h: f32, s: f32, l: f32, a: f32) -> Color {
 }
 
 /// `n` is a color element (srgbClr, schemeClr, sysClr, prstClr).
-fn color_node(n: Node, env: &Env) -> Option<Color> {
+pub(crate) fn color_node(n: Node, env: &Env) -> Option<Color> {
     let mut c = match n.tag_name().name() {
         "srgbClr" => Color::from_hex(n.attribute("val")?)?,
         "sysClr" => Color::from_hex(n.attribute("lastClr").unwrap_or("000000"))?,
@@ -311,12 +312,12 @@ fn color_node(n: Node, env: &Env) -> Option<Color> {
 }
 
 /// First color found among the element children of `n` (e.g. a solidFill).
-fn color_in(n: Node, env: &Env) -> Option<Color> {
+pub(crate) fn color_in(n: Node, env: &Env) -> Option<Color> {
     n.children().filter(|c| c.is_element()).find_map(|c| color_node(c, env))
 }
 
 /// Fill declared on `n` (spPr, rPr, ln…): Some(None) = explicitly no fill.
-fn fill_of(n: Node, env: &Env) -> Option<Option<Color>> {
+pub(crate) fn fill_of(n: Node, env: &Env) -> Option<Option<Color>> {
     for c in n.children().filter(|c| c.is_element()) {
         match c.tag_name().name() {
             "noFill" => return Some(None),
@@ -329,6 +330,62 @@ fn fill_of(n: Node, env: &Env) -> Option<Option<Color>> {
         }
     }
     None
+}
+
+/// A gradFill on `n` (spPr, bgPr) as a Gradient.
+fn gradient_of(n: Node, env: &Env) -> Option<Gradient> {
+    let g = kid(n, "gradFill")?;
+    let mut stops: Vec<(f64, Color)> = desc(g, "gsLst")
+        .map(|l| kids(l, "gs").filter_map(|gs| Some((attr_f(gs, "pos").unwrap_or(0.0) / 100000.0, color_in(gs, env)?))).collect())
+        .unwrap_or_default();
+    if stops.is_empty() {
+        return None;
+    }
+    stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    let radial = kid(g, "path").is_some();
+    let angle = kid(g, "lin").and_then(|l| attr_f(l, "ang")).map(|a| a / 60000.0).unwrap_or(90.0);
+    Some(Gradient { stops, angle, radial })
+}
+
+/// Maps a group's child coordinate space onto the slide, and remembers the group ids.
+#[derive(Clone)]
+struct GroupMap {
+    sx: f64,
+    sy: f64,
+    tx: f64,
+    ty: f64,
+    parents: Vec<u32>,
+}
+
+impl GroupMap {
+    const IDENTITY: GroupMap = GroupMap { sx: 1.0, sy: 1.0, tx: 0.0, ty: 0.0, parents: Vec::new() };
+
+    fn place(&self, r: Rect) -> Rect {
+        Rect { x: self.tx + r.x * self.sx, y: self.ty + r.y * self.sy, w: r.w * self.sx, h: r.h * self.sy }
+    }
+
+    /// The map for the children of a grpSp node inside this group.
+    fn child(&self, grp: Node) -> GroupMap {
+        let mut parents = self.parents.clone();
+        if let Some(id) = path(grp, &["nvGrpSpPr", "cNvPr"]).and_then(|c| attr_f(c, "id")) {
+            parents.push(id as u32);
+        }
+        let Some(x) = path(grp, &["grpSpPr", "xfrm"]) else { return GroupMap { parents, ..self.clone() } };
+        let get = |tag: &str, a: &str, b: &str| kid(x, tag).map(|n| (attr_f(n, a).unwrap_or(0.0), attr_f(n, b).unwrap_or(0.0)));
+        let (Some((ox, oy)), Some((ex, ey))) = (get("off", "x", "y"), get("ext", "cx", "cy")) else { return GroupMap { parents, ..self.clone() } };
+        let (cox, coy) = get("chOff", "x", "y").unwrap_or((ox, oy));
+        let (cex, cey) = get("chExt", "cx", "cy").unwrap_or((ex, ey));
+        let lsx = if cex > 0.0 { ex / cex } else { 1.0 };
+        let lsy = if cey > 0.0 { ey / cey } else { 1.0 };
+        // child -> group space: off + (c - chOff) * ext/chExt ; then group space -> slide via self
+        GroupMap {
+            sx: self.sx * lsx,
+            sy: self.sy * lsy,
+            tx: self.tx + self.sx * (ox - cox * lsx),
+            ty: self.ty + self.sy * (oy - coy * lsy),
+            parents,
+        }
+    }
 }
 
 // ── text styles ──────────────────────────────────────────────────────────────
@@ -586,9 +643,61 @@ fn text_body(tx: Node, base: &ListStyle, body: &BodyAttrs, ctx: &PartCtx) -> Opt
     })
 }
 
+/// A DrawingML table: grid, rows, cells with their text, fill, borders and spans.
+fn table_of(tbl: Node, ctx: &PartCtx) -> Option<Table> {
+    let env = ctx.env;
+    let cols: Vec<f64> = kid(tbl, "tblGrid").map(|g| kids(g, "gridCol").filter_map(|c| attr_f(c, "w")).collect()).unwrap_or_default();
+    if cols.is_empty() {
+        return None;
+    }
+    let base = env.other_style.clone();
+    let mut rows = Vec::new();
+    for tr in kids(tbl, "tr") {
+        let mut cells = Vec::new();
+        for tc in kids(tr, "tc") {
+            let pr = kid(tc, "tcPr");
+            let margins = [
+                pr.and_then(|p| attr_f(p, "marL")).unwrap_or(91440.0),
+                pr.and_then(|p| attr_f(p, "marT")).unwrap_or(45720.0),
+                pr.and_then(|p| attr_f(p, "marR")).unwrap_or(91440.0),
+                pr.and_then(|p| attr_f(p, "marB")).unwrap_or(45720.0),
+            ];
+            let body = BodyAttrs {
+                anchor: pr.and_then(|p| p.attribute("anchor")).map(|a| match a {
+                    "ctr" => Anchor::Middle,
+                    "b" => Anchor::Bottom,
+                    _ => Anchor::Top,
+                }),
+                insets: margins.map(Some),
+                wrap: Some(true),
+            };
+            let text = kid(tc, "txBody").and_then(|t| text_body(t, &base, &body, ctx));
+            let border = |tag: &str| {
+                let ln = pr.and_then(|p| kid(p, tag))?;
+                let color = fill_of(ln, env)??;
+                Some(Stroke { color, width: attr_f(ln, "w").unwrap_or(12700.0), dash: Dash::Solid })
+            };
+            cells.push(Cell {
+                text,
+                fill: pr.and_then(|p| fill_of(p, env)).flatten(),
+                borders: [border("lnL"), border("lnT"), border("lnR"), border("lnB")],
+                col_span: attr_f(tc, "gridSpan").unwrap_or(1.0).max(1.0) as usize,
+                row_span: attr_f(tc, "rowSpan").unwrap_or(1.0).max(1.0) as usize,
+                covered: attr_b(tc, "hMerge").unwrap_or(false) || attr_b(tc, "vMerge").unwrap_or(false),
+            });
+        }
+        rows.push((attr_f(tr, "h").unwrap_or(0.0), cells));
+    }
+    Some(Table { cols, rows })
+}
+
 /// Walks a shape tree. Placeholders are collected for inheritance; `draw_placeholders`
 /// says whether they are also drawn (slides: yes; layouts and masters: no).
 fn shape_tree(tree: Node, ctx: &mut PartCtx, draw_placeholders: bool, layer: &mut Layer) {
+    shape_tree_in(tree, ctx, draw_placeholders, layer, &GroupMap::IDENTITY);
+}
+
+fn shape_tree_in(tree: Node, ctx: &mut PartCtx, draw_placeholders: bool, layer: &mut Layer, map: &GroupMap) {
     let env = ctx.env;
     for n in tree.children().filter(|c| c.is_element()) {
         let tag = n.tag_name().name();
@@ -641,6 +750,7 @@ fn shape_tree(tree: Node, ctx: &mut PartCtx, draw_placeholders: bool, layer: &mu
                 let Some(x) = xfrm else { continue };
                 let text = tx.and_then(|t| text_body(t, &base, &body, ctx));
                 let fill = sp_pr.and_then(|s| fill_of(s, env)).flatten();
+                let gradient = sp_pr.and_then(|s| gradient_of(s, env));
                 let stroke = stroke_of(sp_pr, env);
                 if fill.is_none() && stroke.is_none() && text.is_none() {
                     continue;
@@ -648,11 +758,12 @@ fn shape_tree(tree: Node, ctx: &mut PartCtx, draw_placeholders: bool, layer: &mu
                 layer.statics.push(Element {
                     id,
                     name,
-                    rect: x.rect,
+                    rect: map.place(x.rect),
                     rot: x.rot,
                     flip_h: x.flip_h,
                     flip_v: x.flip_v,
-                    kind: Kind::Shape { geom: geom_of(sp_pr), fill, stroke, shadow: shadow_of(sp_pr, env), text },
+                    kind: Kind::Shape { geom: geom_of(sp_pr), fill, gradient, stroke, shadow: shadow_of(sp_pr, env), text },
+                    parents: map.parents.clone(),
                 });
             }
             "pic" => {
@@ -679,27 +790,48 @@ fn shape_tree(tree: Node, ctx: &mut PartCtx, draw_placeholders: bool, layer: &mu
                 layer.statics.push(Element {
                     id,
                     name,
-                    rect: x.rect,
+                    rect: map.place(x.rect),
                     rot: x.rot,
                     flip_h: x.flip_h,
                     flip_v: x.flip_v,
                     kind: Kind::Picture { media, crop, alpha, geom: geom_of(sp_pr) },
+                    parents: map.parents.clone(),
                 });
             }
             "graphicFrame" => {
                 let c_nv = path(n, &["nvGraphicFramePr", "cNvPr"]);
                 let Some(x) = xfrm_of(kid(n, "xfrm")) else { continue };
+                let data = desc(n, "graphicData");
+                let kind = if let Some(tbl) = data.and_then(|d| kid(d, "tbl")) {
+                    table_of(tbl, ctx).map(Kind::Table).unwrap_or(Kind::Fallback)
+                } else if let Some(rid) = data
+                    .and_then(|d| kid(d, "chart"))
+                    .and_then(|c| c.attributes().find(|a| a.name() == "id").map(|a| a.value().to_string()))
+                {
+                    ctx.rels
+                        .get(&rid)
+                        .and_then(|(_, target)| ctx.files.get(target))
+                        .and_then(|bytes| crate::chart::parse_chart(&String::from_utf8_lossy(bytes), env))
+                        .map(|c| Kind::Chart(Box::new(c)))
+                        .unwrap_or(Kind::Fallback)
+                } else {
+                    Kind::Fallback
+                };
                 layer.statics.push(Element {
                     id: c_nv.and_then(|c| attr_f(c, "id")).unwrap_or(0.0) as u32,
                     name: c_nv.and_then(|c| c.attribute("name")).unwrap_or("").to_string(),
-                    rect: x.rect,
+                    rect: map.place(x.rect),
                     rot: 0.0,
                     flip_h: false,
                     flip_v: false,
-                    kind: Kind::Fallback,
+                    kind,
+                    parents: map.parents.clone(),
                 });
             }
-            "grpSp" => shape_tree(n, ctx, draw_placeholders, layer),
+            "grpSp" => {
+                let inner = map.child(n);
+                shape_tree_in(n, ctx, draw_placeholders, layer, &inner);
+            }
             _ => {}
         }
     }
@@ -714,6 +846,9 @@ fn background_of(c_sld: Node, ctx: &mut PartCtx) -> Option<Background> {
             ctx.media.push(media.clone());
         }
         return Some(Background::Image(media));
+    }
+    if let Some(g) = gradient_of(bg_pr, ctx.env) {
+        return Some(Background::Gradient(g));
     }
     fill_of(bg_pr, ctx.env).flatten().map(Background::Color)
 }
@@ -782,9 +917,12 @@ fn timing_of(root: Node) -> Vec<ClickGroup> {
             let Some(fx_list) = kid(sub_tn, "childTnLst") else { continue };
             for fx in kids(fx_list, "par") {
                 let Some(fx_tn) = kid(fx, "cTn") else { continue };
-                if fx_tn.attribute("presetClass") != Some("entr") {
-                    continue;
-                }
+                let class = match fx_tn.attribute("presetClass") {
+                    Some("entr") => EffectClass::Entrance,
+                    Some("exit") => EffectClass::Exit,
+                    Some("emph") => EffectClass::Emphasis,
+                    _ => continue,
+                };
                 let Some(shape_id) = desc(fx, "spTgt").and_then(|s| attr_f(s, "spid")) else { continue };
                 let preset = attr_f(fx_tn, "presetID").unwrap_or(10.0) as u32;
                 let from = match attr_f(fx_tn, "presetSubtype").unwrap_or(4.0) as u32 {
@@ -793,22 +931,41 @@ fn timing_of(root: Node) -> Vec<ClickGroup> {
                     8 => Dir::Left,
                     _ => Dir::Down,
                 };
-                let kind = match preset {
-                    1 => EffectKind::Appear,
-                    2 => EffectKind::Fly,
-                    22 => EffectKind::Wipe,
-                    42 | 37 | 47 => EffectKind::Rise,
-                    53 | 23 => EffectKind::Zoom,
+                let kind = match (class, preset) {
+                    (EffectClass::Emphasis, 6) => EffectKind::Grow,
+                    (EffectClass::Emphasis, 8) => EffectKind::Spin,
+                    (EffectClass::Emphasis, 9) => EffectKind::Transparency,
+                    (EffectClass::Emphasis, 32) => EffectKind::Teeter,
+                    (EffectClass::Emphasis, _) => EffectKind::Pulse,
+                    (_, 1) => EffectKind::Appear,
+                    (_, 2) => EffectKind::Fly,
+                    (_, 22) => EffectKind::Wipe,
+                    (_, 42) | (_, 37) | (_, 47) => EffectKind::Rise,
+                    (_, 53) | (_, 23) => EffectKind::Zoom,
                     _ => EffectKind::Fade,
+                };
+                let amount = match kind {
+                    EffectKind::Grow => desc(fx, "animScale").and_then(|a| kid(a, "by")).and_then(|b| attr_f(b, "x")).map(|x| x / 100000.0).unwrap_or(1.5),
+                    EffectKind::Spin => desc(fx, "animRot").and_then(|a| attr_f(a, "by")).map(|b| b / 60000.0).unwrap_or(360.0),
+                    EffectKind::Transparency => fx
+                        .descendants()
+                        .filter(|n| n.is_element() && n.tag_name().name() == "strVal")
+                        .filter_map(|n| n.attribute("val").and_then(|v| v.parse::<f64>().ok()))
+                        .find(|v| (0.0..=1.0).contains(v))
+                        .unwrap_or(0.5),
+                    _ => 0.0,
                 };
                 let dur = fx
                     .descendants()
                     .filter(|n| n.is_element() && n.tag_name().name() == "cTn" && n.id() != fx_tn.id())
-                    .filter_map(|n| attr_f(n, "dur"))
+                    // an auto-reversing behaviour plays forward and back: twice its dur
+                    .filter_map(|n| attr_f(n, "dur").map(|d| if n.attribute("autoRev") == Some("1") { d * 2.0 } else { d }))
                     .fold(0.0, f64::max);
                 effects.push(Effect {
                     shape_id: shape_id as u32,
+                    class,
                     kind,
+                    amount,
                     from,
                     start_ms: offset + cond_delay(fx_tn),
                     duration_ms: if kind == EffectKind::Appear { 1.0 } else { dur.max(200.0) },
@@ -939,7 +1096,7 @@ pub fn parse_deck(bytes: &[u8]) -> Result<Deck, String> {
                         l.bullet = Some(BulletStyle::None);
                     }
                     if let Some(c_sld) = kid(root, "cSld") {
-                        let mut ctx = PartCtx { env: &env, rels: &master_rels, slide_no: 0, parents: vec![], media: &mut media_names };
+                        let mut ctx = PartCtx { env: &env, files: &files, rels: &master_rels, slide_no: 0, parents: vec![], media: &mut media_names };
                         layer.background = background_of(c_sld, &mut ctx);
                         if let Some(tree) = kid(c_sld, "spTree") {
                             shape_tree(tree, &mut ctx, false, &mut layer);
@@ -959,7 +1116,7 @@ pub fn parse_deck(bytes: &[u8]) -> Result<Deck, String> {
                 let root = doc.root_element();
                 show_master = attr_b(root, "showMasterSp").unwrap_or(true);
                 if let Some(c_sld) = kid(root, "cSld") {
-                    let mut ctx = PartCtx { env, rels: &layout_rels, slide_no: i + 1, parents: vec![&master_layer.placeholders], media: &mut media_names };
+                    let mut ctx = PartCtx { env, files: &files, rels: &layout_rels, slide_no: i + 1, parents: vec![&master_layer.placeholders], media: &mut media_names };
                     layout_layer.background = background_of(c_sld, &mut ctx);
                     if let Some(tree) = kid(c_sld, "spTree") {
                         shape_tree(tree, &mut ctx, false, &mut layout_layer);
@@ -976,6 +1133,7 @@ pub fn parse_deck(bytes: &[u8]) -> Result<Deck, String> {
         if let Some(c_sld) = kid(root, "cSld") {
             let mut ctx = PartCtx {
                 env,
+                files: &files,
                 rels: &rels,
                 slide_no: i + 1,
                 parents: vec![&layout_layer.placeholders, &master_layer.placeholders],

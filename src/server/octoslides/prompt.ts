@@ -86,7 +86,10 @@ Recipes name every element \`\${id}-…\` (e.g. card-2-title). Give each recipe 
               "4": { "transition": { "type": "morph" } } } }
 \`\`\`
   transitions: fade, push, wipe, cover, pull (direction left/right/up/down), split, zoom (in/out), dissolve, morph (option byObject/byWord/byChar), none.
-  effects (entrances): appear, fade, rise, fly, wipe, zoom; direction = where it comes from (top/right/bottom/left); trigger onClick (default) / withPrevious / afterPrevious.
+  entrances: appear, fade, rise, fly, wipe, zoom; direction = where it comes from (top/right/bottom/left).
+  exits: fadeOut, flyOut, wipeOut, zoomOut, disappear; direction = where it leaves to.
+  emphasis (the element stays): pulse, spin (degrees, default 360), grow (scale, default 1.15), transparency (opacity 0..1, default 0.5).
+  trigger onClick (default) / withPrevious / afterPrevious. One element may have an entrance, emphasis and an exit, in that order.
 - Morph: consecutive slides with elements that share an objectName starting with "!!" (e.g. "!!hero") are morphed into each other (position, size, color). Put the morph transition on the SECOND slide. Great for a title that shrinks into a header, a photo that becomes a thumbnail, a highlight moving between list items.
 - Motion taste: one default transition for the whole deck (fade or a subtle push), morph where it tells the story, and entrance animations only where they pace a reveal (stats, steps, a punchline). Don't animate every element; don't use more than two effect types. The preview renders are static, so motion cannot be checked visually: keep it simple and correct (watch postbuild warnings about unknown targets).
 

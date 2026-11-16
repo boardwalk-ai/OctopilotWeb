@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Octo Present Fidelity</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Caladea:ital,wght@0,400;0,700;1,400;1,700&family=Arimo:ital,wght@0,400;0,700;1,400;1,700&display=swap">
+<style>
+  :root { --bg: #0b0b0c; --fg: #e8e8ea; --mute: #8a8a90; --line: #232328; --bad: #ef4444; --ok: #22c55e; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { color: var(--mute); margin: 0 0 18px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 20px; }
+  label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); }
+  button { background: var(--fg); color: #000; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+  .summary { display: flex; gap: 24px; margin: 8px 0 20px; font-variant-numeric: tabular-nums; }
+  .summary b { font-size: 22px; display: block; }
+  .row { display: grid; grid-template-columns: 90px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; border-top: 1px solid var(--line); padding: 14px 0; }
+  .row canvas, .row img { width: 100%; height: auto; border-radius: 6px; display: block; background: #fff; }
+  .cap { font-size: 11px; color: var(--mute); margin-top: 4px; }
+  .score { font-variant-numeric: tabular-nums; }
+  .score b { font-size: 18px; display: block; }
+  .bad { color: var(--bad); } .good { color: var(--ok); }
+  @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Presentation engine fidelity</h1>
+  <p class="lead">Renders each slide with the Octopilot engine and compares it pixel by pixel with a reference render (LibreOffice, from the OctoSlides sandbox). Text anti-aliasing always differs a little; look at the heat map for real layout drift.</p>
+  <div class="controls">
+    <label>Deck (.pptx)<input type="file" id="deck" accept=".pptx"></label>
+    <label>Reference renders (slide-1.png, slide-2.png …)<input type="file" id="refs" accept="image/png" multiple></label>
+    <label>Pixel tolerance<input type="number" id="tol" value="48" min="0" max="255" style="width:80px"></label>
+    <button id="run">Compare</button>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div id="rows"></div>
+</main>
+<script type="module">
+  import init, { Engine } from "/octo-present/octo_present.js";
+  await init({ module_or_path: "/octo-present/octo_present_bg.wasm" });
+
+  const $ = (id) => document.getElementById(id);
+  const decode = (blob) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = URL.createObjectURL(blob); });
+  const mime = (n) => n.endsWith(".png") ? "image/png" : n.endsWith(".gif") ? "image/gif" : n.endsWith(".svg") ? "image/svg+xml" : "image/jpeg";
+
+  async function compare(deckBytes, refFiles, tol) {
+    const engine = new Engine(new Uint8Array(deckBytes));
+    for (const name of engine.mediaNames()) {
+      const img = await decode(new Blob([engine.mediaBytes(name)], { type: mime(name) }));
+      if (img) engine.setImage(name, img);
+    }
+    const refs = {};
+    for (const f of refFiles) { const m = f.name.match(/(\d+)\.png$/); if (m) refs[Number(m[1])] = await decode(f); }
+    for (const [n, img] of Object.entries(refs)) if (img) engine.setReference(Number(n) - 1, img);
+    await Promise.all(engine.fonts().flatMap((f) => ["400", "700"].map((w) => document.fonts.load(`${w} 24px "${f}"`).catch(() => {}))));
+    await Promise.all(["Carlito", "Caladea", "Arimo"].flatMap((f) => ["400", "700"].map((w) => document.fonts.load(`${w} 24px "${f}"`).catch(() => {}))));
+    engine.fontsChanged();
+
+    const results = [];
+    $("rows").innerHTML = "";
+    for (let i = 0; i < engine.slideCount(); i++) {
+      const ref = refs[i + 1];
+      const W = ref ? ref.naturalWidth : 1333, H = ref ? ref.naturalHeight : Math.round(1333 / engine.aspect());
+      const ours = Object.assign(document.createElement("canvas"), { width: W, height: H });
+      engine.renderSlide(ours.getContext("2d"), W, H, i);
+      const row = document.createElement("div");
+      row.className = "row";
+      if (!ref) {
+        row.innerHTML = `<div class="score">Slide ${i + 1}<br><span class="cap">no reference</span></div>`;
+        row.append(ours);
+        $("rows").append(row);
+        continue;
+      }
+      const theirs = Object.assign(document.createElement("canvas"), { width: W, height: H });
+      theirs.getContext("2d").drawImage(ref, 0, 0, W, H);
+      const a = ours.getContext("2d").getImageData(0, 0, W, H).data;
+      const b = theirs.getContext("2d").getImageData(0, 0, W, H).data;
+      const heat = Object.assign(document.createElement("canvas"), { width: W, height: H });
+      const hctx = heat.getContext("2d");
+      const out = hctx.createImageData(W, H);
+      let bad = 0, sum = 0;
+      for (let p = 0; p < a.length; p += 4) {
+        const d = Math.max(Math.abs(a[p] - b[p]), Math.abs(a[p + 1] - b[p + 1]), Math.abs(a[p + 2] - b[p + 2]));
+        sum += d;
+        const lum = (b[p] * 0.3 + b[p + 1] * 0.59 + b[p + 2] * 0.11) * 0.35;
+        if (d > tol) { bad++; out.data[p] = 255; out.data[p + 1] = 40; out.data[p + 2] = 40; }
+        else { out.data[p] = out.data[p + 1] = out.data[p + 2] = lum; }
+        out.data[p + 3] = 255;
+      }
+      hctx.putImageData(out, 0, 0);
+      const pct = (bad / (W * H)) * 100;
+      const mean = sum / (W * H);
+      results.push({ slide: i + 1, pct, mean });
+      row.innerHTML = `<div class="score">Slide ${i + 1}<b class="${pct < 3 ? "good" : "bad"}">${pct.toFixed(2)}%</b><span class="cap">pixels off · mean Δ ${mean.toFixed(1)}</span></div>`;
+      for (const [c, cap] of [[ours, "Octopilot engine"], [theirs, "Reference (LibreOffice)"], [heat, "Differences"]]) {
+        const cell = document.createElement("div");
+        cell.append(c);
+        cell.insertAdjacentHTML("beforeend", `<div class="cap">${cap}</div>`);
+        row.append(cell);
+      }
+      $("rows").append(row);
+    }
+    const avg = results.length ? results.reduce((s, r) => s + r.pct, 0) / results.length : 0;
+    $("summary").innerHTML = `<div><b>${results.length}</b>slides compared</div><div><b class="${avg < 3 ? "good" : "bad"}">${avg.toFixed(2)}%</b>pixels off on average</div><div><b>${results.filter((r) => r.pct >= 3).length}</b>slides above 3%</div>`;
+    window.fidelityResults = results;
+    engine.free();
+    return results;
+  }
+
+  $("run").onclick = async () => {
+    const deck = $("deck").files[0];
+    if (!deck) return;
+    await compare(await deck.arrayBuffer(), [...$("refs").files], Number($("tol").value));
+  };
+  // automation: ?deck=/path.pptx&refs=/dir/ (slide-N.png) runs on load
+  const q = new URLSearchParams(location.search);
+  if (q.get("deck")) {
+    const deck = await (await fetch(q.get("deck"))).arrayBuffer();
+    const files = [];
+    for (let n = 1; n <= 60; n++) {
+      const r = await fetch(`${q.get("refs")}slide-${n}.png`);
+      if (!r.ok) break;
+      files.push(new File([await r.blob()], `slide-${n}.png`));
+    }
+    await compare(deck, files, Number(q.get("tol") ?? 48));
+  }
+</script>
+</body>
+</html>

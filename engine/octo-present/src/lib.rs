@@ -6,6 +6,7 @@
 //! on a Canvas2D context.
 
 pub mod model;
+pub mod chart;
 pub mod parse;
 pub mod play;
 #[cfg(target_arch = "wasm32")]

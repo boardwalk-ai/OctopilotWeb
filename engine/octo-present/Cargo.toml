@@ -16,7 +16,7 @@ zip = { version = "2.2", default-features = false, features = ["deflate"] }
 wasm-bindgen = "=0.2.100"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
-  "CanvasRenderingContext2d", "HtmlCanvasElement", "HtmlImageElement", "ImageBitmap",
+  "CanvasRenderingContext2d", "CanvasGradient", "HtmlCanvasElement", "HtmlImageElement", "ImageBitmap",
   "TextMetrics", "Document", "Window", "Element", "CanvasWindingRule",
 ] }
 

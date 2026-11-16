@@ -228,6 +228,8 @@ function effectBody(a, spid, nextId) {
   const prop = (attr, from, to) =>
     `<p:anim calcmode="lin" valueType="num"><p:cBhvr additive="base"><p:cTn id="${nextId()}" dur="${dur}" fill="hold"/>${tgt}<p:attrNameLst><p:attrName>${attr}</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm="0"><p:val><p:strVal val="${from}"/></p:val></p:tav><p:tav tm="100000"><p:val><p:strVal val="${to}"/></p:val></p:tav></p:tavLst></p:anim>`;
   const fade = () => `<p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}"/>${tgt}</p:cBhvr></p:animEffect>`;
+  const fadeOut = () => `<p:animEffect transition="out" filter="fade"><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}"/>${tgt}</p:cBhvr></p:animEffect>`;
+  const hide = (at) => `<p:set><p:cBhvr><p:cTn id="${nextId()}" dur="1" fill="hold"><p:stCondLst><p:cond delay="${Math.max(0, at - 1)}"/></p:stCondLst></p:cTn>${tgt}<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="hidden"/></p:to></p:set>`;
   const from = SUBTYPE[a.direction] ? a.direction : "bottom";
   switch (a.effect) {
     case "appear": return { presetID: 1, subtype: 0, body: show };
@@ -243,6 +245,35 @@ function effectBody(a, spid, nextId) {
       return { presetID: 22, subtype: SUBTYPE[from], body: show + `<p:animEffect transition="in" filter="${WIPE_FILTER[from]}"><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}"/>${tgt}</p:cBhvr></p:animEffect>` };
     case "zoom":
       return { presetID: 53, subtype: 16, body: show + prop("ppt_w", "0", "#ppt_w") + prop("ppt_h", "0", "#ppt_h") + fade() };
+    // ── exits: the entrance played out, then hidden ──
+    case "disappear":
+      return { cls: "exit", presetID: 1, subtype: 0, body: hide(0) };
+    case "fadeOut":
+      return { cls: "exit", presetID: 10, subtype: 0, body: fadeOut() + hide(dur) };
+    case "flyOut": {
+      const x = from === "left" ? "0-#ppt_w/2" : from === "right" ? "1+#ppt_w/2" : "#ppt_x";
+      const y = from === "top" ? "0-#ppt_h/2" : from === "bottom" ? "1+#ppt_h/2" : "#ppt_y";
+      return { cls: "exit", presetID: 2, subtype: SUBTYPE[from], body: prop("ppt_x", "#ppt_x", x) + prop("ppt_y", "#ppt_y", y) + hide(dur) };
+    }
+    case "wipeOut":
+      return { cls: "exit", presetID: 22, subtype: SUBTYPE[from], body: `<p:animEffect transition="out" filter="${WIPE_FILTER[from]}"><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}"/>${tgt}</p:cBhvr></p:animEffect>` + hide(dur) };
+    case "zoomOut":
+      return { cls: "exit", presetID: 53, subtype: 16, body: prop("ppt_w", "#ppt_w", "0") + prop("ppt_h", "#ppt_h", "0") + fadeOut() + hide(dur) };
+    // ── emphasis: the element stays on the slide ──
+    case "pulse":
+      return { cls: "emph", presetID: 26, subtype: 0, body: `<p:animScale><p:cBhvr><p:cTn id="${nextId()}" dur="${Math.round(dur / 2)}" autoRev="1" fill="hold"/>${tgt}</p:cBhvr><p:by x="108000" y="108000"/></p:animScale>` };
+    case "spin": {
+      const deg = Number.isFinite(a.degrees) ? a.degrees : 360;
+      return { cls: "emph", presetID: 8, subtype: 0, body: `<p:animRot by="${Math.round(deg * 60000)}"><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}" fill="hold"/>${tgt}<p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>` };
+    }
+    case "grow": {
+      const k = Math.round((Number.isFinite(a.scale) ? a.scale : 1.15) * 100000);
+      return { cls: "emph", presetID: 6, subtype: 0, body: `<p:animScale><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}" fill="hold"/>${tgt}</p:cBhvr><p:by x="${k}" y="${k}"/></p:animScale>` };
+    }
+    case "transparency": {
+      const o = Math.min(1, Math.max(0, Number.isFinite(a.opacity) ? a.opacity : 0.5));
+      return { cls: "emph", presetID: 9, subtype: 0, body: `<p:set><p:cBhvr><p:cTn id="${nextId()}" dur="${dur}" fill="hold"/>${tgt}<p:attrNameLst><p:attrName>style.opacity</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="${o}"/></p:to></p:set>` };
+    }
     case "fade":
     default:
       if (a.effect && a.effect !== "fade") warn(`unknown animation effect "${a.effect}"; used fade`);
@@ -260,6 +291,12 @@ function timingXml(animations, shapes) {
   if (!valid.length) return "";
   let id = 2;
   const nextId = () => ++id;
+  const grpIds = new Map(); // `${spid}|${class}` -> grpId
+  const grpIdFor = (spid, cls) => {
+    const key = `${spid}|${cls}`;
+    if (!grpIds.has(key)) grpIds.set(key, [...grpIds.keys()].filter((k) => k.startsWith(`${spid}|`)).length);
+    return grpIds.get(key);
+  };
   // click groups -> sequential sub-groups (afterPrevious starts a new one) -> parallel effects
   const groups = [];
   for (const a of valid) {
@@ -283,7 +320,10 @@ function timingXml(animations, shapes) {
         const delay = Math.max(0, Math.round(a.delayMs || 0));
         const fx = effectBody(a, a.spid, nextId);
         longest = Math.max(longest, delay + Math.round(a.durationMs || 500));
-        effectsXml += `<p:par><p:cTn id="${eid}" presetID="${fx.presetID}" presetClass="entr" presetSubtype="${fx.subtype}" fill="hold"${a.isSp ? ' grpId="0"' : ""} nodeType="${nodeType}"><p:stCondLst><p:cond delay="${delay}"/></p:stCondLst><p:childTnLst>${fx.body}</p:childTnLst></p:cTn></p:par>`;
+        const cls = fx.cls || "entr";
+        // one build group per animation class on a shape (PowerPoint numbers them per shape)
+        const grp = a.isSp ? ` grpId="${grpIdFor(a.spid, cls)}"` : "";
+        effectsXml += `<p:par><p:cTn id="${eid}" presetID="${fx.presetID}" presetClass="${cls}" presetSubtype="${fx.subtype}" fill="hold"${grp} nodeType="${nodeType}"><p:stCondLst><p:cond delay="${delay}"/></p:stCondLst><p:childTnLst>${fx.body}</p:childTnLst></p:cTn></p:par>`;
       }
       subsXml += `<p:par><p:cTn id="${sid}" fill="hold"><p:stCondLst><p:cond delay="${offset}"/></p:stCondLst><p:childTnLst>${effectsXml}</p:childTnLst></p:cTn></p:par>`;
       offset += longest;
@@ -291,7 +331,7 @@ function timingXml(animations, shapes) {
     const start = g.auto ? `<p:cond delay="indefinite"/><p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond>` : `<p:cond delay="indefinite"/>`;
     xml += `<p:par><p:cTn id="${gid}" fill="hold"><p:stCondLst>${start}</p:stCondLst><p:childTnLst>${subsXml}</p:childTnLst></p:cTn></p:par>`;
   }
-  const bld = [...new Set(valid.filter((a) => a.isSp).map((a) => a.spid))].map((spid) => `<p:bldP spid="${spid}" grpId="0"/>`).join("");
+  const bld = [...grpIds.entries()].map(([key, g]) => `<p:bldP spid="${key.split("|")[0]}" grpId="${g}"/>`).join("");
   return `<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${xml}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst>${bld ? `<p:bldLst>${bld}</p:bldLst>` : ""}</p:timing>`;
 }
 

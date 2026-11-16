@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openDeck, PRESENTER_CHANNEL, type EngineInstance, type PresenterMessage } from "@/components/octoslides/engine";
 
 /**
  * Present mode, drawn by the Octopilot Presentation Engine (Rust -> WebAssembly,
@@ -8,79 +9,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * transitions, Morph and entrance animations. This component is the shell
  * around it: fullscreen, keyboard / click controls, laser pointer, notes.
  */
-
-type EngineInstance = {
-  slideCount(): number;
-  aspect(): number;
-  slide(): number;
-  stepsLeft(): number;
-  notes(index: number): string;
-  mediaNames(): string[];
-  mediaBytes(name: string): Uint8Array;
-  setImage(name: string, image: HTMLImageElement): void;
-  setReference(index: number, image: HTMLImageElement): void;
-  fonts(): string[];
-  fontsChanged(): void;
-  next(now: number): boolean;
-  prev(now: number): boolean;
-  goto(index: number, now: number): void;
-  render(ctx: CanvasRenderingContext2D, width: number, height: number, now: number): boolean;
-  free(): void;
-};
-type EngineModule = { default: (init?: unknown) => Promise<unknown>; Engine: new (bytes: Uint8Array) => EngineInstance };
-
-const ENGINE_URL = "/octo-present/octo_present.js";
-const WASM_URL = "/octo-present/octo_present_bg.wasm";
-/** Metric-compatible stand-ins for the Office fonts, for devices that lack them. */
-const FONT_CSS = "https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Caladea:ital,wght@0,400;0,700;1,400;1,700&family=Arimo:ital,wght@0,400;0,700;1,400;1,700&display=swap";
-const FALLBACK: Record<string, string> = { Calibri: "Carlito", Cambria: "Caladea", Arial: "Arimo" };
-
-let modulePromise: Promise<EngineModule> | null = null;
-function loadEngine(): Promise<EngineModule> {
-  modulePromise ??= (async () => {
-    const mod = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ ENGINE_URL)) as EngineModule;
-    await mod.default({ module_or_path: WASM_URL });
-    return mod;
-  })();
-  return modulePromise;
-}
-
-function mime(name: string) {
-  const ext = name.split(".").pop()?.toLowerCase();
-  return ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "svg" ? "image/svg+xml" : ext === "webp" ? "image/webp" : "image/jpeg";
-}
-
-function decode(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
-
-async function loadFonts(families: string[]) {
-  if (!document.querySelector(`link[data-octo-present-fonts]`)) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = FONT_CSS;
-    link.dataset.octoPresentFonts = "1";
-    document.head.appendChild(link);
-    await new Promise((r) => {
-      link.onload = r;
-      link.onerror = r;
-      setTimeout(r, 2500);
-    });
-  }
-  const wanted = new Set<string>();
-  for (const f of families) {
-    wanted.add(f);
-    if (FALLBACK[f]) wanted.add(FALLBACK[f]);
-  }
-  await Promise.all(
-    [...wanted].flatMap((f) => ["400", "700"].map((w) => document.fonts.load(`${w} 24px "${f}"`).catch(() => undefined))),
-  );
-}
 
 export default function Presenter({
   pptx,
@@ -133,9 +61,23 @@ export default function Presenter({
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  const startedAtRef = useRef(Date.now());
+  const endedRef = useRef(false);
+  const presenterWin = useRef<Window | null>(null);
+
   const sync = useCallback(() => {
     const e = engineRef.current;
-    if (e) setPos({ slide: e.slide(), count: e.slideCount(), steps: e.stepsLeft() });
+    if (!e) return;
+    setPos({ slide: e.slide(), count: e.slideCount(), steps: e.stepsLeft() });
+    channelRef.current?.postMessage({
+      type: "state",
+      slide: e.slide(),
+      count: e.slideCount(),
+      stepsLeft: e.stepsLeft(),
+      ended: endedRef.current,
+      startedAt: startedAtRef.current,
+    } satisfies PresenterMessage);
   }, []);
 
   const resize = useCallback(() => {
@@ -160,25 +102,13 @@ export default function Presenter({
     let dead = false;
     (async () => {
       try {
-        const mod = await loadEngine();
-        if (dead) return;
-        const engine = new mod.Engine(new Uint8Array(pptx));
+        const { engine, urls } = await openDeck(pptx, references);
+        urlsRef.current.push(...urls);
+        if (dead) {
+          engine.free();
+          return;
+        }
         engineRef.current = engine;
-        await Promise.all([
-          ...engine.mediaNames().map(async (name) => {
-            const url = URL.createObjectURL(new Blob([engine.mediaBytes(name) as BlobPart], { type: mime(name) }));
-            urlsRef.current.push(url);
-            const img = await decode(url);
-            if (img && !dead) engine.setImage(name, img);
-          }),
-          ...Object.entries(references ?? {}).map(async ([n, url]) => {
-            const img = await decode(url);
-            if (img && !dead) engine.setReference(Number(n) - 1, img);
-          }),
-          loadFonts(engine.fonts()),
-        ]);
-        if (dead) return;
-        engine.fontsChanged();
         if (startSlide > 0) engine.goto(startSlide, performance.now());
         setStatus("ready");
         sync();
@@ -238,11 +168,17 @@ export default function Presenter({
           onClose();
           return;
         }
-        if (!engine.next(now)) setEnded(true);
+        if (!engine.next(now)) {
+          endedRef.current = true;
+          setEnded(true);
+        }
       } else if (action === "prev") {
-        if (ended) setEnded(false);
-        else engine.prev(now);
+        if (ended) {
+          endedRef.current = false;
+          setEnded(false);
+        } else engine.prev(now);
       } else {
+        endedRef.current = false;
         setEnded(false);
         engine.goto(Math.max(0, Math.min(engine.slideCount() - 1, action)), now);
       }
@@ -251,6 +187,42 @@ export default function Presenter({
     },
     [blank, ended, onClose, sync, draw],
   );
+
+  // ── presenter view: a second window with notes, next slide and timer ──
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  }, [go]);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(PRESENTER_CHANNEL);
+    channelRef.current = channel;
+    channel.onmessage = (ev: MessageEvent<PresenterMessage>) => {
+      const m = ev.data;
+      if (m.type === "hello") {
+        channel.postMessage({ type: "deck", pptx, references: references ?? {} } satisfies PresenterMessage);
+        sync();
+      } else if (m.type === "command") {
+        if (m.action === "end") onClose();
+        else if (m.action === "goto" && typeof m.index === "number") goRef.current(m.index);
+        else if (m.action === "next" || m.action === "prev") goRef.current(m.action);
+      }
+    };
+    return () => {
+      channel.postMessage({ type: "closed" } satisfies PresenterMessage);
+      channel.close();
+      channelRef.current = null;
+      presenterWin.current?.close();
+    };
+  }, [pptx, references, onClose, sync]);
+
+  const openPresenterView = useCallback(() => {
+    if (presenterWin.current && !presenterWin.current.closed) {
+      presenterWin.current.focus();
+      return;
+    }
+    presenterWin.current = window.open("/octoslides/presenter", "octoslides-presenter", "popup=yes,width=1280,height=800");
+  }, []);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -291,10 +263,11 @@ export default function Presenter({
       else if (k === "l" || k === "L") setLaser((v) => !v);
       else if (k === "s" || k === "S") setShowNotes((v) => !v);
       else if (k === "f" || k === "F") toggleFullscreen();
+      else if (k === "v" || k === "V") openPresenterView();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, onClose, toggleFullscreen]);
+  }, [go, onClose, toggleFullscreen, openPresenterView]);
 
   const onMove = (e: React.MouseEvent) => {
     setChrome(true);
@@ -398,6 +371,11 @@ export default function Presenter({
           </Btn>
           <Btn label="Black screen (B)" active={blank === "black"} onClick={() => setBlank((v) => (v === "black" ? null : "black"))}>
             <rect x="4" y="6" width="16" height="12" rx="2" fill="currentColor" stroke="none" />
+          </Btn>
+          <Btn label="Presenter view: notes, next slide, timer (V)" onClick={openPresenterView}>
+            <rect x="3" y="5" width="12" height="9" rx="1.5" />
+            <rect x="17" y="5" width="4" height="4" rx="1" />
+            <path d="M17 12h4M17 15h4M3 18h12" />
           </Btn>
           <Btn label={isFull ? "Exit full screen (F)" : "Full screen (F)"} onClick={toggleFullscreen}>
             {isFull ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
