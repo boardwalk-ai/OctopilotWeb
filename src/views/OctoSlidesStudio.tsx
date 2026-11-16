@@ -239,7 +239,12 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           if (ev.name === "ask_user") setQuestion(null);
           break;
         case "ask_user":
-          setQuestion({ question: ev.question, kind: ev.kind, suggestions: ev.suggestions });
+          setQuestion({
+            question: ev.question,
+            // a color question always gets the theme picker, even if the event's kind is off
+            kind: ev.kind === "color_theme" || (ev.kind !== "slide_count" && /\b(colou?rs?|theme|palette)\b/i.test(ev.question)) ? "color_theme" : ev.kind,
+            suggestions: ev.suggestions,
+          });
           break;
         case "deck_ready":
           setDeckVersion(ev.version);

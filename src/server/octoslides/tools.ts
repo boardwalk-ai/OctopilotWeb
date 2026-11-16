@@ -342,7 +342,17 @@ const ask_user: OctoTool = {
   timeoutMs: 30 * 60 * 1000,
   async execute(args, { run }) {
     const question = str(args, "question");
-    const kind = args.kind === "slide_count" || args.kind === "color_theme" ? args.kind : "other";
+    // The UI only shows the theme picker for kind "color_theme"; models sometimes send
+    // "other" (or a near miss like "color"), so the question text decides as a fallback.
+    const rawKind = String(args.kind ?? "").toLowerCase();
+    const kind: "slide_count" | "color_theme" | "other" =
+      rawKind === "slide_count" || rawKind === "color_theme"
+        ? rawKind
+        : /colou?r|theme|palette/.test(rawKind) || /\b(colou?rs?|theme|palette)\b/i.test(question)
+          ? "color_theme"
+          : /slide|count|length/.test(rawKind) || /how many slides|number of slides|slide count/i.test(question)
+            ? "slide_count"
+            : "other";
     const suggestions = Array.isArray(args.suggestions) ? (args.suggestions as unknown[]).map(String).slice(0, 5) : kind === "slide_count" ? ["3 slides", "5 slides", "8 slides"] : undefined;
     run.status = "waiting_for_user";
     emit(run, { type: "ask_user", question, kind, suggestions: kind === "color_theme" ? undefined : suggestions });
