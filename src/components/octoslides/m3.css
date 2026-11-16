@@ -281,4 +281,22 @@
   .m3 .progress-linear::before { left: 0; width: 100%; opacity: 0.6; }
 }
 
+
+/* ── panel resize handle: a hairline that lights up when grabbed ── */
+.os-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 150ms var(--md-ease);
+}
+.os-resize:hover::after,
+.os-resize:focus-visible::after,
+.os-resize:active::after {
+  background: var(--md-primary);
+}
+.os-resize:focus-visible { outline: none; }
 }

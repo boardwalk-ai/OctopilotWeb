@@ -21,6 +21,11 @@ import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
 type Props = { onBack: () => void; initialRunId?: string | null };
 
+const SIDE_KEY = "octoslides.sidebarWidth";
+const SIDE_MIN = 300;
+const SIDE_MAX = 640;
+const SIDE_DEFAULT = 360;
+
 /** Each deck has its own address, so reload, back and new tabs keep it. */
 const STUDIO_PATH = "/octopilot-slides";
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,6 +59,7 @@ type ServerEvent =
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
   | { type: "outline"; slides: Array<{ title: string }> }
   | { type: "steer"; text: string; applied: boolean }
+  | { type: "answered"; text: string }
   | { type: "stopped"; message: string }
   | { type: "complete"; summary: string }
   | { type: "error"; message: string };
@@ -137,6 +143,48 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const [recentError, setRecentError] = useState(false);
   /** narrow screens show one pane at a time */
   const [mobilePane, setMobilePane] = useState<"chat" | "slides">("chat");
+  // the chat panel's width: dragged by the user, remembered on this device
+  const [sideW, setSideW] = useState(SIDE_DEFAULT);
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(SIDE_KEY));
+      if (saved >= SIDE_MIN && saved <= SIDE_MAX) {
+        const t = setTimeout(() => setSideW(saved), 0);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      // storage unavailable: keep the default
+    }
+  }, []);
+  const saveSide = useCallback((w: number) => {
+    const next = Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, w)));
+    setSideW(next);
+    try {
+      localStorage.setItem(SIDE_KEY, String(next));
+    } catch {
+      // storage unavailable
+    }
+  }, []);
+  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = sideW;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => setSideW(Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, startW + ev.clientX - startX))));
+    const up = (ev: PointerEvent) => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      saveSide(startW + ev.clientX - startX);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+  };
+
   // the site header wraps to two rows on narrow screens: sit below whatever height it has
   const [headerH, setHeaderH] = useState(64);
   useEffect(() => {
@@ -278,6 +326,9 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
             kind: ev.kind === "color_theme" || (ev.kind !== "slide_count" && /\b(colou?rs?|theme|palette)\b/i.test(ev.question)) ? "color_theme" : ev.kind,
             suggestions: ev.suggestions,
           });
+          break;
+        case "answered":
+          setFeed((f) => [...f, { kind: "user", id: `a-${f.length}`, text: ev.text }]);
           break;
         case "deck_ready":
           setDeckVersion(ev.version);
@@ -500,8 +551,8 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
           body: JSON.stringify({ answer: text }),
         }),
       );
+      // the server echoes the answer as an `answered` event, which adds it to the chat
       setQuestion(null);
-      setFeed((f) => [...f, { kind: "user", id: `a-${f.length}`, text }]);
     } catch (e) {
       setNotice((e as Error).message);
     }
@@ -671,7 +722,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const emptyFeed = !runId ? (
     <div className="enter space-y-6">
       <div>
-        <h2 className="t-title-l">What are we presenting?</h2>
+        <h2 className="t-title-m">What are we presenting?</h2>
         <p className="t-body-m on-variant mt-2">
           Say what the deck is for, who will see it and roughly how long it is. Attach one of your Octopilot documents to build it from your own essay and sources.
         </p>
@@ -693,7 +744,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
               {recent.map((r) => (
                 <li key={r.runId} className="group flex items-center rounded-[var(--md-shape-m)]">
                   <button type="button" onClick={() => openRun(r.runId)} className="state flex min-w-0 flex-1 flex-col rounded-[var(--md-shape-m)] px-3 py-2.5 text-left">
-                    <span className="t-body-l truncate">{r.prompt}</span>
+                    <span className="t-body-m truncate">{r.prompt}</span>
                     <span className="t-body-s on-variant">
                       {new Date(r.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })},{" "}
                       {new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {r.slides.length ? `${r.slides.length} slides` : r.status}
@@ -752,8 +803,8 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
       <div className="mt-[var(--os-header)] flex min-h-0 flex-1 overflow-hidden" style={{ ["--os-header" as string]: `${headerH}px` }}>
         {/* ══ Sidebar ══ */}
         <aside
-          className={`relative flex w-full shrink-0 flex-col md:w-[380px] ${mobilePane === "slides" ? "hidden md:flex" : "flex"}`}
-          style={{ background: "var(--md-surface)", borderRight: "1px solid var(--md-outline-variant)" }}
+          className={`relative flex w-full shrink-0 flex-col md:w-[var(--os-side)] ${mobilePane === "slides" ? "hidden md:flex" : "flex"}`}
+          style={{ background: "var(--md-surface)", borderRight: "1px solid var(--md-outline-variant)", ["--os-side" as string]: `${sideW}px` }}
           aria-label="Designer chat"
         >
           {memoryOpen && <MemoryPanel onClose={() => setMemoryOpen(false)} />}
@@ -869,7 +920,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                       className="state menu-item"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="t-body-l block truncate">{d.title}</span>
+                        <span className="t-body-m block truncate">{d.title}</span>
                         <span className="t-body-s on-variant block">
                           {d.word_count} words · {new Date(d.updated_at).toLocaleDateString()}
                         </span>
@@ -914,7 +965,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                         ? "A 10-slide pitch for…  /  A class presentation about…"
                         : "Ask for a change to the deck"
                 }
-                className="t-body-l block max-h-48 min-h-[24px] w-full resize-none bg-transparent px-3 pt-3 focus:outline-none focus-visible:outline-none"
+                className="t-body-m block max-h-48 min-h-[24px] w-full resize-none bg-transparent px-3 pt-3 focus:outline-none focus-visible:outline-none"
                 style={{ color: "var(--md-on-surface)" }}
               />
               <div className="mt-1 flex items-center gap-1">
@@ -939,6 +990,23 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
             </div>
             <p className="t-body-s on-variant mt-1.5 px-3">Enter to send · Shift+Enter for a new line</p>
           </form>
+          {/* drag (or arrow keys) to resize; double-click resets */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize the chat panel"
+            aria-valuemin={SIDE_MIN}
+            aria-valuemax={SIDE_MAX}
+            aria-valuenow={sideW}
+            tabIndex={0}
+            onPointerDown={startResize}
+            onDoubleClick={() => saveSide(SIDE_DEFAULT)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") saveSide(sideW - 24);
+              if (e.key === "ArrowRight") saveSide(sideW + 24);
+            }}
+            className="os-resize absolute -right-[5px] top-0 z-20 hidden h-full w-[10px] cursor-col-resize md:block"
+          />
         </aside>
 
         {/* ══ Stage ══ */}

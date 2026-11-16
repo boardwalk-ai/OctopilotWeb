@@ -193,7 +193,7 @@ function WorkCard({ steps, live, now }: { steps: Step[]; live: boolean; now: num
 
   return (
     <div className="enter mt-2 overflow-hidden rounded-[var(--md-shape-l)]" style={{ background: "var(--md-surface-container-low)" }}>
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="state flex w-full items-center gap-3 px-4 py-3 text-left">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="state flex w-full items-center gap-3 px-3.5 py-2.5 text-left">
         {running ? (
           <span className="progress-circular" />
         ) : (
@@ -201,7 +201,7 @@ function WorkCard({ steps, live, now }: { steps: Step[]; live: boolean; now: num
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
-        <span className="t-title-s min-w-0 flex-1 truncate">{title}</span>
+        <span className="t-label-l min-w-0 flex-1 truncate">{title}</span>
         {!running && failed > 0 && <span className="t-label-s on-variant">{failed} retried</span>}
         {running && steps.length > 3 && !open && <span className="t-label-s on-variant">+{steps.length - 3} earlier</span>}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="on-variant shrink-0 transition-transform" style={{ transform: open ? "rotate(180deg)" : "none" }} aria-hidden="true">
@@ -252,7 +252,7 @@ export default function ChatFeed({ items, empty, busy, actions }: { items: FeedI
   return (
     <div>
       {items.length === 0 && empty}
-      <ol className="space-y-6" aria-live="polite">
+      <ol className="space-y-5" aria-live="polite">
         {turns.map((turn) => {
           if (turn.type === "user") {
             const { item } = turn;
@@ -263,7 +263,7 @@ export default function ChatFeed({ items, empty, busy, actions }: { items: FeedI
                     {item.steer ? "Added while working" : `Slide ${item.target!.slide} · ${item.target!.name}`}
                   </span>
                 )}
-                <p className="t-body-l max-w-[85%] whitespace-pre-wrap break-words rounded-[20px] rounded-br-[4px] px-4 py-2.5" style={{ background: "var(--md-surface-container-highest)", color: "var(--md-on-surface)" }}>
+                <p className="t-body-m max-w-[85%] whitespace-pre-wrap break-words rounded-[18px] rounded-br-[4px] px-3.5 py-2" style={{ background: "var(--md-surface-container-highest)", color: "var(--md-on-surface)" }}>
                   {item.text}
                 </p>
               </li>
@@ -303,7 +303,7 @@ export default function ChatFeed({ items, empty, busy, actions }: { items: FeedI
                           Deck ready
                         </p>
                       )}
-                      <p className="t-body-l whitespace-pre-wrap break-words">{part.text}</p>
+                      <p className="t-body-m whitespace-pre-wrap break-words">{part.text}</p>
                       {part.tone === "complete" && actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
                     </div>
                   );

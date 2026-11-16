@@ -24,6 +24,7 @@ export type OctoSlidesEvent =
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
   | { type: "outline"; slides: Array<{ title: string }> }
   | { type: "steer"; text: string; applied: boolean }
+  | { type: "answered"; text: string }
   | { type: "stopped"; message: string }
   | { type: "complete"; summary: string }
   | { type: "error"; message: string };

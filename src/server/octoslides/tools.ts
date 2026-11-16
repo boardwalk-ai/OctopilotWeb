@@ -388,6 +388,8 @@ const ask_user: OctoTool = {
     run.status = "waiting_for_user";
     emit(run, { type: "ask_user", question, kind, suggestions: kind === "color_theme" ? undefined : suggestions });
     const answer = await waitForAnswer(run, 30 * 60 * 1000);
+    // recorded in the event log, so the answer is still in the chat after a reload
+    if (answer.trim()) emit(run, { type: "answered", text: answer });
     run.status = "running";
     const theme = kind === "color_theme" ? findOctoSlidesTheme(answer) : undefined;
     return { ok: true, content: JSON.stringify(theme ? { answer: theme.name, colors: theme.colors, description: theme.description } : { answer }), summary: "User answered" };
