@@ -7,8 +7,8 @@ import dynamic from "next/dynamic";
 import SlideCanvas, { STAGE_H, STAGE_W } from "@/components/octoslides/SlideCanvas";
 import StepFeed, { type FeedItem } from "@/components/octoslides/StepFeed";
 import MemoryPanel from "@/components/octoslides/MemoryPanel";
+import ThemePicker from "@/components/octoslides/ThemePicker";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
-import { OCTOSLIDES_THEMES } from "@/lib/octoslidesThemes";
 
 /**
  * OctoSlides studio for the pptxgenjs designer (/api/octoslides).
@@ -718,21 +718,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                   </div>
                   <p className="text-[13px] leading-snug text-white/90">{question.question}</p>
                 </div>
-                {question.kind === "color_theme" && (
-                  <div className="mt-3 grid max-h-64 grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
-                    {OCTOSLIDES_THEMES.map((theme) => (
-                      <button key={theme.name} type="button" onClick={() => void answer(theme.name)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-left transition hover:border-red-500/40 hover:bg-red-500/[0.08]">
-                        <span className="flex shrink-0 -space-x-1" aria-hidden="true">
-                          {theme.colors.map((color) => <span key={color} className="h-4 w-4 rounded-full border border-white/25" style={{ backgroundColor: `#${color}` }} />)}
-                        </span>
-                        <span className="min-w-0"><span className="block text-[11.5px] font-medium text-white/85">{theme.name}</span><span className="block text-[10px] text-white/45">{theme.description}</span></span>
-                      </button>
-                    ))}
-                    <button type="button" onClick={() => textareaRef.current?.focus()} className="rounded-xl border border-dashed border-white/20 px-2.5 py-2 text-left text-[11.5px] text-white/70 transition hover:border-red-500/40 hover:text-white">
-                      Other · type your colors below
-                    </button>
-                  </div>
-                )}
+                {question.kind === "color_theme" && <p className="mt-2 pl-[34px] text-[11.5px] text-white/45">Pick a theme in the panel on the right, or type your own colors here.</p>}
                 {question.kind !== "color_theme" && !!question.suggestions?.length && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {question.suggestions.map((s) => (
@@ -909,6 +895,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           </div>
 
           <div className="relative min-h-0 flex-1">
+            {question?.kind === "color_theme" && <ThemePicker question={question.question} onPick={answer} />}
             {!images[active] ? (
               <div className="flex h-full items-center justify-center p-8">
                 <div className="relative w-full max-w-[1000px] overflow-hidden rounded-2xl border border-white/[0.06]" style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}>
