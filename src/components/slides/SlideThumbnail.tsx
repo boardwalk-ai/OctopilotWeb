@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import SlideCanvas from "./SlideCanvas";
 import type { SlideSpec, DeckTheme } from "@/types/slides";
 
@@ -9,23 +10,25 @@ interface SlideThumbnailProps {
   /** Thumbnail width in px. Default 160. Height auto-calculated (16:9). */
   width?: number;
   isActive?: boolean;
-  onClick?: () => void;
+  onClick?: (index: number) => void;
+  index?: number;
   className?: string;
 }
 
-export default function SlideThumbnail({
+function SlideThumbnail({
   spec,
   theme,
   width = 160,
-  isActive = false,
-  onClick,
-  className,
+    isActive = false,
+    onClick,
+    index = 0,
+    className,
 }: SlideThumbnailProps) {
   const height = Math.round(width * (9 / 16));
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => onClick?.(index)}
       className={className}
       style={{
         position: "relative",
@@ -83,3 +86,5 @@ export default function SlideThumbnail({
     </div>
   );
 }
+
+export default memo(SlideThumbnail);

@@ -1644,12 +1644,13 @@ const handleSaveDeck = useCallback(async () => {
             <div className="flex items-center gap-2.5 overflow-x-auto px-4 py-2.5">
               {slides.map((spec, i) => (
                 <SlideThumbnail
-                  key={spec.id}
-                  spec={spec}
-                  theme={theme}
-                  width={96}
-                  isActive={activeSlide === i}
-                  onClick={() => focusSlide(i)}
+                    key={spec.id}
+                    spec={spec}
+                    theme={theme}
+                    width={96}
+                    index={i}
+                    isActive={activeSlide === i}
+                    onClick={focusSlide}
                 />
               ))}
               {/* Add slide button */}
