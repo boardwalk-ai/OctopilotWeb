@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "@/server/db";
 import { resolveDocumentUser, documentLimitFor } from "@/server/documentUser";
+import { queueIndex } from "@/server/rag/gyrfalcon";
 
 export const runtime = "nodejs";
 
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
             return newId;
         });
 
+        queueIndex(String(id));
         return NextResponse.json({ id }, { status: 201 });
     } catch (e) {
         console.error("[documents] POST error:", e);

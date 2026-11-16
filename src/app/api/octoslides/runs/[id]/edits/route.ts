@@ -11,7 +11,7 @@ const NAME = /^[^\u0000-\u001f]{1,200}$/;
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireOctoSlidesUser(request);
   if ("response" in auth) return auth.response;
-  const run = getRun((await params).id, auth.user.id);
+  const run = await getRun((await params).id, auth.user.id);
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
   const body = (await request.json().catch(() => null)) as { slide?: unknown; name?: unknown; text?: unknown } | null;

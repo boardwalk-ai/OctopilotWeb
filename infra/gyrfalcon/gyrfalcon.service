@@ -1,0 +1,26 @@
+# Gyrfalcon search index for OctoSlides document search (src/server/rag/gyrfalcon.ts).
+# No authentication: it must only ever listen on 127.0.0.1.
+# Setup: infra/gyrfalcon/README.md
+[Unit]
+Description=Gyrfalcon hybrid retrieval (Octopilot documents)
+After=network.target
+
+[Service]
+Type=simple
+User=gyrfalcon
+Group=gyrfalcon
+Environment=GYR_TIER=lite
+Environment=GYR_MODELS=/opt/gyrfalcon/models
+Environment=GYR_WARM=background
+ExecStart=/opt/gyrfalcon/bin/gyr serve /var/lib/gyrfalcon/octopilot --bind 127.0.0.1:7700
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/gyrfalcon
+MemoryMax=1500M
+
+[Install]
+WantedBy=multi-user.target

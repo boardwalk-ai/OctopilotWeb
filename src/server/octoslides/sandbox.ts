@@ -46,7 +46,7 @@ function capped(buffer: string, chunk: Buffer): string {
 export async function runInSandbox(
   workDir: string,
   argv: string[],
-  options: { timeoutMs?: number; memoryMb?: number; cpus?: number } = {},
+  options: { timeoutMs?: number; memoryMb?: number; cpus?: number; signal?: AbortSignal | null } = {},
 ): Promise<SandboxResult> {
   const timeoutMs = options.timeoutMs ?? 60_000;
   const memoryMb = options.memoryMb ?? 1024;
@@ -71,6 +71,7 @@ export async function runInSandbox(
     ...argv,
   ];
 
+  if (options.signal?.aborted) return { exitCode: null, stdout: "", stderr: "cancelled", timedOut: false, durationMs: 0 };
   const release = await acquire();
   const started = Date.now();
   try {
@@ -87,11 +88,15 @@ export async function runInSandbox(
         timedOut = true;
         spawn("docker", ["kill", name], { stdio: "ignore" });
       }, timeoutMs);
+      const onAbort = () => spawn("docker", ["kill", name], { stdio: "ignore" });
+      options.signal?.addEventListener("abort", onAbort, { once: true });
       child.on("error", (err) => {
+        options.signal?.removeEventListener("abort", onAbort);
         clearTimeout(timer);
         resolve({ exitCode: null, stdout, stderr: `${stderr}\n${err.message}`, timedOut, durationMs: Date.now() - started });
       });
       child.on("close", (code) => {
+        options.signal?.removeEventListener("abort", onAbort);
         clearTimeout(timer);
         resolve({ exitCode: code, stdout, stderr, timedOut, durationMs: Date.now() - started });
       });

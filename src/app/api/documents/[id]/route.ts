@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, withTransaction } from "@/server/db";
 import { resolveDocumentUser } from "@/server/documentUser";
 import { writeDocumentChildren, type DocumentPayload } from "../route";
+import { queueIndex } from "@/server/rag/gyrfalcon";
 
 export const runtime = "nodejs";
 
@@ -53,6 +54,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
         });
 
         if (!ok) return NextResponse.json({ error: "Document not found." }, { status: 404 });
+        queueIndex(id);
         return NextResponse.json({ ok: true });
     } catch (e) {
         console.error("[documents/:id] PUT error:", e);
@@ -75,6 +77,7 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
             [title, id, user.userId],
         );
         if (!rows.length) return NextResponse.json({ error: "Document not found." }, { status: 404 });
+        queueIndex(id);
         return NextResponse.json({ ok: true });
     } catch (e) {
         console.error("[documents/:id] PATCH error:", e);
@@ -93,6 +96,7 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
             [id, user.userId],
         );
         if (!rows.length) return NextResponse.json({ error: "Document not found." }, { status: 404 });
+        queueIndex(id, "remove");
         return NextResponse.json({ ok: true });
     } catch (e) {
         console.error("[documents/:id] DELETE error:", e);

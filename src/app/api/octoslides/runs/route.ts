@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const auth = await requireOctoSlidesUser(request);
   if ("response" in auth) return auth.response;
-  return NextResponse.json({ runs: listRuns(auth.user.id) });
+  return NextResponse.json({ runs: await listRuns(auth.user.id) });
 }
 
 /** POST { prompt, documentId? } -> { runId }. Then stream GET /api/octoslides/runs/<runId>/events. */
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const run = await createRun(auth.user.id, prompt, { dataUserId, email: auth.user.email, isPro });
-    startOctoSlidesRun(run, attached);
+    await startOctoSlidesRun(run, attached);
     return NextResponse.json({ runId: run.runId }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start." }, { status: 429 });

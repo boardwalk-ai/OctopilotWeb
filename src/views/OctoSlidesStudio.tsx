@@ -6,6 +6,7 @@ import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import dynamic from "next/dynamic";
 import SlideCanvas, { STAGE_H, STAGE_W } from "@/components/octoslides/SlideCanvas";
 import StepFeed, { type FeedItem } from "@/components/octoslides/StepFeed";
+import MemoryPanel from "@/components/octoslides/MemoryPanel";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
 /**
@@ -29,6 +30,8 @@ type ServerEvent =
   | { type: "ask_user"; question: string; suggestions?: string[] }
   | { type: "usage"; costUsd: number; steps: number }
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
+  | { type: "steer"; text: string; applied: boolean }
+  | { type: "stopped"; message: string }
   | { type: "complete"; summary: string }
   | { type: "error"; message: string };
 
@@ -54,6 +57,9 @@ const TOOL_LABELS: Record<string, string> = {
   refresh_deck: "Applying motion",
   list_my_documents: "Looking at your documents",
   read_document: "Reading your document",
+  search_document: "Searching your document",
+  remember: "Remembering this for next time",
+  forget: "Forgetting an old preference",
   ask_user: "Asking you a question",
   finish: "Wrapping up",
   manual_edit: "Applying your edit",
@@ -106,6 +112,25 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [watermark, setWatermark] = useState<Watermark | null>(null);
   const [togglingMark, setTogglingMark] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // two clicks to delete: the first arms the button for a few seconds
+  const removeDeck = async (id: string) => {
+    if (confirmDelete !== id) {
+      setConfirmDelete(id);
+      setTimeout(() => setConfirmDelete((c) => (c === id ? null : c)), 3500);
+      return;
+    }
+    setConfirmDelete(null);
+    setRecent((r) => r.filter((x) => x.runId !== id));
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${id}`, { method: "DELETE" }));
+    } catch (e) {
+      setNotice((e as Error).message);
+    }
+  };
   const [presenting, setPresenting] = useState<ArrayBuffer | null>(null);
   const [openingShow, setOpeningShow] = useState(false);
 
@@ -192,7 +217,21 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           setRender({ version: ev.version, slides: ev.slides });
           void loadRender(id, ev.slides, ev.version);
           break;
+        case "steer":
+          setFeed((f) =>
+            ev.applied
+              ? [...f, { kind: "tool", id: `s-${f.length}`, name: "steer", label: "Folding in your note", detail: "", status: "done" }]
+              : [...f, { kind: "user", id: `n-${f.length}`, text: ev.text, steer: true }],
+          );
+          break;
+        case "stopped":
+          setBusy(false);
+          setQuestion(null);
+          setStopping(false);
+          setFeed((f) => [...f.map((x) => (x.kind === "tool" && x.status === "running" ? { ...x, status: "error" as const, detail: "Stopped" } : x)), { kind: "notice", id: `x-${f.length}`, text: ev.message }]);
+          break;
         case "complete":
+          setStopping(false);
           setBusy(false);
           setQuestion(null);
           setFeed((f) => [...f, { kind: "complete", id: `c-${f.length}`, text: ev.summary }]);
@@ -330,6 +369,17 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     }
   };
 
+  const stop = async () => {
+    if (!runId || stopping) return;
+    setStopping(true);
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/stop`, { method: "POST" }));
+    } catch (e) {
+      setStopping(false);
+      setNotice((e as Error).message);
+    }
+  };
+
   const answer = async (text: string) => {
     if (!runId) return;
     try {
@@ -352,13 +402,12 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     const text = input.trim();
     if (!text) return;
     if (question) void answer(text);
-    else if (!runId || !deckVersion) {
-      if (busy) return;
-      void startDeck(text);
-    } else {
-      if (busy) return;
+    else if (runId && busy) {
+      // steering: the designer folds this into the work in progress
+      if (stopping) return;
       void sendFollowUp(text);
-    }
+    } else if (!runId || !deckVersion) void startDeck(text);
+    else void sendFollowUp(text);
     setInput("");
   };
 
@@ -466,7 +515,10 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (presenting) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
-      if (e.key === "Escape") setSelected(null);
+      if (e.key === "Escape") {
+        if (selected) setSelected(null);
+        else if (busy && !question) void stop();
+      }
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       const slides = render?.slides ?? [];
       if (!slides.length) return;
@@ -481,7 +533,8 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [render, presenting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [render, presenting, selected, busy, question]);
 
   const slideElements = useMemo(() => {
     const els = layout?.slides.find((s) => s.slide === active)?.elements ?? [];
@@ -499,7 +552,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const hasDeck = deckVersion > 0;
   const canEdit = hasDeck && !busy && !!layout;
   const runningTool = [...feed].reverse().find((f): f is Extract<FeedItem, { kind: "tool" }> => f.kind === "tool" && f.status === "running");
-  const composerMode = question ? "answer" : !runId || !hasDeck ? "new" : "change";
+  const composerMode = question ? "answer" : runId && busy ? "steer" : !runId || !hasDeck ? "new" : "change";
 
   const emptyFeed = !runId ? (
     <div className="osf-row space-y-5 px-1 pt-2">
@@ -511,20 +564,43 @@ export default function OctoSlidesStudio({ onBack }: Props) {
       </div>
       {recent.length > 0 && (
         <div>
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">Recent decks · kept 24 h</p>
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">Your decks · kept 30 days</p>
           <div className="space-y-1.5">
             {recent.map((r) => (
-              <button
+              <div
                 key={r.runId}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => openRun(r.runId)}
-                className="group w-full rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left transition duration-300 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.05]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") openRun(r.runId);
+                }}
+                className="group relative w-full cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 pr-9 text-left transition duration-300 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.05]"
               >
                 <p className="truncate text-[12.5px] text-white/80">{r.prompt}</p>
                 <p className="mt-0.5 text-[10.5px] text-white/30">
+                  {new Date(r.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
                   {new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {r.slides.length ? `${r.slides.length} slides` : r.status}
                 </p>
-              </button>
+                <button
+                  type="button"
+                  aria-label="Delete deck"
+                  title={confirmDelete === r.runId ? "Click again to delete for good" : "Delete deck"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void removeDeck(r.runId);
+                  }}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-1 text-[10.5px] transition ${confirmDelete === r.runId ? "bg-red-500/90 text-white opacity-100" : "text-white/35 opacity-0 hover:bg-white/[0.08] hover:text-red-300 group-hover:opacity-100"}`}
+                >
+                  {confirmDelete === r.runId ? (
+                    "Delete?"
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -553,7 +629,8 @@ export default function OctoSlidesStudio({ onBack }: Props) {
 
       <div className="flex overflow-hidden" style={{ marginTop: 64, height: "calc(100vh - 64px)" }}>
         {/* ══ Sidebar ══ */}
-        <aside className="flex w-[340px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0d0d0d]">
+        <aside className="relative flex w-[340px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0d0d0d]">
+          {memoryOpen && <MemoryPanel onClose={() => setMemoryOpen(false)} />}
           <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
             <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-500/25 to-red-500/5 ring-1 ring-red-500/20">
               {busy && <span className="os-glow absolute inset-0 rounded-xl bg-red-500/20 blur-md" />}
@@ -569,6 +646,17 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                 {busy ? runningTool?.label ?? "Thinking…" : hasDeck ? `${slides.length || "…"} slides · click an element to edit` : "Your presentation designer"}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setMemoryOpen((v) => !v)}
+              title="What OctoSlides remembers about you"
+              aria-label="Memory"
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${memoryOpen ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"}`}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 5 14a3.5 3.5 0 0 0 4.5 4.9A2.5 2.5 0 0 0 12 21V4.5A1.5 1.5 0 0 0 10.5 3h-1ZM14.5 3a3.5 3.5 0 0 1 3.4 4.3A3.5 3.5 0 0 1 19 14a3.5 3.5 0 0 1-4.5 4.9A2.5 2.5 0 0 1 12 21" />
+              </svg>
+            </button>
             {runId && (
               <button type="button" onClick={resetDeck} disabled={busy} className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-white/55 transition hover:border-white/20 hover:text-white disabled:opacity-30">
                 New deck
@@ -647,9 +735,14 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onComposerKey}
                 rows={composerMode === "new" ? 3 : 2}
-                disabled={busy && !question}
                 placeholder={
-                  composerMode === "answer" ? "Type your answer…" : composerMode === "new" ? "A 10-slide pitch for… / A class presentation about…" : busy ? "Working on your deck…" : "Ask for a change to the deck…"
+                  composerMode === "answer"
+                    ? "Type your answer…"
+                    : composerMode === "steer"
+                      ? "Forgot something? Add it — the designer folds it in"
+                      : composerMode === "new"
+                        ? "A 10-slide pitch for… / A class presentation about…"
+                        : "Ask for a change to the deck…"
                 }
                 className="max-h-40 min-h-[22px] w-full resize-none bg-transparent text-[13px] leading-relaxed text-white placeholder-white/25 outline-none disabled:opacity-40"
               />
@@ -663,9 +756,21 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                   </button>
                 )}
                 <span className="flex-1" />
+                {busy && !question && (
+                  <button
+                    type="button"
+                    onClick={() => void stop()}
+                    disabled={stopping}
+                    title="Stop (Esc)"
+                    aria-label="Stop the designer"
+                    className="group relative flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] transition hover:border-white/30 hover:bg-white/[0.12] disabled:opacity-50"
+                  >
+                    {stopping ? <Spinner /> : <span className="h-2.5 w-2.5 rounded-[3px] bg-white/85 transition group-hover:bg-white" />}
+                  </button>
+                )}
                 <button
                   type="submit"
-                  disabled={!input.trim() || (busy && !question)}
+                  disabled={!input.trim() || stopping}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 shadow-[0_6px_20px_-6px_rgba(239,68,68,.7)] transition hover:scale-105 hover:bg-red-400 disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-25 disabled:shadow-none"
                   aria-label="Send"
                 >

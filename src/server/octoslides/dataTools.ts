@@ -1,5 +1,6 @@
 import { query } from "@/server/db";
 import type { OctoTool, ToolOutput } from "@/server/octoslides/tools";
+import { indexDocument, RagUnavailable, searchDocuments } from "@/server/rag/gyrfalcon";
 
 /**
  * The user's own Octopilot work as deck material: saved documents (essays from
@@ -153,5 +154,61 @@ export const read_document: OctoTool = {
       content: JSON.stringify({ title: doc.title, totalChars: text.length, offset, nextOffset: next, text: chunk }),
       summary: `Read "${doc.title}"${next ? ` (${Math.round((next / text.length) * 100)}%)` : ""}`,
     };
+  },
+};
+
+export const search_document: OctoTool = {
+  name: "search_document",
+  description:
+    "Search the user's saved documents (essay text and the sources they cite) and get back only the passages that answer your query, with source titles and URLs for citations. Much cheaper than reading a whole document: use it for each slide's facts, numbers and quotes. Pass id to search one document; kind to search only the essay text or only its sources.",
+  parameters: {
+    type: "object",
+    additionalProperties: false,
+    required: ["query"],
+    properties: {
+      query: { type: "string", description: "What you need, in plain words (e.g. 'cost of running a compost program')" },
+      id: { type: "string", description: "Document id from list_my_documents (optional)" },
+      kind: { type: "string", enum: ["text", "source", "all"] },
+      limit: { type: "integer", minimum: 1, maximum: 10 },
+    },
+  },
+  timeoutMs: 45_000,
+  async execute(args, { run }) {
+    if (!run.dataUserId) return noAccount();
+    const q = String(args.query ?? "").trim().slice(0, 500);
+    if (!q) return { ok: false, content: JSON.stringify({ error: "query is required" }), summary: "No query" };
+    const id = typeof args.id === "string" && args.id ? args.id : undefined;
+    if (id && !(await ownsDocument(run.dataUserId, id))) {
+      return { ok: false, content: JSON.stringify({ error: "No such document in this account." }), summary: "Document not found" };
+    }
+    try {
+      // make sure what we search is current (cheap when nothing changed)
+      if (id) await indexDocument(id);
+      else {
+        const docs = await query<{ id: string }>("SELECT id FROM documents WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 20", [run.dataUserId]);
+        for (const d of docs) await indexDocument(d.id);
+      }
+      const kind = args.kind === "text" || args.kind === "source" ? args.kind : undefined;
+      const hits = await searchDocuments(run.dataUserId, q, { documentId: id, kind, limit: Number(args.limit) || 6 });
+      const passages = hits.map((h, i) => ({
+        n: i + 1,
+        document: h.title,
+        documentId: h.documentId,
+        from: h.kind === "source" ? `source ${h.source?.n}: ${h.source?.title}` : "essay text",
+        url: h.source?.url || undefined,
+        score: h.score,
+        text: h.text.length > 1400 ? `${h.text.slice(0, 1400)}…` : h.text,
+      }));
+      return {
+        ok: true,
+        content: JSON.stringify({ query: q, passages, note: passages.length ? "Cite sources by title/url in the speaker notes." : "Nothing matched; try other words, or read_document the outline." }),
+        summary: `${passages.length} passages for "${q.slice(0, 40)}"`,
+      };
+    } catch (error) {
+      if (error instanceof RagUnavailable) {
+        return { ok: false, content: JSON.stringify({ error: "Document search is unavailable right now; use read_document instead." }), summary: "Search unavailable" };
+      }
+      throw error;
+    }
   },
 };

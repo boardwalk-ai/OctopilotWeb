@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
  */
 
 export type FeedItem =
-  | { kind: "user"; id: string; text: string; target?: { slide: number; name: string } }
+  | { kind: "user"; id: string; text: string; target?: { slide: number; name: string }; steer?: boolean }
+  | { kind: "notice"; id: string; text: string }
   | { kind: "tool"; id: string; name: string; label: string; detail: string; status: "running" | "done" | "error" }
   | { kind: "thinking"; id: string; text: string }
   | { kind: "complete"; id: string; text: string }
@@ -73,9 +74,13 @@ const TOOL_ICON: Record<string, keyof typeof ICONS> = {
   refresh_deck: "motion",
   list_my_documents: "book",
   read_document: "book",
+  search_document: "search",
+  remember: "spark",
+  forget: "spark",
   ask_user: "ask",
   finish: "flag",
   manual_edit: "pencil",
+  steer: "spark",
 };
 
 function Icon({ name }: { name: string }) {
@@ -130,6 +135,7 @@ const PLURAL: Record<string, string> = {
   search_images: "Searching photos",
   generate_image: "Generating images",
   read_document: "Reading your document",
+  search_document: "Searching your documents",
   edit_file: "Refining the design",
 };
 
@@ -190,6 +196,7 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
             return (
               <div key={row.id} className="osf-row flex justify-end py-2">
                 <div className="max-w-[88%] rounded-2xl rounded-br-md border border-white/[0.07] bg-gradient-to-br from-white/[0.08] to-white/[0.03] px-3.5 py-2.5 shadow-[0_8px_24px_-12px_rgba(0,0,0,.6)]">
+                  {row.steer && <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-200/70">Added while working</p>}
                   {row.target && (
                     <p className="mb-1 flex items-center gap-1 text-[10px] font-medium tracking-wide text-red-300/80">
                       <span className="h-1 w-1 rounded-full bg-red-400" />
@@ -218,6 +225,13 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
                   Deck ready
                 </p>
                 <Prose text={row.text} animate={!instant && isLast} className="text-[13.5px] leading-[1.7] text-white/80" />
+              </div>
+            );
+          if (row.kind === "notice")
+            return (
+              <div key={row.id} className="osf-row flex items-center gap-2 py-2 pl-1 pr-1">
+                <span className="h-2 w-2 rounded-[2px] bg-white/40" />
+                <p className="text-[12.5px] leading-relaxed text-white/55">{row.text}</p>
               </div>
             );
           if (row.kind === "error")

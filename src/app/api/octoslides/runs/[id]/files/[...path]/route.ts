@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const auth = await requireOctoSlidesUser(request);
   if ("response" in auth) return auth.response;
   const { id, path } = await params;
-  const run = getRun(id, auth.user.id);
+  const run = await getRun(id, auth.user.id);
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
   const rel = path.join("/");

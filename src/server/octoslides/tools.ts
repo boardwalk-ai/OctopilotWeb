@@ -7,7 +7,8 @@ import { fetchPublicImage } from "@/server/octoslides/safeFetch";
 import { emit, waitForAnswer, type OctoSlidesRun } from "@/server/octoslides/runs";
 import { applyMarks } from "@/server/octoslides/marks";
 import { critique_slides, generate_image, resolveSearchResult, search_images } from "@/server/octoslides/creativeTools";
-import { list_my_documents, read_document } from "@/server/octoslides/dataTools";
+import { list_my_documents, read_document, search_document } from "@/server/octoslides/dataTools";
+import { forget, remember } from "@/server/octoslides/memory";
 import {
   WorkspaceError,
   deckInfo,
@@ -164,7 +165,7 @@ const run_script: OctoTool = {
         summary: "Unchanged, not rebuilt",
       };
     }
-    const result = await runInSandbox(run.dir, ["deck-run", path], { timeoutMs: 90_000, memoryMb: 1024 });
+    const result = await runInSandbox(run.dir, ["deck-run", path], { timeoutMs: 90_000, memoryMb: 1024, signal: run.stopCtl?.signal });
     const after = await deckInfo(run.dir);
     const built = after.exists && after.mtimeMs !== before.mtimeMs;
     if (built) {
@@ -190,7 +191,7 @@ const validate_deck: OctoTool = {
   parameters: { type: "object", additionalProperties: false, properties: {} },
   timeoutMs: 70_000,
   async execute(_args, { run }) {
-    const result = await runInSandbox(run.dir, ["deck-validate"], { timeoutMs: 60_000 });
+    const result = await runInSandbox(run.dir, ["deck-validate"], { timeoutMs: 60_000, signal: run.stopCtl?.signal });
     const ok = result.exitCode === 0 && !result.timedOut;
     if (ok) run.lastValidatedVersion = run.deckVersion;
     return { ok, content: sandboxReport(result, 8000), summary: ok ? "Validation passed" : "Validation found problems" };
@@ -203,7 +204,7 @@ const deck_text: OctoTool = {
   parameters: { type: "object", additionalProperties: false, properties: {} },
   timeoutMs: 70_000,
   async execute(_args, { run }) {
-    const result = await runInSandbox(run.dir, ["deck-text"], { timeoutMs: 60_000 });
+    const result = await runInSandbox(run.dir, ["deck-text"], { timeoutMs: 60_000, signal: run.stopCtl?.signal });
     const ok = result.exitCode === 0 && !result.timedOut;
     return { ok, content: ok ? result.stdout.slice(0, 40_000) : sandboxReport(result), summary: ok ? "Read deck text" : "Could not read deck text" };
   },
@@ -227,7 +228,7 @@ const render_slides: OctoTool = {
       // this version is already rendered: just show the requested slides again
       listing = (await readdir(renderDir).catch(() => [] as string[])).join("\n");
     } else {
-      const result = await runInSandbox(run.dir, ["deck-render", RENDER_DPI], { timeoutMs: 120_000, memoryMb: 1536, cpus: 2 });
+      const result = await runInSandbox(run.dir, ["deck-render", RENDER_DPI], { timeoutMs: 120_000, memoryMb: 1536, cpus: 2, signal: run.stopCtl?.signal });
       if (result.exitCode !== 0 || result.timedOut) {
         return { ok: false, content: sandboxReport(result), summary: "Render failed" };
       }
@@ -312,7 +313,7 @@ const refresh_deck: OctoTool = {
   parameters: { type: "object", additionalProperties: false, properties: {} },
   timeoutMs: 70_000,
   async execute(_args, { run }) {
-    const result = await runInSandbox(run.dir, ["deck-post"], { timeoutMs: 60_000 });
+    const result = await runInSandbox(run.dir, ["deck-post"], { timeoutMs: 60_000, signal: run.stopCtl?.signal });
     const ok = result.exitCode === 0 && !result.timedOut;
     if (ok) {
       await applyMarks(run);
@@ -385,7 +386,10 @@ export const OCTOSLIDES_TOOLS: OctoTool[] = [
   generate_image,
   refresh_deck,
   list_my_documents,
+  search_document,
   read_document,
+  remember,
+  forget,
   ask_user,
   finish,
 ];

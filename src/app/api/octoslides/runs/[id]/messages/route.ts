@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { continueOctoSlidesRun } from "@/server/octoslides/agent";
 import { requireOctoSlidesUser } from "@/server/octoslides/auth";
-import { claimRun, emit, finishRun, getRun } from "@/server/octoslides/runs";
+import { claimRun, emit, finishRun, getRun, steerRun } from "@/server/octoslides/runs";
 
 export const dynamic = "force-dynamic";
 
-/** POST { text, target?: { slide, name } } — ask the designer for a change to the deck. */
+/**
+ * POST { text, target?: { slide, name } }
+ * Idle run: starts a change request. Running run: steers it (the designer folds the
+ * message into the work in progress at its next step).
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireOctoSlidesUser(request);
   if ("response" in auth) return auth.response;
-  const run = getRun((await params).id, auth.user.id);
+  const run = await getRun((await params).id, auth.user.id);
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
   const body = (await request.json().catch(() => null)) as { text?: unknown; target?: { slide?: unknown; name?: unknown } } | null;
@@ -23,11 +27,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!Number.isInteger(slide) || slide < 1 || !name) return NextResponse.json({ error: "Invalid target." }, { status: 400 });
     target = { slide, name };
   }
+  if (run.active) {
+    if (run.status === "running" && run.deckVersion === 0 && run.steps === 0 && !run.messages.length) {
+      return NextResponse.json({ error: "The designer is starting. Try again in a moment." }, { status: 409 });
+    }
+    const where = target ? `(about slide ${target.slide}, element "${target.name}") ` : "";
+    const { interrupted } = steerRun(run, `${where}${text}`);
+    return NextResponse.json({ ok: true, mode: "steer", interrupted }, { status: 202 });
+  }
   if (!claimRun(run)) return NextResponse.json({ error: "The designer is still working. Wait for it to finish." }, { status: 409 });
 
   try {
     await continueOctoSlidesRun(run, text, target);
-    return NextResponse.json({ ok: true }, { status: 202 });
+    return NextResponse.json({ ok: true, mode: "turn" }, { status: 202 });
   } catch (error) {
     emit(run, { type: "error", message: error instanceof Error ? error.message : "Could not continue." });
     finishRun(run, "error");
