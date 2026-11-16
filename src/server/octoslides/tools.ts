@@ -9,6 +9,7 @@ import { applyMarks } from "@/server/octoslides/marks";
 import { critique_slides, generate_image, resolveSearchResult, search_images } from "@/server/octoslides/creativeTools";
 import { list_my_documents, read_document, search_document } from "@/server/octoslides/dataTools";
 import { forget, remember } from "@/server/octoslides/memory";
+import { findOctoSlidesTheme } from "@/lib/octoslidesThemes";
 import {
   WorkspaceError,
   deckInfo,
@@ -327,25 +328,28 @@ const refresh_deck: OctoTool = {
 
 const ask_user: OctoTool = {
   name: "ask_user",
-  description: "Ask the user ONE question when something essential is missing (audience, length, brand colours, facts you must not invent). Waits for the answer.",
+  description: "Ask the user ONE question and wait. On the first deck request, ask for a missing slide count (kind slide_count), then a missing palette (kind color_theme). The color_theme UI shows the ten fixed palettes and an option to type custom colors. Do not ask about values already specified.",
   parameters: {
     type: "object",
     additionalProperties: false,
-    required: ["question"],
+    required: ["question", "kind"],
     properties: {
       question: { type: "string" },
+      kind: { type: "string", enum: ["slide_count", "color_theme", "other"] },
       suggestions: { type: "array", items: { type: "string" }, maxItems: 5 },
     },
   },
   timeoutMs: 30 * 60 * 1000,
   async execute(args, { run }) {
     const question = str(args, "question");
-    const suggestions = Array.isArray(args.suggestions) ? (args.suggestions as unknown[]).map(String).slice(0, 5) : undefined;
+    const kind = args.kind === "slide_count" || args.kind === "color_theme" ? args.kind : "other";
+    const suggestions = Array.isArray(args.suggestions) ? (args.suggestions as unknown[]).map(String).slice(0, 5) : kind === "slide_count" ? ["3 slides", "5 slides", "8 slides"] : undefined;
     run.status = "waiting_for_user";
-    emit(run, { type: "ask_user", question, suggestions });
+    emit(run, { type: "ask_user", question, kind, suggestions: kind === "color_theme" ? undefined : suggestions });
     const answer = await waitForAnswer(run, 30 * 60 * 1000);
     run.status = "running";
-    return { ok: true, content: JSON.stringify({ answer }), summary: `User answered` };
+    const theme = kind === "color_theme" ? findOctoSlidesTheme(answer) : undefined;
+    return { ok: true, content: JSON.stringify(theme ? { answer: theme.name, colors: theme.colors, description: theme.description } : { answer }), summary: "User answered" };
   },
 };
 

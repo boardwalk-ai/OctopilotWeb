@@ -8,6 +8,7 @@ import SlideCanvas, { STAGE_H, STAGE_W } from "@/components/octoslides/SlideCanv
 import StepFeed, { type FeedItem } from "@/components/octoslides/StepFeed";
 import MemoryPanel from "@/components/octoslides/MemoryPanel";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
+import { OCTOSLIDES_THEMES } from "@/lib/octoslidesThemes";
 
 /**
  * OctoSlides studio for the pptxgenjs designer (/api/octoslides).
@@ -33,7 +34,7 @@ type ServerEvent =
   | { type: "tool_finished"; id: string; name: string; ok: boolean; summary: string }
   | { type: "slides_rendered"; slides: number[]; version: number }
   | { type: "deck_ready"; bytes: number; version: number }
-  | { type: "ask_user"; question: string; suggestions?: string[] }
+  | { type: "ask_user"; question: string; kind?: "slide_count" | "color_theme" | "other"; suggestions?: string[] }
   | { type: "usage"; costUsd: number; steps: number }
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
   | { type: "steer"; text: string; applied: boolean }
@@ -97,7 +98,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const [runId, setRunId] = useState<string | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [busy, setBusy] = useState(false);
-  const [question, setQuestion] = useState<{ question: string; suggestions?: string[] } | null>(null);
+  const [question, setQuestion] = useState<{ question: string; kind?: "slide_count" | "color_theme" | "other"; suggestions?: string[] } | null>(null);
   const [input, setInput] = useState("");
   const [deckVersion, setDeckVersion] = useState(0);
   const [render, setRender] = useState<{ version: number; slides: number[] } | null>(null);
@@ -238,7 +239,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           if (ev.name === "ask_user") setQuestion(null);
           break;
         case "ask_user":
-          setQuestion({ question: ev.question, suggestions: ev.suggestions });
+          setQuestion({ question: ev.question, kind: ev.kind, suggestions: ev.suggestions });
           break;
         case "deck_ready":
           setDeckVersion(ev.version);
@@ -712,7 +713,22 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                   </div>
                   <p className="text-[13px] leading-snug text-white/90">{question.question}</p>
                 </div>
-                {!!question.suggestions?.length && (
+                {question.kind === "color_theme" && (
+                  <div className="mt-3 grid max-h-64 grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
+                    {OCTOSLIDES_THEMES.map((theme) => (
+                      <button key={theme.name} type="button" onClick={() => void answer(theme.name)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-left transition hover:border-red-500/40 hover:bg-red-500/[0.08]">
+                        <span className="flex shrink-0 -space-x-1" aria-hidden="true">
+                          {theme.colors.map((color) => <span key={color} className="h-4 w-4 rounded-full border border-white/25" style={{ backgroundColor: `#${color}` }} />)}
+                        </span>
+                        <span className="min-w-0"><span className="block text-[11.5px] font-medium text-white/85">{theme.name}</span><span className="block text-[10px] text-white/45">{theme.description}</span></span>
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => textareaRef.current?.focus()} className="rounded-xl border border-dashed border-white/20 px-2.5 py-2 text-left text-[11.5px] text-white/70 transition hover:border-red-500/40 hover:text-white">
+                      Other · type your colors below
+                    </button>
+                  </div>
+                )}
+                {question.kind !== "color_theme" && !!question.suggestions?.length && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {question.suggestions.map((s) => (
                       <button key={s} type="button" onClick={() => void answer(s)} className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-left text-[12px] text-white/75 transition hover:border-red-500/40 hover:bg-red-500/[0.08] hover:text-white">

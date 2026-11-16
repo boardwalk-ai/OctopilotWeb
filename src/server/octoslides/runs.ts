@@ -19,7 +19,7 @@ export type OctoSlidesEvent =
   | { type: "tool_finished"; id: string; name: string; ok: boolean; summary: string }
   | { type: "slides_rendered"; slides: number[]; version: number }
   | { type: "deck_ready"; bytes: number; version: number }
-  | { type: "ask_user"; question: string; suggestions?: string[] }
+  | { type: "ask_user"; question: string; kind?: "slide_count" | "color_theme" | "other"; suggestions?: string[] }
   | { type: "usage"; costUsd: number; steps: number }
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
   | { type: "steer"; text: string; applied: boolean }
