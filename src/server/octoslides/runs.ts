@@ -22,6 +22,7 @@ export type OctoSlidesEvent =
   | { type: "ask_user"; question: string; kind?: "slide_count" | "color_theme" | "other"; suggestions?: string[] }
   | { type: "usage"; costUsd: number; steps: number }
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
+  | { type: "outline"; slides: Array<{ title: string }> }
   | { type: "steer"; text: string; applied: boolean }
   | { type: "stopped"; message: string }
   | { type: "complete"; summary: string }

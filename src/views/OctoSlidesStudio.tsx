@@ -8,6 +8,7 @@ import SlideCanvas, { STAGE_H, STAGE_W } from "@/components/octoslides/SlideCanv
 import StepFeed, { type FeedItem } from "@/components/octoslides/StepFeed";
 import MemoryPanel from "@/components/octoslides/MemoryPanel";
 import ThemePicker from "@/components/octoslides/ThemePicker";
+import GeneratingSlide, { GeneratingField, GeneratingStyles } from "@/components/octoslides/GeneratingSlide";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
 
 /**
@@ -37,6 +38,7 @@ type ServerEvent =
   | { type: "ask_user"; question: string; kind?: "slide_count" | "color_theme" | "other"; suggestions?: string[] }
   | { type: "usage"; costUsd: number; steps: number }
   | { type: "watermark"; enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" }
+  | { type: "outline"; slides: Array<{ title: string }> }
   | { type: "steer"; text: string; applied: boolean }
   | { type: "stopped"; message: string }
   | { type: "complete"; summary: string }
@@ -121,6 +123,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const [stopping, setStopping] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [outline, setOutline] = useState<string[]>([]);
 
   // two clicks to delete: the first arms the button for a few seconds
   const removeDeck = async (id: string) => {
@@ -259,6 +262,9 @@ export default function OctoSlidesStudio({ onBack }: Props) {
             : row));
           void loadRender(id, ev.slides, ev.version);
           break;
+        case "outline":
+          setOutline(ev.slides.map((sl) => sl.title));
+          break;
         case "steer":
           setFeed((f) =>
             ev.applied
@@ -363,6 +369,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     setSelected(null);
     setActive(1);
     setWatermark(null);
+    setOutline([]);
   };
 
   const openRun = (id: string) => {
@@ -590,6 +597,8 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   };
 
   const slides = render?.slides ?? [];
+  // planned slides show up (as "being designed") before the first render exists
+  const thumbs = Array.from({ length: Math.max(outline.length, slides.length ? Math.max(...slides) : 0) }, (_, i) => i + 1);
   const hasDeck = deckVersion > 0;
   const canEdit = hasDeck && !busy && !!layout;
   const runningTool = [...feed].reverse().find((f): f is Extract<FeedItem, { kind: "tool" }> => f.kind === "tool" && f.status === "running");
@@ -666,6 +675,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
         .os-el.sel { box-shadow: 0 0 0 calc(2px / var(--osc-k, 1)) #ef4444, 0 0 0 calc(6px / var(--osc-k, 1)) rgba(239,68,68,.18); background: rgba(239,68,68,.04) }
       `}</style>
       {presenting && <Presenter pptx={presenting} references={images} startSlide={Math.max(0, slides.indexOf(active))} onClose={() => setPresenting(null)} />}
+      <GeneratingStyles />
       <AppHeader left={<BackToHome onClick={onBack} />} right={<MainHeaderActions />} />
 
       <div className="flex overflow-hidden" style={{ marginTop: 64, height: "calc(100vh - 64px)" }}>
@@ -896,7 +906,15 @@ export default function OctoSlidesStudio({ onBack }: Props) {
 
           <div className="relative min-h-0 flex-1">
             {question?.kind === "color_theme" && <ThemePicker question={question.question} onPick={answer} />}
-            {!images[active] ? (
+            {!images[active] && outline.length > 0 && active <= outline.length ? (
+              <GeneratingSlide
+                key={`gen-${active}`}
+                index={active - 1}
+                total={outline.length}
+                title={outline[active - 1]}
+                status={runningTool?.label ?? "Designing"}
+              />
+            ) : !images[active] ? (
               <div className="flex h-full items-center justify-center p-8">
                 <div className="relative w-full max-w-[1000px] overflow-hidden rounded-2xl border border-white/[0.06]" style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}>
                   <div className="os-shimmer absolute inset-0" />
@@ -920,11 +938,12 @@ export default function OctoSlidesStudio({ onBack }: Props) {
               <SlideCanvas slideKey={`${active}`} onBackgroundClick={() => setSelected(null)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
+                  key={images[active]}
                   src={images[active]}
                   alt={`Slide ${active}`}
                   width={STAGE_W}
                   height={STAGE_H}
-                  className="absolute inset-0 h-full w-full rounded-[6px] shadow-[0_40px_120px_-30px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.06)]"
+                  className="os-reveal absolute inset-0 h-full w-full rounded-[6px] shadow-[0_40px_120px_-30px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.06)]"
                   draggable={false}
                 />
                 {canEdit &&
@@ -976,9 +995,9 @@ export default function OctoSlidesStudio({ onBack }: Props) {
             )}
           </div>
 
-          {slides.length > 0 && (
+          {thumbs.length > 0 && (
             <div className="flex gap-3 overflow-x-auto border-t border-white/[0.06] bg-[#0b0b0b] px-5 py-3">
-              {slides.map((n, i) => (
+              {thumbs.map((n, i) => (
                 <button
                   key={n}
                   type="button"
@@ -991,9 +1010,12 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                 >
                   {images[n] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={images[n]} alt={`Slide ${n}`} className="h-full w-full object-cover" draggable={false} />
+                    <img key={images[n]} src={images[n]} alt={`Slide ${n}`} className="os-reveal h-full w-full object-cover" style={{ animationDelay: `${(n - 1) * 90}ms` }} draggable={false} />
                   ) : (
-                    <span className="os-shimmer block h-full w-full" />
+                    <span className="relative block h-full w-full" title={outline[n - 1]}>
+                      <GeneratingField seed={n - 1} compact />
+                      {outline[n - 1] && <span className="absolute inset-x-1.5 top-1.5 truncate text-left text-[9.5px] font-medium text-white/80">{outline[n - 1]}</span>}
+                    </span>
                   )}
                   <span className="absolute bottom-1 left-1 rounded-md bg-black/65 px-1.5 text-[10px] tabular-nums text-white/85 backdrop-blur">{n}</span>
                 </button>

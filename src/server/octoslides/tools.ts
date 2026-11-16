@@ -326,6 +326,37 @@ const refresh_deck: OctoTool = {
   },
 };
 
+const outline_deck: OctoTool = {
+  name: "outline_deck",
+  description:
+    "Announce the deck's plan as soon as you know the slide count: one short working title per slide, in order. The user immediately sees that many slides being prepared on screen. Call it once before writing build.js, and again only if the number or order of slides changes.",
+  parameters: {
+    type: "object",
+    additionalProperties: false,
+    required: ["slides"],
+    properties: {
+      slides: {
+        type: "array",
+        minItems: 1,
+        maxItems: 60,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title"],
+          properties: { title: { type: "string", description: "Working title, a few words" } },
+        },
+      },
+    },
+  },
+  async execute(args, { run }) {
+    const raw = Array.isArray(args.slides) ? (args.slides as Array<{ title?: unknown }>) : [];
+    const slides = raw.slice(0, 60).map((s, i) => ({ title: String(s?.title ?? `Slide ${i + 1}`).trim().slice(0, 120) || `Slide ${i + 1}` }));
+    if (!slides.length) throw new WorkspaceError("slides must list at least one slide.");
+    emit(run, { type: "outline", slides });
+    return { ok: true, content: JSON.stringify({ shown: slides.length }), summary: `${slides.length} slides planned` };
+  },
+};
+
 const ask_user: OctoTool = {
   name: "ask_user",
   description: "Ask the user ONE question and wait. On the first deck request, ask for a missing slide count (kind slide_count), then a missing palette (kind color_theme). The color_theme UI shows the ten fixed palettes and an option to type custom colors. Do not ask about values already specified.",
@@ -404,6 +435,7 @@ export const OCTOSLIDES_TOOLS: OctoTool[] = [
   read_document,
   remember,
   forget,
+  outline_deck,
   ask_user,
   finish,
 ];
