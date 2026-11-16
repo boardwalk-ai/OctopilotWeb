@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import sharp from "sharp";
 import { PNG } from "pngjs";
 import { injectPptxSlideTransitions } from "@/server/slides/export/injectPptxSlideTransitions";
+import { fetchSafeImageData } from "@/server/slides/export/safeImageFetch";
 import type {
   Background,
   DeckTheme,
@@ -166,9 +167,9 @@ async function applySlideBackground(slide: any, bg: Background) {
 
   if (bg.type === "image") {
     // Base layer: full-bleed image.
-    const img = await fetchImageData(bg.src);
+    const img = await fetchSafeImageData(bg.src);
     slide.addImage({
-      data: img.data,
+      data: img,
       x: 0,
       y: 0,
       w: SLIDE_W_IN,
@@ -220,21 +221,6 @@ function mapShapeType(shape: ShapeElement["shape"]): string {
     default:
       return "rect";
   }
-}
-
-async function fetchImageData(url: string): Promise<{ data: string; ext: "png" | "jpg" }> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status}`);
-  }
-  const contentType = response.headers.get("content-type") || "";
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  const base64 = Buffer.from(bytes).toString("base64");
-
-  const ext: "png" | "jpg" =
-    contentType.includes("png") || url.toLowerCase().endsWith(".png") ? "png" : "jpg";
-  const mime = ext === "png" ? "image/png" : "image/jpeg";
-  return { data: `data:${mime};base64,${base64}`, ext };
 }
 
 function addText(slide: any, el: TextElement, theme?: DeckTheme) {
@@ -310,9 +296,9 @@ function addShape(slide: any, el: ShapeElement) {
 }
 
 async function addImage(slide: any, el: ImageElement) {
-  const img = await fetchImageData(el.src);
+  const img = await fetchSafeImageData(el.src);
   slide.addImage({
-    data: img.data,
+    data: img,
     x: pctX(el.position.x),
     y: pctY(el.position.y),
     w: pctW(el.position.w),

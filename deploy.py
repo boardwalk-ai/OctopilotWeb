@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+from pathlib import Path
 import socket
 import sys
 import time
@@ -26,7 +27,6 @@ import paramiko
 # ── Config ────────────────────────────────────────────────────────────────────
 HOST     = "187.124.92.119"
 USER     = "root"
-PASSWORD = "Brokewalk25@"
 
 # Both instances run as systemd services (PM2 was retired — it raced with
 # the GitHub Actions deploy and crash-looped on port conflicts).
@@ -50,8 +50,9 @@ def connect(retries: int = 5) -> paramiko.SSHClient:
         try:
             socket.create_connection((HOST, 22), timeout=15).close()
             c = paramiko.SSHClient()
-            c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            c.connect(HOST, username=USER, password=PASSWORD,
+            c.load_system_host_keys()
+            c.set_missing_host_key_policy(paramiko.RejectPolicy())
+            c.connect(HOST, username=USER, key_filename=str(Path.home() / ".ssh" / "octopilot"),
                       timeout=30, banner_timeout=90)
             # Keep session alive during long builds (ping every 30 s)
             transport = c.get_transport()
