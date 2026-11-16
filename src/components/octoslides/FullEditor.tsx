@@ -64,7 +64,7 @@ function SelectionRibbon({ tab, element, onEdit, busy }: { tab: typeof TABS[numb
   const [trigger, setTrigger] = useState("onClick");
   const [duration, setDuration] = useState(650);
   const [delay, setDelay] = useState(0);
-  const saveFormat = (next: typeof format) => { setFormat(next); if (element) void onEdit(element.name, { format: next }); };
+  const saveFormat = (next: typeof format) => setFormat(next);
   if (!element) return <p className="self-center px-3 text-sm text-[var(--md-on-surface-variant)]">Select an element on the slide to edit its content, style, position, and motion.</p>;
   if (tab === "Home") return <div className="flex min-w-0 items-end gap-2 overflow-x-auto pb-1">
     {element.kind === "text" && <>
@@ -76,6 +76,7 @@ function SelectionRibbon({ tab, element, onEdit, busy }: { tab: typeof TABS[numb
       <Select label="Align" value={format.align ?? "left"} choices={["left", "center", "right", "justify"]} onChange={(align) => saveFormat({ ...format, align })} />
       <label className="flex flex-col gap-1 text-[11px] text-[var(--md-on-surface-variant)]">Text color<input aria-label="Text color" type="color" value={`#${format.color ?? "202020"}`} onChange={(event) => saveFormat({ ...format, color: event.target.value.slice(1).toUpperCase() })} /></label>
       <label className="flex min-w-[220px] flex-col gap-1 text-[11px] text-[var(--md-on-surface-variant)]">Content<input aria-label="Text content" value={text} onChange={(event) => setText(event.target.value)} className="rounded border border-[var(--md-outline-variant)] bg-[var(--md-surface)] px-2 py-1.5 text-sm" /></label>
+      <RibbonButton disabled={busy} onClick={() => void onEdit(element.name, { format })}>Apply style</RibbonButton>
       <RibbonButton disabled={busy || text === element.text} onClick={() => void onEdit(element.name, { text })}>Save text</RibbonButton>
     </>}
     {element.kind !== "text" && <span className="self-center text-sm text-[var(--md-on-surface-variant)]">{element.kind} selected · use Arrange or Animations to edit it.</span>}

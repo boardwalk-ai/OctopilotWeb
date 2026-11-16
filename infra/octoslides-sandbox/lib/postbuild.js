@@ -162,6 +162,28 @@ function paragraphsOf(el) {
     Array.from(p.getElementsByTagNameNS(NS.a, "t")).map((t) => t.textContent).join(""),
   );
 }
+function textFormatOf(el) {
+  const tx = kid(el, NS.p, "txBody");
+  const paragraph = kid(tx, NS.a, "p");
+  if (!paragraph) return {};
+  const pPr = kid(paragraph, NS.a, "pPr");
+  const run = kid(paragraph, NS.a, "r");
+  const pr = kid(run, NS.a, "rPr");
+  const format = {};
+  const alignment = { l: "left", ctr: "center", r: "right", just: "justify" }[pPr?.getAttribute("algn")];
+  if (alignment) format.align = alignment;
+  if (pr) {
+    if (pr.hasAttribute("b")) format.bold = pr.getAttribute("b") === "1";
+    if (pr.hasAttribute("i")) format.italic = pr.getAttribute("i") === "1";
+    if (pr.hasAttribute("u")) format.underline = pr.getAttribute("u") !== "none";
+    if (pr.hasAttribute("sz")) format.size = Number(pr.getAttribute("sz")) / 100;
+    const latin = kid(pr, NS.a, "latin");
+    if (latin?.getAttribute("typeface")) format.font = latin.getAttribute("typeface");
+    const rgb = kid(kid(pr, NS.a, "solidFill"), NS.a, "srgbClr");
+    if (rgb?.getAttribute("val")) format.color = rgb.getAttribute("val");
+  }
+  return format;
+}
 function topElements(spTree) {
   return Array.from(spTree.childNodes).filter(
     (n) => n.nodeType === 1 && n.namespaceURI === NS.p && ["sp", "pic", "graphicFrame", "grpSp", "cxnSp"].includes(n.localName),
@@ -492,7 +514,7 @@ function applyMotion(xml, spec, shapes) {
         kind,
         x: box.x / cx, y: box.y / cy, w: box.w / cx, h: box.h / cy,
         rot: box.rot ? box.rot / 60000 : 0,
-        ...(kind === "text" ? { text: paras.join("\n") } : {}),
+        ...(kind === "text" ? { text: paras.join("\n"), format: textFormatOf(el) } : {}),
         ...(ph ? { placeholder: ph.type } : {}),
       });
     }
@@ -523,7 +545,7 @@ function applyMotion(xml, spec, shapes) {
       for (const element of elements) {
         element.animations = merged.animations.filter((a) => a.target === element.name).map((a) => ({ effect: a.effect, trigger: a.trigger || "onClick", durationMs: a.durationMs || 650, delayMs: a.delayMs || 0 }));
         const override = elementEdits.find((e) => Number(e.slide) === n && e.name === element.name);
-        if (override?.format) element.format = override.format;
+        if (override?.format) element.format = { ...element.format, ...override.format };
       }
     }
     if (slideChanged) zip.file(file, xml);
