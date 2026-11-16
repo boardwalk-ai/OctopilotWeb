@@ -1,0 +1,284 @@
+/*
+ * OctoSlides on Material 3 (dark), keyed to Octopilot red.
+ * Tokens follow M3's roles: surfaces in tonal steps instead of borders, one
+ * primary, state layers (hover 8%, focus/press 12%), a fixed type scale, and
+ * shapes from 8 to 28 px. Scoped to `.m3` so the rest of the site is untouched.
+ */
+
+.m3 {
+  --md-primary: #ef4444;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #5c1414;
+  --md-on-primary-container: #ffdad6;
+  --md-secondary-container: #3b2f2e;
+  --md-on-secondary-container: #f2dedc;
+  --md-tertiary: #e8c26a;
+  --md-error: #ffb4ab;
+  --md-error-container: #93000a;
+  --md-on-error-container: #ffdad6;
+  --md-success: #8fd9a8;
+
+  --md-surface-dim: #0b0a0a;
+  --md-surface: #121111;
+  --md-surface-container-lowest: #0d0c0c;
+  --md-surface-container-low: #1a1818;
+  --md-surface-container: #1f1d1d;
+  --md-surface-container-high: #292727;
+  --md-surface-container-highest: #343131;
+  --md-on-surface: #ede0de;
+  --md-on-surface-variant: #c4b6b4;
+  --md-outline: #8e8180;
+  --md-outline-variant: #403938;
+  --md-scrim: rgba(0, 0, 0, 0.6);
+
+  --md-shape-xs: 4px;
+  --md-shape-s: 8px;
+  --md-shape-m: 12px;
+  --md-shape-l: 16px;
+  --md-shape-xl: 28px;
+
+  --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px 1px rgba(0, 0, 0, 0.3);
+  --md-elev-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 6px 2px rgba(0, 0, 0, 0.3);
+  --md-elev-3: 0 4px 8px 3px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.5);
+
+  --md-ease: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  color: var(--md-on-surface);
+  background: var(--md-surface-dim);
+  color-scheme: dark;
+}
+
+/*
+ * Everything below sits in Tailwind's `components` layer, so utilities such as
+ * `hidden md:flex` or `!h-9` on the same element still win.
+ */
+@layer components {
+/* ── scrollbars: thin, in the surface palette ── */
+.m3,
+.m3 * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-outline-variant) transparent;
+}
+.m3 ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.m3 ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.m3 ::-webkit-scrollbar-thumb {
+  background: var(--md-outline-variant);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+.m3 ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--md-outline);
+}
+.m3 ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.m3 ::selection {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+/* ── type scale (M3) ── */
+.m3 .t-headline-s { font-size: 24px; line-height: 32px; font-weight: 400; letter-spacing: 0; }
+.m3 .t-title-l { font-size: 22px; line-height: 28px; font-weight: 500; letter-spacing: 0; }
+.m3 .t-title-m { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; }
+.m3 .t-title-s { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+.m3 .t-body-l { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: 0.2px; }
+.m3 .t-body-m { font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: 0.15px; }
+.m3 .t-body-s { font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: 0.3px; }
+.m3 .t-label-l { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+.m3 .t-label-m { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.4px; }
+.m3 .t-label-s { font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.4px; }
+.m3 .on-variant { color: var(--md-on-surface-variant); }
+
+/* ── state layers: every interactive element gets one ── */
+.m3 .state {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.m3 .state::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms var(--md-ease);
+}
+.m3 .state:hover::after { opacity: 0.08; }
+.m3 .state:focus-visible::after,
+.m3 .state:active::after { opacity: 0.12; }
+.m3 .state:disabled::after { opacity: 0; }
+.m3 :focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+/* ── buttons ── */
+.m3 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition: background-color 200ms var(--md-ease), color 200ms var(--md-ease), box-shadow 200ms var(--md-ease);
+}
+.m3 .btn.has-icon { padding-left: 16px; }
+.m3 .btn:disabled { cursor: not-allowed; }
+.m3 .btn-filled { background: var(--md-primary); color: var(--md-on-primary); }
+.m3 .btn-filled:hover:not(:disabled) { box-shadow: var(--md-elev-1); }
+.m3 .btn-filled:disabled { background: rgba(237, 224, 222, 0.12); color: rgba(237, 224, 222, 0.38); }
+.m3 .btn-tonal { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.m3 .btn-tonal:disabled { background: rgba(237, 224, 222, 0.12); color: rgba(237, 224, 222, 0.38); }
+.m3 .btn-outlined { border: 1px solid var(--md-outline); color: var(--md-on-surface); background: transparent; }
+.m3 .btn-outlined:disabled { border-color: rgba(237, 224, 222, 0.12); color: rgba(237, 224, 222, 0.38); }
+.m3 .btn-text { padding: 0 12px; color: var(--md-primary); background: transparent; }
+.m3 .btn-text.neutral { color: var(--md-on-surface-variant); }
+.m3 .btn-text:disabled { color: rgba(237, 224, 222, 0.38); }
+
+.m3 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  color: var(--md-on-surface-variant);
+  flex-shrink: 0;
+}
+.m3 .icon-btn.selected { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.m3 .icon-btn.filled { background: var(--md-primary); color: var(--md-on-primary); }
+.m3 .icon-btn.filled:disabled { background: rgba(237, 224, 222, 0.12); color: rgba(237, 224, 222, 0.38); }
+.m3 .icon-btn.tonal { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.m3 .icon-btn:disabled { color: rgba(237, 224, 222, 0.38); cursor: not-allowed; }
+
+/* ── chips ── */
+.m3 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--md-shape-s);
+  border: 1px solid var(--md-outline-variant);
+  color: var(--md-on-surface);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  background: transparent;
+}
+.m3 .chip.has-icon { padding-left: 8px; }
+.m3 .chip.selected { background: var(--md-secondary-container); border-color: transparent; color: var(--md-on-secondary-container); }
+
+/* ── containers ── */
+.m3 .surface-low { background: var(--md-surface-container-low); }
+.m3 .surface { background: var(--md-surface-container); }
+.m3 .surface-high { background: var(--md-surface-container-high); }
+.m3 .surface-highest { background: var(--md-surface-container-highest); }
+.m3 .card-outlined { border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-m); background: var(--md-surface); }
+.m3 .divider { height: 1px; background: var(--md-outline-variant); }
+.m3 .menu {
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-m);
+  box-shadow: var(--md-elev-2);
+  padding: 8px 0;
+}
+.m3 .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 16px;
+  text-align: left;
+  color: var(--md-on-surface);
+}
+
+/* ── switch ── */
+.m3 .switch {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid var(--md-outline);
+  background: var(--md-surface-container-highest);
+  transition: background-color 200ms var(--md-ease), border-color 200ms var(--md-ease);
+  flex-shrink: 0;
+}
+.m3 .switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--md-outline);
+  transform: translateY(-50%);
+  transition: left 250ms var(--md-ease-emphasized), width 250ms var(--md-ease-emphasized), height 250ms var(--md-ease-emphasized), background-color 200ms var(--md-ease);
+}
+.m3 .switch.on { background: var(--md-primary); border-color: var(--md-primary); }
+.m3 .switch.on::before { left: 22px; width: 24px; height: 24px; background: var(--md-on-primary); }
+.m3 .switch.locked { opacity: 0.38; }
+
+/* ── progress ── */
+@keyframes m3-indeterminate {
+  0% { left: -40%; width: 40%; }
+  60% { left: 100%; width: 60%; }
+  100% { left: 100%; width: 60%; }
+}
+.m3 .progress-linear {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--md-secondary-container);
+}
+.m3 .progress-linear::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--md-primary);
+  animation: m3-indeterminate 1.6s var(--md-ease) infinite;
+}
+@keyframes m3-spin { to { transform: rotate(360deg); } }
+.m3 .progress-circular {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--md-secondary-container);
+  border-top-color: var(--md-primary);
+  animation: m3-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── motion ── */
+@keyframes m3-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.m3 .enter { animation: m3-enter 300ms var(--md-ease-emphasized) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m3 .enter,
+  .m3 .progress-linear::before,
+  .m3 .progress-circular { animation: none; }
+  .m3 .progress-linear::before { left: 0; width: 100%; opacity: 0.6; }
+}
+
+}

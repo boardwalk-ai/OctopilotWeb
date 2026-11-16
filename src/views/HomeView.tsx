@@ -59,7 +59,7 @@ function hasWritingStyleAccess(plan?: string | null): boolean {
 /** Writing modes selectable from the methodology screen (and via deep links). */
 export type MethodMode = "automation" | "manual" | "ghostwriter" | "octopilotslides" | "humanizerhub" | "ghostciter";
 
-export default function HomeView({ initialMode }: { initialMode?: MethodMode } = {}) {
+export default function HomeView({ initialMode, initialDeckId }: { initialMode?: MethodMode; initialDeckId?: string } = {}) {
   const [page, setPage] = useState<Page>("home");
   const [ghostciterStyle, setGhostciterStyle] = useState<FormatStyleId>("mla");
   const [ghostciterSnapshot, setGhostciterSnapshot] = useState<ExportDocumentSnapshot | null>(null);
@@ -213,7 +213,13 @@ export default function HomeView({ initialMode }: { initialMode?: MethodMode } =
 
   if (page === "octopilotslides") {
     return (
-      <OctoSlidesStudio onBack={() => setPage("methodology")} />
+      <OctoSlidesStudio
+        initialRunId={initialDeckId}
+        onBack={() => {
+          if (window.location.pathname.startsWith("/octopilot-slides")) window.history.pushState(null, "", "/");
+          setPage("methodology");
+        }}
+      />
     );
   }
 

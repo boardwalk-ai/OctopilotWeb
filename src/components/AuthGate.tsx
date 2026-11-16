@@ -7,7 +7,7 @@ import AuthView from "@/views/AuthView";
 import { AuthService } from "@/services/AuthService";
 import VerifyEmailView from "@/components/VerifyEmailView";
 
-export default function AuthGate({ initialMode }: { initialMode?: MethodMode } = {}) {
+export default function AuthGate({ initialMode, initialDeckId }: { initialMode?: MethodMode; initialDeckId?: string } = {}) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [isApplyingEmailAction, setIsApplyingEmailAction] = useState(false);
   const [emailActionError, setEmailActionError] = useState<string | null>(null);
@@ -50,5 +50,5 @@ export default function AuthGate({ initialMode }: { initialMode?: MethodMode } =
     return <VerifyEmailView user={user} onVerified={setUser} />;
   }
 
-  return <HomeView initialMode={initialMode} />;
+  return <HomeView initialMode={initialMode} initialDeckId={initialDeckId} />;
 }

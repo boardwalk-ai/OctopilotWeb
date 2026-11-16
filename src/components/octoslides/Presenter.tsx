@@ -38,6 +38,7 @@ export default function Presenter({
   const [chrome, setChrome] = useState(true);
   const [isFull, setIsFull] = useState(false);
   const [typed, setTyped] = useState("");
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const laserRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -222,6 +223,8 @@ export default function Presenter({
       return;
     }
     presenterWin.current = window.open("/octoslides/presenter", "octoslides-presenter", "popup=yes,width=1280,height=800");
+    // a blocked pop-up returns null: say so instead of doing nothing
+    if (!presenterWin.current) setPopupBlocked(true);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -331,6 +334,14 @@ export default function Presenter({
         />
       )}
 
+      {popupBlocked && (
+        <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-[#2b2121] px-4 py-3 text-[14px] text-[#ffdad6] shadow-2xl" role="alert" onClick={(e) => e.stopPropagation()}>
+          Your browser blocked the presenter window. Allow pop-ups for this site, then press V again.
+          <button type="button" onClick={() => setPopupBlocked(false)} className="rounded-full px-3 py-1 font-medium text-white hover:bg-white/10">
+            OK
+          </button>
+        </div>
+      )}
       {typed && <div className="absolute right-6 top-6 rounded-xl bg-white/10 px-4 py-2 text-[22px] font-semibold tabular-nums text-white backdrop-blur">{typed}⏎</div>}
 
       {showNotes && status === "ready" && (

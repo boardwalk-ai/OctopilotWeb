@@ -47,6 +47,12 @@ export default function ThemePicker({
   const [otherOpen, setOtherOpen] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // keyboard users land on the first theme, not at the top of the sidebar
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     if (otherOpen) inputRef.current?.focus();
@@ -70,9 +76,9 @@ export default function ThemePicker({
         .tp-in { animation: tp-in .5s cubic-bezier(.2,.8,.2,1) both }
         .tp-card { animation: tp-card .45s cubic-bezier(.2,.8,.2,1) both }
       `}</style>
-      <div className="tp-in my-auto w-full max-w-[920px] rounded-3xl border border-white/10 bg-[#0f0f0f]/95 p-6 shadow-[0_40px_120px_-30px_rgba(0,0,0,.95)]">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-red-300/80">Choose a look</p>
-        <h2 className="mt-1.5 text-[20px] font-semibold tracking-tight text-white">{question}</h2>
+      <div ref={dialogRef} className="tp-in my-auto w-full max-w-[920px] rounded-[var(--md-shape-xl)] p-6" style={{ background: "var(--md-surface-container-high)", boxShadow: "var(--md-elev-3)" }}>
+        <h2 className="t-headline-s">Choose a look</h2>
+        <p className="t-body-m on-variant mt-2">{question}</p>
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {OCTOSLIDES_THEMES.map((theme, i) => (
             <button
@@ -80,8 +86,8 @@ export default function ThemePicker({
               type="button"
               disabled={!!sending}
               onClick={() => void pick(theme.name)}
-              className="tp-card group rounded-2xl border border-white/[0.08] bg-white/[0.03] p-2 text-left transition duration-300 hover:-translate-y-0.5 hover:border-red-500/45 hover:bg-white/[0.06] disabled:opacity-50"
-              style={{ animationDelay: `${60 + i * 35}ms` }}
+              className="tp-card state group rounded-[var(--md-shape-l)] p-2 text-left disabled:opacity-50"
+              style={{ animationDelay: `${60 + i * 35}ms`, background: "var(--md-surface-container-highest)" }}
             >
               <Preview theme={theme} />
               <div className="mt-2 flex items-center gap-2 px-1 pb-0.5">
@@ -91,15 +97,14 @@ export default function ThemePicker({
                   ))}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[12.5px] font-medium text-white/90">{sending === theme.name ? "Applying…" : theme.name}</span>
-                  <span className="block truncate text-[10.5px] text-white/40">{theme.description}</span>
+                  <span className="t-label-l block truncate">{sending === theme.name ? "Applying…" : theme.name}</span>
+                  <span className="t-body-s on-variant block truncate">{theme.description}</span>
                 </span>
               </div>
             </button>
           ))}
           <div
-            className="tp-card flex flex-col justify-center rounded-2xl border border-dashed border-white/20 p-3 transition hover:border-red-500/45"
-            style={{ animationDelay: `${60 + OCTOSLIDES_THEMES.length * 35}ms` }}
+            className="tp-card flex flex-col justify-center rounded-[var(--md-shape-l)] border border-dashed p-3" style={{ borderColor: "var(--md-outline)", animationDelay: `${60 + OCTOSLIDES_THEMES.length * 35}ms` }}
           >
             {!otherOpen ? (
               <button type="button" onClick={() => setOtherOpen(true)} className="flex h-full flex-col items-center justify-center gap-1.5 py-4 text-center text-white/70 transition hover:text-white">

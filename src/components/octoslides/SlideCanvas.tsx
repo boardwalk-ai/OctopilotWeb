@@ -187,17 +187,17 @@ export default function SlideCanvas({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" aria-label="Zoom out" onClick={() => zoomCenter(1 / 1.25)} className="flex h-7 w-7 items-center justify-center rounded-lg transition hover:bg-white/[0.08] hover:text-white">
+        <button type="button" aria-label="Zoom out" onClick={() => zoomCenter(1 / 1.25)} className="state icon-btn">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14" /></svg>
         </button>
-        <button type="button" onClick={() => fit(true)} title="Fit (0)" className="min-w-[48px] rounded-lg px-1.5 py-1 text-[11.5px] tabular-nums transition hover:bg-white/[0.08] hover:text-white">
+        <button type="button" onClick={() => fit(true)} title="Fit (0)" className="state t-label-l min-w-[56px] rounded-full px-2 py-2 tabular-nums">
           {pct}%
         </button>
-        <button type="button" aria-label="Zoom in" onClick={() => zoomCenter(1.25)} className="flex h-7 w-7 items-center justify-center rounded-lg transition hover:bg-white/[0.08] hover:text-white">
+        <button type="button" aria-label="Zoom in" onClick={() => zoomCenter(1.25)} className="state icon-btn">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M12 5v14" /></svg>
         </button>
       </div>
-      <p className="pointer-events-none absolute bottom-5 left-5 text-[10.5px] text-white/25">Drag to pan · Ctrl + scroll to zoom · 0 to fit</p>
+      <p className="t-body-s on-variant pointer-events-none absolute bottom-6 left-5 hidden md:block">Drag to pan · Ctrl + scroll to zoom · 0 to fit</p>
     </div>
   );
 }

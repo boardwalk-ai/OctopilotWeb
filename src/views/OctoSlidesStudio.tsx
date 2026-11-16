@@ -5,7 +5,8 @@ import Image from "next/image";
 import { AppHeader, BackToHome, MainHeaderActions } from "@/components/header";
 import dynamic from "next/dynamic";
 import SlideCanvas, { STAGE_H, STAGE_W } from "@/components/octoslides/SlideCanvas";
-import StepFeed, { type FeedItem } from "@/components/octoslides/StepFeed";
+import ChatFeed, { type FeedItem } from "@/components/octoslides/ChatFeed";
+import "@/components/octoslides/m3.css";
 import MemoryPanel from "@/components/octoslides/MemoryPanel";
 import ThemePicker from "@/components/octoslides/ThemePicker";
 import GeneratingSlide, { GeneratingField, GeneratingStyles } from "@/components/octoslides/GeneratingSlide";
@@ -18,7 +19,20 @@ import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
  * directly (free) or ask the designer to change it.
  */
 
-type Props = { onBack: () => void };
+type Props = { onBack: () => void; initialRunId?: string | null };
+
+/** Each deck has its own address, so reload, back and new tabs keep it. */
+const STUDIO_PATH = "/octopilot-slides";
+const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function runIdFromPath(pathname: string): string | null {
+  const m = pathname.match(/^\/octopilot-slides\/([^/]+)\/?$/);
+  return m && RUN_ID.test(m[1]) ? m[1].toLowerCase() : null;
+}
+function setPath(path: string, replace = false) {
+  if (typeof window === "undefined" || window.location.pathname === path) return;
+  if (replace) window.history.replaceState(null, "", path);
+  else window.history.pushState(null, "", path);
+}
 
 type ServerEvent =
   | { type: "run_started"; runId: string }
@@ -92,11 +106,8 @@ async function jsonOrError(res: Response) {
   return data;
 }
 
-function Spinner({ className = "" }: { className?: string }) {
-  return <span className={`inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-white/15 border-t-red-400 ${className}`} />;
-}
 
-export default function OctoSlidesStudio({ onBack }: Props) {
+export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props) {
   const [runId, setRunId] = useState<string | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -113,7 +124,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const [askText, setAskText] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [docs, setDocs] = useState<DocumentRow[] | null>(null);
+  const [docs, setDocs] = useState<DocumentRow[] | null | "error">(null);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
   const [attached, setAttached] = useState<DocumentRow | null>(null);
   const [recent, setRecent] = useState<RunRow[]>([]);
@@ -123,6 +134,18 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const [stopping, setStopping] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [recentError, setRecentError] = useState(false);
+  /** narrow screens show one pane at a time */
+  const [mobilePane, setMobilePane] = useState<"chat" | "slides">("chat");
+  // the site header wraps to two rows on narrow screens: sit below whatever height it has
+  const [headerH, setHeaderH] = useState(64);
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const ro = new ResizeObserver(() => setHeaderH(Math.max(56, Math.round(header.getBoundingClientRect().bottom))));
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
   const [outline, setOutline] = useState<string[]>([]);
 
   // two clicks to delete: the first arms the button for a few seconds
@@ -147,12 +170,18 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const imageUrls = useRef<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  // a failed load says so; it is never shown as "no decks"
+  const loadRecent = useCallback(() => {
+    setRecentError(false);
     fetchWithUserAuthorization(API)
       .then(jsonOrError)
       .then((d) => setRecent((d.runs as RunRow[]) ?? []))
-      .catch(() => undefined);
+      .catch(() => setRecentError(true));
   }, []);
+  useEffect(() => {
+    const t = setTimeout(loadRecent, 0);
+    return () => clearTimeout(t);
+  }, [loadRecent]);
 
   useEffect(
     () => () => {
@@ -242,6 +271,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           if (ev.name === "ask_user") setQuestion(null);
           break;
         case "ask_user":
+          setFeed((f) => [...f, { kind: "question", id: `q-${f.length}`, text: ev.question }]);
           setQuestion({
             question: ev.question,
             // a color question always gets the theme picker, even if the event's kind is off
@@ -309,6 +339,12 @@ export default function OctoSlidesStudio({ onBack }: Props) {
         setFeed([]);
         try {
           const res = await fetchWithUserAuthorization(`${API}/${id}/events`, { signal: controller.signal, headers: { Accept: "text/event-stream" } });
+          if (res.status === 404) {
+            setNotice("That deck is no longer available. It may have been deleted, or it belongs to another account.");
+            setRunId(null);
+            setPath(STUDIO_PATH, true);
+            return;
+          }
           if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
           attempt = 0;
           const reader = res.body.getReader();
@@ -372,11 +408,36 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     setOutline([]);
   };
 
-  const openRun = (id: string) => {
+  const openRun = (id: string, push = true) => {
     resetDeck();
     setRunId(id);
     connect(id);
+    if (push) setPath(`${STUDIO_PATH}/${id}`);
   };
+
+  const newDeck = () => {
+    resetDeck();
+    setPath(STUDIO_PATH);
+  };
+
+  // open the deck in the address on arrival, and follow back / forward
+  const openRunRef = useRef(openRun);
+  const newDeckRef = useRef(resetDeck);
+  useEffect(() => {
+    openRunRef.current = openRun;
+    newDeckRef.current = resetDeck;
+  });
+  useEffect(() => {
+    if (initialRunId && RUN_ID.test(initialRunId)) openRunRef.current(initialRunId.toLowerCase(), false);
+    else if (window.location.pathname === "/") setPath(STUDIO_PATH);
+    const onPop = () => {
+      const id = runIdFromPath(window.location.pathname);
+      if (id) openRunRef.current(id, false);
+      else if (window.location.pathname.startsWith(STUDIO_PATH)) newDeckRef.current();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [initialRunId]);
 
   const startDeck = async (prompt: string) => {
     setNotice(null);
@@ -394,6 +455,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
       setBusy(true);
       setAttached(null);
       connect(id);
+      setPath(`${STUDIO_PATH}/${id}`);
       setRecent((r) => [{ runId: id, prompt, status: "running", createdAt: Date.now(), slides: [], renderedVersion: -1 }, ...r]);
     } catch (e) {
       setNotice((e as Error).message);
@@ -547,14 +609,15 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     }
   };
 
-  const loadDocs = async () => {
-    setDocPickerOpen((o) => !o);
-    if (docs) return;
+  const loadDocs = async (retry = false) => {
+    if (!retry) setDocPickerOpen((o) => !o);
+    if (Array.isArray(docs) && !retry) return;
+    setDocs(null);
     try {
       const data = await jsonOrError(await fetchWithUserAuthorization("/api/documents"));
       setDocs((data.documents as DocumentRow[]) ?? []);
     } catch {
-      setDocs([]);
+      setDocs("error");
     }
   };
 
@@ -563,9 +626,11 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (presenting) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
+      // Escape only closes things; stopping the designer is the Stop button's job
       if (e.key === "Escape") {
         if (selected) setSelected(null);
-        else if (busy && !question) void stop();
+        else if (docPickerOpen) setDocPickerOpen(false);
+        else if (memoryOpen) setMemoryOpen(false);
       }
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       const slides = render?.slides ?? [];
@@ -581,8 +646,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [render, presenting, selected, busy, question]);
+  }, [render, presenting, selected, docPickerOpen, memoryOpen]);
 
   const slideElements = useMemo(() => {
     const els = layout?.slides.find((s) => s.slide === active)?.elements ?? [];
@@ -605,61 +669,68 @@ export default function OctoSlidesStudio({ onBack }: Props) {
   const composerMode = question ? "answer" : runId && busy ? "steer" : !runId || !hasDeck ? "new" : "change";
 
   const emptyFeed = !runId ? (
-    <div className="osf-row space-y-5 px-1 pt-2">
+    <div className="enter space-y-6">
       <div>
-        <p className="text-[15px] font-semibold tracking-tight text-white">What are we presenting?</p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/45">
+        <h2 className="t-title-l">What are we presenting?</h2>
+        <p className="t-body-m on-variant mt-2">
           Say what the deck is for, who will see it and roughly how long it is. Attach one of your Octopilot documents to build it from your own essay and sources.
         </p>
       </div>
-      {recent.length > 0 && (
-        <div>
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">Your decks · kept 30 days</p>
-          <div className="space-y-1.5">
-            {recent.map((r) => (
-              <div
-                key={r.runId}
-                role="button"
-                tabIndex={0}
-                onClick={() => openRun(r.runId)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") openRun(r.runId);
-                }}
-                className="group relative w-full cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 pr-9 text-left transition duration-300 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.05]"
-              >
-                <p className="truncate text-[12.5px] text-white/80">{r.prompt}</p>
-                <p className="mt-0.5 text-[10.5px] text-white/30">
-                  {new Date(r.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                  {new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {r.slides.length ? `${r.slides.length} slides` : r.status}
-                </p>
-                <button
-                  type="button"
-                  aria-label="Delete deck"
-                  title={confirmDelete === r.runId ? "Click again to delete for good" : "Delete deck"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void removeDeck(r.runId);
-                  }}
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-1 text-[10.5px] transition ${confirmDelete === r.runId ? "bg-red-500/90 text-white opacity-100" : "text-white/35 opacity-0 hover:bg-white/[0.08] hover:text-red-300 group-hover:opacity-100"}`}
-                >
-                  {confirmDelete === r.runId ? (
-                    "Delete?"
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
+      {recentError ? (
+        <div className="flex items-center gap-3 rounded-[var(--md-shape-m)] px-4 py-3" style={{ background: "var(--md-error-container)", color: "var(--md-on-error-container)" }}>
+          <p className="t-body-m flex-1">Couldn&apos;t load your decks.</p>
+          <button type="button" onClick={loadRecent} className="state btn btn-text" style={{ color: "var(--md-on-error-container)" }}>
+            Retry
+          </button>
         </div>
+      ) : (
+        recent.length > 0 && (
+          <section aria-labelledby="your-decks">
+            <h3 id="your-decks" className="t-title-s mb-1 px-1">
+              Your decks <span className="t-body-s on-variant">· kept 30 days</span>
+            </h3>
+            <ul className="-mx-2">
+              {recent.map((r) => (
+                <li key={r.runId} className="group flex items-center rounded-[var(--md-shape-m)]">
+                  <button type="button" onClick={() => openRun(r.runId)} className="state flex min-w-0 flex-1 flex-col rounded-[var(--md-shape-m)] px-3 py-2.5 text-left">
+                    <span className="t-body-l truncate">{r.prompt}</span>
+                    <span className="t-body-s on-variant">
+                      {new Date(r.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })},{" "}
+                      {new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {r.slides.length ? `${r.slides.length} slides` : r.status}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={confirmDelete === r.runId ? "Confirm: delete this deck for good" : "Delete deck"}
+                    title={confirmDelete === r.runId ? "Click again to delete for good" : "Delete deck"}
+                    onClick={() => void removeDeck(r.runId)}
+                    className={`state ${confirmDelete === r.runId ? "btn btn-filled !h-8 !px-3" : "icon-btn opacity-0 focus-visible:opacity-100 group-hover:opacity-100"}`}
+                  >
+                    {confirmDelete === r.runId ? (
+                      "Delete"
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                      </svg>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
       )}
     </div>
   ) : null;
 
+  const sendIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M4.4 19.4 21 12 4.4 4.6l.02 5.77L16 12 4.42 13.63 4.4 19.4Z" />
+    </svg>
+  );
+
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0a0a0a] text-white">
+    <div className="m3 fixed inset-0 flex flex-col overflow-hidden">
       <style>{`
         @keyframes os-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
         @keyframes os-shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
@@ -678,23 +749,19 @@ export default function OctoSlidesStudio({ onBack }: Props) {
       <GeneratingStyles />
       <AppHeader left={<BackToHome onClick={onBack} />} right={<MainHeaderActions />} />
 
-      <div className="flex overflow-hidden" style={{ marginTop: 64, height: "calc(100vh - 64px)" }}>
+      <div className="mt-[var(--os-header)] flex min-h-0 flex-1 overflow-hidden" style={{ ["--os-header" as string]: `${headerH}px` }}>
         {/* ══ Sidebar ══ */}
-        <aside className="relative flex w-[340px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0d0d0d]">
+        <aside
+          className={`relative flex w-full shrink-0 flex-col md:w-[380px] ${mobilePane === "slides" ? "hidden md:flex" : "flex"}`}
+          style={{ background: "var(--md-surface)", borderRight: "1px solid var(--md-outline-variant)" }}
+          aria-label="Designer chat"
+        >
           {memoryOpen && <MemoryPanel onClose={() => setMemoryOpen(false)} />}
-          <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-500/25 to-red-500/5 ring-1 ring-red-500/20">
-              {busy && <span className="os-glow absolute inset-0 rounded-xl bg-red-500/20 blur-md" />}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative">
-                <rect x="2" y="3" width="20" height="14" rx="2" />
-                <path d="M8 21h8" />
-                <path d="M12 17v4" />
-              </svg>
-            </div>
+          <header className="flex h-16 shrink-0 items-center gap-2 pl-4 pr-2">
             <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-semibold leading-none tracking-tight">OctoSlides</p>
-              <p className="mt-1.5 truncate text-[11px] leading-none text-white/35">
-                {busy ? runningTool?.label ?? "Thinking…" : hasDeck ? `${slides.length || "…"} slides · click an element to edit` : "Your presentation designer"}
+              <h1 className="t-title-m truncate">OctoSlides</h1>
+              <p className="t-body-s on-variant truncate">
+                {busy ? runningTool?.label ?? "Thinking…" : hasDeck ? `${slides.length || "…"} slides · select an element to edit it` : "Your presentation designer"}
               </p>
             </div>
             <button
@@ -702,86 +769,137 @@ export default function OctoSlidesStudio({ onBack }: Props) {
               onClick={() => setMemoryOpen((v) => !v)}
               title="What OctoSlides remembers about you"
               aria-label="Memory"
-              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${memoryOpen ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"}`}
+              aria-pressed={memoryOpen}
+              className={`state icon-btn ${memoryOpen ? "selected" : ""}`}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 5 14a3.5 3.5 0 0 0 4.5 4.9A2.5 2.5 0 0 0 12 21V4.5A1.5 1.5 0 0 0 10.5 3h-1ZM14.5 3a3.5 3.5 0 0 1 3.4 4.3A3.5 3.5 0 0 1 19 14a3.5 3.5 0 0 1-4.5 4.9A2.5 2.5 0 0 1 12 21" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3ZM9.5 20h5" />
               </svg>
             </button>
             {runId && (
-              <button type="button" onClick={resetDeck} disabled={busy} className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-white/55 transition hover:border-white/20 hover:text-white disabled:opacity-30">
+              <button type="button" onClick={newDeck} disabled={busy} className="state btn btn-tonal has-icon !h-9">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
                 New deck
               </button>
             )}
+          </header>
+
+          <div data-chat-scroll className="flex-1 overflow-y-auto px-4 pb-6 pt-2">
+            <ChatFeed
+              items={feed}
+              empty={emptyFeed}
+              busy={busy}
+              actions={
+                hasDeck ? (
+                  <>
+                    <button type="button" onClick={() => void present()} className="state chip has-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+                      </svg>
+                      Present
+                    </button>
+                    <button type="button" onClick={() => void download()} className="state chip has-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" />
+                      </svg>
+                      Download .pptx
+                    </button>
+                    <button type="button" onClick={() => setMobilePane("slides")} className="state chip md:hidden">
+                      View slides
+                    </button>
+                  </>
+                ) : null
+              }
+            />
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3.5 py-4">
-            <StepFeed items={feed} empty={emptyFeed} />
-          </div>
-
-          {question && (
-            <div className="os-pop border-t border-white/[0.06] px-3.5 pt-3">
-              <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-3.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500/15 ring-1 ring-red-500/20">
-                    <Image src="/OCTOPILOT.png" alt="" width={12} height={12} className="opacity-90" />
-                  </div>
-                  <p className="text-[13px] leading-snug text-white/90">{question.question}</p>
-                </div>
-                {question.kind === "color_theme" && <p className="mt-2 pl-[34px] text-[11.5px] text-white/45">Pick a theme in the panel on the right, or type your own colors here.</p>}
-                {question.kind !== "color_theme" && !!question.suggestions?.length && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {question.suggestions.map((s) => (
-                      <button key={s} type="button" onClick={() => void answer(s)} className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-left text-[12px] text-white/75 transition hover:border-red-500/40 hover:bg-red-500/[0.08] hover:text-white">
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+          {question && question.kind !== "color_theme" && !!question.suggestions?.length && (
+            <div className="enter flex flex-wrap gap-2 px-4 pb-2" role="group" aria-label="Suggested answers">
+              {question.suggestions.map((sug) => (
+                <button key={sug} type="button" onClick={() => void answer(sug)} className="state chip">
+                  {sug}
+                </button>
+              ))}
             </div>
           )}
+          {question?.kind === "color_theme" && (
+            <p className="t-body-s on-variant px-5 pb-2">Choose a theme on the right, or type your own colors below.</p>
+          )}
 
-          <form onSubmit={submitComposer} className="border-t border-white/[0.06] px-3.5 py-3.5">
-            {notice && <p className="os-in mb-2 rounded-xl bg-amber-400/[0.08] px-3 py-2 text-[11.5px] leading-snug text-amber-200/90">{notice}</p>}
-            {composerMode === "new" && attached && (
-              <div className="os-pop mb-2 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-red-400">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-                <span className="min-w-0 flex-1 truncate text-[11.5px] text-white/75">{attached.title}</span>
-                <button type="button" onClick={() => setAttached(null)} className="text-[11px] text-white/35 hover:text-white">
-                  Remove
+          <form onSubmit={submitComposer} className="shrink-0 px-3 pb-3">
+            {notice && (
+              <div className="enter mb-2 flex items-start gap-3 rounded-[var(--md-shape-m)] px-4 py-3" role="alert" style={{ background: "var(--md-error-container)", color: "var(--md-on-error-container)" }}>
+                <p className="t-body-m flex-1">{notice}</p>
+                <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="state icon-btn !h-6 !w-6" style={{ color: "var(--md-on-error-container)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             )}
             {composerMode === "new" && docPickerOpen && (
-              <div className="os-pop mb-2 max-h-56 overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141414] p-1 shadow-2xl">
-                {docs === null && <p className="px-3 py-2 text-[11.5px] text-white/40">Loading your documents…</p>}
-                {docs?.length === 0 && <p className="px-3 py-2 text-[11.5px] text-white/40">No saved documents yet.</p>}
-                {docs?.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => {
-                      setAttached(d);
-                      setDocPickerOpen(false);
-                      if (!input.trim()) setInput(`A presentation of my essay "${d.title}" for `);
-                      textareaRef.current?.focus();
-                    }}
-                    className="w-full rounded-xl px-3 py-2 text-left transition hover:bg-white/[0.06]"
-                  >
-                    <p className="truncate text-[12px] text-white/85">{d.title}</p>
-                    <p className="text-[10.5px] text-white/30">
-                      {d.word_count} words · {new Date(d.updated_at).toLocaleDateString()}
+              <div className="menu enter mb-2 max-h-64 overflow-y-auto" role="listbox" aria-label="Your documents">
+                {docs === null && <p className="t-body-m on-variant px-4 py-3">Loading your documents…</p>}
+                {docs === "error" && (
+                  <div className="flex items-center gap-2 px-4 py-2">
+                    <p className="t-body-m flex-1" style={{ color: "var(--md-error)" }}>
+                      Couldn&apos;t load your documents.
                     </p>
-                  </button>
-                ))}
+                    <button type="button" onClick={() => void loadDocs(true)} className="state btn btn-text">
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {Array.isArray(docs) && docs.length === 0 && <p className="t-body-m on-variant px-4 py-3">No saved documents yet. Save an essay in Octopilot first.</p>}
+                {Array.isArray(docs) &&
+                  docs.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      role="option"
+                      aria-selected={attached?.id === d.id}
+                      onClick={() => {
+                        setAttached(d);
+                        setDocPickerOpen(false);
+                        if (!input.trim()) setInput(`A presentation of my essay "${d.title}" for `);
+                        textareaRef.current?.focus();
+                      }}
+                      className="state menu-item"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="t-body-l block truncate">{d.title}</span>
+                        <span className="t-body-s on-variant block">
+                          {d.word_count} words · {new Date(d.updated_at).toLocaleDateString()}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
               </div>
             )}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,.04)] transition-colors focus-within:border-red-500/35 focus-within:bg-white/[0.045]">
+            <div className="composer rounded-[var(--md-shape-xl)] px-2 pb-2 pt-1" style={{ background: "var(--md-surface-container-high)" }}>
+              {composerMode === "new" && attached && (
+                <div className="enter px-2 pt-2">
+                  <span className="chip selected has-icon !pr-1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+                      <path d="M14 3v5h5" />
+                    </svg>
+                    <span className="max-w-[200px] truncate">{attached.title}</span>
+                    <button type="button" onClick={() => setAttached(null)} aria-label="Remove document" className="state icon-btn !h-6 !w-6">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                </div>
+              )}
+              <label htmlFor="octoslides-composer" className="sr-only">
+                {composerMode === "answer" ? "Your answer" : composerMode === "steer" ? "Add to the request" : composerMode === "new" ? "Describe your deck" : "Ask for a change"}
+              </label>
               <textarea
+                id="octoslides-composer"
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -789,19 +907,20 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                 rows={composerMode === "new" ? 3 : 2}
                 placeholder={
                   composerMode === "answer"
-                    ? "Type your answer…"
+                    ? "Type your answer"
                     : composerMode === "steer"
-                      ? "Forgot something? Add it — the designer folds it in"
+                      ? "Forgot something? Add it and the designer folds it in"
                       : composerMode === "new"
-                        ? "A 10-slide pitch for… / A class presentation about…"
-                        : "Ask for a change to the deck…"
+                        ? "A 10-slide pitch for…  /  A class presentation about…"
+                        : "Ask for a change to the deck"
                 }
-                className="max-h-40 min-h-[22px] w-full resize-none bg-transparent text-[13px] leading-relaxed text-white placeholder-white/25 outline-none disabled:opacity-40"
+                className="t-body-l block max-h-48 min-h-[24px] w-full resize-none bg-transparent px-3 pt-3 focus:outline-none focus-visible:outline-none"
+                style={{ color: "var(--md-on-surface)" }}
               />
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1 flex items-center gap-1">
                 {composerMode === "new" && (
-                  <button type="button" onClick={() => void loadDocs()} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-white/45 transition hover:bg-white/[0.06] hover:text-white">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <button type="button" onClick={() => void loadDocs()} aria-expanded={docPickerOpen} className="state btn btn-text neutral has-icon !h-9 !pl-2.5">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                     </svg>
                     Use my document
@@ -809,98 +928,79 @@ export default function OctoSlidesStudio({ onBack }: Props) {
                 )}
                 <span className="flex-1" />
                 {busy && !question && (
-                  <button
-                    type="button"
-                    onClick={() => void stop()}
-                    disabled={stopping}
-                    title="Stop (Esc)"
-                    aria-label="Stop the designer"
-                    className="group relative flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] transition hover:border-white/30 hover:bg-white/[0.12] disabled:opacity-50"
-                  >
-                    {stopping ? <Spinner /> : <span className="h-2.5 w-2.5 rounded-[3px] bg-white/85 transition group-hover:bg-white" />}
+                  <button type="button" onClick={() => void stop()} disabled={stopping} title="Stop the designer" aria-label="Stop the designer" className="state icon-btn tonal">
+                    {stopping ? <span className="progress-circular" /> : <span className="block h-3.5 w-3.5 rounded-[3px] bg-current" />}
                   </button>
                 )}
-                <button
-                  type="submit"
-                  disabled={!input.trim() || stopping}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 shadow-[0_6px_20px_-6px_rgba(239,68,68,.7)] transition hover:scale-105 hover:bg-red-400 disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-25 disabled:shadow-none"
-                  aria-label="Send"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
+                <button type="submit" disabled={!input.trim() || stopping} aria-label={composerMode === "steer" ? "Add to the request" : "Send"} className="state icon-btn filled">
+                  {sendIcon}
                 </button>
               </div>
             </div>
+            <p className="t-body-s on-variant mt-1.5 px-3">Enter to send · Shift+Enter for a new line</p>
           </form>
         </aside>
 
         {/* ══ Stage ══ */}
-        <main className="flex min-w-0 flex-1 flex-col bg-[#080808]">
-          <div className="flex items-center gap-3 border-b border-white/[0.06] px-5 py-2.5">
-            <p className="min-w-0 flex-1 truncate text-[12.5px] text-white/50">
+        <main className={`min-w-0 flex-1 flex-col ${mobilePane === "chat" ? "hidden md:flex" : "flex"}`} style={{ background: "var(--md-surface-dim)" }} aria-label="Slides">
+          <div className="flex h-16 shrink-0 items-center gap-2 px-3 md:px-5" style={{ borderBottom: "1px solid var(--md-outline-variant)" }}>
+            <button type="button" onClick={() => setMobilePane("chat")} aria-label="Back to the chat" className="state icon-btn md:hidden">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <p className="t-title-s min-w-0 flex-1 truncate">
               {hasDeck ? (
                 <>
-                  Slide <span className="text-white">{active}</span> <span className="text-white/30">of {slides.length || "…"}</span>
+                  Slide {active} <span className="on-variant">of {slides.length || "…"}</span>
                 </>
               ) : (
-                "Preview"
+                <span className="on-variant">Preview</span>
               )}
             </p>
             {busy && hasDeck && (
-              <span className="flex items-center gap-1.5 text-[11.5px] text-white/45">
-                <Spinner /> updating
+              <span className="t-label-m on-variant hidden items-center gap-2 sm:flex">
+                <span className="progress-circular" /> Updating
               </span>
             )}
             {hasDeck && watermark && (
-              <button
-                type="button"
-                onClick={() => void toggleWatermark()}
-                disabled={!watermark.canToggle || togglingMark || busy}
+              <label
+                className={`hidden items-center gap-3 rounded-full py-1 pl-3 pr-1 sm:flex ${watermark.canToggle ? "cursor-pointer" : ""}`}
                 title={watermark.canToggle ? "Show or hide the Octopilot AI badge" : "Free plan decks carry the Octopilot AI badge. Upgrade to Pro to remove it."}
-                className="flex items-center gap-2 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11.5px] text-white/65 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:hover:border-white/10 disabled:hover:text-white/65"
               >
-                <span className={`relative h-4 w-7 rounded-full transition ${watermark.enabled ? "bg-red-500/80" : "bg-white/15"} ${watermark.canToggle ? "" : "opacity-60"}`}>
-                  <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${watermark.enabled ? "left-3.5" : "left-0.5"}`} />
+                <span className="t-label-l">
+                  Octopilot badge{!watermark.canToggle && <span className="t-label-s on-variant ml-1.5">Free plan</span>}
                 </span>
-                Octopilot badge
-                {!watermark.canToggle && <span className="rounded bg-white/[0.07] px-1.5 py-px text-[9.5px] uppercase tracking-wider text-white/45">Free</span>}
-                {togglingMark && <Spinner />}
-              </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={watermark.enabled}
+                  aria-label="Octopilot badge"
+                  onClick={() => void toggleWatermark()}
+                  disabled={!watermark.canToggle || togglingMark || busy}
+                  className={`switch ${watermark.enabled ? "on" : ""} ${watermark.canToggle ? "" : "locked"}`}
+                />
+              </label>
             )}
-            <button
-              type="button"
-              onClick={() => void present()}
-              disabled={!hasDeck || openingShow}
-              title="Present full screen"
-              className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_6px_20px_-8px_rgba(239,68,68,.8)] transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
-            >
-              {openingShow ? (
-                <Spinner />
+            <button type="button" onClick={() => void download()} disabled={!hasDeck || downloading} className="state btn btn-outlined has-icon hidden sm:inline-flex">
+              {downloading ? (
+                <span className="progress-circular" />
               ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5Z" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" />
+                </svg>
+              )}
+              Download
+            </button>
+            <button type="button" onClick={() => void present()} disabled={!hasDeck || openingShow} title="Present full screen" className="state btn btn-filled has-icon">
+              {openingShow ? (
+                <span className="progress-circular" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
                 </svg>
               )}
               Present
-            </button>
-            <button
-              type="button"
-              onClick={() => void download()}
-              disabled={!hasDeck || downloading}
-              className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-semibold text-black shadow-[0_6px_20px_-8px_rgba(255,255,255,.4)] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
-            >
-              {downloading ? (
-                <Spinner />
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <path d="m7 10 5 5 5-5" />
-                  <path d="M12 15V3" />
-                </svg>
-              )}
-              Download .pptx
             </button>
           </div>
 
@@ -996,31 +1096,40 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           </div>
 
           {thumbs.length > 0 && (
-            <div className="flex gap-3 overflow-x-auto border-t border-white/[0.06] bg-[#0b0b0b] px-5 py-3">
+            <nav className="flex shrink-0 gap-3 overflow-x-auto px-3 py-3 md:px-5" style={{ borderTop: "1px solid var(--md-outline-variant)", background: "var(--md-surface)" }} aria-label="Slides">
               {thumbs.map((n, i) => (
                 <button
                   key={n}
                   type="button"
+                  aria-label={`Slide ${n}${outline[n - 1] ? `: ${outline[n - 1]}` : ""}`}
+                  aria-current={n === active ? "true" : undefined}
                   onClick={() => {
                     setActive(n);
                     setSelected(null);
                   }}
-                  className={`os-pop group relative shrink-0 overflow-hidden rounded-lg transition duration-300 ${n === active ? "ring-2 ring-red-500 ring-offset-2 ring-offset-[#0b0b0b]" : "opacity-55 ring-1 ring-white/10 hover:-translate-y-0.5 hover:opacity-100"}`}
-                  style={{ width: 136, height: (136 * STAGE_H) / STAGE_W, animationDelay: `${i * 50}ms` }}
+                  className="enter group relative shrink-0 rounded-[var(--md-shape-m)] p-1 transition-colors"
+                  style={{ animationDelay: `${i * 40}ms`, background: n === active ? "var(--md-secondary-container)" : "transparent" }}
                 >
-                  {images[n] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={images[n]} src={images[n]} alt={`Slide ${n}`} className="os-reveal h-full w-full object-cover" style={{ animationDelay: `${(n - 1) * 90}ms` }} draggable={false} />
-                  ) : (
-                    <span className="relative block h-full w-full" title={outline[n - 1]}>
-                      <GeneratingField seed={n - 1} compact />
-                      {outline[n - 1] && <span className="absolute inset-x-1.5 top-1.5 truncate text-left text-[9.5px] font-medium text-white/80">{outline[n - 1]}</span>}
-                    </span>
-                  )}
-                  <span className="absolute bottom-1 left-1 rounded-md bg-black/65 px-1.5 text-[10px] tabular-nums text-white/85 backdrop-blur">{n}</span>
+                  <span
+                    className="relative block overflow-hidden rounded-[var(--md-shape-s)]"
+                    style={{ width: 144, height: (144 * STAGE_H) / STAGE_W, outline: n === active ? "2px solid var(--md-primary)" : "1px solid var(--md-outline-variant)", outlineOffset: n === active ? 0 : -1 }}
+                  >
+                    {images[n] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={images[n]} src={images[n]} alt="" className="os-reveal h-full w-full object-cover" style={{ animationDelay: `${(n - 1) * 90}ms` }} draggable={false} />
+                    ) : (
+                      <span className="relative block h-full w-full">
+                        <GeneratingField seed={n - 1} compact />
+                        {outline[n - 1] && <span className="t-label-s absolute inset-x-2 top-1.5 truncate text-left text-white/90">{outline[n - 1]}</span>}
+                      </span>
+                    )}
+                  </span>
+                  <span className="t-label-m mt-1 block text-left" style={{ color: n === active ? "var(--md-on-secondary-container)" : "var(--md-on-surface-variant)" }}>
+                    {n}
+                  </span>
                 </button>
               ))}
-            </div>
+            </nav>
           )}
         </main>
       </div>
@@ -1058,12 +1167,12 @@ function ElementPopover(props: {
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="os-pop w-[380px] rounded-2xl border border-white/10 bg-[#121212]/95 p-3.5 shadow-[0_30px_80px_-20px_rgba(0,0,0,.9)] backdrop-blur-xl">
-        <div className="mb-2.5 flex items-center gap-2">
-          <span className="rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/55">{kind}</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-white/35">{el.name}</span>
-          <button type="button" onClick={onClose} className="rounded-md p-0.5 text-white/35 transition hover:bg-white/[0.08] hover:text-white" aria-label="Close">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+      <div className="m3 enter w-[380px] rounded-[var(--md-shape-l)] p-4" style={{ background: "var(--md-surface-container-high)", boxShadow: "var(--md-elev-3)" }} role="dialog" aria-label={`Edit ${kind.toLowerCase()} ${el.name}`}>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="chip selected !h-7 !px-3">{kind}</span>
+          <span className="t-body-s on-variant min-w-0 flex-1 truncate font-mono">{el.name}</span>
+          <button type="button" onClick={onClose} className="state icon-btn !h-8 !w-8" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
@@ -1078,20 +1187,22 @@ function ElementPopover(props: {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && changed) onSave();
               }}
               rows={Math.min(6, Math.max(2, draft.split("\n").length))}
-              className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2 text-[13px] leading-relaxed text-white outline-none transition focus:border-red-500/40"
+              aria-label="Text"
+              className="t-body-l w-full resize-none rounded-t-[var(--md-shape-xs)] border-b-2 px-3 py-2 focus:outline-none"
+              style={{ background: "var(--md-surface-container-highest)", borderColor: "var(--md-primary)", color: "var(--md-on-surface)" }}
             />
             <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-[10.5px] text-white/30">Keeps the styling · free · Ctrl+Enter</p>
-              <button type="button" onClick={onSave} disabled={!changed || saving} className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-30">
-                {saving && <Spinner />}
+              <p className="t-body-s on-variant">Keeps the styling · free · Ctrl+Enter</p>
+              <button type="button" onClick={onSave} disabled={!changed || saving} className="state btn btn-filled !h-9 !px-4">
+                {saving && <span className="progress-circular" />}
                 Save text
               </button>
             </div>
-            <div className="my-3 h-px bg-white/[0.07]" />
+            <div className="divider my-4" />
           </>
         )}
-        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-black/30 px-3 py-1.5 transition focus-within:border-red-500/40">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-300/80">
+        <div className="flex items-center gap-2 rounded-full py-1 pl-4 pr-1" style={{ background: "var(--md-surface-container-highest)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: "var(--md-primary)" }} aria-hidden="true">
             <path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 11l5.6-2 1.9-5.5Z" />
           </svg>
           <input
@@ -1102,9 +1213,11 @@ function ElementPopover(props: {
               if (e.key === "Enter" && askText.trim()) onAsk();
             }}
             placeholder={el.kind === "image" ? "Swap for a city photo, crop tighter…" : "Make it bolder, move it left…"}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white placeholder-white/25 outline-none"
+            aria-label="Ask the designer to change this"
+            className="t-body-m min-w-0 flex-1 bg-transparent focus:outline-none"
+            style={{ color: "var(--md-on-surface)" }}
           />
-          <button type="button" onClick={onAsk} disabled={!askText.trim()} className="rounded-lg bg-red-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-red-400 disabled:opacity-30">
+          <button type="button" onClick={onAsk} disabled={!askText.trim()} className="state btn btn-filled !h-9 !px-4">
             Ask AI
           </button>
         </div>
