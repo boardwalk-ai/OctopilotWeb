@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getOpenRouterConfig } from "@/server/backendConfig";
@@ -36,7 +37,7 @@ const MAX_TEXT_ONLY_TURNS = 2;
 const MAX_OUTPUT_TOKENS = 16_000;
 
 type Completion = {
-  choices?: Array<{ message?: { content: string | null; tool_calls?: ToolCall[] }; finish_reason?: string }>;
+  choices?: Array<{ message?: { content: string | null; tool_calls?: ToolCall[]; reasoning_details?: Record<string, unknown>[] }; finish_reason?: string }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; prompt_tokens_details?: { cached_tokens?: number } };
   error?: { message?: string };
 };
@@ -56,6 +57,28 @@ function shortArgs(name: string, args: Record<string, unknown>): string {
   if (name === "search_document") return String(args.query ?? "").slice(0, 60);
   if (name === "remember" || name === "forget") return `${args.predicate}${args.object ? `: ${args.object}` : ""}`;
   return "";
+}
+
+/** Count decoded characters in a write_file content string before its JSON is complete. */
+function streamedContentChars(args: string): number {
+  const start = /"content"\s*:\s*"/.exec(args);
+  if (!start) return 0;
+  let count = 0;
+  for (let i = start.index + start[0].length; i < args.length; i += 1) {
+    const char = args[i];
+    if (char === '"') break;
+    if (char === "\\") {
+      if (i + 1 >= args.length) break;
+      if (args[i + 1] === "u") {
+        if (i + 5 >= args.length) break;
+        i += 5;
+      } else {
+        i += 1;
+      }
+    }
+    count += 1;
+  }
+  return count;
 }
 
 /** Keeps only the newest set of images in the context; older ones become a text stub. */
@@ -121,7 +144,7 @@ function withCacheBreakpoints(messages: ChatMessage[]): unknown[] {
  * One model call, streamed. Streaming lets a steer or Stop cut the call short, and
  * tells us when the model is in the middle of writing a long file (worth letting finish).
  */
-async function complete(apiKey: string, model: string, messages: ChatMessage[], run: OctoSlidesRun, signal: AbortSignal): Promise<Completion> {
+async function complete(apiKey: string, model: string, messages: ChatMessage[], run: OctoSlidesRun, signal: AbortSignal, progressId: string): Promise<Completion> {
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -137,6 +160,7 @@ async function complete(apiKey: string, model: string, messages: ChatMessage[], 
       tool_choice: "auto",
       temperature: 0.4,
       max_tokens: MAX_OUTPUT_TOKENS,
+      reasoning: model.startsWith("anthropic/") ? { max_tokens: 2000 } : { enabled: true },
       usage: { include: true },
       stream: true,
     }),
@@ -150,8 +174,15 @@ async function complete(apiKey: string, model: string, messages: ChatMessage[], 
   const decoder = new TextDecoder();
   let buf = "";
   let content = "";
+  let reasoningText = "";
+  const reasoningDetails: Record<string, unknown>[] = [];
   const calls: Array<{ id: string; name: string; args: string }> = [];
+  const writing = new Map<number, { id: string; path: string; chars: number; sentChars: number; sentAt: number }>();
+  let shownThinking = "";
+  let thinkingSentAt = 0;
   let usage: Completion["usage"];
+  let completed = false;
+  try {
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -166,7 +197,7 @@ async function complete(apiKey: string, model: string, messages: ChatMessage[], 
       let chunk: {
         error?: { message?: string };
         usage?: Completion["usage"];
-        choices?: Array<{ delta?: { content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>;
+        choices?: Array<{ delta?: { content?: string | null; reasoning?: string | null; reasoning_details?: Array<Record<string, unknown>>; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>;
       };
       try {
         chunk = JSON.parse(payload);
@@ -177,21 +208,67 @@ async function complete(apiKey: string, model: string, messages: ChatMessage[], 
       if (chunk.usage) usage = chunk.usage;
       const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
-      if (delta.content) content += delta.content;
+      if (delta.reasoning_details?.length) {
+        reasoningDetails.push(...delta.reasoning_details);
+        for (const detail of delta.reasoning_details) {
+          if (typeof detail.text === "string") reasoningText += detail.text;
+          else if (typeof detail.summary === "string") reasoningText += detail.summary;
+        }
+      } else if (delta.reasoning) {
+        reasoningText += delta.reasoning;
+      }
+      if (delta.content) {
+        content += delta.content;
+      }
+      const thinking = reasoningText || content;
+      if (thinking && thinking !== shownThinking) {
+        const now = Date.now();
+        if (!shownThinking || now - thinkingSentAt >= 100) {
+          emit(run, { type: "thinking_progress", id: progressId, text: thinking });
+          shownThinking = thinking;
+          thinkingSentAt = now;
+        }
+      }
       for (const tc of delta.tool_calls ?? []) {
         const i = tc.index ?? 0;
         calls[i] ??= { id: "", name: "", args: "" };
         if (tc.id) calls[i].id = tc.id;
         if (tc.function?.name) calls[i].name += tc.function.name;
         if (tc.function?.arguments) calls[i].args += tc.function.arguments;
-        run.writingChars = calls[i].name === "write_file" ? calls[i].args.length : 0;
+        if (calls[i].name === "write_file") {
+          const id = `${progressId}:code:${i}`;
+          const chars = streamedContentChars(calls[i].args);
+          const path = /"path"\s*:\s*"([^"\\]*)/.exec(calls[i].args)?.[1] || "build.js";
+          const state = writing.get(i) ?? { id, path, chars: 0, sentChars: -1, sentAt: 0 };
+          state.path = path;
+          state.chars = chars;
+          writing.set(i, state);
+          run.writingChars = chars;
+          const now = Date.now();
+          if (state.sentChars < 0 || now - state.sentAt >= 100) {
+            emit(run, { type: "code_progress", id, path, chars });
+            state.sentChars = chars;
+            state.sentAt = now;
+          }
+        } else {
+          run.writingChars = 0;
+        }
       }
+    }
+  }
+  completed = true;
+  } finally {
+    const thinking = reasoningText || content;
+    if (thinking !== shownThinking) emit(run, { type: "thinking_progress", id: progressId, text: thinking });
+    for (const state of writing.values()) {
+      if (state.chars !== state.sentChars) emit(run, { type: "code_progress", id: state.id, path: state.path, chars: state.chars });
+      emit(run, { type: "code_finished", id: state.id, interrupted: !completed });
     }
   }
   const toolCalls: ToolCall[] = calls
     .filter(Boolean)
     .map((c, i) => ({ id: c.id || `call_${Date.now()}_${i}`, type: "function" as const, function: { name: c.name, arguments: c.args } }));
-  return { choices: [{ message: { content: content || null, tool_calls: toolCalls.length ? toolCalls : undefined } }], usage };
+  return { choices: [{ message: { content: content || null, tool_calls: toolCalls.length ? toolCalls : undefined, reasoning_details: reasoningDetails.length ? reasoningDetails : undefined } }], usage };
 }
 
 class Stopped extends Error {}
@@ -220,6 +297,9 @@ async function runTool(run: OctoSlidesRun, call: ToolCall): Promise<{ output: To
   }
 
   emit(run, { type: "tool_started", id: call.id, name: tool.name, summary: shortArgs(tool.name, args) });
+  const startedAt = Date.now();
+  const progressTimer = setInterval(() => emit(run, { type: "tool_progress", id: call.id, elapsedMs: Date.now() - startedAt }), 1000);
+  progressTimer.unref();
   let output: ToolOutput;
   try {
     const timeout = tool.timeoutMs ?? 60_000;
@@ -229,6 +309,8 @@ async function runTool(run: OctoSlidesRun, call: ToolCall): Promise<{ output: To
     ]);
   } catch (error) {
     output = { ok: false, content: JSON.stringify({ error: (error as Error).message }), summary: (error as Error).message.slice(0, 120) };
+  } finally {
+    clearInterval(progressTimer);
   }
   emit(run, { type: "tool_finished", id: call.id, name: tool.name, ok: output.ok, summary: output.summary });
   return { output, finished: tool.name === "finish" && output.ok };
@@ -248,15 +330,18 @@ async function runTurn(run: OctoSlidesRun, limits: { maxSteps: number; maxCostUs
 
     const ctl = new AbortController();
     run.abort = ctl;
+    const progressId = randomUUID();
+    emit(run, { type: "thinking_started", id: progressId, step });
     let data: Completion;
     try {
-      data = await complete(apiKey, model, messages, run, ctl.signal);
+      data = await complete(apiKey, model, messages, run, ctl.signal, progressId);
     } catch (error) {
       if (run.stopRequested) throw new Stopped();
       // a steer cut the call short: fold the new message in and ask again
       if (ctl.signal.aborted) continue;
       throw error;
     } finally {
+      emit(run, { type: "thinking_finished", id: progressId });
       run.abort = null;
       run.writingChars = 0;
     }
@@ -270,17 +355,16 @@ async function runTurn(run: OctoSlidesRun, limits: { maxSteps: number; maxCostUs
     const message = data.choices?.[0]?.message;
     if (!message) throw new Error("The model returned no message.");
     const calls = message.tool_calls ?? [];
-    if (message.content?.trim()) emit(run, { type: "thinking", text: message.content.trim().slice(0, 2000) });
 
     if (calls.length === 0) {
       textOnlyTurns += 1;
-      messages.push({ role: "assistant", content: message.content ?? "" });
+      messages.push({ role: "assistant", content: message.content ?? "", reasoning_details: message.reasoning_details });
       if (textOnlyTurns > MAX_TEXT_ONLY_TURNS) throw new Error("The designer stopped without finishing.");
       messages.push({ role: "user", content: "Continue with the next tool call. When the deck validates and you have reviewed the slides you changed, call finish." });
       continue;
     }
     textOnlyTurns = 0;
-    messages.push({ role: "assistant", content: message.content ?? null, tool_calls: calls });
+    messages.push({ role: "assistant", content: message.content ?? null, tool_calls: calls, reasoning_details: message.reasoning_details });
 
     const imageParts: ContentPart[] = [];
     let finishedSummary: string | null = null;

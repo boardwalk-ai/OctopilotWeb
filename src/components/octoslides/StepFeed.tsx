@@ -1,24 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
- * The designer's activity as a calm, progressive timeline: items are revealed
- * one at a time (bursts are paced, replays are instant), consecutive runs of
- * the same tool collapse into one step, and the designer's own words read as
- * plain prose rather than cards.
+ * The designer's activity as it arrives from the server. Every tool call keeps
+ * its own row, and each model call can be opened again after it finishes.
  */
 
 export type FeedItem =
   | { kind: "user"; id: string; text: string; target?: { slide: number; name: string }; steer?: boolean }
   | { kind: "notice"; id: string; text: string }
-  | { kind: "tool"; id: string; name: string; label: string; detail: string; status: "running" | "done" | "error" }
-  | { kind: "thinking"; id: string; text: string }
+  | { kind: "tool"; id: string; name: string; label: string; detail: string; status: "running" | "done" | "error"; elapsedMs?: number }
+  | { kind: "thinking"; id: string; text: string; status: "running" | "done"; startedAt?: number }
   | { kind: "complete"; id: string; text: string }
   | { kind: "error"; id: string; text: string };
-
-type Step = Extract<FeedItem, { kind: "tool" }> & { count: number; details: string[] };
-type Row = Exclude<FeedItem, { kind: "tool" }> | ({ kind: "step" } & Omit<Step, "kind">);
 
 const ICONS: Record<string, ReactNode> = {
   code: <path d="m8 7-5 5 5 5M16 7l5 5-5 5" />,
@@ -91,91 +86,34 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-/** Words fade in one after another (capped, so long text doesn't crawl). */
-function Prose({ text, className = "", animate }: { text: string; className?: string; animate: boolean }) {
-  const words = useMemo(() => text.split(/(\s+)/), [text]);
-  if (!animate) return <p className={`whitespace-pre-wrap ${className}`}>{text}</p>;
-  const step = Math.min(28, 1400 / Math.max(1, words.length));
-  return (
-    <p className={`whitespace-pre-wrap ${className}`}>
-      {words.map((w, i) =>
-        /^\s+$/.test(w) ? (
-          w
-        ) : (
-          <span key={i} className="osf-word" style={{ animationDelay: `${Math.round(i * step)}ms` }}>
-            {w}
-          </span>
-        ),
-      )}
-    </p>
-  );
-}
-
-function group(items: FeedItem[]): Row[] {
-  const rows: Row[] = [];
-  for (const item of items) {
-    const prev = rows[rows.length - 1];
-    if (item.kind === "tool") {
-      if (prev && prev.kind === "step" && prev.name === item.name && item.name !== "ask_user") {
-        prev.count += 1;
-        prev.details = [...prev.details, item.detail].slice(-6);
-        prev.detail = item.detail;
-        prev.status = item.status; // the latest call decides
-        prev.label = item.label;
-        continue;
-      }
-      rows.push({ ...item, kind: "step", count: 1, details: [item.detail] });
-    } else rows.push(item);
-  }
-  return rows;
-}
-
-const PLURAL: Record<string, string> = {
-  fetch_image: "Adding photos",
-  search_images: "Searching photos",
-  generate_image: "Generating images",
-  read_document: "Reading your document",
-  search_document: "Searching your documents",
-  edit_file: "Refining the design",
-};
-
-export default function StepFeed({ items, instant, empty }: { items: FeedItem[]; instant: boolean; empty?: ReactNode }) {
-  // Pace the reveal: one row at a time; catch up faster when a backlog builds.
-  const [shown, setShown] = useState(0);
-  const firstPaint = useRef(true);
-  const visibleCount = instant ? items.length : Math.min(shown, items.length);
-
+export default function StepFeed({ items, empty }: { items: FeedItem[]; empty?: ReactNode }) {
+  const [now, setNow] = useState(0);
+  const thinkingNow = items.some((item) => item.kind === "thinking" && item.status === "running");
   useEffect(() => {
-    // all state updates happen in timer callbacks
-    let delay: number;
-    let next: number;
-    if (instant || shown > items.length) {
-      if (shown === items.length) return;
-      delay = 0;
-      next = items.length;
-    } else if (shown < items.length) {
-      const backlog = items.length - shown;
-      delay = firstPaint.current && shown === 0 ? 60 : backlog > 8 ? 70 : backlog > 3 ? 160 : 320;
-      next = shown + 1;
-    } else return;
-    const t = setTimeout(() => {
-      firstPaint.current = false;
-      setShown(next);
-    }, delay);
-    return () => clearTimeout(t);
-  }, [items.length, shown, instant]);
-
-  const rows = useMemo(() => group(items.slice(0, visibleCount)), [items, visibleCount]);
+    if (!thinkingNow) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [thinkingNow]);
   const endRef = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [rows.length, visibleCount]);
+    const scroller = endRef.current?.parentElement?.parentElement;
+    if (!scroller) return;
+    const onScroll = () => {
+      atBottom.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+    };
+    scroller.addEventListener("scroll", onScroll);
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    const scroller = endRef.current?.parentElement?.parentElement;
+    if (scroller && atBottom.current) scroller.scrollTo({ top: scroller.scrollHeight });
+  }, [items]);
 
   return (
     <div className="osf relative">
       <style>{`
         @keyframes osf-in { from { opacity: 0; transform: translateY(8px); filter: blur(4px) } to { opacity: 1; transform: none; filter: none } }
-        @keyframes osf-word { from { opacity: 0; filter: blur(3px) } to { opacity: 1; filter: none } }
         @keyframes osf-sheen { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
         @keyframes osf-spin { to { transform: rotate(360deg) } }
         @keyframes osf-pop { 0% { transform: scale(.4); opacity: 0 } 70% { transform: scale(1.15) } 100% { transform: scale(1); opacity: 1 } }
@@ -188,10 +126,9 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
         .osf-check { animation: osf-pop .45s cubic-bezier(.2,.9,.3,1.3) both }
         @media (prefers-reduced-motion: reduce) { .osf-row, .osf-word, .osf-ring, .osf-sheen, .osf-node-run, .osf-check { animation: none !important } .osf-sheen { color: #fff } }
       `}</style>
-      {rows.length === 0 && empty}
+      {items.length === 0 && empty}
       <div className="space-y-1">
-        {rows.map((row, i) => {
-          const isLast = i === rows.length - 1;
+        {items.map((row, i) => {
           if (row.kind === "user")
             return (
               <div key={row.id} className="osf-row flex justify-end py-2">
@@ -210,7 +147,14 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
           if (row.kind === "thinking")
             return (
               <div key={row.id} className="osf-row py-1.5 pl-9 pr-1">
-                <Prose text={row.text} animate={!instant && isLast} className="text-[12.5px] leading-relaxed text-white/45" />
+                <details open={row.status === "running"} className="group rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
+                  <summary className="cursor-pointer text-[11px] font-medium text-white/55">
+                    {row.status === "running" ? "Thinking live…" : row.text ? "Thinking · expand to read" : "Thinking · no trace returned"}
+                    {row.text && <span className="ml-2 text-white/30">{row.text.length.toLocaleString()} chars</span>}
+                    {row.status === "running" && row.startedAt && now >= row.startedAt && <span className="ml-2 text-white/30">{Math.floor((now - row.startedAt) / 1000)}s</span>}
+                  </summary>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-white/65">{row.text || (row.status === "running" ? "Waiting for the model…" : "The model did not provide thinking text for this step.")}</p>
+                </details>
               </div>
             );
           if (row.kind === "complete")
@@ -224,7 +168,7 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
                   </span>
                   Deck ready
                 </p>
-                <Prose text={row.text} animate={!instant && isLast} className="text-[13.5px] leading-[1.7] text-white/80" />
+                <p className="whitespace-pre-wrap text-[13.5px] leading-[1.7] text-white/80">{row.text}</p>
               </div>
             );
           if (row.kind === "notice")
@@ -242,8 +186,8 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
             );
           const running = row.status === "running";
           const failed = row.status === "error";
-          const next = rows[i + 1];
-          const connect = next && next.kind === "step";
+          const next = items[i + 1];
+          const connect = next && next.kind === "tool";
           return (
             <div key={row.id} className="osf-row relative flex gap-3 py-1.5 pl-1">
               {connect && <span className="absolute left-[15px] top-[30px] h-[calc(100%-18px)] w-px bg-gradient-to-b from-white/15 to-white/[0.04]" />}
@@ -257,8 +201,8 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
               </span>
               <div className="min-w-0 flex-1 pt-[3px]">
                 <p className={`flex items-center gap-1.5 text-[12.5px] leading-tight ${running ? "osf-sheen font-medium" : failed ? "text-amber-200/80" : "text-white/70"}`}>
-                  {row.count > 1 ? PLURAL[row.name] ?? row.label : row.label}
-                  {row.count > 1 && <span className="rounded-full bg-white/[0.07] px-1.5 text-[10px] font-medium text-white/50 [-webkit-text-fill-color:currentColor]">×{row.count}</span>}
+                  {row.label}
+                  {running && row.elapsedMs != null && <span className="text-[10px] text-white/40">{Math.floor(row.elapsedMs / 1000)}s</span>}
                   {!running && !failed && (
                     <svg className="osf-check text-emerald-400/80" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6 9 17l-5-5" />
@@ -266,7 +210,7 @@ export default function StepFeed({ items, instant, empty }: { items: FeedItem[];
                   )}
                 </p>
                 {row.detail && (
-                  <p className="mt-0.5 truncate text-[11px] text-white/30" title={row.details.join("\n")}>
+                  <p className="mt-0.5 truncate text-[11px] text-white/30" title={row.detail}>
                     {row.detail}
                   </p>
                 )}

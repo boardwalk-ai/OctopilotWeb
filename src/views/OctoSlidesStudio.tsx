@@ -23,7 +23,13 @@ type ServerEvent =
   | { type: "turn_started"; text: string; target?: { slide: number; name: string } }
   | { type: "status"; text: string }
   | { type: "thinking"; text: string }
+  | { type: "thinking_started"; id: string; step: number }
+  | { type: "thinking_progress"; id: string; text: string }
+  | { type: "thinking_finished"; id: string }
+  | { type: "code_progress"; id: string; path: string; chars: number }
+  | { type: "code_finished"; id: string; interrupted: boolean }
   | { type: "tool_started"; id: string; name: string; summary: string }
+  | { type: "tool_progress"; id: string; elapsedMs: number }
   | { type: "tool_finished"; id: string; name: string; ok: boolean; summary: string }
   | { type: "slides_rendered"; slides: number[]; version: number }
   | { type: "deck_ready"; bytes: number; version: number }
@@ -90,7 +96,6 @@ function Spinner({ className = "" }: { className?: string }) {
 export default function OctoSlidesStudio({ onBack }: Props) {
   const [runId, setRunId] = useState<string | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [replaying, setReplaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [question, setQuestion] = useState<{ question: string; suggestions?: string[] } | null>(null);
   const [input, setInput] = useState("");
@@ -187,11 +192,39 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           setFeed((f) => [...f, { kind: "user", id: `u-${f.length}`, text: ev.text, target: ev.target }]);
           break;
         case "thinking":
-          setFeed((f) => [...f, { kind: "thinking", id: `t-${f.length}`, text: ev.text }]);
+          setFeed((f) => [...f, { kind: "thinking", id: `t-${f.length}`, text: ev.text, status: "done" }]);
+          break;
+        case "thinking_started":
+          setFeed((f) => [...f, { kind: "thinking", id: ev.id, text: "", status: "running", startedAt: Date.now() }]);
+          break;
+        case "thinking_progress":
+          setFeed((f) => f.some((row) => row.id === ev.id)
+            ? f.map((row) => row.kind === "thinking" && row.id === ev.id ? { ...row, text: ev.text } : row)
+            : [...f, { kind: "thinking", id: ev.id, text: ev.text, status: "running", startedAt: Date.now() }]);
+          break;
+        case "thinking_finished":
+          setFeed((f) => f.flatMap((row) => row.kind === "thinking" && row.id === ev.id
+            ? row.text ? [{ ...row, status: "done" as const }] : []
+            : [row]));
+          break;
+        case "code_progress":
+          setFeed((f) => f.some((row) => row.id === ev.id)
+            ? f.map((row) => row.kind === "tool" && row.id === ev.id
+              ? { ...row, label: `Generating ${ev.path}`, detail: `${ev.chars.toLocaleString()} chars` }
+              : row)
+            : [...f, { kind: "tool", id: ev.id, name: "write_file", label: `Generating ${ev.path}`, detail: `${ev.chars.toLocaleString()} chars`, status: "running" }]);
+          break;
+        case "code_finished":
+          setFeed((f) => f.map((row) => row.kind === "tool" && row.id === ev.id
+            ? { ...row, status: ev.interrupted ? "error" : "done", detail: ev.interrupted ? `${row.detail} · interrupted` : row.detail }
+            : row));
           break;
         case "tool_started":
           setFeed((f) => [...f, { kind: "tool", id: ev.id, name: ev.name, label: TOOL_LABELS[ev.name] ?? ev.name, detail: ev.summary, status: "running" }]);
           if (ev.name === "manual_edit") setBusy(true);
+          break;
+        case "tool_progress":
+          setFeed((f) => f.map((row) => row.kind === "tool" && row.id === ev.id ? { ...row, elapsedMs: ev.elapsedMs } : row));
           break;
         case "tool_finished":
           setFeed((f) =>
@@ -262,7 +295,6 @@ export default function OctoSlidesStudio({ onBack }: Props) {
       const open = async () => {
         // a reconnect replays every event: rebuild instantly, no pacing
         setFeed([]);
-        setReplaying(true);
         try {
           const res = await fetchWithUserAuthorization(`${API}/${id}/events`, { signal: controller.signal, headers: { Accept: "text/event-stream" } });
           if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
@@ -274,7 +306,6 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           let inReplay = true;
           const replayTimer = setTimeout(() => {
             inReplay = false;
-            setReplaying(false);
             if (lastRender) handleEvent(id, { type: "slides_rendered", ...lastRender });
           }, 300);
           for (;;) {
@@ -297,9 +328,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
             }
           }
           clearTimeout(replayTimer);
-          setReplaying(false);
         } catch {
-          setReplaying(false);
           if (controller.signal.aborted) return;
         }
         if (controller.signal.aborted) return;
@@ -671,7 +700,7 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           </div>
 
           <div className="flex-1 overflow-y-auto px-3.5 py-4">
-            <StepFeed items={feed} instant={replaying} empty={emptyFeed} />
+            <StepFeed items={feed} empty={emptyFeed} />
           </div>
 
           {question && (

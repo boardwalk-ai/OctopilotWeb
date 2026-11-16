@@ -9,7 +9,13 @@ export type OctoSlidesEvent =
   | { type: "turn_started"; text: string; target?: EditTarget }
   | { type: "status"; text: string }
   | { type: "thinking"; text: string }
+  | { type: "thinking_started"; id: string; step: number }
+  | { type: "thinking_progress"; id: string; text: string }
+  | { type: "thinking_finished"; id: string }
+  | { type: "code_progress"; id: string; path: string; chars: number }
+  | { type: "code_finished"; id: string; interrupted: boolean }
   | { type: "tool_started"; id: string; name: string; summary: string }
+  | { type: "tool_progress"; id: string; elapsedMs: number }
   | { type: "tool_finished"; id: string; name: string; ok: boolean; summary: string }
   | { type: "slides_rendered"; slides: number[]; version: number }
   | { type: "deck_ready"; bytes: number; version: number }
@@ -33,7 +39,7 @@ export type ToolCall = { id: string; type: "function"; function: { name: string;
 export type ChatMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string | ContentPart[] }
-  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[]; reasoning_details?: Record<string, unknown>[] }
   | { role: "tool"; tool_call_id: string; content: string };
 
 export type ImageCredit = { path: string; credit: string };
@@ -318,7 +324,15 @@ export function claimRun(run: OctoSlidesRun): boolean {
 }
 
 export function emit(run: OctoSlidesRun, event: OctoSlidesEvent) {
-  run.events.push(event);
+  // A reconnect needs the latest snapshot, not every streamed update. Subscribers
+  // still receive each update as it happens.
+  if (event.type === "thinking_progress" || event.type === "code_progress" || event.type === "tool_progress") {
+    const previous = run.events.findLastIndex((item) => item.type === event.type && item.id === event.id);
+    if (previous >= 0) run.events[previous] = event;
+    else run.events.push(event);
+  } else {
+    run.events.push(event);
+  }
   run.lastActivityAt = Date.now();
   if (run.events.length > 3000) run.events.splice(0, run.events.length - 3000);
   for (const listener of run.listeners) {
