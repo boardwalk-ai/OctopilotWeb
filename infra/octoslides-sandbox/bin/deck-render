@@ -1,0 +1,21 @@
+#!/bin/sh
+# deck-render [dpi]: out/deck.pptx -> out/render/slide-N.png via LibreOffice + pdftoppm
+# (the pptx skill's visual QA path).
+set -eu
+mkdir -p "$HOME"
+dpi="${1:-80}"
+deck=/work/out/deck.pptx
+[ -f "$deck" ] || { echo "out/deck.pptx not found; run the build script first" >&2; exit 2; }
+render=/work/out/render
+rm -rf "$render" && mkdir -p "$render"
+cd "$render"
+python3 /opt/pptx-skill/scripts/office/soffice.py --headless --convert-to pdf --outdir "$render" "$deck" >/dev/null
+[ -f "$render/deck.pdf" ] || { echo "LibreOffice could not convert the deck" >&2; exit 3; }
+pdftoppm -png -r "$dpi" "$render/deck.pdf" "$render/slide"
+rm -f "$render/deck.pdf"
+# normalise names: slide-01.png / slide-001.png -> slide-1.png
+for f in "$render"/slide-*.png; do
+  n=$(basename "$f" .png | sed 's/^slide-0*//')
+  [ "$f" = "$render/slide-$n.png" ] || mv "$f" "$render/slide-$n.png"
+done
+ls -1 "$render"

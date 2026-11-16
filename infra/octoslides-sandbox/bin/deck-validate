@@ -1,0 +1,6 @@
+#!/bin/sh
+# deck-validate: the pptx skill's schema / relationship / chart checks on out/deck.pptx.
+set -eu
+mkdir -p "$HOME"
+[ -f /work/out/deck.pptx ] || { echo "out/deck.pptx not found" >&2; exit 2; }
+exec python3 /opt/pptx-skill/scripts/office/validate.py /work/out/deck.pptx

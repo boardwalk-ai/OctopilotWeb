@@ -10,6 +10,8 @@ import PromoAreaPanel from "@/components/admin/PromoAreaPanel";
 import EarlyAccessEventsPanel from "@/components/admin/EarlyAccessEventsPanel";
 import AdminSystemSettingsPanel from "@/components/admin/AdminSystemSettingsPanel";
 import BetaAccessPanel from "@/components/admin/BetaAccessPanel";
+import CertificatesPanel from "@/components/admin/CertificatesPanel";
+import OctoSlidesPolicyPanel from "@/components/admin/OctoSlidesPolicyPanel";
 
 type MenuItem = {
   id: string;
@@ -118,6 +120,22 @@ const menuItems: MenuItem[] = [
     icon: <ShieldIcon />,
     columns: ["Status"],
     group: "Access Control",
+  },
+  {
+    id: "octoslides",
+    label: "OctoSlides",
+    description: "Watermark policy for generated decks",
+    icon: <SlidesIcon />,
+    columns: ["Status"],
+    group: "Access Control",
+  },
+  {
+    id: "certificates",
+    label: "Certificates",
+    description: "Issue, verify and revoke intern certificates",
+    icon: <AwardIcon />,
+    columns: ["Status"],
+    group: "Programs",
   },
   { id: "api-keys", label: "API Keys", description: "Key pool from database", icon: <KeyIcon />, columns: ["No", "Provider", "Key", "Status"] },
   { id: "usage-tracking", label: "Usage Tracking", description: "Session count and operator action", icon: <ChartIcon />, columns: ["No", "Name", "Email", "Total Sessions", "Action"] },
@@ -285,6 +303,28 @@ function ShieldIcon() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
         <path d="M12 3.5 4 6.5v5c0 4.5 3.2 8.4 8 9.5 4.8-1.1 8-5 8-9.5v-5L12 3.5Z" />
         <path d="m9 12 2 2 4-4" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function SlidesIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <rect x="3" y="4" width="18" height="12" rx="2" />
+        <path d="M8 20h8M12 16v4" />
+      </svg>
+    </IconFrame>
+  );
+}
+
+function AwardIcon() {
+  return (
+    <IconFrame>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+        <circle cx="12" cy="9" r="5.5" />
+        <path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7" />
       </svg>
     </IconFrame>
   );
@@ -1743,6 +1783,10 @@ export default function BrokeOctopusPage() {
                 <EarlyAccessEventsPanel refreshKey={refreshKey} />
               ) : activeSection.id === "beta-access" ? (
                 <BetaAccessPanel refreshKey={refreshKey} />
+              ) : activeSection.id === "octoslides" ? (
+                <OctoSlidesPolicyPanel refreshKey={refreshKey} />
+              ) : activeSection.id === "certificates" ? (
+                <CertificatesPanel refreshKey={refreshKey} />
               ) : activeSection.id === "system-settings" ? (
                 <AdminSystemSettingsPanel refreshKey={refreshKey} />
               ) : (

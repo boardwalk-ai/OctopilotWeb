@@ -23,7 +23,7 @@ import ExportView from "@/views/ExportView";
 import WritingChamberView from "@/views/WritingChamberView";
 import GhostwriterView from "@/views/GhostwriterView";
 import GhostwriterWorkflowView from "@/views/GhostwriterWorkflowView";
-import OctopilotSlidesView from "@/views/OctopilotSlidesView";
+import OctoSlidesStudio from "@/views/OctoSlidesStudio";
 import HumanizerHubView from "@/views/HumanizerHubView";
 import { type FormatStyleId } from "@/views/FormatStyleView";
 import FormatterEditorView from "@/views/FormatterEditorView";
@@ -144,12 +144,18 @@ export default function HomeView({ initialMode }: { initialMode?: MethodMode } =
   const enterMode = useCallback(async (method: MethodMode) => {
     Organizer.set({ writingMode: method });
     trackGetStarted(method);
+
+    // Doc Oct = Flutter + Rust app (not the Next.js ghostciter flow)
+    if (method === "ghostciter") {
+      window.location.assign("/doc-oct/");
+      return;
+    }
+
     await TrackerService.startSession(method);
 
     if (method === "ghostwriter") { setPage("ghostwriter"); return; }
     if (method === "octopilotslides") { setPage("octopilotslides"); return; }
     if (method === "humanizerhub") { setPage("humanizerhub"); return; }
-    if (method === "ghostciter") { setPage("ghostciter"); return; }
 
     const canUseWritingStyle = await resolveWritingStyleAccess();
     if (!canUseWritingStyle) {
@@ -207,7 +213,7 @@ export default function HomeView({ initialMode }: { initialMode?: MethodMode } =
 
   if (page === "octopilotslides") {
     return (
-      <OctopilotSlidesView onBack={() => setPage("methodology")} />
+      <OctoSlidesStudio onBack={() => setPage("methodology")} />
     );
   }
 

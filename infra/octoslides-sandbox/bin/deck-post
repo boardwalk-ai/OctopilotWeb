@@ -1,0 +1,6 @@
+#!/bin/sh
+# deck-post: re-apply edits.json / motion.json to the current out/deck.pptx and refresh out/layout.json.
+set -eu
+mkdir -p "$HOME"
+[ -f /work/out/deck.pptx ] || { echo "out/deck.pptx not found" >&2; exit 2; }
+exec node /opt/sandbox/lib/postbuild.js

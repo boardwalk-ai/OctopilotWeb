@@ -1,0 +1,6 @@
+OctoSlides sandbox
+
+pptx-skill/ contains the "pptx" Agent Skill by Anthropic, PBC, used under the
+Apache License, Version 2.0 (see pptx-skill/LICENSE.txt). The files are copied
+unmodified; OctoSlides adds the wrapper scripts in bin/ and adapts the skill's
+guidance into src/server/octoslides/prompt.ts.

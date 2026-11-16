@@ -82,10 +82,19 @@ async function getBackendSettings(): Promise<Record<string, string>> {
 }
 
 export async function getOpenRouterConfig(
-  kind: "primary" | "secondary" | "source_search" | "ghostwriter_write" | "ghostwriter_orchestrator",
+  kind:
+    | "primary"
+    | "secondary"
+    | "source_search"
+    | "ghostwriter_write"
+    | "ghostwriter_orchestrator"
+    | "octoslides"
+    | "octoslides_critic"
+    | "octoslides_image",
 ) {
   const keys = await getBackendKeys();
-  const needsSettings = kind === "source_search" || kind === "ghostwriter_write" || kind === "ghostwriter_orchestrator";
+  const needsSettings =
+    kind === "source_search" || kind === "ghostwriter_write" || kind === "ghostwriter_orchestrator" || kind.startsWith("octoslides");
   const settings = needsSettings ? await getBackendSettings() : null;
 
   if (!keys.openrouter_api_key) {
@@ -103,6 +112,15 @@ export async function getOpenRouterConfig(
     model = settings?.ghostwriter_write_model || keys.primary_model;
   } else if (kind === "ghostwriter_orchestrator") {
     model = settings?.ghostwriter_orchestrator_model || keys.secondary_model;
+  } else if (kind === "octoslides") {
+    // Needs vision (it looks at rendered slides) and tool calling.
+    model = settings?.octoslides_model || "anthropic/claude-sonnet-5.5";
+  } else if (kind === "octoslides_critic") {
+    // Cheap vision model that scores rendered slides against a rubric.
+    model = settings?.octoslides_critic_model || "anthropic/claude-haiku-5.5";
+  } else if (kind === "octoslides_image") {
+    // Image-output model for generate_image.
+    model = settings?.octoslides_image_model || "google/gemini-3.1-flash-image";
   }
 
   if (!model) {
@@ -146,7 +164,8 @@ export async function getOpenRouterConfigForRun(
   const needsSettings =
     kind === "source_search" ||
     kind === "ghostwriter_write" ||
-    kind === "ghostwriter_orchestrator";
+    kind === "ghostwriter_orchestrator" ||
+    kind === "octoslides";
 
   const [keys, settings] = await Promise.all([
     getBackendKeys(),
@@ -159,6 +178,7 @@ export async function getOpenRouterConfigForRun(
   else if (kind === "source_search") model = settings?.source_search_model || keys.secondary_model;
   else if (kind === "ghostwriter_write") model = settings?.ghostwriter_write_model || keys.primary_model;
   else if (kind === "ghostwriter_orchestrator") model = settings?.ghostwriter_orchestrator_model || keys.secondary_model;
+  else if (kind === "octoslides") model = settings?.octoslides_model || "anthropic/claude-sonnet-5.5";
 
   if (!model) throw new Error(`No ${kind} model is configured.`);
 

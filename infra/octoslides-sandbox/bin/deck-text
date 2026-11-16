@@ -1,0 +1,6 @@
+#!/bin/sh
+# deck-text: every slide's text, tables, chart data and notes as markdown.
+set -eu
+mkdir -p "$HOME"
+[ -f /work/out/deck.pptx ] || { echo "out/deck.pptx not found" >&2; exit 2; }
+exec python3 /opt/pptx-skill/scripts/slide_text.py /work/out/deck.pptx

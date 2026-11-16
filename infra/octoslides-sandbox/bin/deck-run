@@ -1,0 +1,12 @@
+#!/bin/sh
+# deck-run <script.js>: run a model-written pptxgenjs script inside /work, then
+# postbuild (manual text edits, motion.json, out/layout.json).
+set -eu
+mkdir -p "$HOME" /work/out
+script="${1:-build.js}"
+case "$script" in
+  /*|*..*) echo "script path must be relative and inside /work" >&2; exit 2 ;;
+esac
+node --max-old-space-size=768 "/work/$script"
+[ -f /work/out/deck.pptx ] || exit 0
+exec node /opt/sandbox/lib/postbuild.js

@@ -1,0 +1,4 @@
+infra/octoslides-sandbox/bin/* text eol=lf
+infra/octoslides-sandbox/Dockerfile text eol=lf
+infra/octoslides-sandbox/lib/* text eol=lf
+engine/octo-present/build.sh text eol=lf
