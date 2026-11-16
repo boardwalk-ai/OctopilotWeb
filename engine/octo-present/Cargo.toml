@@ -1,0 +1,28 @@
+[package]
+name = "octo-present"
+version = "0.1.0"
+edition = "2021"
+description = "Octopilot Presentation Engine: parses PPTX and plays it (transitions, Morph, animations) on a canvas."
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+roxmltree = "0.20"
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.100"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "CanvasRenderingContext2d", "HtmlCanvasElement", "HtmlImageElement", "ImageBitmap",
+  "TextMetrics", "Document", "Window", "Element", "CanvasWindingRule",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
