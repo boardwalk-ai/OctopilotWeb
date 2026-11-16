@@ -451,14 +451,19 @@ async function describeTarget(run: OctoSlidesRun, target: EditTarget): Promise<s
 }
 
 /** A follow-up request on an idle run (the caller has claimed the run). */
-export async function continueOctoSlidesRun(run: OctoSlidesRun, text: string, target?: EditTarget) {
+export async function continueOctoSlidesRun(run: OctoSlidesRun, text: string, target?: EditTarget, editorSlide?: number) {
   compactHistory(run.messages);
   const where = target ? `${await describeTarget(run, target)}\n` : "";
+  const editorLayout = editorSlide ? await readFile(join(run.dir, "out", "layout.json"), "utf8")
+    .then((raw) => (JSON.parse(raw) as { slides?: Array<{ slide: number; elements: Array<{ name: string; kind: string; text?: string; x: number; y: number; w: number; h: number }> }> }).slides?.find((slide) => slide.slide === editorSlide))
+    .catch(() => null) : null;
+  const editorMemory = editorSlide ? await memoryBlock(run.dataUserId).catch(() => "") : "";
+  const editorContext = editorSlide ? `\nEditor mode: the user is looking at slide ${editorSlide}. Its current elements are ${JSON.stringify(editorLayout?.elements?.map((el) => ({ name: el.name, kind: el.kind, text: el.text?.slice(0, 500), x: el.x, y: el.y, w: el.w, h: el.h })) ?? [])}. Use this current slide context and the existing deck conversation. ${editorMemory ? `Current user memory: ${editorMemory}` : ""} You may call ask_user if needed. Preserve manual edits in edits.json.` : "";
   const edits = await readFile(join(run.dir, "edits.json"), "utf8").catch(() => "");
   const editsNote = edits && edits.includes('"text"') ? "\n(edits.json holds the user's manual text edits; they are re-applied after every build. If this request changes one of those elements, update or remove its entry in edits.json too.)" : "";
   run.messages.push({
     role: "user",
-    content: `Change request for the existing deck (build.js and the other files are still in the workspace):\n${where}${text}${editsNote}\nMake the change in build.js (or motion.json), rebuild, validate, render the slides you changed and check them, then call finish.`,
+    content: `Change request for the existing deck (build.js and the other files are still in the workspace):\n${where}${text}${editorContext}${editsNote}\nMake the change in build.js (or motion.json), rebuild, validate, render the slides you changed and check them, then call finish.`,
   });
   emit(run, { type: "turn_started", text, ...(target ? { target } : {}) });
   launch(run, FOLLOW_UP);

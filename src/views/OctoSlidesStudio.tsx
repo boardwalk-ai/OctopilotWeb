@@ -11,6 +11,7 @@ import MemoryPanel from "@/components/octoslides/MemoryPanel";
 import ThemePicker from "@/components/octoslides/ThemePicker";
 import GeneratingSlide, { GeneratingField, GeneratingStyles } from "@/components/octoslides/GeneratingSlide";
 import { fetchWithUserAuthorization } from "@/services/authenticatedFetch";
+import FullEditor from "@/components/octoslides/FullEditor";
 
 /**
  * OctoSlides studio for the pptxgenjs designer (/api/octoslides).
@@ -64,7 +65,7 @@ type ServerEvent =
   | { type: "complete"; summary: string }
   | { type: "error"; message: string };
 
-type LayoutElement = { id: string; name: string; kind: "text" | "shape" | "image" | "chart" | "table" | "group"; x: number; y: number; w: number; h: number; rot?: number; text?: string };
+type LayoutElement = { id: string; name: string; kind: "text" | "shape" | "image" | "chart" | "table" | "group"; x: number; y: number; w: number; h: number; rot?: number; text?: string; animations?: Array<{ effect: string; trigger?: string; durationMs?: number; delayMs?: number }>; format?: { bold?: boolean; italic?: boolean; underline?: boolean; align?: string; color?: string; size?: number; font?: string } };
 type Layout = { slides: Array<{ slide: number; elements: LayoutElement[]; transition?: string }> };
 type DocumentRow = { id: string; title: string; word_count: number; updated_at: string };
 type RunRow = { runId: string; prompt: string; status: string; createdAt: number; slides: number[]; renderedVersion: number };
@@ -134,7 +135,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const [docPickerOpen, setDocPickerOpen] = useState(false);
   const [attached, setAttached] = useState<DocumentRow | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [transitionDraft, setTransitionDraft] = useState<Record<number, string>>({});
+  const [editorMode, setEditorMode] = useState(false);
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [watermark, setWatermark] = useState<Watermark | null>(null);
@@ -446,6 +447,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   );
 
   const resetDeck = () => {
+    setEditorMode(false);
     streamAbort.current?.abort();
     setRunId(null);
     setFeed([]);
@@ -523,7 +525,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     }
   };
 
-  const sendFollowUp = async (text: string, target?: { slide: number; name: string }) => {
+  const sendFollowUp = async (text: string, target?: { slide: number; name: string }, editorSlide?: number) => {
     if (!runId) return;
     setNotice(null);
     try {
@@ -531,7 +533,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
         await fetchWithUserAuthorization(`${API}/${runId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, ...(target ? { target } : {}) }),
+          body: JSON.stringify({ text, ...(target ? { target } : {}), ...(editorSlide ? { editor: true, slide: editorSlide } : {}) }),
         }),
       );
       setBusy(true);
@@ -623,10 +625,24 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     finally { setSaving(false); }
   };
 
+  const editorEdit = async (name: string, edit: Record<string, unknown>) => {
+    if (!runId) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide: active, name, ...edit }),
+      }));
+      if (edit.deleted) setSelected(null);
+    } catch (error) { setNotice((error as Error).message); }
+    finally { setSaving(false); }
+  };
+
   const saveTransition = async (transition: string) => {
     if (!runId) return;
     const slide = active;
-    setTransitionDraft((current) => ({ ...current, [slide]: transition }));
+    setSaving(true);
     setNotice(null);
     try {
       await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
@@ -634,9 +650,21 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
         body: JSON.stringify({ slide, transition }),
       }));
     } catch (error) {
-      setTransitionDraft((current) => { const next = { ...current }; delete next[slide]; return next; });
       setNotice((error as Error).message);
-    }
+    } finally { setSaving(false); }
+  };
+
+  const addElement = async (kind: "text" | "shape") => {
+    if (!runId) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide: active, add: kind }),
+      }));
+    } catch (error) { setNotice((error as Error).message); }
+    finally { setSaving(false); }
   };
 
   const askAboutElement = async () => {
@@ -750,6 +778,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     setDraft(el.text ?? "");
     setAskText("");
   };
+  const editorSelected = selected ? layout?.slides.find((slide) => slide.slide === active)?.elements.find((element) => element.name === selected.name) ?? null : null;
 
   const slides = render?.slides ?? [];
   // planned slides show up (as "being designed") before the first render exists
@@ -828,6 +857,10 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
         @keyframes os-pop { from { opacity: 0; transform: translateY(6px) scale(.97) } to { opacity: 1; transform: none } }
         @keyframes os-orbit { to { transform: rotate(360deg) } }
         @keyframes os-glow { 0%,100% { opacity: .35 } 50% { opacity: .7 } }
+        @keyframes os-sidebar-exit { to { transform: translateX(-105%); opacity: 0 } }
+        @keyframes os-editor-enter { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+        .os-sidebar-exit { animation: os-sidebar-exit .34s cubic-bezier(.2,.8,.2,1) both }
+        .os-full-editor { animation: os-editor-enter .35s .22s cubic-bezier(.2,.8,.2,1) both }
         .os-in { animation: os-in .3s ease-out both }
         .os-pop { animation: os-pop .22s cubic-bezier(.2,.8,.2,1) both }
         .os-shimmer { background: linear-gradient(90deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 100%); background-size: 200% 100%; animation: os-shimmer 1.6s linear infinite }
@@ -840,10 +873,10 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
       <GeneratingStyles />
       <AppHeader left={<BackToHome onClick={onBack} />} right={<MainHeaderActions />} />
 
-      <div className="mt-[var(--os-header)] flex min-h-0 flex-1 overflow-hidden" style={{ ["--os-header" as string]: `${headerH}px` }}>
+      <div className="relative mt-[var(--os-header)] flex min-h-0 flex-1 overflow-hidden" style={{ ["--os-header" as string]: `${headerH}px` }}>
         {/* ══ Sidebar ══ */}
         <aside
-          className={`relative flex w-full shrink-0 flex-col md:w-[var(--os-side)] ${mobilePane === "slides" ? "hidden md:flex" : "flex"}`}
+          className={`relative flex w-full shrink-0 flex-col md:w-[var(--os-side)] ${mobilePane === "slides" ? "hidden md:flex" : "flex"} ${editorMode ? "os-sidebar-exit" : ""}`}
           style={{ background: "var(--md-surface)", borderRight: "1px solid var(--md-outline-variant)", ["--os-side" as string]: `${sideW}px` }}
           aria-label="Designer chat"
         >
@@ -1087,12 +1120,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                 <span className="on-variant">Preview</span>
               )}
             </p>
-            {hasDeck && <label className="t-body-s on-variant hidden items-center gap-2 md:flex">Transition
-              <select aria-label={`Transition for slide ${active}`} disabled={!canEdit || saving} value={transitionDraft[active] ?? layout?.slides.find((slide) => slide.slide === active)?.transition ?? "fade"} onChange={(event) => void saveTransition(event.target.value)}
-                className="rounded px-2 py-1" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface)" }}>
-                {["fade", "push", "wipe", "dissolve", "zoom", "morph", "none"].map((transition) => <option key={transition} value={transition}>{transition}</option>)}
-              </select>
-            </label>}
+            {hasDeck && <button type="button" onClick={() => setEditorMode(true)} disabled={busy} className="state btn btn-tonal">Edit</button>}
             {busy && hasDeck && (
               <span className="t-label-m on-variant hidden items-center gap-2 sm:flex">
                 <span className="progress-circular" /> Updating
@@ -1181,7 +1209,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                   className="os-reveal absolute inset-0 h-full w-full rounded-[6px] shadow-[0_40px_120px_-30px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.06)]"
                   draggable={false}
                 />
-                {canEdit &&
+                {canEdit && editorMode &&
                   slideElements.map((el) => (
                     <button
                       key={el.id}
@@ -1213,7 +1241,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                       )}
                     </button>
                   ))}
-                {selected && canEdit && (
+                {selected && canEdit && editorMode && (
                   <ElementPopover
                     key={`${active}-${selected.id}`}
                     el={selected}
@@ -1269,6 +1297,12 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
             </nav>
           )}
         </main>
+        {editorMode && hasDeck && <FullEditor version={deckVersion} images={images} slides={slides} layout={layout} active={active} setActive={setActive}
+          selected={editorSelected} onSelect={(element) => element ? selectElement(element as LayoutElement) : setSelected(null)}
+          onEdit={editorEdit} onAdd={addElement} onTransition={saveTransition}
+          onAsk={(text, target) => sendFollowUp(text, target, active)} question={question?.question ?? null} onAnswer={answer}
+          onClose={() => { setEditorMode(false); setSelected(null); }} onDownload={() => void download()} onPresent={() => void present()}
+          busy={busy} saving={saving} notice={notice} />}
       </div>
     </div>
   );

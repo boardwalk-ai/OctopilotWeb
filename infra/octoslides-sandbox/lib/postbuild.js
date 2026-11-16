@@ -104,14 +104,14 @@ function xfrmOf(el) {
 function editShape(el, edit, cx, cy) {
   const spPr = kid(el, NS.p, "spPr");
   const xfrm = el.localName === "graphicFrame" ? kid(el, NS.p, "xfrm") : kid(spPr, NS.a, "xfrm");
-  if (!xfrm) return false;
+  if (!xfrm && !edit.format) return false;
   const off = kid(xfrm, NS.a, "off");
   const ext = kid(xfrm, NS.a, "ext");
-  if (!off || !ext) return false;
+  if ((!off || !ext) && !edit.format) return false;
   for (const [key, attr, parent, scale] of [["x", "x", off, cx], ["y", "y", off, cy], ["w", "cx", ext, cx], ["h", "cy", ext, cy]]) {
-    if (Number.isFinite(edit[key])) parent.setAttribute(attr, String(Math.round(edit[key] * scale)));
+    if (parent && Number.isFinite(edit[key])) parent.setAttribute(attr, String(Math.round(edit[key] * scale)));
   }
-  if (Number.isFinite(edit.rot)) xfrm.setAttribute("rot", String(Math.round(edit.rot * 60000)));
+  if (xfrm && Number.isFinite(edit.rot)) xfrm.setAttribute("rot", String(Math.round(edit.rot * 60000)));
   if (edit.fill && spPr) {
     for (const fill of kids(spPr, NS.a).filter((node) => ["solidFill", "gradFill", "pattFill", "blipFill", "noFill"].includes(node.localName))) spPr.removeChild(fill);
     const solid = el.ownerDocument.createElementNS(NS.a, "a:solidFill");
@@ -120,6 +120,38 @@ function editShape(el, edit, cx, cy) {
     solid.appendChild(rgb);
     const before = kids(spPr, NS.a).find((node) => ["ln", "effectLst", "effectDag", "scene3d", "sp3d"].includes(node.localName));
     spPr.insertBefore(solid, before || null);
+  }
+  if (edit.format) {
+    const tx = kid(el, NS.p, "txBody");
+    if (tx) for (const para of kids(tx, NS.a, "p")) {
+      let pPr = kid(para, NS.a, "pPr");
+      if (edit.format.align) {
+        if (!pPr) { pPr = el.ownerDocument.createElementNS(NS.a, "a:pPr"); para.insertBefore(pPr, para.firstChild); }
+        pPr.setAttribute("algn", { left: "l", center: "ctr", right: "r", justify: "just" }[edit.format.align] || "l");
+      }
+      for (const run of kids(para, NS.a, "r")) {
+        let pr = kid(run, NS.a, "rPr");
+        if (!pr) { pr = el.ownerDocument.createElementNS(NS.a, "a:rPr"); run.insertBefore(pr, run.firstChild); }
+        if (typeof edit.format.bold === "boolean") pr.setAttribute("b", edit.format.bold ? "1" : "0");
+        if (typeof edit.format.italic === "boolean") pr.setAttribute("i", edit.format.italic ? "1" : "0");
+        if (typeof edit.format.underline === "boolean") pr.setAttribute("u", edit.format.underline ? "sng" : "none");
+        if (edit.format.size) pr.setAttribute("sz", String(Math.round(edit.format.size * 100)));
+        if (edit.format.font) {
+          let latin = kid(pr, NS.a, "latin");
+          if (!latin) { latin = el.ownerDocument.createElementNS(NS.a, "a:latin"); pr.appendChild(latin); }
+          latin.setAttribute("typeface", edit.format.font);
+        }
+        if (edit.format.color) {
+          for (const old of kids(pr, NS.a).filter((node) => ["solidFill", "gradFill", "pattFill", "blipFill", "noFill"].includes(node.localName))) pr.removeChild(old);
+          const solid = el.ownerDocument.createElementNS(NS.a, "a:solidFill");
+          const rgb = el.ownerDocument.createElementNS(NS.a, "a:srgbClr");
+          rgb.setAttribute("val", edit.format.color);
+          solid.appendChild(rgb);
+          const before = kids(pr, NS.a).find((node) => ["latin", "ea", "cs", "sym", "hlinkClick", "hlinkMouseOver", "rtl"].includes(node.localName));
+          pr.insertBefore(solid, before || null);
+        }
+      }
+    }
   }
   return true;
 }
@@ -134,6 +166,19 @@ function topElements(spTree) {
   return Array.from(spTree.childNodes).filter(
     (n) => n.nodeType === 1 && n.namespaceURI === NS.p && ["sp", "pic", "graphicFrame", "grpSp", "cxnSp"].includes(n.localName),
   );
+}
+function addUserElement(doc, item, cx, cy) {
+  if (findByName(doc, item.name).length) return false;
+  const tree = spTreeOf(doc);
+  const ids = Array.from(doc.getElementsByTagNameNS(NS.p, "cNvPr")).map((el) => Number(el.getAttribute("id")) || 0);
+  const id = Math.max(1, ...ids) + 1;
+  const x = Math.round(item.x * cx), y = Math.round(item.y * cy);
+  const w = Math.round(item.w * cx), h = Math.round(item.h * cy);
+  const fill = item.kind === "shape" ? `<a:solidFill><a:srgbClr val="${item.fill || "4472C4"}"/></a:solidFill>` : "<a:noFill/>";
+  const text = item.kind === "text" ? `<a:r><a:rPr lang="en-US" sz="2400"><a:solidFill><a:srgbClr val="202020"/></a:solidFill></a:rPr><a:t>${esc(item.text || "Text")}</a:t></a:r>` : "";
+  const xml = `<p:sp xmlns:p="${NS.p}" xmlns:a="${NS.a}"><p:nvSpPr><p:cNvPr id="${id}" name="${esc(item.name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${fill}<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0"/><a:lstStyle/><a:p>${text}<a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+  tree.appendChild(parse(xml).documentElement);
+  return true;
 }
 function spTreeOf(doc) {
   return doc.getElementsByTagNameNS(NS.p, "spTree")[0];
@@ -383,6 +428,7 @@ function applyMotion(xml, spec, shapes) {
   const textEdits = Array.isArray(edits?.text) ? edits.text : [];
   const elementEdits = Array.isArray(edits?.elements) ? edits.elements : [];
   const transitionEdits = Array.isArray(edits?.transitions) ? edits.transitions : [];
+  const addedEdits = Array.isArray(edits?.added) ? edits.added : [];
   const layout = { slideWidthEmu: cx, slideHeightEmu: cy, slides: [] };
   let changed = false;
 
@@ -394,6 +440,9 @@ function applyMotion(xml, spec, shapes) {
 
     // 1. text edits
     let edited = false;
+    for (const item of addedEdits.filter((entry) => Number(entry.slide) === n)) {
+      if (addUserElement(doc, item, cx, cy)) edited = true;
+    }
     for (const e of textEdits.filter((t) => Number(t.slide) === n)) {
       const els = findByName(doc, String(e.name));
       if (!els.length) { warn(`edits.json: slide ${n} has no element named "${e.name}" any more; edit not applied`); continue; }
@@ -460,15 +509,22 @@ function applyMotion(xml, spec, shapes) {
       const automaticEntrance = firstNamed
         ? [{ target: firstNamed.name, effect: "fade", trigger: "withPrevious", durationMs: 550 }]
         : [];
-      const manualAnimations = elementEdits.filter((e) => Number(e.slide) === n && e.animation && e.animation !== "none" && e.deleted !== true)
-        .map((e) => ({ target: String(e.name), effect: e.animation, trigger: "onClick", durationMs: 650 }));
+      const manualAnimations = elementEdits.filter((e) => Number(e.slide) === n && e.deleted !== true)
+        .flatMap((e) => Array.isArray(e.animations) ? e.animations.map((a) => ({ target: String(e.name), effect: a.effect, trigger: a.trigger || "onClick", durationMs: a.durationMs || 650, delayMs: a.delayMs || 0 }))
+          : e.animation && e.animation !== "none" ? [{ target: String(e.name), effect: e.animation, trigger: "onClick", durationMs: 650 }] : []);
+      const animationOverrides = new Set(elementEdits.filter((e) => Number(e.slide) === n && Array.isArray(e.animations)).map((e) => String(e.name)));
       const merged = {
         transition: manualTransition ? { type: manualTransition.transition, speed: "med" } : own.transition ?? motion?.default?.transition ?? { type: "fade", speed: "med" },
-        animations: [...(Array.isArray(own.animations) && own.animations.length ? own.animations : automaticEntrance), ...manualAnimations],
+        animations: [...(Array.isArray(own.animations) && own.animations.length ? own.animations : automaticEntrance).filter((a) => !animationOverrides.has(String(a.target))), ...manualAnimations],
       };
       transitionType = merged.transition?.type || "none";
       const next = applyMotion(xml, merged, shapes);
       if (next !== xml) { xml = next; slideChanged = true; changed = true; }
+      for (const element of elements) {
+        element.animations = merged.animations.filter((a) => a.target === element.name).map((a) => ({ effect: a.effect, trigger: a.trigger || "onClick", durationMs: a.durationMs || 650, delayMs: a.delayMs || 0 }));
+        const override = elementEdits.find((e) => Number(e.slide) === n && e.name === element.name);
+        if (override?.format) element.format = override.format;
+      }
     }
     if (slideChanged) zip.file(file, xml);
 

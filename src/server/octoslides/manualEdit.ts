@@ -11,12 +11,13 @@ import { deckInfo, writeTextFile } from "@/server/octoslides/workspace";
  * deck by postbuild, then validated and re-rendered. The caller has claimed the run.
  */
 
-type ElementEdit = { slide: number; name: string; x?: number; y?: number; w?: number; h?: number; rot?: number; fill?: string; animation?: string; deleted?: boolean };
+type ElementEdit = { slide: number; name: string; x?: number; y?: number; w?: number; h?: number; rot?: number; fill?: string; animation?: string; animations?: Array<{ effect: string; trigger?: string; durationMs?: number; delayMs?: number }>; format?: { bold?: boolean; italic?: boolean; underline?: boolean; align?: string; color?: string; size?: number; font?: string }; deleted?: boolean };
 type TransitionEdit = { slide: number; transition: "fade" | "push" | "wipe" | "dissolve" | "zoom" | "morph" | "none" };
-type EditsFile = { text: Array<{ slide: number; name: string; text: string }>; elements: ElementEdit[]; transitions: TransitionEdit[] };
+type AddedEdit = { slide: number; add: true; name: string; kind: "text" | "shape"; text: string; x: number; y: number; w: number; h: number; fill: string };
+type EditsFile = { text: Array<{ slide: number; name: string; text: string }>; elements: ElementEdit[]; transitions: TransitionEdit[]; added: AddedEdit[] };
 const MAX_EDITS = 300;
 
-export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: number; name: string; text: string } | ElementEdit | TransitionEdit)): Promise<void> {
+export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: number; name: string; text: string } | ElementEdit | TransitionEdit | AddedEdit)): Promise<void> {
   const id = `edit-${Date.now()}`;
   emit(run, { type: "tool_started", id, name: "manual_edit", summary: `slide ${edit.slide}` });
   try {
@@ -26,10 +27,15 @@ export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: nu
     const text = Array.isArray(current.text) ? current.text.filter((e) => !(e.slide === edit.slide && "name" in edit && e.name === edit.name && "text" in edit)) : [];
     const elements = Array.isArray(current.elements) ? current.elements.filter((e) => !(e.slide === edit.slide && "name" in edit && e.name === edit.name && !("text" in edit))) : [];
     const transitions = Array.isArray(current.transitions) ? current.transitions.filter((e) => !(e.slide === edit.slide && "transition" in edit)) : [];
-    if ("text" in edit) text.push(edit);
+    const added = Array.isArray(current.added) ? current.added : [];
+    if ("add" in edit) added.push(edit);
+    else if ("text" in edit) text.push(edit);
     else if ("transition" in edit) transitions.push(edit);
-    else elements.push(edit);
-    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: text.slice(-MAX_EDITS), elements: elements.slice(-MAX_EDITS), transitions }, null, 2));
+    else {
+      const previous = Array.isArray(current.elements) ? current.elements.find((e) => e.slide === edit.slide && e.name === edit.name) : undefined;
+      elements.push({ ...previous, ...edit, ...(edit.format ? { format: { ...previous?.format, ...edit.format } } : {}) });
+    }
+    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: text.slice(-MAX_EDITS), elements: elements.slice(-MAX_EDITS), transitions, added: added.slice(-MAX_EDITS) }, null, 2));
 
     const post = await runInSandbox(run.dir, ["deck-post"], { timeoutMs: 60_000 });
     if (post.exitCode !== 0 || post.timedOut) throw new Error(`Could not apply the edit: ${(post.stderr || post.stdout).slice(-300)}`);

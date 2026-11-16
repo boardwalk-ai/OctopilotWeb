@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const run = await getRun((await params).id, auth.user.id);
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
-  const body = (await request.json().catch(() => null)) as { text?: unknown; target?: { slide?: unknown; name?: unknown } } | null;
+  const body = (await request.json().catch(() => null)) as { text?: unknown; target?: { slide?: unknown; name?: unknown }; editor?: unknown; slide?: unknown } | null;
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) return NextResponse.json({ error: "Say what to change." }, { status: 400 });
   if (text.length > 4000) return NextResponse.json({ error: "The request is longer than 4,000 characters." }, { status: 400 });
@@ -27,18 +27,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!Number.isInteger(slide) || slide < 1 || !name) return NextResponse.json({ error: "Invalid target." }, { status: 400 });
     target = { slide, name };
   }
+  const editorSlide = body?.editor === true ? Number(body.slide) : null;
+  if (editorSlide !== null && (!Number.isInteger(editorSlide) || editorSlide < 1 || editorSlide > 500)) return NextResponse.json({ error: "Invalid editor slide." }, { status: 400 });
   if (run.active) {
     if (run.status === "running" && run.deckVersion === 0 && run.steps === 0 && !run.messages.length) {
       return NextResponse.json({ error: "The designer is starting. Try again in a moment." }, { status: 409 });
     }
-    const where = target ? `(about slide ${target.slide}, element "${target.name}") ` : "";
+    const where = target ? `(about slide ${target.slide}, element "${target.name}") ` : editorSlide ? `(in the editor on slide ${editorSlide}) ` : "";
     const { interrupted } = steerRun(run, `${where}${text}`);
     return NextResponse.json({ ok: true, mode: "steer", interrupted }, { status: 202 });
   }
   if (!claimRun(run)) return NextResponse.json({ error: "The designer is still working. Wait for it to finish." }, { status: 409 });
 
   try {
-    await continueOctoSlidesRun(run, text, target);
+    await continueOctoSlidesRun(run, text, target, editorSlide ?? undefined);
     return NextResponse.json({ ok: true, mode: "turn" }, { status: 202 });
   } catch (error) {
     emit(run, { type: "error", message: error instanceof Error ? error.message : "Could not continue." });
