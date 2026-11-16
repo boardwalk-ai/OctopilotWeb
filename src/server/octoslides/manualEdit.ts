@@ -17,40 +17,67 @@ type AddedEdit = { slide: number; add: true; name: string; kind: "text" | "shape
 type EditsFile = { text: Array<{ slide: number; name: string; text: string }>; elements: ElementEdit[]; transitions: TransitionEdit[]; added: AddedEdit[] };
 const MAX_EDITS = 300;
 
-export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: number; name: string; text: string } | ElementEdit | TransitionEdit | AddedEdit)): Promise<void> {
+export type ManualEdit = { slide: number; name: string; text: string } | ElementEdit | TransitionEdit | AddedEdit;
+
+export async function applyManualTextEdit(run: OctoSlidesRun, edit: ManualEdit): Promise<void> {
+  return applyManualEdits(run, [edit]);
+}
+
+/** Merge one edit into the stored edits (a later edit to the same thing replaces the earlier one). */
+function merge(current: EditsFile, edit: ManualEdit) {
+  if ("add" in edit) current.added.push(edit);
+  else if ("transition" in edit) {
+    current.transitions = current.transitions.filter((e) => e.slide !== edit.slide);
+    current.transitions.push(edit);
+  } else if ("text" in edit) {
+    current.text = current.text.filter((e) => !(e.slide === edit.slide && e.name === edit.name));
+    current.text.push(edit);
+  } else {
+    const previous = current.elements.find((e) => e.slide === edit.slide && e.name === edit.name);
+    current.elements = current.elements.filter((e) => !(e.slide === edit.slide && e.name === edit.name));
+    current.elements.push({ ...previous, ...edit, ...(edit.format ? { format: { ...previous?.format, ...edit.format } } : {}) });
+  }
+}
+
+/**
+ * Apply a batch of direct edits with one rebuild. The deck is ready (deck_ready)
+ * as soon as postbuild has run; validation and the LibreOffice preview run side
+ * by side afterwards, so the editor can redraw from the new deck straight away.
+ */
+export async function applyManualEdits(run: OctoSlidesRun, edits: ManualEdit[]): Promise<void> {
   const id = `edit-${Date.now()}`;
-  emit(run, { type: "tool_started", id, name: "manual_edit", summary: `slide ${edit.slide}` });
+  const slidesTouched = [...new Set(edits.map((e) => e.slide))].sort((a, b) => a - b);
+  emit(run, { type: "tool_started", id, name: "manual_edit", summary: `slide ${slidesTouched.join(", ")}` });
   try {
-    const current = await readFile(join(run.dir, "edits.json"), "utf8")
+    const stored = await readFile(join(run.dir, "edits.json"), "utf8")
       .then((t) => JSON.parse(t) as Partial<EditsFile>)
       .catch(() => ({}) as Partial<EditsFile>);
-    const text = Array.isArray(current.text) ? current.text.filter((e) => !(e.slide === edit.slide && "name" in edit && e.name === edit.name && "text" in edit)) : [];
-    const elements = Array.isArray(current.elements) ? current.elements.filter((e) => !(e.slide === edit.slide && "name" in edit && e.name === edit.name && !("text" in edit))) : [];
-    const transitions = Array.isArray(current.transitions) ? current.transitions.filter((e) => !(e.slide === edit.slide && "transition" in edit)) : [];
-    const added = Array.isArray(current.added) ? current.added : [];
-    if ("add" in edit) added.push(edit);
-    else if ("text" in edit) text.push(edit);
-    else if ("transition" in edit) transitions.push(edit);
-    else {
-      const previous = Array.isArray(current.elements) ? current.elements.find((e) => e.slide === edit.slide && e.name === edit.name) : undefined;
-      elements.push({ ...previous, ...edit, ...(edit.format ? { format: { ...previous?.format, ...edit.format } } : {}) });
-    }
-    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: text.slice(-MAX_EDITS), elements: elements.slice(-MAX_EDITS), transitions, added: added.slice(-MAX_EDITS) }, null, 2));
+    const current: EditsFile = {
+      text: Array.isArray(stored.text) ? stored.text : [],
+      elements: Array.isArray(stored.elements) ? stored.elements : [],
+      transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
+      added: Array.isArray(stored.added) ? stored.added : [],
+    };
+    for (const edit of edits) merge(current, edit);
+    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: current.text.slice(-MAX_EDITS), elements: current.elements.slice(-MAX_EDITS), transitions: current.transitions, added: current.added.slice(-MAX_EDITS) }, null, 2));
 
     const post = await runInSandbox(run.dir, ["deck-post"], { timeoutMs: 60_000 });
     if (post.exitCode !== 0 || post.timedOut) throw new Error(`Could not apply the edit: ${(post.stderr || post.stdout).slice(-300)}`);
-    const warning = post.stderr.split("\n").find((l) => l.startsWith("warning:") && "name" in edit && l.includes(`"${edit.name}"`));
+    const names = new Set(edits.flatMap((e) => ("name" in e && !("add" in e) ? [e.name] : [])));
+    const warning = post.stderr.split("\n").find((l) => l.startsWith("warning:") && [...names].some((n) => l.includes(`"${n}"`)));
     if (warning) throw new Error(warning.replace(/^warning:\s*/, ""));
 
     await applyMarks(run);
     run.deckVersion += 1;
+    const version = run.deckVersion;
     const info = await deckInfo(run.dir);
-    emit(run, { type: "deck_ready", bytes: info.bytes, version: run.deckVersion });
+    emit(run, { type: "deck_ready", bytes: info.bytes, version });
 
-    const validate = await runInSandbox(run.dir, ["deck-validate"], { timeoutMs: 60_000 });
-    if (validate.exitCode === 0 && !validate.timedOut) run.lastValidatedVersion = run.deckVersion;
-
-    const render = await runInSandbox(run.dir, ["deck-render", "100"], { timeoutMs: 120_000, memoryMb: 1536, cpus: 2 });
+    const [validate, render] = await Promise.all([
+      runInSandbox(run.dir, ["deck-validate"], { timeoutMs: 60_000 }),
+      runInSandbox(run.dir, ["deck-render", "100"], { timeoutMs: 120_000, memoryMb: 1536, cpus: 2 }),
+    ]);
+    if (validate.exitCode === 0 && !validate.timedOut) run.lastValidatedVersion = version;
     if (render.exitCode !== 0 || render.timedOut) throw new Error("The edit was saved but the preview could not be re-rendered.");
     const slides = render.stdout
       .split("\n")
@@ -58,9 +85,9 @@ export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: nu
       .filter(Boolean)
       .map(Number)
       .sort((a, b) => a - b);
-    run.renderedVersion = run.deckVersion;
-    emit(run, { type: "slides_rendered", slides, version: run.deckVersion });
-    emit(run, { type: "tool_finished", id, name: "manual_edit", ok: true, summary: `Edited slide ${edit.slide}` });
+    run.renderedVersion = version;
+    emit(run, { type: "slides_rendered", slides, version });
+    emit(run, { type: "tool_finished", id, name: "manual_edit", ok: true, summary: edits.length > 1 ? `${edits.length} edits on slide ${slidesTouched.join(", ")}` : `Edited slide ${slidesTouched[0]}` });
     finishRun(run, "idle");
   } catch (error) {
     emit(run, { type: "tool_finished", id, name: "manual_edit", ok: false, summary: (error as Error).message.slice(0, 200) });

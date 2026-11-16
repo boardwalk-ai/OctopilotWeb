@@ -136,6 +136,10 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const [attached, setAttached] = useState<DocumentRow | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [editorMode, setEditorMode] = useState(false);
+  // the editor redraws from the deck itself (WASM engine) instead of waiting for LibreOffice
+  const [liveDeck, setLiveDeck] = useState<{ version: number; pptx: ArrayBuffer } | null>(null);
+  const editorOpen = useRef(false);
+  const liveFetch = useRef(0);
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [watermark, setWatermark] = useState<Watermark | null>(null);
@@ -268,6 +272,17 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     setActive((a) => (slides.includes(a) ? a : slides[0] ?? 1));
   }, []);
 
+  const loadLiveDeck = useCallback(async (id: string, version: number) => {
+    if (liveFetch.current >= version) return;
+    liveFetch.current = version;
+    const [deck, lay] = await Promise.all([
+      fetchWithUserAuthorization(`${API}/${id}/files/deck.pptx?v=${version}`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
+      fetchWithUserAuthorization(`${API}/${id}/files/layout.json?v=${version}`).then((r) => (r.ok ? (r.json() as Promise<Layout>) : null)).catch(() => null),
+    ]);
+    if (lay) setLayout(lay);
+    if (deck) setLiveDeck((cur) => (cur && cur.version > version ? cur : { version, pptx: deck }));
+  }, []);
+
   const handleEvent = useCallback(
     (id: string, ev: ServerEvent) => {
       switch (ev.type) {
@@ -335,6 +350,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
           break;
         case "deck_ready":
           setDeckVersion(ev.version);
+          if (editorOpen.current) void loadLiveDeck(id, ev.version);
           break;
         case "watermark":
           setWatermark({ enabled: ev.enabled, canToggle: ev.canToggle, reason: ev.reason });
@@ -378,7 +394,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
           break;
       }
     },
-    [loadRender],
+    [loadRender, loadLiveDeck],
   );
 
   // ── SSE over fetch (needs the auth header), with reconnect ──
@@ -448,6 +464,9 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
 
   const resetDeck = () => {
     setEditorMode(false);
+    editorOpen.current = false;
+    setLiveDeck(null);
+    liveFetch.current = 0;
     streamAbort.current?.abort();
     setRunId(null);
     setFeed([]);
@@ -625,46 +644,30 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     finally { setSaving(false); }
   };
 
-  const editorEdit = async (name: string, edit: Record<string, unknown>) => {
-    if (!runId) return;
+  /** a batch of direct edits from the editor, applied with one rebuild */
+  const editorEdits = async (edits: Array<Record<string, unknown>>) => {
+    if (!runId || !edits.length) return;
     setSaving(true);
     setNotice(null);
     try {
       await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slide: active, name, ...edit }),
+        body: JSON.stringify({ edits }),
       }));
-      if (edit.deleted) setSelected(null);
+      if (edits.some((e) => e.deleted)) setSelected(null);
     } catch (error) { setNotice((error as Error).message); }
     finally { setSaving(false); }
   };
 
-  const saveTransition = async (transition: string) => {
-    if (!runId) return;
-    const slide = active;
-    setSaving(true);
-    setNotice(null);
-    try {
-      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slide, transition }),
-      }));
-    } catch (error) {
-      setNotice((error as Error).message);
-    } finally { setSaving(false); }
+  const openEditor = () => {
+    editorOpen.current = true;
+    setEditorMode(true);
+    if (runId) void loadLiveDeck(runId, deckVersion);
   };
-
-  const addElement = async (kind: "text" | "shape") => {
-    if (!runId) return;
-    setSaving(true);
-    setNotice(null);
-    try {
-      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slide: active, add: kind }),
-      }));
-    } catch (error) { setNotice((error as Error).message); }
-    finally { setSaving(false); }
+  const closeEditor = () => {
+    editorOpen.current = false;
+    setEditorMode(false);
+    setSelected(null);
   };
 
   const askAboutElement = async () => {
@@ -1120,7 +1123,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                 <span className="on-variant">Preview</span>
               )}
             </p>
-            {hasDeck && <button type="button" onClick={() => setEditorMode(true)} disabled={busy} className="state btn btn-tonal">Edit</button>}
+            {hasDeck && <button type="button" onClick={openEditor} disabled={busy} className="state btn btn-tonal">Edit</button>}
             {busy && hasDeck && (
               <span className="t-label-m on-variant hidden items-center gap-2 sm:flex">
                 <span className="progress-circular" /> Updating
@@ -1299,10 +1302,10 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
         </main>
         {editorMode && hasDeck && <FullEditor version={deckVersion} images={images} slides={slides} layout={layout} active={active} setActive={setActive}
           selected={editorSelected} onSelect={(element) => element ? selectElement(element as LayoutElement) : setSelected(null)}
-          onEdit={editorEdit} onAdd={addElement} onTransition={saveTransition}
+          onEdits={editorEdits} deck={liveDeck}
           onAsk={(text, target) => sendFollowUp(text, target, active)} question={question?.question ?? null} onAnswer={answer}
-          onClose={() => { setEditorMode(false); setSelected(null); }} onDownload={() => void download()} onPresent={() => void present()}
-          busy={busy} saving={saving} notice={notice} />}
+          onClose={closeEditor} onDownload={() => void download()} onPresent={() => void present()}
+          busy={busy} saving={saving} notice={notice} onDismissNotice={() => setNotice(null)} />}
       </div>
     </div>
   );
