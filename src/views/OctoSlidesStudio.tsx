@@ -65,7 +65,7 @@ type ServerEvent =
   | { type: "error"; message: string };
 
 type LayoutElement = { id: string; name: string; kind: "text" | "shape" | "image" | "chart" | "table" | "group"; x: number; y: number; w: number; h: number; rot?: number; text?: string };
-type Layout = { slides: Array<{ slide: number; elements: LayoutElement[] }> };
+type Layout = { slides: Array<{ slide: number; elements: LayoutElement[]; transition?: string }> };
 type DocumentRow = { id: string; title: string; word_count: number; updated_at: string };
 type RunRow = { runId: string; prompt: string; status: string; createdAt: number; slides: number[]; renderedVersion: number };
 type Watermark = { enabled: boolean; canToggle: boolean; reason: "free" | "pro" | "admin" };
@@ -134,6 +134,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const [docPickerOpen, setDocPickerOpen] = useState(false);
   const [attached, setAttached] = useState<DocumentRow | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [transitionDraft, setTransitionDraft] = useState<Record<number, string>>({});
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [watermark, setWatermark] = useState<Watermark | null>(null);
@@ -622,6 +623,22 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     finally { setSaving(false); }
   };
 
+  const saveTransition = async (transition: string) => {
+    if (!runId) return;
+    const slide = active;
+    setTransitionDraft((current) => ({ ...current, [slide]: transition }));
+    setNotice(null);
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide, transition }),
+      }));
+    } catch (error) {
+      setTransitionDraft((current) => { const next = { ...current }; delete next[slide]; return next; });
+      setNotice((error as Error).message);
+    }
+  };
+
   const askAboutElement = async () => {
     if (!selected || !askText.trim()) return;
     await sendFollowUp(askText.trim(), { slide: active, name: selected.name });
@@ -1070,6 +1087,12 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                 <span className="on-variant">Preview</span>
               )}
             </p>
+            {hasDeck && <label className="t-body-s on-variant hidden items-center gap-2 md:flex">Transition
+              <select aria-label={`Transition for slide ${active}`} disabled={!canEdit || saving} value={transitionDraft[active] ?? layout?.slides.find((slide) => slide.slide === active)?.transition ?? "fade"} onChange={(event) => void saveTransition(event.target.value)}
+                className="rounded px-2 py-1" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface)" }}>
+                {["fade", "push", "wipe", "dissolve", "zoom", "morph", "none"].map((transition) => <option key={transition} value={transition}>{transition}</option>)}
+              </select>
+            </label>}
             {busy && hasDeck && (
               <span className="t-label-m on-variant hidden items-center gap-2 sm:flex">
                 <span className="progress-circular" /> Updating

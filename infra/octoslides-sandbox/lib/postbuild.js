@@ -382,6 +382,7 @@ function applyMotion(xml, spec, shapes) {
   const motion = readJson("motion.json");
   const textEdits = Array.isArray(edits?.text) ? edits.text : [];
   const elementEdits = Array.isArray(edits?.elements) ? edits.elements : [];
+  const transitionEdits = Array.isArray(edits?.transitions) ? edits.transitions : [];
   const layout = { slideWidthEmu: cx, slideHeightEmu: cy, slides: [] };
   let changed = false;
 
@@ -450,8 +451,10 @@ function applyMotion(xml, spec, shapes) {
     // 2. motion. Supply a restrained transition and entrance when the agent
     // did not write motion.json, so exported PowerPoint files still move.
     let slideChanged = edited;
+    let transitionType = "none";
     if (motion?.disabled !== true) {
       const own = motion?.slides?.[String(n)] || {};
+      const manualTransition = transitionEdits.find((e) => Number(e.slide) === n);
       const firstText = elements.find((el) => el.kind === "text" && el.name);
       const firstNamed = firstText || elements.find((el) => el.name);
       const automaticEntrance = firstNamed
@@ -460,15 +463,16 @@ function applyMotion(xml, spec, shapes) {
       const manualAnimations = elementEdits.filter((e) => Number(e.slide) === n && e.animation && e.animation !== "none" && e.deleted !== true)
         .map((e) => ({ target: String(e.name), effect: e.animation, trigger: "onClick", durationMs: 650 }));
       const merged = {
-        transition: own.transition ?? motion?.default?.transition ?? { type: "fade", speed: "med" },
+        transition: manualTransition ? { type: manualTransition.transition, speed: "med" } : own.transition ?? motion?.default?.transition ?? { type: "fade", speed: "med" },
         animations: [...(Array.isArray(own.animations) && own.animations.length ? own.animations : automaticEntrance), ...manualAnimations],
       };
+      transitionType = merged.transition?.type || "none";
       const next = applyMotion(xml, merged, shapes);
       if (next !== xml) { xml = next; slideChanged = true; changed = true; }
     }
     if (slideChanged) zip.file(file, xml);
 
-    layout.slides.push({ slide: n, elements });
+    layout.slides.push({ slide: n, elements, transition: transitionType });
   }
 
   const hasFolders = Object.values(zip.files).some((f) => f.dir);
