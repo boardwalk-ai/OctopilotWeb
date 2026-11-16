@@ -101,6 +101,28 @@ function xfrmOf(el) {
   if (!off || !ext) return null;
   return { x: +off.getAttribute("x"), y: +off.getAttribute("y"), w: +ext.getAttribute("cx"), h: +ext.getAttribute("cy"), rot: +(x.getAttribute("rot") || 0) };
 }
+function editShape(el, edit, cx, cy) {
+  const spPr = kid(el, NS.p, "spPr");
+  const xfrm = el.localName === "graphicFrame" ? kid(el, NS.p, "xfrm") : kid(spPr, NS.a, "xfrm");
+  if (!xfrm) return false;
+  const off = kid(xfrm, NS.a, "off");
+  const ext = kid(xfrm, NS.a, "ext");
+  if (!off || !ext) return false;
+  for (const [key, attr, parent, scale] of [["x", "x", off, cx], ["y", "y", off, cy], ["w", "cx", ext, cx], ["h", "cy", ext, cy]]) {
+    if (Number.isFinite(edit[key])) parent.setAttribute(attr, String(Math.round(edit[key] * scale)));
+  }
+  if (Number.isFinite(edit.rot)) xfrm.setAttribute("rot", String(Math.round(edit.rot * 60000)));
+  if (edit.fill && spPr) {
+    for (const fill of kids(spPr, NS.a).filter((node) => ["solidFill", "gradFill", "pattFill", "blipFill", "noFill"].includes(node.localName))) spPr.removeChild(fill);
+    const solid = el.ownerDocument.createElementNS(NS.a, "a:solidFill");
+    const rgb = el.ownerDocument.createElementNS(NS.a, "a:srgbClr");
+    rgb.setAttribute("val", edit.fill);
+    solid.appendChild(rgb);
+    const before = kids(spPr, NS.a).find((node) => ["ln", "effectLst", "effectDag", "scene3d", "sp3d"].includes(node.localName));
+    spPr.insertBefore(solid, before || null);
+  }
+  return true;
+}
 function paragraphsOf(el) {
   const tx = kid(el, NS.p, "txBody");
   if (!tx) return null;
@@ -359,6 +381,7 @@ function applyMotion(xml, spec, shapes) {
   const edits = readJson("edits.json");
   const motion = readJson("motion.json");
   const textEdits = Array.isArray(edits?.text) ? edits.text : [];
+  const elementEdits = Array.isArray(edits?.elements) ? edits.elements : [];
   const layout = { slideWidthEmu: cx, slideHeightEmu: cy, slides: [] };
   let changed = false;
 
@@ -376,6 +399,14 @@ function applyMotion(xml, spec, shapes) {
       if (els.length > 1) warn(`edits.json: slide ${n} has ${els.length} elements named "${e.name}"; edited the first`);
       if (replaceText(els[0], e.text)) edited = true;
       else warn(`edits.json: "${e.name}" on slide ${n} has no text box`);
+    }
+    for (const e of elementEdits.filter((t) => Number(t.slide) === n)) {
+      const els = findByName(doc, String(e.name));
+      if (!els.length) { warn(`edits.json: slide ${n} has no element named "${e.name}" any more; edit not applied`); continue; }
+      const el = els[0];
+      if (e.deleted === true) { el.parentNode.removeChild(el); edited = true; continue; }
+      if (editShape(el, e, cx, cy)) edited = true;
+      else warn(`edits.json: "${e.name}" has no editable transform`);
     }
     if (edited) {
       xml = serialize(doc);
@@ -416,11 +447,22 @@ function applyMotion(xml, spec, shapes) {
       });
     }
 
-    // 2. motion
+    // 2. motion. Supply a restrained transition and entrance when the agent
+    // did not write motion.json, so exported PowerPoint files still move.
     let slideChanged = edited;
-    if (motion) {
-      const own = motion.slides?.[String(n)] || {};
-      const merged = { transition: own.transition ?? motion.default?.transition, animations: own.animations };
+    if (motion?.disabled !== true) {
+      const own = motion?.slides?.[String(n)] || {};
+      const firstText = elements.find((el) => el.kind === "text" && el.name);
+      const firstNamed = firstText || elements.find((el) => el.name);
+      const automaticEntrance = firstNamed
+        ? [{ target: firstNamed.name, effect: "fade", trigger: "withPrevious", durationMs: 550 }]
+        : [];
+      const manualAnimations = elementEdits.filter((e) => Number(e.slide) === n && e.animation && e.animation !== "none" && e.deleted !== true)
+        .map((e) => ({ target: String(e.name), effect: e.animation, trigger: "onClick", durationMs: 650 }));
+      const merged = {
+        transition: own.transition ?? motion?.default?.transition ?? { type: "fade", speed: "med" },
+        animations: [...(Array.isArray(own.animations) && own.animations.length ? own.animations : automaticEntrance), ...manualAnimations],
+      };
       const next = applyMotion(xml, merged, shapes);
       if (next !== xml) { xml = next; slideChanged = true; changed = true; }
     }
@@ -440,7 +482,7 @@ function applyMotion(xml, spec, shapes) {
   }
   fs.writeFileSync(path.join(WORK, "out", "layout.json"), JSON.stringify(layout));
   for (const w of warnings) console.error(`warning: ${w}`);
-  console.log(`postbuild: ${files.length} slides; ${textEdits.length} text edit(s); motion ${motion ? "applied" : "none"}`);
+  console.log(`postbuild: ${files.length} slides; ${textEdits.length} text edit(s); motion ${motion?.disabled === true ? "disabled" : motion ? "applied" : "automatic"}`);
 })().catch((e) => {
   console.error(`postbuild failed: ${e && e.stack ? e.stack : e}`);
   process.exit(1);

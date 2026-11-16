@@ -133,6 +133,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const [docs, setDocs] = useState<DocumentRow[] | null | "error">(null);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
   const [attached, setAttached] = useState<DocumentRow | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [watermark, setWatermark] = useState<Watermark | null>(null);
@@ -493,11 +494,18 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   const startDeck = async (prompt: string) => {
     setNotice(null);
     try {
+      const upload = uploadedFiles.length > 0;
+      const form = new FormData();
+      if (upload) {
+        form.set("prompt", prompt);
+        if (attached) form.set("documentId", attached.id);
+        uploadedFiles.forEach((file) => form.append("files", file));
+      }
       const data = await jsonOrError(
         await fetchWithUserAuthorization(API, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, ...(attached ? { documentId: attached.id } : {}) }),
+          ...(upload ? {} : { headers: { "Content-Type": "application/json" } }),
+          body: upload ? form : JSON.stringify({ prompt, ...(attached ? { documentId: attached.id } : {}) }),
         }),
       );
       const id = String(data.runId);
@@ -505,6 +513,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
       setRunId(id);
       setBusy(true);
       setAttached(null);
+      setUploadedFiles([]);
       connect(id);
       setPath(`${STUDIO_PATH}/${id}`);
       setRecent((r) => [{ runId: id, prompt, status: "running", createdAt: Date.now(), slides: [], renderedVersion: -1 }, ...r]);
@@ -597,6 +606,20 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveElement = async (edit: Record<string, unknown>) => {
+    if (!runId || !selected) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide: active, name: selected.name, ...edit }),
+      }));
+      setSelected(null);
+    } catch (error) { setNotice((error as Error).message); }
+    finally { setSaving(false); }
   };
 
   const askAboutElement = async () => {
@@ -946,6 +969,14 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                   </span>
                 </div>
               )}
+              {composerMode === "new" && uploadedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1 px-2 pt-2">
+                  {uploadedFiles.map((file, index) => <span key={`${file.name}-${index}`} className="chip selected !pr-1">
+                    <span className="max-w-[160px] truncate">{file.name}</span>
+                    <button type="button" className="state icon-btn !h-6 !w-6" aria-label={`Remove ${file.name}`} onClick={() => setUploadedFiles((files) => files.filter((_, i) => i !== index))}>×</button>
+                  </span>)}
+                </div>
+              )}
               <label htmlFor="octoslides-composer" className="sr-only">
                 {composerMode === "answer" ? "Your answer" : composerMode === "steer" ? "Add to the request" : composerMode === "new" ? "Describe your deck" : "Ask for a change"}
               </label>
@@ -970,12 +1001,25 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
               />
               <div className="mt-1 flex items-center gap-1">
                 {composerMode === "new" && (
+                  <>
                   <button type="button" onClick={() => void loadDocs()} aria-expanded={docPickerOpen} className="state btn btn-text neutral has-icon !h-9 !pl-2.5">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                     </svg>
                     Use my document
                   </button>
+                  <label className="state btn btn-text neutral has-icon !h-9 !pl-2.5 cursor-pointer">
+                    Add files
+                    <input type="file" className="sr-only" multiple accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.gif,.avif" onChange={(event) => {
+                      const next = [...uploadedFiles, ...Array.from(event.target.files ?? [])];
+                      event.target.value = "";
+                      if (next.length > 3) { setNotice("Attach at most 3 files."); return; }
+                      if (next.some((file) => file.size > 20 * 1024 * 1024) || next.reduce((sum, file) => sum + file.size, 0) > 40 * 1024 * 1024) { setNotice("Each file must be 20 MB or smaller; 40 MB total."); return; }
+                      setUploadedFiles(next);
+                      setNotice(null);
+                    }} />
+                  </label>
+                  </>
                 )}
                 <span className="flex-1" />
                 {busy && !question && (
@@ -1148,6 +1192,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                   ))}
                 {selected && canEdit && (
                   <ElementPopover
+                    key={`${active}-${selected.id}`}
                     el={selected}
                     draft={draft}
                     setDraft={setDraft}
@@ -1155,6 +1200,7 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
                     setAskText={setAskText}
                     saving={saving}
                     onSave={() => void saveText()}
+                    onSaveElement={(edit) => void saveElement(edit)}
                     onAsk={() => void askAboutElement()}
                     onClose={() => setSelected(null)}
                   />
@@ -1213,10 +1259,14 @@ function ElementPopover(props: {
   setAskText: (v: string) => void;
   saving: boolean;
   onSave: () => void;
+  onSaveElement: (edit: Record<string, unknown>) => void;
   onAsk: () => void;
   onClose: () => void;
 }) {
-  const { el, draft, setDraft, askText, setAskText, saving, onSave, onAsk, onClose } = props;
+  const { el, draft, setDraft, askText, setAskText, saving, onSave, onSaveElement, onAsk, onClose } = props;
+  const [box, setBox] = useState({ x: el.x, y: el.y, w: el.w, h: el.h, rot: el.rot ?? 0 });
+  const [fill, setFill] = useState("");
+  const [animation, setAnimation] = useState("none");
   // anchored to the element in slide space, counter-scaled so it stays readable at any zoom
   const below = el.y + el.h < 0.6;
   const anchorX = Math.min(Math.max(el.x, 0), 0.7) * STAGE_W;
@@ -1269,6 +1319,27 @@ function ElementPopover(props: {
             <div className="divider my-4" />
           </>
         )}
+        <div className="grid grid-cols-5 gap-2">
+          {(["x", "y", "w", "h", "rot"] as const).map((key) => <label key={key} className="t-body-s on-variant">{key.toUpperCase()}
+            <input type="number" step={key === "rot" ? 1 : 0.1} min={key === "rot" ? -360 : 0} max={key === "rot" ? 360 : 100}
+              value={key === "rot" ? box.rot : Math.round(box[key] * 1000) / 10}
+              onChange={(event) => setBox((current) => ({ ...current, [key]: Number(event.target.value) / (key === "rot" ? 1 : 100) }))}
+              className="mt-1 w-full rounded px-1 py-1 text-center" style={{ background: "var(--md-surface-container-highest)", color: "var(--md-on-surface)" }} />
+          </label>)}
+        </div>
+        <div className="mt-3 flex items-end gap-2">
+          {(el.kind === "shape" || el.kind === "text") && <label className="t-body-s on-variant">Fill<br /><input aria-label="Fill color" type="color" value={fill || "#ffffff"} onChange={(event) => setFill(event.target.value)} /></label>}
+          <label className="t-body-s on-variant flex-1">Animation
+            <select value={animation} onChange={(event) => setAnimation(event.target.value)} className="mt-1 block w-full rounded px-2 py-1" style={{ background: "var(--md-surface-container-highest)", color: "var(--md-on-surface)" }}>
+              {["none", "fade", "rise", "fly", "wipe", "zoom", "pulse", "spin", "grow", "fadeOut"].map((effect) => <option key={effect} value={effect}>{effect}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="mt-3 flex justify-between gap-2">
+          <button type="button" disabled={saving} onClick={() => onSaveElement({ deleted: true })} className="state btn btn-text" style={{ color: "var(--md-error)" }}>Delete</button>
+          <button type="button" disabled={saving} onClick={() => onSaveElement({ ...box, ...(fill ? { fill: fill.slice(1) } : {}), animation })} className="state btn btn-filled">Save element</button>
+        </div>
+        <div className="divider my-4" />
         <div className="flex items-center gap-2 rounded-full py-1 pl-4 pr-1" style={{ background: "var(--md-surface-container-highest)" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: "var(--md-primary)" }} aria-hidden="true">
             <path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 11l5.6-2 1.9-5.5Z" />

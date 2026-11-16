@@ -11,19 +11,22 @@ import { deckInfo, writeTextFile } from "@/server/octoslides/workspace";
  * deck by postbuild, then validated and re-rendered. The caller has claimed the run.
  */
 
-type EditsFile = { text: Array<{ slide: number; name: string; text: string }> };
+type ElementEdit = { slide: number; name: string; x?: number; y?: number; w?: number; h?: number; rot?: number; fill?: string; animation?: string; deleted?: boolean };
+type EditsFile = { text: Array<{ slide: number; name: string; text: string }>; elements: ElementEdit[] };
 const MAX_EDITS = 300;
 
-export async function applyManualTextEdit(run: OctoSlidesRun, edit: { slide: number; name: string; text: string }): Promise<void> {
+export async function applyManualTextEdit(run: OctoSlidesRun, edit: ({ slide: number; name: string; text: string } | ElementEdit)): Promise<void> {
   const id = `edit-${Date.now()}`;
   emit(run, { type: "tool_started", id, name: "manual_edit", summary: `slide ${edit.slide}` });
   try {
     const current = await readFile(join(run.dir, "edits.json"), "utf8")
       .then((t) => JSON.parse(t) as Partial<EditsFile>)
       .catch(() => ({}) as Partial<EditsFile>);
-    const list = Array.isArray(current.text) ? current.text.filter((e) => !(e.slide === edit.slide && e.name === edit.name)) : [];
-    list.push(edit);
-    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: list.slice(-MAX_EDITS) }, null, 2));
+    const text = Array.isArray(current.text) ? current.text.filter((e) => !(e.slide === edit.slide && e.name === edit.name && "text" in edit)) : [];
+    const elements = Array.isArray(current.elements) ? current.elements.filter((e) => !(e.slide === edit.slide && e.name === edit.name && !("text" in edit))) : [];
+    if ("text" in edit) text.push(edit);
+    else elements.push(edit);
+    await writeTextFile(run.dir, "edits.json", JSON.stringify({ text: text.slice(-MAX_EDITS), elements: elements.slice(-MAX_EDITS) }, null, 2));
 
     const post = await runInSandbox(run.dir, ["deck-post"], { timeoutMs: 60_000 });
     if (post.exitCode !== 0 || post.timedOut) throw new Error(`Could not apply the edit: ${(post.stderr || post.stdout).slice(-300)}`);

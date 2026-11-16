@@ -3,6 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { query } from "@/server/db";
 import { WORK_ROOT, createWorkspace, deckInfo, removeWorkspace } from "@/server/octoslides/workspace";
+import { removeUploadedIndex } from "@/server/octoslides/attachments";
 
 export type OctoSlidesEvent =
   | { type: "run_started"; runId: string }
@@ -116,6 +117,7 @@ function gc() {
     ).catch(() => []);
     for (const row of expired) {
       RUNS.delete(row.run_id);
+      await removeUploadedIndex(row.run_id);
       await removeWorkspace(join(WORK_ROOT, row.run_id));
     }
     // folders nobody saved
@@ -125,7 +127,10 @@ function gc() {
       if (!entry.isDirectory() || !RUN_ID_DIR.test(entry.name) || RUNS.has(entry.name) || saved.has(entry.name)) continue;
       const dir = join(WORK_ROOT, entry.name);
       const info = await stat(dir).catch(() => null);
-      if (info && info.mtimeMs < now - ORPHAN_TTL_MS) await removeWorkspace(dir);
+      if (info && info.mtimeMs < now - ORPHAN_TTL_MS) {
+        await removeUploadedIndex(entry.name);
+        await removeWorkspace(dir);
+      }
     }
   })().catch(() => undefined);
 }
@@ -253,6 +258,7 @@ export async function deleteRun(runId: string, ownerId: string): Promise<boolean
   }
   RUNS.delete(runId);
   await query("DELETE FROM octoslides_decks WHERE run_id = $1 AND owner_id = $2", [runId, ownerId]).catch(() => undefined);
+  await removeUploadedIndex(runId);
   await removeWorkspace(run.dir);
   return true;
 }

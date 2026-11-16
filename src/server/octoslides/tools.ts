@@ -10,6 +10,7 @@ import { critique_slides, generate_image, resolveSearchResult, search_images } f
 import { list_my_documents, read_document, search_document } from "@/server/octoslides/dataTools";
 import { forget, remember } from "@/server/octoslides/memory";
 import { findOctoSlidesTheme } from "@/lib/octoslidesThemes";
+import { uploadedSources, uploadedText, searchUploadedSources } from "@/server/octoslides/attachments";
 import {
   WorkspaceError,
   deckInfo,
@@ -418,6 +419,43 @@ const finish: OctoTool = {
   },
 };
 
+const list_uploaded_files: OctoTool = {
+  name: "list_uploaded_files",
+  description: "List the PDF, Word, text, and image files attached to this deck request.",
+  parameters: { type: "object", additionalProperties: false, properties: {} },
+  async execute(_args, { run }) {
+    const files = await uploadedSources(run);
+    return { ok: true, content: JSON.stringify({ files }), summary: `${files.length} uploaded files` };
+  },
+};
+
+const read_uploaded_file: OctoTool = {
+  name: "read_uploaded_file",
+  description: "Read extracted text from one uploaded source. Use offset to page through long files. For an image, also returns the image for visual understanding.",
+  parameters: { type: "object", additionalProperties: false, required: ["file"], properties: {
+    file: { type: "integer", minimum: 1, maximum: 3 }, offset: { type: "integer", minimum: 0 },
+  } },
+  async execute(args, { run }) {
+    const index = Number(args.file);
+    const source = (await uploadedSources(run)).find((file) => file.index === index);
+    if (!source) return { ok: false, content: JSON.stringify({ error: "No such uploaded file." }), summary: "File missing" };
+    const text = await uploadedText(run, index);
+    const offset = Math.max(0, Math.floor(Number(args.offset) || 0));
+    const images = source.asset ? [{ label: source.name, dataUrl: `data:image/png;base64,${(await readFile(join(run.dir, source.asset))).toString("base64")}` }] : undefined;
+    return { ok: true, content: JSON.stringify({ name: source.name, text: text.slice(offset, offset + 24000), offset, totalChars: text.length, nextOffset: offset + 24000 < text.length ? offset + 24000 : null }), images, summary: `Read ${source.name}` };
+  },
+};
+
+const search_uploaded_files: OctoTool = {
+  name: "search_uploaded_files",
+  description: "Search only the files uploaded for this deck. Results are scoped to this user and run.",
+  parameters: { type: "object", additionalProperties: false, required: ["query"], properties: { query: { type: "string" } } },
+  async execute(args, { run }) {
+    const hits = await searchUploadedSources(run, str(args, "query"));
+    return { ok: true, content: JSON.stringify({ hits }), summary: `${hits.length} source matches` };
+  },
+};
+
 export const OCTOSLIDES_TOOLS: OctoTool[] = [
   write_file,
   edit_file,
@@ -435,6 +473,9 @@ export const OCTOSLIDES_TOOLS: OctoTool[] = [
   list_my_documents,
   search_document,
   read_document,
+  list_uploaded_files,
+  read_uploaded_file,
+  search_uploaded_files,
   remember,
   forget,
   outline_deck,

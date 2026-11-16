@@ -421,14 +421,17 @@ function launch(run: OctoSlidesRun, limits: { maxSteps: number; maxCostUsd: numb
 }
 
 /** First turn. `attachedDocument` is a document the user picked (already ownership-checked). */
-export async function startOctoSlidesRun(run: OctoSlidesRun, attachedDocument?: { id: string; title: string } | null) {
+export async function startOctoSlidesRun(run: OctoSlidesRun, attachedDocument?: { id: string; title: string } | null, uploaded?: Array<{ index: number; name: string; type: string; chars: number; asset?: string }>) {
   const memory = await memoryBlock(run.dataUserId).catch(() => "");
   const attach = attachedDocument
     ? `\n\n[The user attached their Octopilot document "${attachedDocument.title}" (id ${attachedDocument.id}). Build the deck from it: read_document its text, outline and sources first; take facts only from it.]`
     : "";
+  const uploadNote = uploaded?.length
+    ? `\n\n[The user uploaded ${uploaded.length} source file(s): ${uploaded.map((file) => `${file.index}: ${file.name} (${file.type}, ${file.chars} extracted characters${file.asset ? `, usable image at ${file.asset}` : ""})`).join("; ")}. Call read_uploaded_file or search_uploaded_files to get their content. Build from these sources; do not invent facts. You may ask_user to clarify the presentation.]`
+    : "";
   run.messages = [
     { role: "system", content: memory ? `${buildOctoSlidesSystemPrompt()}\n\n${memory}` : buildOctoSlidesSystemPrompt() },
-    { role: "user", content: run.prompt + attach },
+    { role: "user", content: run.prompt + attach + uploadNote },
   ];
   emit(run, { type: "run_started", runId: run.runId });
   emit(run, { type: "turn_started", text: run.prompt });

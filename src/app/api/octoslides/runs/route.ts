@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { startOctoSlidesRun } from "@/server/octoslides/agent";
 import { requireOctoSlidesUser } from "@/server/octoslides/auth";
 import { ownsDocument } from "@/server/octoslides/dataTools";
-import { createRun, listRuns } from "@/server/octoslides/runs";
+import { createRun, deleteRun, listRuns } from "@/server/octoslides/runs";
 import { isProPlan, resolveDocumentUser } from "@/server/documentUser";
+import { saveUploadedSources, validateUploadFiles } from "@/server/octoslides/attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,13 @@ export async function POST(request: NextRequest) {
   const auth = await requireOctoSlidesUser(request);
   if ("response" in auth) return auth.response;
 
-  const body = (await request.json().catch(() => null)) as { prompt?: unknown; documentId?: unknown } | null;
+  const multipart = request.headers.get("content-type")?.includes("multipart/form-data") ?? false;
+  const form = multipart ? await request.formData().catch(() => null) : null;
+  const body = multipart ? { prompt: form?.get("prompt"), documentId: form?.get("documentId") }
+    : (await request.json().catch(() => null)) as { prompt?: unknown; documentId?: unknown } | null;
+  const files = form?.getAll("files").filter((item): item is File => item instanceof File) ?? [];
+  const uploadError = validateUploadFiles(files);
+  if (uploadError) return NextResponse.json({ error: uploadError }, { status: 400 });
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt) return NextResponse.json({ error: "Describe the deck you want." }, { status: 400 });
   if (prompt.length > 20_000) return NextResponse.json({ error: "The request is longer than 20,000 characters." }, { status: 400 });
@@ -36,11 +43,15 @@ export async function POST(request: NextRequest) {
     if (!attached) return NextResponse.json({ error: "That document was not found in your account." }, { status: 404 });
   }
 
+  let createdRunId: string | null = null;
   try {
     const run = await createRun(auth.user.id, prompt, { dataUserId, email: auth.user.email, isPro });
-    await startOctoSlidesRun(run, attached);
+    createdRunId = run.runId;
+    const sources = await saveUploadedSources(run, files);
+    await startOctoSlidesRun(run, attached, sources);
     return NextResponse.json({ runId: run.runId }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start." }, { status: 429 });
+    if (createdRunId) await deleteRun(createdRunId, auth.user.id).catch(() => undefined);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start." }, { status: createdRunId ? 400 : 429 });
   }
 }
