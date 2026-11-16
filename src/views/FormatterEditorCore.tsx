@@ -2072,7 +2072,7 @@ export default function FormatterEditorCore({
                                         <span
                                             className={mobileStyles.editorMobileHeaderText}
                                             style={{
-                                                fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
+                                                fontFamily: headerText.trim() ? fontFamily : "var(--font-ui)",
                                                 fontSize: `${headerFontSize}pt`,
                                             }}
                                         >
@@ -2100,7 +2100,7 @@ export default function FormatterEditorCore({
                                         <span
                                             className={mobileStyles.editorMobileHeaderText}
                                             style={{
-                                                fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
+                                                fontFamily: headerText.trim() ? fontFamily : "var(--font-ui)",
                                                 fontSize: `${headerFontSize}pt`,
                                             }}
                                         >
@@ -2243,7 +2243,7 @@ export default function FormatterEditorCore({
             <div
                 data-theme={theme}
                 className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ed-bg)] ${mobileStyles.editorMobileRoot}`}
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                style={{ fontFamily: "var(--font-ui)" }}
             >
                 <div
                     ref={pagesViewportRef}
@@ -2383,7 +2383,7 @@ export default function FormatterEditorCore({
         <div
             data-theme={theme}
             className="flex h-full min-h-0 flex-col bg-[var(--ed-bg)]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            style={{ fontFamily: "var(--font-ui)" }}
             onMouseMove={(e) => {
                 // Single-editor mode handles grammar tooltips on the page wrapper
                 // (overlay rects); skip the legacy per-span detection here.
@@ -2686,7 +2686,7 @@ export default function FormatterEditorCore({
                                                     title="Double-click to edit the running head"
                                                     className={`pointer-events-auto cursor-text ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
                                                     style={{
-                                                        fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif",
+                                                        fontFamily: headerText.trim() ? fontFamily : "var(--font-ui)",
                                                         fontSize: `${11 * scale}pt`,
                                                     }}
                                                 >
@@ -2775,7 +2775,7 @@ export default function FormatterEditorCore({
                                                     <div className="flex justify-end gap-2 text-right">
                                                         <span
                                                             className={`min-h-[24px] text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
-                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "var(--font-ui)", fontSize: `${11 * (zoom / 100)}pt` }}
                                                         >
                                                             {headerText.trim() || "Double-click to edit header"}
                                                         </span>
@@ -2800,7 +2800,7 @@ export default function FormatterEditorCore({
                                                     <div className="flex items-center justify-between gap-2">
                                                         <span
                                                             className={`min-h-[24px] flex-1 text-[12px] ${headerText.trim() ? "text-[#111827]" : "text-[#9098a5]"}`}
-                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "'Plus Jakarta Sans', sans-serif", fontSize: `${11 * (zoom / 100)}pt` }}
+                                                            style={{ fontFamily: headerText.trim() ? fontFamily : "var(--font-ui)", fontSize: `${11 * (zoom / 100)}pt` }}
                                                         >
                                                             {headerText.trim() || "Double-click to edit header"}
                                                         </span>

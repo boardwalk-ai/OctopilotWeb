@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 :root {
+  /* Google Sans Flex everywhere (stylesheet linked in app/layout.tsx); legacy names point at it */
+  --font-gsf: "Google Sans Flex";
+  --font-ui: var(--font-gsf), ui-sans-serif, system-ui, sans-serif;
+  --font-jakarta: var(--font-ui);
+  --font-sora: var(--font-ui);
+  --font-poppins: var(--font-ui);
   --background: #0a0a0a;
   --foreground: #ededed;
   --auth-shell-top: #080808;
@@ -10,13 +16,15 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-jakarta);
-  --font-title: var(--font-sora);
+  --font-sans: var(--font-ui);
+  --font-title: var(--font-ui);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-ui);
+  font-optical-sizing: auto;
 }
 
 * {

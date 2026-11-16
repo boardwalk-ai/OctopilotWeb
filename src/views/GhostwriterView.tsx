@@ -3,7 +3,6 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { User } from "firebase/auth";
-import { Sora } from "next/font/google";
 import {
   AppHeader,
   BackToHome,
@@ -11,11 +10,6 @@ import {
 } from "@/components/header";
 import { AuthService } from "@/services/AuthService";
 import styles from "./GhostwriterView.module.css";
-
-const sora = Sora({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 type GhostwriterViewProps = {
   onBack: () => void;
@@ -274,7 +268,7 @@ export default function GhostwriterView({ onBack, onStart }: GhostwriterViewProp
             className={styles.ghostwriterLogo}
           />
 
-          <h1 className={`${sora.className} ${styles.ghostwriterGreeting}`}>
+          <h1 className={styles.ghostwriterGreeting}>
             {greeting}
           </h1>
 

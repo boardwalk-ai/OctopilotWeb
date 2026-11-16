@@ -1,19 +1,14 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
 import AnalyticsPixels from "@/components/AnalyticsPixels";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
+// Google Sans Flex for the whole UI, loaded by the browser from Google Fonts.
+// Not via next/font: Google serves this family from /l/font?kit=…&skey=… URLs,
+// which next/font's build-time downloader (Turbopack) rejects, failing the build.
+// globals.css maps --font-gsf and the older --font-jakarta / --font-sora /
+// --font-poppins names onto it.
+const GOOGLE_SANS_FLEX_CSS =
+  "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap";
 
 export const metadata: Metadata = {
   title: "Octopilot AI",
@@ -30,7 +25,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${jakarta.variable} ${sora.variable} ${jakarta.className} antialiased`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="stylesheet" href={GOOGLE_SANS_FLEX_CSS} />
+      </head>
+      <body className="antialiased">
         <AnalyticsPixels />
         {children}
       </body>
