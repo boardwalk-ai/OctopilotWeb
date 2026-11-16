@@ -215,6 +215,9 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           break;
         case "slides_rendered":
           setRender({ version: ev.version, slides: ev.slides });
+          setRecent((rows) => rows.map((row) => row.runId === id
+            ? { ...row, slides: ev.slides, renderedVersion: ev.version }
+            : row));
           void loadRender(id, ev.slides, ev.version);
           break;
         case "steer":
@@ -228,17 +231,20 @@ export default function OctoSlidesStudio({ onBack }: Props) {
           setBusy(false);
           setQuestion(null);
           setStopping(false);
+          setRecent((rows) => rows.map((row) => row.runId === id ? { ...row, status: "idle" } : row));
           setFeed((f) => [...f.map((x) => (x.kind === "tool" && x.status === "running" ? { ...x, status: "error" as const, detail: "Stopped" } : x)), { kind: "notice", id: `x-${f.length}`, text: ev.message }]);
           break;
         case "complete":
           setStopping(false);
           setBusy(false);
           setQuestion(null);
+          setRecent((rows) => rows.map((row) => row.runId === id ? { ...row, status: "idle" } : row));
           setFeed((f) => [...f, { kind: "complete", id: `c-${f.length}`, text: ev.summary }]);
           break;
         case "error":
           setBusy(false);
           setQuestion(null);
+          setRecent((rows) => rows.map((row) => row.runId === id ? { ...row, status: "error" } : row));
           setFeed((f) => [...f.map((x) => (x.kind === "tool" && x.status === "running" ? { ...x, status: "error" as const } : x)), { kind: "error", id: `e-${f.length}`, text: ev.message }]);
           break;
       }
