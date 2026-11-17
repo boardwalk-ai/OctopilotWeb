@@ -101,9 +101,24 @@ function xfrmOf(el) {
   if (!off || !ext) return null;
   return { x: +off.getAttribute("x"), y: +off.getAttribute("y"), w: +ext.getAttribute("cx"), h: +ext.getAttribute("cy"), rot: +(x.getAttribute("rot") || 0) };
 }
-function editShape(el, edit, cx, cy) {
+function editShape(el, edit, cx, cy, inheritedBox) {
   const spPr = kid(el, NS.p, "spPr");
-  const xfrm = el.localName === "graphicFrame" ? kid(el, NS.p, "xfrm") : kid(spPr, NS.a, "xfrm");
+  let xfrm = el.localName === "graphicFrame" ? kid(el, NS.p, "xfrm") : kid(spPr, NS.a, "xfrm");
+  // a placeholder that takes its box from the layout gets its own box before it moves
+  const moves = ["x", "y", "w", "h", "rot"].some((k) => Number.isFinite(edit[k]));
+  if (!xfrm && moves && spPr && inheritedBox) {
+    const doc = el.ownerDocument;
+    xfrm = doc.createElementNS(NS.a, "a:xfrm");
+    const off = doc.createElementNS(NS.a, "a:off");
+    off.setAttribute("x", String(inheritedBox.x));
+    off.setAttribute("y", String(inheritedBox.y));
+    const ext = doc.createElementNS(NS.a, "a:ext");
+    ext.setAttribute("cx", String(inheritedBox.w));
+    ext.setAttribute("cy", String(inheritedBox.h));
+    xfrm.appendChild(off);
+    xfrm.appendChild(ext);
+    spPr.insertBefore(xfrm, spPr.firstChild);
+  }
   if (!xfrm && !edit.format) return false;
   const off = kid(xfrm, NS.a, "off");
   const ext = kid(xfrm, NS.a, "ext");
@@ -202,6 +217,40 @@ function addUserElement(doc, item, cx, cy) {
   tree.appendChild(parse(xml).documentElement);
   return true;
 }
+/**
+ * Every element on a slide gets its own name: the editor finds elements by
+ * name, and pptxgenjs names many of them "Text 0". The first keeps its name,
+ * later ones become "Text 0 #2", "Text 0 #3" (same order every pass, so the
+ * names stay put across rebuilds).
+ */
+function dedupeNames(doc) {
+  const all = [];
+  const walk = (tree) => {
+    for (const el of topElements(tree)) {
+      const c = cNvPr(el);
+      if (c) all.push(c);
+      if (el.localName === "grpSp") walk(el);
+    }
+  };
+  walk(spTreeOf(doc));
+  const taken = new Set(all.map((c) => c.getAttribute("name") || ""));
+  const seen = new Map();
+  let changed = false;
+  for (const c of all) {
+    const name = c.getAttribute("name") || "";
+    if (!name) continue;
+    const count = (seen.get(name) || 0) + 1;
+    seen.set(name, count);
+    if (count === 1) continue;
+    let k = count;
+    while (taken.has(`${name} #${k}`)) k += 1;
+    c.setAttribute("name", `${name} #${k}`);
+    taken.add(`${name} #${k}`);
+    changed = true;
+  }
+  return changed;
+}
+
 function spTreeOf(doc) {
   return doc.getElementsByTagNameNS(NS.p, "spTree")[0];
 }
@@ -461,7 +510,13 @@ function applyMotion(xml, spec, shapes) {
     let doc = parse(xml);
 
     // 1. text edits
-    let edited = false;
+    const inherited = await inheritedBoxes(zip, file);
+    const inheritedFor = (el) => {
+      const ph = phOf(el);
+      const hit = ph && (inherited.find((b) => ph.idx && b.idx === ph.idx) || inherited.find((b) => b.type === ph.type));
+      return hit ? hit.box : null;
+    };
+    let edited = dedupeNames(doc);
     for (const item of addedEdits.filter((entry) => Number(entry.slide) === n)) {
       if (addUserElement(doc, item, cx, cy)) edited = true;
     }
@@ -477,7 +532,7 @@ function applyMotion(xml, spec, shapes) {
       if (!els.length) { warn(`edits.json: slide ${n} has no element named "${e.name}" any more; edit not applied`); continue; }
       const el = els[0];
       if (e.deleted === true) { el.parentNode.removeChild(el); edited = true; continue; }
-      if (editShape(el, e, cx, cy)) edited = true;
+      if (editShape(el, e, cx, cy, inheritedFor(el))) edited = true;
       else warn(`edits.json: "${e.name}" has no editable transform`);
     }
     if (edited) {
@@ -486,7 +541,6 @@ function applyMotion(xml, spec, shapes) {
     }
 
     // collect elements (names -> ids) and boxes
-    const inherited = await inheritedBoxes(zip, file);
     const shapes = new Map();
     const elements = [];
     for (const el of topElements(spTreeOf(doc))) {

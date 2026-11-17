@@ -645,18 +645,23 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
   };
 
   /** a batch of direct edits from the editor, applied with one rebuild */
-  const editorEdits = async (edits: Array<Record<string, unknown>>) => {
-    if (!runId || !edits.length) return;
+  const editorEdits = async (edits: Array<Record<string, unknown>>): Promise<boolean> => {
+    if (!runId) return false;
+    if (!edits.length) return true;
     setSaving(true);
     setNotice(null);
     try {
-      await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
+      const data = await jsonOrError(await fetchWithUserAuthorization(`${API}/${runId}/edits`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ edits }),
       }));
-      if (edits.some((e) => e.deleted)) setSelected(null);
-    } catch (error) { setNotice((error as Error).message); }
-    finally { setSaving(false); }
+      // the saved deck is on screen before the unsaved copy is dropped
+      if (typeof data.version === "number") await loadLiveDeck(runId, data.version);
+      return true;
+    } catch (error) {
+      setNotice((error as Error).message);
+      return false;
+    } finally { setSaving(false); }
   };
 
   const openEditor = () => {
@@ -781,7 +786,6 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
     setDraft(el.text ?? "");
     setAskText("");
   };
-  const editorSelected = selected ? layout?.slides.find((slide) => slide.slide === active)?.elements.find((element) => element.name === selected.name) ?? null : null;
 
   const slides = render?.slides ?? [];
   // planned slides show up (as "being designed") before the first render exists
@@ -1301,7 +1305,6 @@ export default function OctoSlidesStudio({ onBack, initialRunId = null }: Props)
           )}
         </main>
         {editorMode && hasDeck && <FullEditor version={deckVersion} images={images} slides={slides} layout={layout} active={active} setActive={setActive}
-          selected={editorSelected} onSelect={(element) => element ? selectElement(element as LayoutElement) : setSelected(null)}
           onEdits={editorEdits} deck={liveDeck}
           onAsk={(text, target) => sendFollowUp(text, target, active)} question={question?.question ?? null} onAnswer={answer}
           onClose={closeEditor} onDownload={() => void download()} onPresent={() => void present()}

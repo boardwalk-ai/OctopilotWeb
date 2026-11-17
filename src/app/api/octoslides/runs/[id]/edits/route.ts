@@ -24,7 +24,9 @@ function parseEdit(body: Body | null): ManualEdit | string {
 
   if (add !== undefined) {
     if (add !== "text" && add !== "shape") return "Can add text or shape.";
-    return { slide, add: true, name: `User ${add} ${randomUUID().slice(0, 8)}`, kind: add, text: add === "text" ? "Text" : "", x: 0.25, y: 0.3, w: add === "text" ? 0.5 : 0.25, h: add === "text" ? 0.16 : 0.2, fill: "4472C4" };
+    // the editor names new elements itself, so they can be edited before they are saved
+    const own = typeof body?.name === "string" && new RegExp(`^User ${add} [0-9a-f]{8}$`).test(body.name) ? body.name : null;
+    return { slide, add: true, name: own ?? `User ${add} ${randomUUID().slice(0, 8)}`, kind: add, text: add === "text" ? "Text" : "", x: 0.25, y: 0.3, w: add === "text" ? 0.5 : 0.25, h: add === "text" ? 0.16 : 0.2, fill: "4472C4" };
   }
   if (transition !== null) {
     if (!(TRANSITIONS as readonly string[]).includes(transition)) return "Invalid transition.";

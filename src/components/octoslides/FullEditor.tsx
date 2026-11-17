@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { STAGE_H, STAGE_W } from "./SlideCanvas";
 import { openDeck, type EngineInstance } from "./engine";
+import { previewDeck, type PendingEdit } from "./deckPreview";
 
 /**
  * The full slide editor: slide rail on the left, the page in the middle, a
  * properties panel on the right, and the designer one message away at the
- * bottom. Changes show at once and are saved in batches: edits made within a
- * short pause go to the server together and cost one rebuild. The page is
- * drawn by the presentation engine from the deck itself, so it updates as soon
- * as the rebuilt deck exists, without waiting for the LibreOffice preview.
+ * bottom. Changes stay local until Save (one batch, one rebuild on the server)
+ * and can be undone until then. The page is drawn by the presentation engine
+ * from the deck with the unsaved changes applied in the browser, so every
+ * change shows at once.
  */
 
 export type EditorAnimation = { effect: string; trigger?: string; durationMs?: number; delayMs?: number };
@@ -25,10 +26,8 @@ type Props = {
   layout: EditorLayout | null;
   active: number;
   setActive: (slide: number) => void;
-  selected: EditorElement | null;
-  onSelect: (element: EditorElement | null) => void;
   /** saves a batch of edits ({ slide, name, ... } / { slide, transition } / { slide, add }) */
-  onEdits: (edits: Array<Record<string, unknown>>) => Promise<void>;
+  onEdits: (edits: Array<Record<string, unknown>>) => Promise<boolean>;
   /** the latest deck, drawn by the engine */
   deck: { version: number; pptx: ArrayBuffer } | null;
   onAsk: (text: string, target?: { slide: number; name: string }) => Promise<void>;
@@ -89,6 +88,8 @@ const PATHS: Record<string, string> = {
   check: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
   tune: "M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z",
   chevron: "M7 10l5 5 5-5z",
+  undo: "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z",
+  redo: "M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z",
 };
 
 function Icon({ name, size = 20 }: { name: keyof typeof PATHS; size?: number }) {
@@ -293,7 +294,7 @@ function EditorPage({
   elements: EditorElement[];
   selected: EditorElement | null;
   disabled: boolean;
-  onSelect: Props["onSelect"];
+  onSelect: (element: EditorElement | null) => void;
   onCommit: (name: string, box: Box) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -342,8 +343,12 @@ function EditorPage({
     e.stopPropagation();
     const box = draft[el.name] ?? { x: el.x, y: el.y, w: el.w, h: el.h };
     gesture.current = { id: e.pointerId, name: el.name, handle, cx: e.clientX, cy: e.clientY, box, moved: false };
-    e.currentTarget.setPointerCapture(e.pointerId);
     onSelect(el);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // the drag still follows the pointer while it stays over the element
+    }
   };
   const move = (e: PointerEvent<HTMLElement>) => {
     const g = gesture.current;
@@ -433,8 +438,19 @@ function animationsOf(el: EditorElement) {
   };
 }
 
-function ElementPanel({ el, disabled, edit }: { el: EditorElement; disabled: boolean; edit: (payload: Record<string, unknown>) => void }) {
+function ElementPanel({ el, disabled, edit, editText }: { el: EditorElement; disabled: boolean; edit: (payload: Record<string, unknown>) => void; editText: (text: string) => void }) {
   const [text, setText] = useState(el.text ?? "");
+  // typing updates the slide after a short pause, as one change
+  const typing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const changeText = (next: string) => {
+    setText(next);
+    if (typing.current) clearTimeout(typing.current);
+    typing.current = setTimeout(() => editText(next), 400);
+  };
+  const commitText = () => {
+    if (typing.current) clearTimeout(typing.current);
+    if (text !== (el.text ?? "")) editText(text);
+  };
   const [fill, setFill] = useState<string | null>(null);
   const [motion, setMotion] = useState(() => animationsOf(el));
   const pct = (v: number) => Math.round(v * 1000) / 10;
@@ -454,18 +470,10 @@ function ElementPanel({ el, disabled, edit }: { el: EditorElement; disabled: boo
             value={text}
             disabled={disabled}
             rows={Math.min(8, Math.max(3, text.split("\n").length + 1))}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && text !== el.text) edit({ text });
-            }}
+            onChange={(e) => changeText(e.target.value)}
+            onBlur={commitText}
             className="ed-textarea t-body-m"
           />
-          <div className="flex items-center justify-between gap-2">
-            <span className="t-body-s on-variant">Ctrl + Enter saves</span>
-            <button type="button" disabled={disabled || text === (el.text ?? "")} onClick={() => edit({ text })} className="state btn btn-tonal !h-9 !px-4">
-              Save text
-            </button>
-          </div>
         </Section>
       )}
 
@@ -574,125 +582,292 @@ function SlidePanel({ slide, elements, transition, disabled, onTransition, onSel
   );
 }
 
+/* ─────────────────────────── pending changes ─────────────────────────── */
+
+type Pending = Map<string, PendingEdit>;
+
+const isAdd = (p: PendingEdit) => p.add === "text" || p.add === "shape";
+
+/** The layout's elements for one slide with the unsaved changes applied. */
+function withPending(base: EditorElement[], pending: Pending, slide: number): EditorElement[] {
+  let els = base.map((e) => ({ ...e }));
+  const mine = [...pending.values()].filter((p) => p.slide === slide);
+  for (const p of mine.filter(isAdd)) {
+    els.push({ id: String(p.name), name: String(p.name), kind: p.add === "shape" ? "shape" : "text", text: p.add === "text" ? "Text" : undefined, x: Number(p.x), y: Number(p.y), w: Number(p.w), h: Number(p.h), format: {}, animations: [] });
+  }
+  for (const p of mine.filter((p) => !isAdd(p) && typeof p.name === "string")) {
+    const i = els.findIndex((e) => e.name === p.name);
+    if (i < 0) continue;
+    if (p.deleted === true) {
+      els = els.filter((_, j) => j !== i);
+      continue;
+    }
+    const e = { ...els[i] };
+    for (const k of ["x", "y", "w", "h", "rot"] as const) if (typeof p[k] === "number") e[k] = p[k] as number;
+    if (typeof p.text === "string") e.text = p.text;
+    if (p.format) e.format = { ...e.format, ...(p.format as EditorFormat) };
+    if (Array.isArray(p.animations)) e.animations = p.animations as EditorAnimation[];
+    els[i] = e;
+  }
+  return els;
+}
+
+function merge(prev: PendingEdit | undefined, next: PendingEdit): PendingEdit {
+  if (!prev) return next;
+  return { ...prev, ...next, ...(next.format ? { format: { ...(prev.format as object), ...(next.format as object) } } : {}) };
+}
+
+function UnsavedDialog({ count, saving, onSave, onDiscard, onCancel }: { count: number; saving: boolean; onSave: () => void; onDiscard: () => void; onCancel: () => void }) {
+  const first = useRef<HTMLButtonElement>(null);
+  useEffect(() => first.current?.focus(), []);
+  return (
+    <div className="absolute inset-0 z-50 grid place-items-center p-4" style={{ background: "var(--md-scrim)" }} onKeyDown={(e) => e.key === "Escape" && onCancel()}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="ed-unsaved-title" aria-describedby="ed-unsaved-text" className="w-full max-w-[380px] rounded-[28px] p-6" style={{ background: "var(--md-surface-container-high)", boxShadow: "var(--md-elev-3)" }}>
+        <h2 id="ed-unsaved-title" className="t-headline-s">Save your changes?</h2>
+        <p id="ed-unsaved-text" className="t-body-m on-variant mt-4">
+          You have {count} unsaved {count === 1 ? "change" : "changes"}. If you leave without saving, {count === 1 ? "it is" : "they are"} lost.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onDiscard} disabled={saving} className="state btn btn-text">
+            Discard
+          </button>
+          <button type="button" ref={first} onClick={onCancel} disabled={saving} className="state btn btn-text">
+            Keep editing
+          </button>
+          <button type="button" onClick={onSave} disabled={saving} className="state btn btn-filled">
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── editor ─────────────────────────── */
 
 export default function FullEditor(props: Props) {
-  const { active, selected } = props;
-  const [transitionDraft, setTransitionDraft] = useState<Record<number, string>>({});
+  const { active } = props;
   const [chat, setChat] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
-  const slide = props.layout?.slides.find((s) => s.slide === active);
-  const elements = slide?.elements ?? [];
+  const [selName, setSelName] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState<null | "close">(null);
   const locked = props.busy;
 
-  // Edits collect for a short pause and are saved together; edits to the same
-  // thing merge. While a save is running, new edits wait for the next batch.
-  const onEdits = useRef(props.onEdits);
-  useEffect(() => {
-    onEdits.current = props.onEdits;
-  });
-  const pendingEdits = useRef(new Map<string, Record<string, unknown>>());
-  const sending = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [unsaved, setUnsaved] = useState(0);
-  const flush = useCallback(async () => {
-    if (sending.current) return;
-    sending.current = true;
-    while (pendingEdits.current.size) {
-      const batch = [...pendingEdits.current.values()];
-      pendingEdits.current.clear();
-      setUnsaved(batch.length);
-      await onEdits.current(batch);
-    }
-    setUnsaved(0);
-    sending.current = false;
-  }, []);
-  const queueEdit = useCallback(
-    (key: string, payload: Record<string, unknown>) => {
-      const prev = pendingEdits.current.get(key);
-      pendingEdits.current.set(key, prev ? { ...prev, ...payload, ...(payload.format ? { format: { ...(prev.format as object), ...(payload.format as object) } } : {}) } : payload);
-      setUnsaved(pendingEdits.current.size);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void flush(), 700);
-    },
-    [flush],
-  );
-  const edit = useCallback((name: string, payload: Record<string, unknown>) => queueEdit(`${active}:${name}`, { slide: active, name, ...payload }), [queueEdit, active]);
-  // nothing is lost when the editor closes with edits still waiting
-  useEffect(() => {
-    const pending = pendingEdits.current;
-    const send = onEdits;
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-      if (pending.size && !sending.current) void send.current([...pending.values()]);
-    };
-  }, []);
+  // ── unsaved changes, with undo and redo ──
+  const [pending, setPending] = useState<Pending>(() => new Map());
+  const [past, setPast] = useState<Pending[]>([]);
+  const [future, setFuture] = useState<Pending[]>([]);
+  const [savingNow, setSavingNow] = useState(false);
+  const change = (update: (cur: Pending) => Pending) => {
+    const next = update(pending);
+    if (next === pending) return;
+    setPast((p) => [...p.slice(-99), pending]);
+    setFuture([]);
+    setPending(next);
+  };
+  const put = (key: string, payload: PendingEdit) =>
+    change((cur) => {
+      const next = new Map(cur);
+      next.set(key, merge(cur.get(key), payload));
+      return next;
+    });
+  const edit = (name: string, payload: Record<string, unknown>) => put(`${active}:${name}`, { slide: active, name, ...payload });
+  const editText = (name: string, text: string) => put(`${active}:${name}:text`, { slide: active, name, text });
+  const remove = (name: string) =>
+    change((cur) => {
+      const next = new Map(cur);
+      const added = [...cur.entries()].find(([, p]) => p.slide === active && isAdd(p) && p.name === name);
+      if (added) {
+        // never saved: just forget it and everything done to it
+        for (const [k, p] of cur) if (p.slide === active && p.name === name) next.delete(k);
+      } else {
+        next.delete(`${active}:${name}:text`);
+        next.set(`${active}:${name}`, { slide: active, name, deleted: true });
+      }
+      return next;
+    });
+  const add = (kind: "text" | "shape") => {
+    const name = `User ${kind} ${Math.random().toString(16).slice(2, 10).padEnd(8, "0")}`;
+    put(`${active}:add:${name}`, { slide: active, add: kind, name, x: 0.25, y: 0.3, w: kind === "text" ? 0.5 : 0.25, h: kind === "text" ? 0.16 : 0.2 });
+    setSelName(name);
+  };
+  const undo = () => {
+    if (!past.length) return;
+    setFuture((f) => [pending, ...f]);
+    setPending(past[past.length - 1]);
+    setPast((p) => p.slice(0, -1));
+  };
+  const redo = () => {
+    if (!future.length) return;
+    setPast((p) => [...p, pending]);
+    setPending(future[0]);
+    setFuture((f) => f.slice(1));
+  };
+  const discard = () => {
+    setPending(new Map());
+    setPast([]);
+    setFuture([]);
+  };
 
-  // Escape lets go of the selection; it never leaves the editor
+  /** Sends every unsaved change in one batch. Changes made while it saves stay unsaved. */
+  const save = async (): Promise<boolean> => {
+    if (!pending.size) return true;
+    if (savingNow || locked) return false;
+    const sent = pending;
+    // new elements first, so later changes can find them
+    const batch = [...sent.values()].sort((a, b) => Number(isAdd(b)) - Number(isAdd(a)));
+    setSavingNow(true);
+    const ok = await props.onEdits(batch);
+    setSavingNow(false);
+    if (ok) {
+      setPending((cur) => {
+        const next = new Map(cur);
+        for (const [k, v] of sent) if (next.get(k) === v) next.delete(k);
+        return next;
+      });
+      setPast([]);
+      setFuture([]);
+    }
+    return ok;
+  };
+  const unsaved = pending.size;
+
+  // the slide as it will look once saved: the deck with the unsaved changes applied
+  const [preview, setPreview] = useState<Props["deck"]>(null);
+  const previewSeq = useRef(0);
+  useEffect(() => {
+    const seq = ++previewSeq.current;
+    const base = props.deck;
+    const t = setTimeout(() => {
+      if (!base || !pending.size) return setPreview(null);
+      previewDeck(base.pptx, [...pending.values()])
+        .then((pptx) => seq === previewSeq.current && setPreview({ version: base.version + seq / 1e6, pptx }))
+        .catch(() => seq === previewSeq.current && setPreview(null));
+    }, 120);
+    return () => clearTimeout(t);
+  }, [props.deck, pending]);
+
+  // ── what is on the page ──
+  const slide = props.layout?.slides.find((s) => s.slide === active);
+  const elements = useMemo(() => withPending(slide?.elements ?? [], pending, active), [slide, pending, active]);
+  const selected = selName ? elements.find((e) => e.name === selName) ?? null : null;
+  const select = (el: EditorElement | null) => setSelName(el?.name ?? null);
+  const goTo = (n: number) => {
+    props.setActive(n);
+    setSelName(null);
+  };
+  const transition = String(pending.get(`${active}:transition`)?.transition ?? slide?.transition ?? "fade");
+
+  // ── leaving ──
+  const close = () => (unsaved ? setLeaving("close") : props.onClose());
+  const thenSave = (action: () => void) => async () => {
+    if (await save()) action();
+  };
+
+  // the browser warns before a reload or tab close loses unsaved changes
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved]);
+
+  // Ctrl+S saves, Ctrl+Z / Ctrl+Shift+Z undo and redo, Escape lets go of the selection
+  const keys = useRef({ save, undo, redo, selected, leaving });
+  useEffect(() => {
+    keys.current = { save, undo, redo, selected, leaving };
+  });
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape" && selected) props.onSelect(null);
+      const k = keys.current;
+      const typing = e.target instanceof Element && !!e.target.closest("input, textarea, select");
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void k.save();
+      } else if (mod && !typing && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) k.redo();
+        else k.undo();
+      } else if (mod && !typing && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        k.redo();
+      } else if (e.key === "Escape" && k.selected && !k.leaving) setSelName(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, props]);
+  }, []);
 
-  // the local format copy keeps the toolbar in step while the deck rebuilds
-  const [fmt, setFmt] = useState<EditorFormat>(selected?.format ?? {});
-  const [fmtFor, setFmtFor] = useState(`${selected?.id}:${props.version}`);
-  if (fmtFor !== `${selected?.id}:${props.version}`) {
-    setFmtFor(`${selected?.id}:${props.version}`);
-    setFmt(selected?.format ?? {});
-  }
-  const setFormat = (patch: EditorFormat) => {
-    if (!selected) return;
-    setFmt((f) => ({ ...f, ...patch }));
-    edit(selected.name, { format: patch });
-  };
-
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const text = chat.trim();
     if (!text) return;
+    if (props.question) {
+      setChat("");
+      void props.onAnswer(text);
+      return;
+    }
+    // the designer works from the saved deck
+    if (!(await save())) return;
     setChat("");
-    if (props.question) void props.onAnswer(text);
-    else void props.onAsk(text, selected ? { slide: active, name: selected.name } : undefined);
+    void props.onAsk(text, selected ? { slide: active, name: selected.name } : undefined);
   };
 
-  const saving = props.saving || unsaved > 0;
+  const fmt = selected?.format ?? {};
+  const setFormat = (patch: EditorFormat) => selected && edit(selected.name, { format: patch });
   const isText = selected?.kind === "text";
   const size = fmt.size ?? 24;
+  const status = locked ? "The designer is working on the deck…" : savingNow ? "Saving…" : unsaved ? `${unsaved} unsaved ${unsaved === 1 ? "change" : "changes"}` : "All changes saved";
 
   return (
     <section className="os-full-editor absolute inset-0 z-30 flex flex-col overflow-hidden" style={{ background: "var(--md-surface-dim)" }} aria-label="Slide editor">
       {/* ── top app bar ── */}
-      <header className="flex h-16 shrink-0 items-center gap-2 px-2 md:px-4" style={{ background: "var(--md-surface)" }}>
-        <button type="button" onClick={props.onClose} aria-label="Back to the studio" title="Back to the studio" className="state icon-btn">
+      <header className="flex h-16 shrink-0 items-center gap-1 px-2 md:gap-2 md:px-4" style={{ background: "var(--md-surface)" }}>
+        <button type="button" onClick={close} aria-label="Back to the studio" title="Back to the studio" className="state icon-btn">
           <Icon name="back" size={22} />
         </button>
         <div className="min-w-0 flex-1">
           <p className="t-title-m truncate">Edit slides</p>
-          <p className="t-body-s on-variant" aria-live="polite">
-            {props.busy ? "The designer is working on the deck…" : saving ? "Saving changes…" : `Slide ${active} of ${props.slides.length} · all changes saved`}
+          <p className="t-body-s on-variant truncate" aria-live="polite">
+            Slide {active} of {props.slides.length} · <span style={{ color: unsaved && !savingNow ? "var(--md-tertiary)" : undefined }}>{status}</span>
           </p>
         </div>
+        <button type="button" onClick={undo} disabled={!past.length || savingNow} aria-label="Undo" title="Undo (Ctrl+Z)" className="state icon-btn">
+          <Icon name="undo" />
+        </button>
+        <button type="button" onClick={redo} disabled={!future.length || savingNow} aria-label="Redo" title="Redo (Ctrl+Shift+Z)" className="state icon-btn">
+          <Icon name="redo" />
+        </button>
+        {unsaved > 0 && !savingNow && (
+          <button type="button" onClick={discard} className="state btn btn-text neutral hidden md:inline-flex">
+            Discard
+          </button>
+        )}
+        <button type="button" onClick={() => void save()} disabled={!unsaved || savingNow || locked} title="Save (Ctrl+S)" className="state btn btn-filled has-icon">
+          {savingNow ? <span className="progress-circular" aria-hidden="true" /> : <Icon name="check" size={18} />}
+          {savingNow ? "Saving" : unsaved ? `Save (${unsaved})` : "Saved"}
+        </button>
+        <span className="ed-divider hidden sm:block" />
         <button type="button" onClick={() => setPanelOpen((o) => !o)} aria-label="Properties" aria-expanded={panelOpen} className={`state icon-btn lg:hidden ${panelOpen ? "selected" : ""}`}>
           <Icon name="tune" />
         </button>
-        <button type="button" onClick={props.onDownload} className="state btn btn-outlined has-icon hidden sm:inline-flex">
-          <Icon name="download" size={18} /> Download
+        <button type="button" onClick={thenSave(props.onDownload)} disabled={savingNow} aria-label="Download" title={unsaved ? "Save and download" : "Download"} className="state icon-btn hidden sm:inline-flex">
+          <Icon name="download" />
         </button>
-        <button type="button" onClick={props.onPresent} className="state btn btn-filled has-icon">
+        <button type="button" onClick={thenSave(props.onPresent)} disabled={savingNow} title={unsaved ? "Save and present" : "Present"} className="state btn btn-outlined has-icon">
           <Icon name="play" size={18} /> Present
         </button>
       </header>
 
       {/* ── toolbar: insert, then whatever fits the selection ── */}
       <div className="ed-toolbar flex h-14 shrink-0 items-center gap-1 overflow-x-auto px-2 md:px-4" role="toolbar" aria-label="Formatting">
-        <button type="button" disabled={locked} onClick={() => queueEdit(`add-${Date.now()}`, { slide: active, add: "text" })} className="state btn btn-text neutral has-icon !h-10 !px-3">
+        <button type="button" disabled={locked} onClick={() => add("text")} className="state btn btn-text neutral has-icon !h-10 !px-3">
           <Icon name="text" size={18} /> Text box
         </button>
-        <button type="button" disabled={locked} onClick={() => queueEdit(`add-${Date.now()}`, { slide: active, add: "shape" })} className="state btn btn-text neutral has-icon !h-10 !px-3">
+        <button type="button" disabled={locked} onClick={() => add("shape")} className="state btn btn-text neutral has-icon !h-10 !px-3">
           <Icon name="shape" size={18} /> Shape
         </button>
         {isText && selected && (
@@ -702,7 +877,7 @@ export default function FullEditor(props: Props) {
               <option value="" disabled>
                 Theme font
               </option>
-              {FONTS.map((f) => (
+              {[...new Set([...(fmt.font ? [fmt.font] : []), ...FONTS])].map((f) => (
                 <option key={f} value={f}>
                   {f}
                 </option>
@@ -739,56 +914,51 @@ export default function FullEditor(props: Props) {
         {selected && (
           <>
             <span className="flex-1" />
-            <button type="button" disabled={locked} onClick={() => edit(selected.name, { deleted: true })} className="state btn btn-text neutral has-icon !h-10 !px-3">
+            <button type="button" disabled={locked} onClick={() => remove(selected.name)} className="state btn btn-text neutral has-icon !h-10 !px-3">
               <Icon name="delete" size={18} /> Delete
             </button>
           </>
         )}
       </div>
-      {saving || props.busy ? <div className="progress-linear !h-[3px] !rounded-none" role="progressbar" aria-label="Applying changes" /> : <div className="h-[3px] shrink-0" style={{ background: "var(--md-outline-variant)", height: 1 }} />}
+      {savingNow || locked ? <div className="progress-linear !h-[3px] !rounded-none" role="progressbar" aria-label="Saving" /> : <div className="shrink-0" style={{ background: "var(--md-outline-variant)", height: 1 }} />}
 
       <div className="relative flex min-h-0 flex-1">
         {/* ── slide rail ── */}
         <nav className="hidden w-[176px] shrink-0 overflow-y-auto px-3 py-4 md:block" style={{ background: "var(--md-surface)" }} aria-label="Slides">
           <ol className="space-y-3">
-            {props.slides.map((n) => (
-              <li key={n}>
-                <button
-                  type="button"
-                  aria-label={`Slide ${n}`}
-                  aria-current={n === active ? "true" : undefined}
-                  onClick={() => {
-                    props.setActive(n);
-                    props.onSelect(null);
-                  }}
-                  className="group flex w-full items-start gap-2 text-left"
-                >
-                  <span className="t-label-m w-4 pt-1 text-right tabular-nums" style={{ color: n === active ? "var(--md-primary)" : "var(--md-on-surface-variant)" }}>
-                    {n}
-                  </span>
-                  <span
-                    className="block flex-1 overflow-hidden rounded-[var(--md-shape-s)] transition-[outline-color]"
-                    style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}`, outline: n === active ? "2px solid var(--md-primary)" : "1px solid var(--md-outline-variant)", outlineOffset: n === active ? 1 : -1, background: "var(--md-surface-container)" }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {props.images[n] && <img src={props.images[n]} alt="" className="h-full w-full object-cover" draggable={false} />}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {props.slides.map((n) => {
+              const dirty = [...pending.values()].some((p) => p.slide === n);
+              return (
+                <li key={n}>
+                  <button type="button" aria-label={`Slide ${n}${dirty ? ", unsaved changes" : ""}`} aria-current={n === active ? "true" : undefined} onClick={() => goTo(n)} className="group flex w-full items-start gap-2 text-left">
+                    <span className="t-label-m flex w-4 flex-col items-end gap-1 pt-1 tabular-nums" style={{ color: n === active ? "var(--md-primary)" : "var(--md-on-surface-variant)" }}>
+                      {n}
+                      {dirty && <span className="block h-1.5 w-1.5 rounded-full" style={{ background: "var(--md-tertiary)" }} aria-hidden="true" />}
+                    </span>
+                    <span
+                      className="block flex-1 overflow-hidden rounded-[var(--md-shape-s)] transition-[outline-color]"
+                      style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}`, outline: n === active ? "2px solid var(--md-primary)" : "1px solid var(--md-outline-variant)", outlineOffset: n === active ? 1 : -1, background: "var(--md-surface-container)" }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {props.images[n] && <img src={props.images[n]} alt="" className="h-full w-full object-cover" draggable={false} />}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ol>
         </nav>
 
         {/* ── page ── */}
         <div className="relative min-w-0 flex-1 overflow-hidden">
-          {props.images[active] ? (
+          {props.images[active] || props.deck ? (
             <EditorPage
               key={active}
-              background={(w) => <LiveSlide deck={props.deck} slide={active} fallback={props.images[active]} references={props.images} width={w} />}
+              background={(w) => <LiveSlide deck={preview ?? props.deck} slide={active} fallback={props.images[active]} references={props.images} width={w} />}
               elements={elements}
               selected={selected}
               disabled={locked}
-              onSelect={props.onSelect}
+              onSelect={select}
               onCommit={(name, box) => edit(name, box)}
             />
           ) : (
@@ -815,7 +985,7 @@ export default function FullEditor(props: Props) {
             )}
             <form onSubmit={submit} className="ed-composer">
               {selected && !props.question && (
-                <button type="button" onClick={() => props.onSelect(null)} className="state chip selected has-icon !h-8 !pl-3 !pr-2 shrink-0" title="Only this element will be changed. Click to ask about the whole slide.">
+                <button type="button" onClick={() => setSelName(null)} className="state chip selected has-icon !h-8 !pl-3 !pr-2 shrink-0" title="Only this element will be changed. Click to ask about the whole slide.">
                   <span className="max-w-[140px] truncate">{selected.name}</span>
                   <Icon name="close" size={16} />
                 </button>
@@ -827,7 +997,7 @@ export default function FullEditor(props: Props) {
                 placeholder={props.question ? "Type your answer" : selected ? "What should change about it?" : `Ask the designer to change slide ${active}`}
                 className="t-body-m min-w-0 flex-1 bg-transparent px-2 outline-none placeholder:text-[var(--md-on-surface-variant)]"
               />
-              <button type="submit" disabled={!chat.trim() || (props.busy && !props.question)} aria-label="Send" className="state icon-btn filled !h-10 !w-10">
+              <button type="submit" disabled={!chat.trim() || (locked && !props.question) || savingNow} aria-label={unsaved && !props.question ? "Save and send" : "Send"} title={unsaved && !props.question ? "Saves your changes first" : undefined} className="state icon-btn filled !h-10 !w-10">
                 <Icon name="send" size={18} />
               </button>
             </form>
@@ -845,23 +1015,37 @@ export default function FullEditor(props: Props) {
               <p className="t-body-s on-variant">{selected ? `${selected.kind} · slide ${active}` : "Select something on the slide to format it"}</p>
             </div>
             {selected && (
-              <button type="button" onClick={() => props.onSelect(null)} aria-label="Back to slide settings" title="Back to slide settings" className="state icon-btn">
+              <button type="button" onClick={() => setSelName(null)} aria-label="Back to slide settings" title="Back to slide settings" className="state icon-btn">
                 <Icon name="close" />
               </button>
             )}
           </div>
           {selected ? (
-            <ElementPanel key={`${selected.id}:${props.version}`} el={selected} disabled={locked} edit={(payload) => edit(selected.name, payload)} />
+            <ElementPanel key={`${active}:${selected.name}:${props.version}`} el={selected} disabled={locked} edit={(payload) => edit(selected.name, payload)} editText={(t) => editText(selected.name, t)} />
           ) : (
-            <SlidePanel slide={active} elements={elements} transition={transitionDraft[active] ?? slide?.transition ?? "fade"}
-              disabled={locked}
-              onTransition={(t) => {
-                setTransitionDraft((d) => ({ ...d, [active]: t }));
-                queueEdit(`${active}:transition`, { slide: active, transition: t });
-              }} onSelect={props.onSelect} />
+            <SlidePanel slide={active} elements={elements} transition={transition} disabled={locked} onTransition={(t) => put(`${active}:transition`, { slide: active, transition: t })} onSelect={select} />
           )}
         </aside>
       </div>
+
+      {leaving && (
+        <UnsavedDialog
+          count={unsaved}
+          saving={savingNow}
+          onCancel={() => setLeaving(null)}
+          onDiscard={() => {
+            setLeaving(null);
+            discard();
+            props.onClose();
+          }}
+          onSave={async () => {
+            if (await save()) {
+              setLeaving(null);
+              props.onClose();
+            }
+          }}
+        />
+      )}
     </section>
   );
 }
