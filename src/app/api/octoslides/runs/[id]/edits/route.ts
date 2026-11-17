@@ -112,7 +112,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     edits.push(parsed);
   }
   if (run.deckVersion === 0) return NextResponse.json({ error: "There is no deck to edit yet." }, { status: 409 });
-  if (!claimRun(run)) return NextResponse.json({ error: "The designer is still working. Try again when it finishes." }, { status: 409 });
+  const claimed = await claimRun(run);
+  if (claimed !== true) return NextResponse.json({ error: claimed }, { status: 409 });
 
   try {
     await applyManualEdits(run, edits);

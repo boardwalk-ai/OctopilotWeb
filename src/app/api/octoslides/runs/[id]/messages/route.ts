@@ -37,7 +37,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { interrupted } = steerRun(run, `${where}${text}`);
     return NextResponse.json({ ok: true, mode: "steer", interrupted }, { status: 202 });
   }
-  if (!claimRun(run)) return NextResponse.json({ error: "The designer is still working. Wait for it to finish." }, { status: 409 });
+  const claimed = await claimRun(run);
+  if (claimed !== true) return NextResponse.json({ error: claimed }, { status: 409 });
 
   try {
     await continueOctoSlidesRun(run, text, target, editorSlide ?? undefined);

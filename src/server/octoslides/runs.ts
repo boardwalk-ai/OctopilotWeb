@@ -88,6 +88,10 @@ export type OctoSlidesRun = {
   /** characters of a write_file the model is streaming right now (0 = not writing a file) */
   writingChars: number;
   lastActivityAt: number;
+  /** updated_at of the saved row this copy matches (the Octopilot app may move a deck on) */
+  savedAt: number | null;
+  /** renews the lease while this process works on the deck */
+  leaseTimer?: ReturnType<typeof setInterval> | null;
 };
 
 const RUNS = new Map<string, OctoSlidesRun>();
@@ -150,13 +154,14 @@ function savableMessages(messages: ChatMessage[]): ChatMessage[] {
 }
 
 export async function saveRun(run: OctoSlidesRun): Promise<void> {
-  await query(
+  const saved = await query<{ updated_at: Date }>(
     `INSERT INTO octoslides_decks (run_id, owner_id, data_user_id, email, is_pro, prompt, status, deck_version, rendered_version,
         validated_version, cost_usd, steps, watermark_opt_out, generated_images, credits, messages, events, created_at, updated_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, to_timestamp($18 / 1000.0), now())
      ON CONFLICT (run_id) DO UPDATE SET status = $7, deck_version = $8, rendered_version = $9, validated_version = $10,
         cost_usd = $11, steps = $12, watermark_opt_out = $13, generated_images = $14, credits = $15, messages = $16,
-        events = $17, updated_at = now()`,
+        events = $17, updated_at = now()
+     RETURNING updated_at`,
     [
       run.runId,
       run.ownerId,
@@ -178,6 +183,38 @@ export async function saveRun(run: OctoSlidesRun): Promise<void> {
       run.createdAt,
     ],
   );
+  if (saved[0]) run.savedAt = new Date(saved[0].updated_at).getTime();
+}
+
+// ── lease: the web app and the Octopilot app (octoslides-api) share decks ──────
+// Only one of them may work on a deck at a time (migration 008).
+const RUNNER = "web";
+const LEASE_SECONDS = 90;
+
+/** Takes the deck's lease. True when it is ours (or the deck is not saved yet). */
+async function acquireLease(runId: string): Promise<boolean> {
+  const got = await query<{ run_id: string }>(
+    `UPDATE octoslides_decks SET runner = $2, lease_until = now() + make_interval(secs => $3)
+      WHERE run_id = $1 AND (lease_until IS NULL OR lease_until < now() OR runner = $2) RETURNING run_id`,
+    [runId, RUNNER, LEASE_SECONDS],
+  );
+  if (got.length) return true;
+  const exists = await query("SELECT 1 FROM octoslides_decks WHERE run_id = $1", [runId]);
+  return exists.length === 0;
+}
+
+function keepLease(run: OctoSlidesRun) {
+  if (run.leaseTimer) clearInterval(run.leaseTimer);
+  run.leaseTimer = setInterval(() => {
+    void query("UPDATE octoslides_decks SET lease_until = now() + make_interval(secs => $3) WHERE run_id = $1 AND runner = $2", [run.runId, RUNNER, LEASE_SECONDS]).catch(() => undefined);
+  }, 30_000);
+  run.leaseTimer.unref?.();
+}
+
+async function releaseLease(run: OctoSlidesRun) {
+  if (run.leaseTimer) clearInterval(run.leaseTimer);
+  run.leaseTimer = null;
+  await query("UPDATE octoslides_decks SET lease_until = NULL WHERE run_id = $1 AND runner = $2", [run.runId, RUNNER]).catch(() => undefined);
 }
 
 type DeckRow = {
@@ -199,6 +236,7 @@ type DeckRow = {
   messages: ChatMessage[];
   events: OctoSlidesEvent[];
   created_at: Date;
+  updated_at: Date;
 };
 
 async function loadRun(runId: string, ownerId: string): Promise<OctoSlidesRun | null> {
@@ -241,6 +279,7 @@ async function loadRun(runId: string, ownerId: string): Promise<OctoSlidesRun | 
     stopRequested: false,
     writingChars: 0,
     lastActivityAt: Date.now(),
+    savedAt: new Date(row.updated_at).getTime(),
   };
   // the deck file decides whether anything was built
   if (!(await deckInfo(dir)).exists) run.deckVersion = 0;
@@ -306,6 +345,7 @@ export async function createRun(
     stopRequested: false,
     writingChars: 0,
     lastActivityAt: Date.now(),
+    savedAt: null,
   };
   RUNS.set(runId, run);
   return run;
@@ -315,15 +355,32 @@ export async function createRun(
 export async function getRun(runId: string, ownerId: string): Promise<OctoSlidesRun | null> {
   gc();
   const run = RUNS.get(runId);
-  if (run) return run.ownerId === ownerId ? run : null;
+  if (run) {
+    if (run.ownerId !== ownerId) return null;
+    if (run.active || run.savedAt === null) return run;
+    // the Octopilot app may have worked on the deck since this copy was loaded
+    const rows = await query<{ updated_at: Date }>("SELECT updated_at FROM octoslides_decks WHERE run_id = $1", [runId]).catch(() => []);
+    const updated = rows[0] ? new Date(rows[0].updated_at).getTime() : null;
+    if (updated === null || updated <= run.savedAt) return run;
+    RUNS.delete(runId);
+  }
   // a saved deck that has left memory (idle for hours, or the server restarted)
   return loadRun(runId, ownerId);
 }
 
-/** Marks an idle run busy again (follow-up request or manual edit). False if it is already busy. */
-export function claimRun(run: OctoSlidesRun): boolean {
-  if (run.active) return false;
+/**
+ * Marks an idle run busy again (follow-up request or manual edit) and takes its lease.
+ * Returns why it could not: busy here, or being designed in the Octopilot app.
+ */
+export async function claimRun(run: OctoSlidesRun): Promise<true | string> {
+  if (run.active) return "The designer is still working. Wait for it to finish.";
   run.active = true;
+  const leased = await acquireLease(run.runId).catch(() => false);
+  if (!leased) {
+    run.active = false;
+    return "This deck is being designed in the Octopilot app right now. Try again when it finishes.";
+  }
+  keepLease(run);
   run.status = "running";
   run.stopRequested = false;
   run.inbox = [];
@@ -382,7 +439,9 @@ export function finishRun(run: OctoSlidesRun, status: "idle" | "error") {
   run.stopCtl = null;
   run.writingChars = 0;
   run.lastActivityAt = Date.now();
-  void saveRun(run).catch((error) => console.warn(`[octoslides] could not save ${run.runId}:`, (error as Error).message));
+  void saveRun(run)
+    .catch((error) => console.warn(`[octoslides] could not save ${run.runId}:`, (error as Error).message))
+    .finally(() => void releaseLease(run));
 }
 
 export type RunSummary = {
@@ -430,8 +489,10 @@ export async function listRuns(ownerId: string): Promise<RunSummary[]> {
     rendered_version: number;
     cost_usd: string;
     renders: Array<{ slides?: number[] }>;
+    app_busy: boolean;
   }>(
     `SELECT run_id, prompt, status, created_at, deck_version, rendered_version, cost_usd,
+            (lease_until > now() AND runner = 'app') AS app_busy,
             (SELECT COALESCE(jsonb_agg(e), '[]'::jsonb) FROM jsonb_array_elements(events) e WHERE e->>'type' = 'slides_rendered') AS renders
        FROM octoslides_decks WHERE owner_id = $1 ORDER BY updated_at DESC LIMIT 30`,
     [ownerId],
@@ -442,7 +503,7 @@ export async function listRuns(ownerId: string): Promise<RunSummary[]> {
     live.push({
       runId: r.run_id,
       prompt: r.prompt.slice(0, 200),
-      status: r.status === "error" ? "error" : "idle",
+      status: r.app_busy ? "running" : r.status === "error" ? "error" : "idle",
       createdAt: new Date(r.created_at).getTime(),
       deckVersion: r.deck_version,
       renderedVersion: r.rendered_version,

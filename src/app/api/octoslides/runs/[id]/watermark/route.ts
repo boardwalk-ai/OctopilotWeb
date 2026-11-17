@@ -24,7 +24,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     run.watermarkOptOut = !body.enabled;
     return NextResponse.json({ ok: true });
   }
-  if (!claimRun(run)) return NextResponse.json({ error: "The designer is still working. Try again when it finishes." }, { status: 409 });
+  const claimed = await claimRun(run);
+  if (claimed !== true) return NextResponse.json({ error: claimed }, { status: 409 });
 
   try {
     run.watermarkOptOut = !body.enabled;
